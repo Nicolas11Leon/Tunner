@@ -7,7 +7,7 @@
 - **ID del Plan:** `PLAN-FASE1-DSP-ISOLATE-2026-003`
 - **Título de la Implementación:** `Aislamiento del Pipeline DSP y Estimación de Tono en Hilo Secundario (Dedicated Worker Isolate)`
 - **Fase del Proyecto:** `Fase 1`
-- **Estado:** `Aprobado`
+- **Estado:** `Completado`
 - **ADR Relacionado:** `docs/04_adrs/0001_in_process_isolate_clock_and_dsp_pipeline.md`
 - **Documento Funcional Base:** `docs/02_use_cases/01_uc_acoustic_pitch_detection.md` y `docs/02_use_cases/04_uc_virtual_strobe_tuner.md`
 
