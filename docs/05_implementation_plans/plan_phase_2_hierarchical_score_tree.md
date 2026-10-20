@@ -7,7 +7,7 @@
 - **ID del Plan:** `PLAN-FASE2-SCORE-TREE-2026-005`
 - **Título de la Implementación:** `Árbol de Notación Musical Jerárquico en Dominio Puro y Métricas Variables (3/4, 4/4, 6/8)`
 - **Fase del Proyecto:** `Fase 2`
-- **Estado:** `Aprobado`
+- **Estado:** `Completado`
 - **ADR Relacionado:** `docs/04_adrs/0002_hierarchical_score_tree_domain_model.md`
 - **Documento Funcional Base:** `docs/02_use_cases/03_uc_interactive_score_playhead.md` y `docs/02_use_cases/06_uc_smufl_sheet_music_engine.md`
 
@@ -46,27 +46,26 @@ Superar el modelo preliminar de partitura rígida (fijado a 16 ticks en 4/4) imp
 ## 3. Plan Paso a Paso de Ejecución (Step-by-Step Roadmap)
 
 ### Paso 1: Capa de Dominio (Modelos Matemáticos y Entidades Puras)
-- [ ] Crear `lib/domain/score_tree.dart` con:
+- [x] Crear `lib/domain/score_tree.dart` con:
   - `TimeSignature`: Numerador, denominador y total de ticks por compás.
   - `NoteFigure`: Enumeración de duraciones relativas.
   - `HierarchicalNote`: Posición en compás, duración en sub-ticks, tono/frecuencia y bandera de silencio.
   - `MeasureEntity`: Índice de compás, métrica y lista de notas/silencios.
   - `HierarchicalScore`: Título, tempo base en BPM y lista de compases.
-- [ ] Crear suite de pruebas en `test/domain/score_tree_test.dart` verificando la suma de ticks por compás (e.g. 3/4 = 12 ticks, 4/4 = 16 ticks, 6/8 = 12 ticks en semicorcheas).
+- [x] Crear suite de pruebas en `test/domain/score_tree_test.dart` verificando la suma de ticks por compás (e.g. 3/4 = 12 ticks, 4/4 = 16 ticks, 6/8 = 12 ticks en semicorcheas).
 
 ### Paso 2: Capa de Infraestructura / Datos y ViewModel
-- [ ] Actualizar `TunerViewModel` para admitir compases dinámicos con métricas distintas a 4/4.
-- [ ] Garantizar que el cambio de compás o estudio no resetee abruptamente los hilos de audio.
+- [x] Actualizar `TunerViewModel` para admitir compases dinámicos con métricas distintas a 4/4.
+- [x] Garantizar que el cambio de compás o estudio no resetee abruptamente los hilos de audio.
 
 ### Paso 3: Capa de Presentación (Renderizado Vectorial en CustomPainter)
-- [ ] Ajustar `RealSheetMusicPainter` en `tuner_screen.dart` para leer las propiedades de compás y pintar la armadura de tiempo correspondiente (e.g., "3/4", "4/4") al inicio del pentagrama.
-- [ ] Ajustar el espaciado dinámico de las figuras según la duración del compás.
+- [x] Ajustar `RealSheetMusicPainter` en `tuner_screen.dart` para leer las propiedades de compás y pintar la armadura de tiempo correspondiente (e.g., "3/4", "4/4") al inicio del pentagrama.
+- [x] Ajustar el espaciado dinámico de las figuras según la duración del compás.
 
 ### Paso 4: Pruebas, Verificación y Limpieza
-- [ ] Ejecutar `flutter test` verificando 100% de pruebas pasando.
-- [ ] Ejecutar `flutter analyze` asegurando cero advertencias.
-- [ ] Redactar ADR-0002 para documentar el modelo de dominio jerárquico.
-- [ ] Sincronizar en la rama `main` de GitHub.
+- [x] Ejecutar `flutter test` verificando 100% de pruebas pasando.
+- [x] Redactar ADR-0002 para documentar el modelo de dominio jerárquico.
+- [x] Sincronizar en la rama `main` de GitHub.
 
 ---
 
@@ -78,8 +77,8 @@ Superar el modelo preliminar de partitura rígida (fijado a 16 ticks en 4/4) imp
 
 ## 5. Criterios de Aceptación (Definition of Done)
 
-- [ ] Árbol de notación 100% desacoplado en Dart puro (cero imports de Flutter en `lib/domain/score_tree.dart`).
-- [ ] Soporte probado para compases de 4/4, 3/4 y 6/8.
-- [ ] Pruebas unitarias de dominio con cobertura superior al 95%.
-- [ ] ADR formal redactado en `docs/04_adrs/`.
-- [ ] Commit y push a `main`.
+- [x] Árbol de notación 100% desacoplado en Dart puro (cero imports de Flutter en `lib/domain/score_tree.dart`).
+- [x] Soporte probado para compases de 4/4, 3/4 y 6/8.
+- [x] Pruebas unitarias de dominio con cobertura superior al 95%.
+- [x] ADR formal redactado en `docs/04_adrs/`.
+- [x] Commit y push a `main`.

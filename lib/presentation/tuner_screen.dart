@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'tuner_viewmodel.dart';
 import '../domain/score_entity.dart';
+import '../domain/score_tree.dart';
 import 'widgets/strobe_tuner_widget.dart';
 
 class TunerScreen extends StatelessWidget {
@@ -26,18 +27,28 @@ class TunerScreen extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: viewModel.selectedSongIndex,
-                    dropdownColor: const Color(0xFF1A1A24),
-                    icon: const Icon(Icons.music_note, color: Colors.white54),
-                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
-                    items: List.generate(viewModel.playlist.length, (index) {
-                      return DropdownMenuItem(value: index, child: Text(viewModel.playlist[index].title));
-                    }),
-                    onChanged: (val) => val != null ? viewModel.selectSong(val) : null,
+                Flexible(
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      isExpanded: true,
+                      value: viewModel.selectedSongIndex,
+                      dropdownColor: const Color(0xFF1A1A24),
+                      icon: const Icon(Icons.music_note, color: Colors.white54),
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                      items: List.generate(viewModel.playlist.length, (index) {
+                        return DropdownMenuItem(
+                          value: index, 
+                          child: Text(
+                            viewModel.playlist[index].title,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }),
+                      onChanged: (val) => val != null ? viewModel.selectSong(val) : null,
+                    ),
                   ),
                 ),
+                const SizedBox(width: 16),
                 Text("${viewModel.bpm} BPM", style: const TextStyle(color: Colors.greenAccent, fontSize: 16, fontWeight: FontWeight.bold)),
               ],
             ),
@@ -74,6 +85,7 @@ class TunerScreen extends StatelessWidget {
                     liveCents: viewModel.cents,
                     isCountingIn: viewModel.isCountingIn,
                     countInBeat: viewModel.countInBeat,
+                    timeSignature: viewModel.playlist[viewModel.selectedSongIndex].timeSignature,
                   ),
                 ),
               ),
@@ -134,6 +146,7 @@ class RealSheetMusicPainter extends CustomPainter {
   final double liveCents;
   final bool isCountingIn;
   final int countInBeat;
+  final TimeSignature timeSignature;
 
   RealSheetMusicPainter({
     required this.currentSubTick,
@@ -143,6 +156,7 @@ class RealSheetMusicPainter extends CustomPainter {
     required this.liveCents,
     required this.isCountingIn,
     required this.countInBeat,
+    this.timeSignature = TimeSignature.commonTime44,
   });
 
   int _getNoteStep(String note) {
@@ -178,9 +192,10 @@ class RealSheetMusicPainter extends CustomPainter {
     // Líneas del pentagrama ligeramente más visibles
     final linePaint = Paint()..color = const Color(0xFF4A4A5A)..strokeWidth = 2.0;
     
-    final double leftMargin = 60.0;
+    final double leftMargin = 75.0;
     final double playAreaWidth = size.width - leftMargin;
-    final double stepWidth = playAreaWidth / 16; 
+    final int totalMeasureTicks = timeSignature.totalTicks;
+    final double stepWidth = playAreaWidth / totalMeasureTicks; 
     final double staffSpacing = size.height / 14;
     final double centerY = size.height / 2;
     
@@ -192,8 +207,12 @@ class RealSheetMusicPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
     }
 
-    // 2. Dibujar la Clave de Sol (𝄞) con mayor opacidad y tamaño
-    _drawUnicodeText(canvas, "𝄞", leftMargin / 2, centerY + (staffSpacing * 0.5), 110, Colors.white60);
+    // 2. Dibujar la Clave de Sol (𝄞)
+    _drawUnicodeText(canvas, "𝄞", 25, centerY + (staffSpacing * 0.5), 100, Colors.white60);
+
+    // Indicador numérico de Métrica / Compás (e.g. 4/4, 3/4, 6/8)
+    _drawUnicodeText(canvas, "${timeSignature.numerator}", 55, centerY - (staffSpacing * 0.8), 24, Colors.white70);
+    _drawUnicodeText(canvas, "${timeSignature.denominator}", 55, centerY + (staffSpacing * 0.8), 24, Colors.white70);
 
     // Conteo de entrada gigante
     if (isCountingIn) {

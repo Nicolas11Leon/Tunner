@@ -14,19 +14,21 @@ class MetronomeService {
     });
   }
 
-  Future<void> start(int bpm) async {
+  Future<void> start(int bpm, {int ticksPerMeasure = 16}) async {
     if (_isolate != null) await stop();
     _isolate = await Isolate.spawn(_highResolutionTicksLogic, {
       'port': _fromIsolatePort.sendPort,
       'bpm': bpm,
+      'ticksPerMeasure': ticksPerMeasure,
     });
   }
 
   static void _highResolutionTicksLogic(Map<String, dynamic> args) {
     SendPort toMainPort = args['port'];
     int bpm = args['bpm'];
+    int ticksPerMeasure = args['ticksPerMeasure'] ?? 16;
     
-    // Intervalo exacto en microsegundos para 16 sub-ticks por compás (semicorcheas en 4/4)
+    // Intervalo exacto en microsegundos para resolución de semicorcheas
     // 60,000,000 microsegundos por minuto / bpm / 4
     int intervalMicros = (60000000 / bpm / 4).round();
     int subTickCounter = 0;
@@ -34,7 +36,7 @@ class MetronomeService {
     // Timer.periodic rinde el tiempo al planificador del sistema operativo (0% busy-waiting)
     Timer.periodic(Duration(microseconds: intervalMicros), (timer) {
       toMainPort.send(subTickCounter);
-      subTickCounter = (subTickCounter + 1) % 16;
+      subTickCounter = (subTickCounter + 1) % ticksPerMeasure;
     });
   }
 

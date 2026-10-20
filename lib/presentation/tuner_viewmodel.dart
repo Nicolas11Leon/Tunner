@@ -157,7 +157,8 @@ class TunerViewModel extends ChangeNotifier {
       _currentSubTick = -1;
       _measureHistory.clear();
       _isMetronomePlaying = true;
-      await _metronomeService.start(_bpm);
+      final currentTicks = _playlist[_selectedSongIndex].timeSignature.totalTicks;
+      await _metronomeService.start(_bpm, ticksPerMeasure: currentTicks);
     }
     notifyListeners();
   }
@@ -165,7 +166,8 @@ class TunerViewModel extends ChangeNotifier {
   void updateBpm(int newBpm) {
     _bpm = newBpm.clamp(40, 200);
     if (_isMetronomePlaying) {
-      _metronomeService.stop().then((_) => _metronomeService.start(_bpm));
+      final currentTicks = _playlist[_selectedSongIndex].timeSignature.totalTicks;
+      _metronomeService.stop().then((_) => _metronomeService.start(_bpm, ticksPerMeasure: currentTicks));
     }
     notifyListeners();
   }
