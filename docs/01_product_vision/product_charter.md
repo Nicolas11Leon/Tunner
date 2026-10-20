@@ -47,9 +47,10 @@ La plataforma combina algoritmos de estimación de frecuencia fundamental ($F_0$
 - **Producto (Visión Trascendente):** Tunner es un producto evolutivo y permanente. No se optimiza para métricas de retención comercial ni monetización, sino para la pureza del aprendizaje, la fidelidad acústica y la accesibilidad humana.
 
 ### 3.2 Principios Rectores
-1. **Acceso Universal Gratuito y Libre:** 100% código abierto (Licencia MIT), sin muros de pago, sin publicidad intrusiva y sin recolección de datos privados.
-2. **Soberanía y Offline-First:** Toda la cadena de procesamiento de señales (captura, DSP, metrónomo, análisis y renderizado) opera íntegramente de manera local en el procesador del usuario.
-3. **Rigor Científico y Estética de Estudio:** Diseñado con precisión instrumental apta tanto para un niño dando sus primeros pasos como para un estudiante de conservatorio o profesional de estudio.
+1. **Acceso Universal Gratuito y Libre:** 100% código abierto (Licencia MIT), sin muros de pago, sin publicidad intrusiva y sin recolección de datos privados. El conocimiento y las herramientas pertenecen a toda la humanidad.
+2. **Mejora Continua Infinita (Kaizen Acústico y de Software):** El proyecto adopta el compromiso inquebrantable de evolucionar sin límites. No existe un punto final en la búsqueda de la máxima precisión matemática, fluidez visual y excelencia pedagógica; cada hito alcanzado es el cimiento de la siguiente frontera técnica.
+3. **Soberanía y Offline-First:** Toda la cadena de procesamiento de señales (captura, DSP, metrónomo, análisis y renderizado) opera íntegramente de manera local en el procesador del usuario, garantizando total independencia de servidores y conectividad.
+4. **Rigor Científico y Estética de Estudio:** Diseñado con precisión instrumental apta tanto para un niño dando sus primeros pasos como para un estudiante de conservatorio o profesional de estudio.
 
 ---
 
