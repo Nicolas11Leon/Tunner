@@ -242,11 +242,17 @@ class RealSheetMusicPainter extends CustomPainter {
       if (note.isRest) {
         // Silencios mucho más legibles y grandes
         String restSymbol = "";
-        if (note.durationTicks >= 16) restSymbol = "𝄻"; // Redonda
-        else if (note.durationTicks >= 8) restSymbol = "𝄼"; // Blanca
-        else if (note.durationTicks >= 4) restSymbol = "𝄽"; // Negra
-        else if (note.durationTicks >= 2) restSymbol = "𝄾"; // Corchea
-        else restSymbol = "𝄿"; // Semicorchea
+        if (note.durationTicks >= 16) {
+          restSymbol = "𝄻"; // Redonda
+        } else if (note.durationTicks >= 8) {
+          restSymbol = "𝄼"; // Blanca
+        } else if (note.durationTicks >= 4) {
+          restSymbol = "𝄽"; // Negra
+        } else if (note.durationTicks >= 2) {
+          restSymbol = "𝄾"; // Corchea
+        } else {
+          restSymbol = "𝄿"; // Semicorchea
+        }
         
         _drawUnicodeText(canvas, restSymbol, noteCenterX, centerY, 55, Colors.white70);
       } else {
@@ -274,7 +280,6 @@ class RealSheetMusicPainter extends CustomPainter {
           
           // Corchetes (Flags) más marcados
           if (note.durationTicks <= 2) { 
-            double flagLength = stemGoesDown ? -12 : 12;
             double flagHeight = stemGoesDown ? -25 : 25;
             canvas.drawPath(
               Path()..moveTo(stemX, stemYEnd)..quadraticBezierTo(stemX + 15, stemYEnd + flagHeight/2, stemX + 5, stemYEnd + flagHeight),

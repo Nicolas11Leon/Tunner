@@ -26,21 +26,16 @@ class MetronomeService {
     SendPort toMainPort = args['port'];
     int bpm = args['bpm'];
     
-    // Calculamos el intervalo para semicorcheas (4 ticks por cada negra)
-    double intervalMs = (60000 / bpm) / 4;
-    
-    final stopwatch = Stopwatch()..start();
-    int nextTick = stopwatch.elapsedMilliseconds;
-    int subTickCounter = 0; // Va de 0 a 15 (16 pasos)
+    // Intervalo exacto en microsegundos para 16 sub-ticks por compás (semicorcheas en 4/4)
+    // 60,000,000 microsegundos por minuto / bpm / 4
+    int intervalMicros = (60000000 / bpm / 4).round();
+    int subTickCounter = 0;
 
-    while (true) {
-      int now = stopwatch.elapsedMilliseconds;
-      if (now >= nextTick) {
-        toMainPort.send(subTickCounter);
-        subTickCounter = (subTickCounter + 1) % 16;
-        nextTick += intervalMs.round();
-      }
-    }
+    // Timer.periodic rinde el tiempo al planificador del sistema operativo (0% busy-waiting)
+    Timer.periodic(Duration(microseconds: intervalMicros), (timer) {
+      toMainPort.send(subTickCounter);
+      subTickCounter = (subTickCounter + 1) % 16;
+    });
   }
 
   Future<void> stop() async {

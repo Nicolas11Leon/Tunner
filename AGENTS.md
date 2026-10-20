@@ -19,6 +19,11 @@ Whenever an AI agent or engineer works within this codebase, this document is th
    - [Plantilla de Documentación](docs/templates/plantilla_documentacion.md)
    - [Plantilla de Plan de Implementación](docs/templates/plantilla_plan_implementacion.md)
    Ambos documentos deben ser leídos y respetados en cada ciclo de trabajo.
+5. **Libro Canónico de Casos de Uso y Diagramas de Flujo:**  
+   Cada funcionalidad nueva propuesta debe formalizarse en un documento individual clasificado del `00` al `N` dentro de `docs/02_use_cases/`. Cada caso de uso debe incluir obligatoriamente:
+   - Diagrama de Casos de Uso formal (Mermaid).
+   - Diagrama de Flujo / Secuencia detallado (Mermaid).
+   - Precondiciones, postcondiciones, flujo principal y flujos alternativos / de error.
 
 ---
 

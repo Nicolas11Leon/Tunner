@@ -15,7 +15,7 @@ void main() {
 }
 
 class FluteTunerApp extends StatelessWidget {
-  const FluteTunerApp({Key? key}) : super(key: key);
+  const FluteTunerApp({super.key});
 
   @override
   Widget build(BuildContext context) {

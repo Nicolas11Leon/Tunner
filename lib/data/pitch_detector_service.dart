@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 import 'package:pitch_detector_dart/pitch_detector.dart';
 
@@ -24,21 +25,36 @@ class PitchDetectorService {
         ));
 
         _audioSubscription = stream.listen((data) {
-          // Procesamiento asíncrono inmediato para no trabar la UI
+          // 1. Noise Gate: calcular potencia acústica cuadrática media (RMS)
+          // para descartar silencio o ruido ambiental antes de correr el detector
+          if (data.isEmpty) return;
+          
+          double sumSquares = 0.0;
+          for (int i = 0; i < data.length; i++) {
+            double sample = data[i].toDouble();
+            sumSquares += sample * sample;
+          }
+          double rms = (sumSquares / data.length);
+          
+          // Umbral mínimo de amplitud para evitar saltos con el ruido ambiente
+          if (rms < 50.0) return;
+
+          // 2. Procesamiento asíncrono de estimación de tono
           _pitchDetector.getPitchFromIntBuffer(data).then((pitchResult) {
             if (pitchResult.pitched && onPitchDetected != null) {
-              // Filtro de frecuencias útil para flauta traversa (Rango: 200Hz - 3000Hz)
-              if (pitchResult.pitch >= 200 && pitchResult.pitch <= 3000) {
+              // Rango acústico universal: A0 (27.5 Hz) a C8 (4186.0 Hz)
+              // Cubre desde bajos profundos y voz humana hasta violín/piccolo
+              if (pitchResult.pitch >= 27.5 && pitchResult.pitch <= 4186.0) {
                 onPitchDetected!(pitchResult.pitch);
               }
             }
           });
         }, onError: (error) {
-          print("Error en el flujo de audio: $error");
+          debugPrint("Error en el flujo de audio: $error");
         });
       }
     } catch (e) {
-      print("Error al inicializar micrófono: $e");
+      debugPrint("Error al inicializar micrófono: $e");
     }
   }
 
