@@ -89,6 +89,7 @@ class TunerScreen extends StatelessWidget {
               frequency: viewModel.frequency,
               noteName: viewModel.noteName,
               isRecording: viewModel.isRecording,
+              onPlayReferenceTone: () => viewModel.playReferenceTone("La4"),
             ),
           ),
           const SizedBox(height: 24),

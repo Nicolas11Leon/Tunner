@@ -7,7 +7,7 @@
 - **ID del Plan:** `PLAN-FASE1-SINE-TONE-SYNTH-2026-004`
 - **Título de la Implementación:** `Generador Sintetizado de Tono de Referencia Senoidal Puro con Envolvente Anti-Pop`
 - **Fase del Proyecto:** `Fase 1`
-- **Estado:** `Aprobado`
+- **Estado:** `Completado`
 - **ADR Relacionado:** `docs/04_adrs/0001_in_process_isolate_clock_and_dsp_pipeline.md`
 - **Documento Funcional Base:** `docs/02_use_cases/05_uc_audio_reference_tone.md`
 

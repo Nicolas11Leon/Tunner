@@ -6,6 +6,7 @@ class StrobeTunerWidget extends StatefulWidget {
   final double frequency;
   final String noteName;
   final bool isRecording;
+  final VoidCallback? onPlayReferenceTone;
 
   const StrobeTunerWidget({
     super.key,
@@ -13,6 +14,7 @@ class StrobeTunerWidget extends StatefulWidget {
     required this.frequency,
     required this.noteName,
     required this.isRecording,
+    this.onPlayReferenceTone,
   });
 
   @override
@@ -111,14 +113,43 @@ class _StrobeTunerWidgetState extends State<StrobeTunerWidget> with SingleTicker
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "NOTA FUNDAMENTAL",
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.4),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        "NOTA FUNDAMENTAL",
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.4),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      if (widget.onPlayReferenceTone != null) ...[
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: widget.onPlayReferenceTone,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00FF88).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: const Color(0xFF00FF88).withValues(alpha: 0.3)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.volume_up, size: 10, color: Color(0xFF00FF88)),
+                                SizedBox(width: 3),
+                                Text(
+                                  "ESCUCHAR A4",
+                                  style: TextStyle(fontSize: 8, color: Color(0xFF00FF88), fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(

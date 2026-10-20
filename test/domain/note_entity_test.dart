@@ -58,5 +58,16 @@ void main() {
       final noteNaN = NoteEntity.fromFrequency(double.nan);
       expect(noteNaN.name, equals('--'));
     });
+
+    test('frequencyForNote correctly maps note names to exact frequencies', () {
+      expect(NoteEntity.frequencyForNote('La4'), closeTo(440.0, 0.01));
+      expect(NoteEntity.frequencyForNote('Do4'), closeTo(261.63, 0.05));
+      expect(NoteEntity.frequencyForNote('Mi4'), closeTo(329.63, 0.05));
+      expect(NoteEntity.frequencyForNote('Mi2'), closeTo(82.41, 0.05));
+      expect(NoteEntity.frequencyForNote('La0'), closeTo(27.50, 0.05));
+      expect(NoteEntity.frequencyForNote('--'), equals(0.0));
+      expect(NoteEntity.frequencyForNote(''), equals(0.0));
+      expect(NoteEntity.frequencyForNote('Invalida'), equals(0.0));
+    });
   });
 }

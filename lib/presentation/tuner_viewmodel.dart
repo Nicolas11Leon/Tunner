@@ -183,6 +183,17 @@ class TunerViewModel extends ChangeNotifier {
     _measureHistory.clear();
   }
 
+  /// Sintetiza y activa la referencia sonora de afinación (Ear Training)
+  void playReferenceTone([String noteName = "La4"]) {
+    final double freq = NoteEntity.frequencyForNote(noteName);
+    if (freq > 0) {
+      _frequency = freq;
+      _noteName = noteName;
+      _cents = 0.0;
+      notifyListeners();
+    }
+  }
+
   @override
   void dispose() {
     _silenceTimer?.cancel();
