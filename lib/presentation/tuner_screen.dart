@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'tuner_viewmodel.dart';
 import '../domain/score_entity.dart';
+import 'widgets/strobe_tuner_widget.dart';
 
 class TunerScreen extends StatelessWidget {
   const TunerScreen({super.key});
@@ -9,9 +10,6 @@ class TunerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<TunerViewModel>();
-    
-    bool isTuned = viewModel.cents.abs() <= 15 && viewModel.noteName != "--";
-    Color tunerColor = isTuned ? Colors.greenAccent : Colors.amberAccent;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D11),
@@ -81,44 +79,19 @@ class TunerScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 16),
 
-          // AFINADOR ANALÓGICO INFERIOR
-          Text(
-            viewModel.noteName,
-            style: TextStyle(
-              fontSize: 60, 
-              fontWeight: FontWeight.w900, 
-              color: viewModel.noteName == "--" ? Colors.white24 : tunerColor,
-              shadows: [Shadow(color: tunerColor.withValues(alpha: 0.5), blurRadius: 15)]
-            ),
-          ),
-          Text("${viewModel.frequency.toStringAsFixed(1)} Hz", style: const TextStyle(fontSize: 16, color: Colors.white38)),
-          const SizedBox(height: 15),
-
+          // AFINADOR ESTROBOSCÓPICO VIRTUAL DE ALTA PRECISIÓN (UC-04)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 50.0),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(height: 2, width: double.infinity, color: Colors.white10),
-                Container(height: 12, width: 2, color: Colors.white38),
-                AnimatedAlign(
-                  duration: const Duration(milliseconds: 80),
-                  alignment: Alignment(viewModel.cents / 50.0, 0),
-                  child: Container(
-                    height: 16, width: 16,
-                    decoration: BoxDecoration(
-                      color: tunerColor,
-                      shape: BoxShape.circle,
-                      boxShadow: [BoxShadow(color: tunerColor.withValues(alpha: 0.6), blurRadius: 8)],
-                    ),
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: StrobeTunerWidget(
+              cents: viewModel.cents,
+              frequency: viewModel.frequency,
+              noteName: viewModel.noteName,
+              isRecording: viewModel.isRecording,
             ),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 24),
 
           // BOTONES DE ACCIÓN
           Padding(

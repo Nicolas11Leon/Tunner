@@ -64,7 +64,9 @@ class TunerViewModel extends ChangeNotifier {
       _validatePerformance();
       notifyListeners();
 
-      _silenceTimer = Timer(const Duration(milliseconds: 250), () {
+      // Respuesta ultrasónica para notas rápidas (solos de violín/guitarra):
+      // 60ms en lugar de 250ms para que notas sucesivas ultra-cortas no queden retenidas
+      _silenceTimer = Timer(const Duration(milliseconds: 60), () {
         _frequency = 0.0;
         _noteName = "--";
         _cents = 0.0;
