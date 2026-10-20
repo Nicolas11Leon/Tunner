@@ -31,12 +31,39 @@ class SongEntity {
   final String title;
   final List<SongNote> notes;
   final TimeSignature timeSignature;
+  final List<MeasureEntity> measures;
 
   SongEntity({
     required this.title,
     required this.notes,
     this.timeSignature = TimeSignature.commonTime44,
+    this.measures = const [],
   });
+
+  int get totalMeasures => measures.isNotEmpty ? measures.length : 1;
+
+  /// Obtiene las notas de un compás específico en formato SongNote
+  List<SongNote> notesForMeasure(int measureIndex) {
+    if (measures.isEmpty || measureIndex < 0 || measureIndex >= measures.length) {
+      return notes;
+    }
+    return measures[measureIndex].notes.map((hNote) {
+      return SongNote(
+        startTick: hNote.startTick,
+        durationTicks: hNote.durationTicks,
+        noteName: hNote.noteName,
+        isRest: hNote.isRest,
+      );
+    }).toList();
+  }
+
+  /// Obtiene la métrica de un compás específico
+  TimeSignature timeSignatureForMeasure(int measureIndex) {
+    if (measures.isEmpty || measureIndex < 0 || measureIndex >= measures.length) {
+      return timeSignature;
+    }
+    return measures[measureIndex].timeSignature;
+  }
 
   static List<SongEntity> getMockSongs() {
     final hierarchicalStudies = HierarchicalScore.getMockStudies();
@@ -56,6 +83,7 @@ class SongEntity {
         title: study.title,
         notes: songNotes,
         timeSignature: firstMeasure.timeSignature,
+        measures: study.measures,
       );
     }).toList();
   }

@@ -62,5 +62,16 @@ void main() {
       );
       expect(invalidMeasure.isValidMeasure, isFalse);
     });
+
+    test('Multi-measure studies have sequential indices and at least two measures', () {
+      final studies = HierarchicalScore.getMockStudies();
+      final multiMeasureStudy = studies.firstWhere((s) => s.measures.length > 1);
+      
+      expect(multiMeasureStudy.measures.length, equals(2));
+      expect(multiMeasureStudy.measures[0].index, equals(0));
+      expect(multiMeasureStudy.measures[1].index, equals(1));
+      expect(multiMeasureStudy.measures[0].isValidMeasure, isTrue);
+      expect(multiMeasureStudy.measures[1].isValidMeasure, isTrue);
+    });
   });
 }

@@ -4,6 +4,7 @@ import '../data/pitch_detector_service.dart';
 import '../data/metronome_service.dart';
 import '../domain/note_entity.dart';
 import '../domain/score_entity.dart';
+import '../domain/score_tree.dart';
 
 class PlayedRecord {
   final String noteName;
@@ -26,6 +27,7 @@ class TunerViewModel extends ChangeNotifier {
 
   bool _isMetronomePlaying = false;
   int _currentSubTick = -1;
+  int _currentMeasureIndex = 0;
   int _bpm = 75; 
   
   bool _isCountingIn = false;
@@ -44,6 +46,8 @@ class TunerViewModel extends ChangeNotifier {
   bool get isRecording => _isRecording;
   bool get isMetronomePlaying => _isMetronomePlaying;
   int get currentSubTick => _currentSubTick;
+  int get currentMeasureIndex => _currentMeasureIndex;
+  int get totalMeasures => _playlist[_selectedSongIndex].totalMeasures;
   int get bpm => _bpm;
   bool get isCountingIn => _isCountingIn;
   int get countInBeat => _countInBeat;
@@ -52,6 +56,9 @@ class TunerViewModel extends ChangeNotifier {
   SongNote? get expectedNote => _expectedNote;
   bool get isNoteCorrect => _isNoteCorrect;
   Map<int, PlayedRecord> get measureHistory => _measureHistory;
+
+  List<SongNote> get currentMeasureNotes => _playlist[_selectedSongIndex].notesForMeasure(_currentMeasureIndex);
+  TimeSignature get currentMeasureTimeSignature => _playlist[_selectedSongIndex].timeSignatureForMeasure(_currentMeasureIndex);
 
   TunerViewModel() {
     _pitchService.onPitchDetected = (pitch) {
@@ -77,19 +84,26 @@ class TunerViewModel extends ChangeNotifier {
 
     _metronomeService.onSubTick = (subTick) {
       if (_isCountingIn) {
-        // Como hay 16 ticks por compás, un "beat" entero ocurre cada 4 ticks (0, 4, 8, 12)
+        // Un beat ocurre cada 4 subdivisiones de semicorchea
         if (subTick % 4 == 0) {
           _countInBeat++;
           if (_countInBeat > 4) {
             _isCountingIn = false;
+            _currentMeasureIndex = 0;
             _currentSubTick = 0;
             _measureHistory.clear();
             _updateExpectedNoteForTick(0);
           }
         }
       } else {
+        // Detección de avance de compás cuando el tick se reinicia a 0
+        if (_currentSubTick != -1 && subTick == 0) {
+          final maxMeasures = _playlist[_selectedSongIndex].totalMeasures;
+          _currentMeasureIndex = (_currentMeasureIndex + 1) % maxMeasures;
+          _measureHistory.clear();
+        }
+        
         _currentSubTick = subTick;
-        if (subTick == 0) _measureHistory.clear();
         _updateExpectedNoteForTick(subTick);
       }
       
@@ -99,7 +113,7 @@ class TunerViewModel extends ChangeNotifier {
   }
 
   void _updateExpectedNoteForTick(int tick) {
-    final notes = _playlist[_selectedSongIndex].notes;
+    final notes = currentMeasureNotes;
     _expectedNote = notes.firstWhere(
       (n) => tick >= n.startTick && tick < (n.startTick + n.durationTicks),
       orElse: () => SongNote(startTick: tick, durationTicks: 1, noteName: "--"),
@@ -182,7 +196,28 @@ class TunerViewModel extends ChangeNotifier {
     _isCountingIn = false;
     _countInBeat = 0;
     _currentSubTick = -1;
+    _currentMeasureIndex = 0;
     _measureHistory.clear();
+  }
+
+  void selectMeasure(int measureIndex) {
+    final maxMeasures = _playlist[_selectedSongIndex].totalMeasures;
+    if (measureIndex >= 0 && measureIndex < maxMeasures) {
+      _currentMeasureIndex = measureIndex;
+      _currentSubTick = -1;
+      _measureHistory.clear();
+      notifyListeners();
+    }
+  }
+
+  void nextMeasure() {
+    final maxMeasures = _playlist[_selectedSongIndex].totalMeasures;
+    selectMeasure((_currentMeasureIndex + 1) % maxMeasures);
+  }
+
+  void previousMeasure() {
+    final maxMeasures = _playlist[_selectedSongIndex].totalMeasures;
+    selectMeasure((_currentMeasureIndex - 1 + maxMeasures) % maxMeasures);
   }
 
   /// Sintetiza y activa la referencia sonora de afinación (Ear Training)

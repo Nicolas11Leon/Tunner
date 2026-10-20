@@ -114,7 +114,7 @@ class HierarchicalScore {
   static List<HierarchicalScore> getMockStudies() {
     return [
       HierarchicalScore(
-        title: "Estudio en 4/4 (Subdivisiones Semicorcheas)",
+        title: "Estudio Multi-Compás 4/4 (2 Compases)",
         baseBpm: 75,
         measures: [
           MeasureEntity(
@@ -125,10 +125,19 @@ class HierarchicalScore {
               HierarchicalNote.rest(startTick: 4, durationTicks: 4),                   // Silencio negra
               HierarchicalNote.note(startTick: 8, durationTicks: 2, noteName: "Re4"), // Corchea
               HierarchicalNote.note(startTick: 10, durationTicks: 2, noteName: "Mi4"),// Corchea
-              HierarchicalNote.note(startTick: 12, durationTicks: 1, noteName: "Fa4"),// Semicorchea
+              HierarchicalNote.note(startTick: 12, durationTicks: 1, noteName: "Fa4"),// Semicorcheas
               HierarchicalNote.note(startTick: 13, durationTicks: 1, noteName: "Sol4"),
               HierarchicalNote.note(startTick: 14, durationTicks: 1, noteName: "La4"),
               HierarchicalNote.note(startTick: 15, durationTicks: 1, noteName: "Si4"),
+            ],
+          ),
+          MeasureEntity(
+            index: 1,
+            timeSignature: TimeSignature.commonTime44,
+            notes: [
+              HierarchicalNote.note(startTick: 0, durationTicks: 8, noteName: "Do5"), // Blanca
+              HierarchicalNote.note(startTick: 8, durationTicks: 4, noteName: "Sol4"),// Negra
+              HierarchicalNote.note(startTick: 12, durationTicks: 4, noteName: "Do4"),// Negra resolutiva
             ],
           ),
         ],
@@ -146,6 +155,15 @@ class HierarchicalScore {
               HierarchicalNote.note(startTick: 8, durationTicks: 4, noteName: "Do4"),  // Negra
             ],
           ),
+          MeasureEntity(
+            index: 1,
+            timeSignature: TimeSignature.waltzTime34,
+            notes: [
+              HierarchicalNote.note(startTick: 0, durationTicks: 4, noteName: "Re4"),  // Negra
+              HierarchicalNote.note(startTick: 4, durationTicks: 4, noteName: "Fa4"),  // Negra
+              HierarchicalNote.note(startTick: 8, durationTicks: 4, noteName: "Mi4"),  // Negra
+            ],
+          ),
         ],
       ),
       HierarchicalScore(
@@ -160,6 +178,14 @@ class HierarchicalScore {
               HierarchicalNote.note(startTick: 6, durationTicks: 2, noteName: "Sol4"),// Corchea (2 semicorcheas)
               HierarchicalNote.note(startTick: 8, durationTicks: 2, noteName: "Fa#4"),// Corchea
               HierarchicalNote.note(startTick: 10, durationTicks: 2, noteName: "Mi4"),// Corchea
+            ],
+          ),
+          MeasureEntity(
+            index: 1,
+            timeSignature: TimeSignature.compoundTime68,
+            notes: [
+              HierarchicalNote.note(startTick: 0, durationTicks: 6, noteName: "Re4"), // Negra con puntillo
+              HierarchicalNote.rest(startTick: 6, durationTicks: 6),                  // Silencio de negra con puntillo
             ],
           ),
         ],

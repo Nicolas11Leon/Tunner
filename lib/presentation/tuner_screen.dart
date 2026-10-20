@@ -62,6 +62,31 @@ class TunerScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
+          // Selector de Compases (Navegación Multi-Compás)
+          if (viewModel.totalMeasures > 1)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.skip_previous, color: Colors.white70, size: 20),
+                    onPressed: () => viewModel.previousMeasure(),
+                    tooltip: "Compás Anterior",
+                  ),
+                  Text(
+                    "Compás ${viewModel.currentMeasureIndex + 1} de ${viewModel.totalMeasures}",
+                    style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.skip_next, color: Colors.white70, size: 20),
+                    onPressed: () => viewModel.nextMeasure(),
+                    tooltip: "Siguiente Compás",
+                  ),
+                ],
+              ),
+            ),
+
           // LIENZO GRÁFICO DE LA PARTITURA REAL (Legibilidad Mejorada)
           Expanded(
             child: Container(
@@ -79,13 +104,15 @@ class TunerScreen extends StatelessWidget {
                 child: CustomPaint(
                   painter: RealSheetMusicPainter(
                     currentSubTick: viewModel.currentSubTick,
-                    notes: viewModel.playlist[viewModel.selectedSongIndex].notes,
+                    notes: viewModel.currentMeasureNotes,
                     history: viewModel.measureHistory,
                     liveNote: viewModel.noteName,
                     liveCents: viewModel.cents,
                     isCountingIn: viewModel.isCountingIn,
                     countInBeat: viewModel.countInBeat,
-                    timeSignature: viewModel.playlist[viewModel.selectedSongIndex].timeSignature,
+                    timeSignature: viewModel.currentMeasureTimeSignature,
+                    measureIndex: viewModel.currentMeasureIndex,
+                    totalMeasures: viewModel.totalMeasures,
                   ),
                 ),
               ),
@@ -147,6 +174,8 @@ class RealSheetMusicPainter extends CustomPainter {
   final bool isCountingIn;
   final int countInBeat;
   final TimeSignature timeSignature;
+  final int measureIndex;
+  final int totalMeasures;
 
   RealSheetMusicPainter({
     required this.currentSubTick,
@@ -157,6 +186,8 @@ class RealSheetMusicPainter extends CustomPainter {
     required this.isCountingIn,
     required this.countInBeat,
     this.timeSignature = TimeSignature.commonTime44,
+    this.measureIndex = 0,
+    this.totalMeasures = 1,
   });
 
   int _getNoteStep(String note) {
@@ -193,19 +224,35 @@ class RealSheetMusicPainter extends CustomPainter {
     final linePaint = Paint()..color = const Color(0xFF4A4A5A)..strokeWidth = 2.0;
     
     final double leftMargin = 75.0;
-    final double playAreaWidth = size.width - leftMargin;
+    final double rightMargin = 20.0;
+    final double playAreaWidth = size.width - leftMargin - rightMargin;
     final int totalMeasureTicks = timeSignature.totalTicks;
     final double stepWidth = playAreaWidth / totalMeasureTicks; 
     final double staffSpacing = size.height / 14;
     final double centerY = size.height / 2;
     
     double baseMi4Y = centerY + (staffSpacing * 2); 
+    double topStaffY = baseMi4Y - (4 * staffSpacing);
 
-    // 1. Dibujar el Pentagrama
+    // 1. Dibujar el Pentagrama (5 líneas equidistantes)
     for (int i = 0; i < 5; i++) {
       double y = baseMi4Y - (i * staffSpacing);
       canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
     }
+
+    // Barra divisoria o final de compás (Barline)
+    final double barX = size.width - rightMargin;
+    if (measureIndex == totalMeasures - 1) {
+      // Doble barra final de obra: línea fina y línea gruesa
+      canvas.drawLine(Offset(barX - 6, topStaffY), Offset(barX - 6, baseMi4Y), linePaint..strokeWidth = 2.0);
+      canvas.drawLine(Offset(barX, topStaffY), Offset(barX, baseMi4Y), linePaint..strokeWidth = 5.0);
+    } else {
+      // Barra simple de compás estándar
+      canvas.drawLine(Offset(barX, topStaffY), Offset(barX, baseMi4Y), linePaint..strokeWidth = 3.0);
+    }
+
+    // Numeración del compás sobre la barra inicial
+    _drawUnicodeText(canvas, "${measureIndex + 1}", leftMargin - 15, topStaffY - 14, 16, Colors.white60);
 
     // 2. Dibujar la Clave de Sol (𝄞)
     _drawUnicodeText(canvas, "𝄞", 25, centerY + (staffSpacing * 0.5), 100, Colors.white60);
