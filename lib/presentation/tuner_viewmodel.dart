@@ -7,6 +7,8 @@ import '../domain/score_entity.dart';
 import '../domain/score_tree.dart';
 import '../domain/tempo_entity.dart';
 import '../domain/mixer_track_entity.dart';
+import '../domain/song_package_entity.dart';
+import '../domain/song_decomposer_service.dart';
 import 'theme/tunner_theme.dart';
 
 class PlayedRecord {
@@ -39,6 +41,10 @@ class TunerViewModel extends ChangeNotifier {
   final List<SongEntity> _playlist = SongEntity.getMockSongs();
   int _selectedSongIndex = 0;
   
+  // Catálogo de canciones descompuestas completas
+  final List<SongPackage> _curatedLibrary = SongDecomposerService.getCuratedLibrary();
+  SongPackage? _activePackage;
+
   SongNote? _expectedNote;
   bool _isNoteCorrect = false;
   final Map<int, PlayedRecord> _measureHistory = {};
@@ -53,6 +59,8 @@ class TunerViewModel extends ChangeNotifier {
   TunnerThemeMode get themeMode => _themeMode;
   TunnerThemePalette get currentPalette => TunnerThemePalette.fromMode(_themeMode);
   MixerConsoleEntity get mixerConsole => _mixerConsole;
+  List<SongPackage> get curatedLibrary => _curatedLibrary;
+  SongPackage? get activePackage => _activePackage;
 
   double get frequency => _frequency;
   String get noteName => _noteName;
@@ -241,6 +249,41 @@ class TunerViewModel extends ChangeNotifier {
 
   void selectSong(int index) {
     _selectedSongIndex = index;
+    resetSongState();
+    notifyListeners();
+  }
+
+  /// Carga un paquete completo de canción descompuesta, sincronizando partitura, tempo y stems del mezclador
+  void loadSongPackage(SongPackage package) {
+    _activePackage = package;
+    final firstMeasure = package.score.measures.first;
+    final songNotes = firstMeasure.notes.map((hNote) {
+      return SongNote(
+        startTick: hNote.startTick,
+        durationTicks: hNote.durationTicks,
+        noteName: hNote.noteName,
+        isRest: hNote.isRest,
+      );
+    }).toList();
+
+    final newSongEntity = SongEntity(
+      title: package.title,
+      notes: songNotes,
+      timeSignature: firstMeasure.timeSignature,
+      measures: package.score.measures,
+    );
+
+    _playlist.insert(0, newSongEntity);
+    _selectedSongIndex = 0;
+    _bpm = package.defaultBpm;
+    _customTimeSignatureOverride = null;
+
+    // Conectar automáticamente sus pistas de acompañamiento separadas a la consola de mezcla
+    _mixerConsole = MixerConsoleEntity(
+      metronomeTrack: _mixerConsole.metronomeTrack,
+      stems: package.tracks,
+    );
+
     resetSongState();
     notifyListeners();
   }

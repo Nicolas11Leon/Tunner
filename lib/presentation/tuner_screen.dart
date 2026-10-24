@@ -3,11 +3,196 @@ import 'package:provider/provider.dart';
 import 'tuner_viewmodel.dart';
 import '../domain/score_entity.dart';
 import '../domain/score_tree.dart';
+import '../domain/song_decomposer_service.dart';
 import 'theme/tunner_theme.dart';
 import 'widgets/strobe_tuner_widget.dart';
 
 class TunerScreen extends StatelessWidget {
   const TunerScreen({super.key});
+
+  void _showLibraryModal(BuildContext context, TunerViewModel viewModel) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: viewModel.currentPalette.cardBackground,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final palette = viewModel.currentPalette;
+            final library = viewModel.curatedLibrary;
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.library_music, color: palette.primaryAccent, size: 22),
+                          const SizedBox(width: 8),
+                          Text(
+                            "BIBLIOTECA & DESCOMPOSITOR",
+                            style: TextStyle(
+                              color: palette.primaryAccent,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: palette.textMutedColor, size: 20),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Repertorio curado con pistas separadas (stems) y carga personalizada",
+                    style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Botón destacado para subir / descomponer canción externa
+                  InkWell(
+                    onTap: () {
+                      Navigator.pop(context);
+                      // Simular ingesta y descomposición instantánea local de un archivo de usuario
+                      final decomposed = SongDecomposerService.decomposeCustomScore(
+                        title: "Canción Importada (Stems Descompuestos)",
+                        composer: "Archivo Local",
+                        bpm: 120,
+                        timeSignature: TimeSignature.commonTime44,
+                        measures: [
+                          MeasureEntity(
+                            index: 0,
+                            timeSignature: TimeSignature.commonTime44,
+                            notes: [
+                              HierarchicalNote.note(startTick: 0, durationTicks: 4, noteName: "Mi4"),
+                              HierarchicalNote.note(startTick: 4, durationTicks: 4, noteName: "Sol4"),
+                              HierarchicalNote.note(startTick: 8, durationTicks: 4, noteName: "La4"),
+                              HierarchicalNote.note(startTick: 12, durationTicks: 4, noteName: "Si4"),
+                            ],
+                          ),
+                          MeasureEntity(
+                            index: 1,
+                            timeSignature: TimeSignature.commonTime44,
+                            notes: [
+                              HierarchicalNote.note(startTick: 0, durationTicks: 8, noteName: "Do5"),
+                              HierarchicalNote.note(startTick: 8, durationTicks: 8, noteName: "Sol4"),
+                            ],
+                          ),
+                        ],
+                      );
+                      viewModel.loadSongPackage(decomposed);
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: palette.primaryAccent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: palette.primaryAccent.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.file_upload_outlined, color: palette.primaryAccent, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Subir & Descomponer Canción",
+                                  style: TextStyle(color: palette.primaryAccent, fontSize: 13, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  "Carga un archivo local (MIDI / MusicXML) y aísla sus instrumentos",
+                                  style: TextStyle(color: palette.textMutedColor, fontSize: 10),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.arrow_forward_ios, color: palette.primaryAccent, size: 14),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Lista del repertorio curado
+                  Text("Repertorio Clásico & Popular", style: TextStyle(color: palette.textColor, fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+
+                  ...library.map((pkg) {
+                    final isCurrent = viewModel.activePackage?.id == pkg.id;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: palette.staffBackground,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: isCurrent ? palette.secondaryAccent : Colors.white10),
+                      ),
+                      child: ListTile(
+                        dense: true,
+                        leading: CircleAvatar(
+                          backgroundColor: isCurrent ? palette.secondaryAccent.withValues(alpha: 0.2) : Colors.white10,
+                          child: Icon(Icons.music_note, color: isCurrent ? palette.secondaryAccent : palette.textColor, size: 18),
+                        ),
+                        title: Text(
+                          pkg.title,
+                          style: TextStyle(color: palette.textColor, fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          "${pkg.composer} • ${pkg.tracks.length} Pistas • ${pkg.defaultBpm} BPM",
+                          style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                        ),
+                        trailing: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isCurrent ? palette.secondaryAccent : palette.primaryAccent,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            minimumSize: Size.zero,
+                          ),
+                          onPressed: () {
+                            viewModel.loadSongPackage(pkg);
+                            Navigator.pop(context);
+                          },
+                          child: Text(
+                            isCurrent ? "Activa" : "Cargar",
+                            style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   void _showCustomizationModal(BuildContext context, TunerViewModel viewModel) {
     showModalBottomSheet(
@@ -348,12 +533,17 @@ class TunerScreen extends StatelessWidget {
         centerTitle: true,
         actions: [
           IconButton(
+            icon: Icon(Icons.library_music, color: palette.primaryAccent),
+            tooltip: "Biblioteca & Descompositor de Canciones",
+            onPressed: () => _showLibraryModal(context, viewModel),
+          ),
+          IconButton(
             icon: Icon(Icons.equalizer, color: palette.secondaryAccent),
             tooltip: "Consola Mezcladora de Pistas (Stems)",
             onPressed: () => _showMixerModal(context, viewModel),
           ),
           IconButton(
-            icon: Icon(Icons.tune, color: palette.primaryAccent),
+            icon: Icon(Icons.tune, color: palette.textColor),
             tooltip: "Personalización Estética y Compás",
             onPressed: () => _showCustomizationModal(context, viewModel),
           ),

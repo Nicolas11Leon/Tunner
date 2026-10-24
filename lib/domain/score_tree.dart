@@ -121,6 +121,10 @@ class HierarchicalScore {
     required this.measures,
   });
 
+  int get totalMeasures => measures.length;
+
+  bool get isValidScore => measures.isNotEmpty && measures.every((m) => m.isValidMeasure);
+
   /// Genera estudios pedagógicos canónicos para validación y práctica interactiva.
   static List<HierarchicalScore> getMockStudies() {
     return [
