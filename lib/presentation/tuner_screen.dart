@@ -557,23 +557,46 @@ class TunerScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Flexible(
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      isExpanded: true,
-                      value: viewModel.selectedSongIndex,
-                      dropdownColor: palette.cardBackground,
-                      icon: Icon(Icons.music_note, color: palette.textMutedColor),
-                      style: TextStyle(color: palette.textColor, fontSize: 16, fontWeight: FontWeight.w500),
-                      items: List.generate(viewModel.playlist.length, (index) {
-                        return DropdownMenuItem(
-                          value: index, 
-                          child: Text(
-                            viewModel.playlist[index].title,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }),
-                      onChanged: (val) => val != null ? viewModel.selectSong(val) : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: palette.cardBackground,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        isExpanded: true,
+                        value: viewModel.selectedSongIndex,
+                        dropdownColor: palette.cardBackground,
+                        icon: Icon(Icons.keyboard_arrow_down, color: palette.primaryAccent),
+                        style: TextStyle(color: palette.textColor, fontSize: 14, fontWeight: FontWeight.w600),
+                        items: List.generate(viewModel.playlist.length, (index) {
+                          return DropdownMenuItem(
+                            value: index, 
+                            child: Row(
+                              children: [
+                                Icon(Icons.music_note, size: 16, color: palette.primaryAccent.withValues(alpha: 0.8)),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    viewModel.playlist[index].title,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        onChanged: (val) => val != null ? viewModel.selectSong(val) : null,
+                      ),
                     ),
                   ),
                 ),
@@ -704,6 +727,7 @@ class TunerScreen extends StatelessWidget {
               noteName: viewModel.noteName,
               isRecording: viewModel.isRecording,
               onPlayReferenceTone: () => viewModel.playReferenceTone("La4"),
+              palette: palette,
             ),
           ),
           const SizedBox(height: 24),

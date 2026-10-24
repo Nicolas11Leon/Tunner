@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../theme/tunner_theme.dart';
 
 class StrobeTunerWidget extends StatefulWidget {
   final double cents;
@@ -7,6 +8,7 @@ class StrobeTunerWidget extends StatefulWidget {
   final String noteName;
   final bool isRecording;
   final VoidCallback? onPlayReferenceTone;
+  final TunnerThemePalette? palette;
 
   const StrobeTunerWidget({
     super.key,
@@ -15,6 +17,7 @@ class StrobeTunerWidget extends StatefulWidget {
     required this.noteName,
     required this.isRecording,
     this.onPlayReferenceTone,
+    this.palette,
   });
 
   @override
@@ -75,32 +78,38 @@ class _StrobeTunerWidgetState extends State<StrobeTunerWidget> with SingleTicker
     final bool isDeadCenter = hasSound && widget.cents.abs() <= 3.0; // Precisión de conservatorio: +-3 cents
     final bool isFairlyTuned = hasSound && widget.cents.abs() <= 10.0;
 
+    final p = widget.palette ?? TunnerThemePalette.obsidianStudio;
+
     final Color statusColor = isDeadCenter
-        ? const Color(0xFF00FF88) // Verde ultra nítido
+        ? p.correctPitchColor // Afinación clavada de estudio
         : isFairlyTuned
-            ? const Color(0xFF66FFB2)
+            ? p.correctPitchColor.withValues(alpha: 0.8)
             : widget.cents < 0
-                ? const Color(0xFF3399FF) // Azul si está bemol / flat
-                : const Color(0xFFFF9933); // Naranja si está sostenido / sharp
+                ? const Color(0xFF3399FF) // Bemol
+                : p.warningPitchColor;    // Sostenido
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF13141C),
-        borderRadius: BorderRadius.circular(16),
+        color: p.cardBackground,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isDeadCenter ? const Color(0xFF00FF88).withValues(alpha: 0.4) : Colors.white10,
-          width: 1.5,
+          color: isDeadCenter ? p.correctPitchColor.withValues(alpha: 0.6) : p.staffLinesColor.withValues(alpha: 0.25),
+          width: isDeadCenter ? 2.0 : 1.0,
         ),
-        boxShadow: isDeadCenter
-            ? [
-                BoxShadow(
-                  color: const Color(0xFF00FF88).withValues(alpha: 0.15),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                )
-              ]
-            : [],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+          if (isDeadCenter)
+            BoxShadow(
+              color: p.correctPitchColor.withValues(alpha: 0.25),
+              blurRadius: 25,
+              spreadRadius: 2,
+            ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
