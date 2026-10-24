@@ -3,22 +3,152 @@ import 'package:provider/provider.dart';
 import 'tuner_viewmodel.dart';
 import '../domain/score_entity.dart';
 import '../domain/score_tree.dart';
+import 'theme/tunner_theme.dart';
 import 'widgets/strobe_tuner_widget.dart';
 
 class TunerScreen extends StatelessWidget {
   const TunerScreen({super.key});
 
+  void _showCustomizationModal(BuildContext context, TunerViewModel viewModel) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: viewModel.currentPalette.cardBackground,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final palette = viewModel.currentPalette;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "PERSONALIZACIÓN DE ESTUDIO",
+                        style: TextStyle(
+                          color: palette.primaryAccent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: palette.textMutedColor, size: 20),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 1. Selector de Tema Visual
+                  Text("Tema y Estética", style: TextStyle(color: palette.textColor, fontSize: 14, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: TunnerThemePalette.allPalettes.map((p) {
+                      final isSelected = viewModel.themeMode == p.mode;
+                      return ChoiceChip(
+                        label: Text(p.displayName),
+                        selected: isSelected,
+                        selectedColor: p.primaryAccent.withValues(alpha: 0.3),
+                        backgroundColor: p.staffBackground,
+                        labelStyle: TextStyle(
+                          color: isSelected ? p.primaryAccent : Colors.white70,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontSize: 12,
+                        ),
+                        side: BorderSide(
+                          color: isSelected ? p.primaryAccent : Colors.white12,
+                          width: isSelected ? 1.5 : 1,
+                        ),
+                        onSelected: (val) {
+                          if (val) {
+                            viewModel.setThemeMode(p.mode);
+                            setModalState(() {});
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 2. Selector de Métrica de Compás Libre
+                  Text("Métrica de Compás", style: TextStyle(color: palette.textColor, fontSize: 14, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: TimeSignature.standardSignatures.map((sig) {
+                      final isSelected = viewModel.currentMeasureTimeSignature == sig;
+                      return ActionChip(
+                        avatar: Icon(Icons.timer_outlined, size: 16, color: isSelected ? palette.primaryAccent : palette.textMutedColor),
+                        label: Text(sig.toString()),
+                        backgroundColor: isSelected ? palette.primaryAccent.withValues(alpha: 0.2) : Colors.white10,
+                        labelStyle: TextStyle(
+                          color: isSelected ? palette.primaryAccent : Colors.white70,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontSize: 12,
+                        ),
+                        side: BorderSide(
+                          color: isSelected ? palette.primaryAccent : Colors.white12,
+                        ),
+                        onPressed: () {
+                          viewModel.setCustomTimeSignature(sig);
+                          setModalState(() {});
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<TunerViewModel>();
+    final palette = viewModel.currentPalette;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D11),
+      backgroundColor: palette.scaffoldBackground,
       appBar: AppBar(
-        title: const Text("Estudio de Flauta Interactivo", style: TextStyle(fontWeight: FontWeight.w300)),
+        title: Text(
+          "Estudio de Flauta Interactivo",
+          style: TextStyle(fontWeight: FontWeight.w300, color: palette.textColor),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.tune, color: palette.primaryAccent),
+            tooltip: "Personalización Estética y Compás",
+            onPressed: () => _showCustomizationModal(context, viewModel),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -32,9 +162,9 @@ class TunerScreen extends StatelessWidget {
                     child: DropdownButton<int>(
                       isExpanded: true,
                       value: viewModel.selectedSongIndex,
-                      dropdownColor: const Color(0xFF1A1A24),
-                      icon: const Icon(Icons.music_note, color: Colors.white54),
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                      dropdownColor: palette.cardBackground,
+                      icon: Icon(Icons.music_note, color: palette.textMutedColor),
+                      style: TextStyle(color: palette.textColor, fontSize: 16, fontWeight: FontWeight.w500),
                       items: List.generate(viewModel.playlist.length, (index) {
                         return DropdownMenuItem(
                           value: index, 
@@ -58,25 +188,25 @@ class TunerScreen extends StatelessWidget {
                         IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          icon: const Icon(Icons.remove_circle_outline, color: Colors.white70, size: 20),
+                          icon: Icon(Icons.remove_circle_outline, color: palette.textMutedColor, size: 20),
                           onPressed: () => viewModel.decrementBpm(1),
                           tooltip: "-1 BPM",
                         ),
                         Text(
                           "${viewModel.bpm}",
-                          style: const TextStyle(
-                            color: Colors.greenAccent,
+                          style: TextStyle(
+                            color: palette.primaryAccent,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             letterSpacing: -0.5,
                           ),
                         ),
                         const SizedBox(width: 2),
-                        const Text("BPM", style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w600)),
+                        Text("BPM", style: TextStyle(color: palette.textMutedColor, fontSize: 11, fontWeight: FontWeight.w600)),
                         IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          icon: const Icon(Icons.add_circle_outline, color: Colors.white70, size: 20),
+                          icon: Icon(Icons.add_circle_outline, color: palette.textMutedColor, size: 20),
                           onPressed: () => viewModel.incrementBpm(1),
                           tooltip: "+1 BPM",
                         ),
@@ -84,8 +214,8 @@ class TunerScreen extends StatelessWidget {
                     ),
                     Text(
                       viewModel.currentTempoMark.italianName.toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.amberAccent,
+                      style: TextStyle(
+                        color: palette.secondaryAccent,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
@@ -100,8 +230,8 @@ class TunerScreen extends StatelessWidget {
             value: viewModel.bpm.toDouble(),
             min: 20,
             max: 300,
-            activeColor: Colors.greenAccent,
-            inactiveColor: Colors.white10,
+            activeColor: palette.primaryAccent,
+            inactiveColor: palette.staffLinesColor.withValues(alpha: 0.3),
             onChanged: (val) => viewModel.updateBpm(val.round()),
           ),
           const SizedBox(height: 6),
@@ -114,16 +244,16 @@ class TunerScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.skip_previous, color: Colors.white70, size: 20),
+                    icon: Icon(Icons.skip_previous, color: palette.textMutedColor, size: 20),
                     onPressed: () => viewModel.previousMeasure(),
                     tooltip: "Compás Anterior",
                   ),
                   Text(
-                    "Compás ${viewModel.currentMeasureIndex + 1} de ${viewModel.totalMeasures}",
-                    style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+                    "Compás ${viewModel.currentMeasureIndex + 1} de ${viewModel.totalMeasures}  (${viewModel.currentMeasureTimeSignature})",
+                    style: TextStyle(color: palette.textColor, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.skip_next, color: Colors.white70, size: 20),
+                    icon: Icon(Icons.skip_next, color: palette.textMutedColor, size: 20),
                     onPressed: () => viewModel.nextMeasure(),
                     tooltip: "Siguiente Compás",
                   ),
@@ -131,16 +261,17 @@ class TunerScreen extends StatelessWidget {
               ),
             ),
 
-          // LIENZO GRÁFICO DE LA PARTITURA REAL (Legibilidad Mejorada)
+          // LIENZO GRÁFICO DE LA PARTITURA REAL (Adaptado a la Paleta de Estética)
           Expanded(
             child: Container(
               width: double.infinity,
               margin: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFF16161D),
+                color: palette.staffBackground,
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.2)),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 15, offset: const Offset(0, 10)),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 15, offset: const Offset(0, 10)),
                 ],
               ),
               child: ClipRRect(
@@ -157,6 +288,7 @@ class TunerScreen extends StatelessWidget {
                     timeSignature: viewModel.currentMeasureTimeSignature,
                     measureIndex: viewModel.currentMeasureIndex,
                     totalMeasures: viewModel.totalMeasures,
+                    palette: palette,
                   ),
                 ),
               ),
@@ -185,17 +317,20 @@ class TunerScreen extends StatelessWidget {
               children: [
                 FloatingActionButton.extended(
                   onPressed: viewModel.toggleRecording,
-                  backgroundColor: viewModel.isRecording ? Colors.redAccent.withValues(alpha: 0.2) : const Color(0xFF232333),
+                  backgroundColor: viewModel.isRecording ? palette.errorPitchColor.withValues(alpha: 0.2) : palette.cardBackground,
                   elevation: 0,
-                  icon: Icon(viewModel.isRecording ? Icons.mic_off : Icons.mic, color: viewModel.isRecording ? Colors.redAccent : Colors.white),
-                  label: Text(viewModel.isRecording ? "Apagar" : "Micro", style: TextStyle(color: viewModel.isRecording ? Colors.redAccent : Colors.white)),
+                  icon: Icon(viewModel.isRecording ? Icons.mic_off : Icons.mic, color: viewModel.isRecording ? palette.errorPitchColor : palette.textColor),
+                  label: Text(viewModel.isRecording ? "Apagar" : "Micro", style: TextStyle(color: viewModel.isRecording ? palette.errorPitchColor : palette.textColor)),
                 ),
                 FloatingActionButton.extended(
                   onPressed: viewModel.startSongWithCountIn,
-                  backgroundColor: viewModel.isMetronomePlaying ? Colors.amber[700] : Colors.greenAccent[700],
+                  backgroundColor: viewModel.isMetronomePlaying ? palette.secondaryAccent : palette.primaryAccent,
                   elevation: 5,
-                  icon: Icon(viewModel.isMetronomePlaying ? Icons.stop : Icons.play_arrow, color: Colors.black),
-                  label: Text(viewModel.isMetronomePlaying ? "Detener" : "Practicar", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                  icon: const Icon(Icons.play_arrow, color: Colors.black),
+                  label: Text(
+                    viewModel.isMetronomePlaying ? "Detener" : "Practicar",
+                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             ),
@@ -207,7 +342,7 @@ class TunerScreen extends StatelessWidget {
 }
 
 // =========================================================================
-// MOTOR GRÁFICO DE PARTITURA CLÁSICA (Con Alto Contraste)
+// MOTOR GRÁFICO DE PARTITURA CLÁSICA CON PALETAS ESTÉTICAS
 // =========================================================================
 class RealSheetMusicPainter extends CustomPainter {
   final int currentSubTick;
@@ -220,6 +355,7 @@ class RealSheetMusicPainter extends CustomPainter {
   final TimeSignature timeSignature;
   final int measureIndex;
   final int totalMeasures;
+  final TunnerThemePalette palette;
 
   RealSheetMusicPainter({
     required this.currentSubTick,
@@ -232,6 +368,7 @@ class RealSheetMusicPainter extends CustomPainter {
     this.timeSignature = TimeSignature.commonTime44,
     this.measureIndex = 0,
     this.totalMeasures = 1,
+    this.palette = TunnerThemePalette.obsidianStudio,
   });
 
   int _getNoteStep(String note) {
@@ -264,8 +401,7 @@ class RealSheetMusicPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Líneas del pentagrama ligeramente más visibles
-    final linePaint = Paint()..color = const Color(0xFF4A4A5A)..strokeWidth = 2.0;
+    final linePaint = Paint()..color = palette.staffLinesColor..strokeWidth = 2.0;
     
     final double leftMargin = 75.0;
     final double rightMargin = 20.0;
@@ -287,44 +423,41 @@ class RealSheetMusicPainter extends CustomPainter {
     // Barra divisoria o final de compás (Barline)
     final double barX = size.width - rightMargin;
     if (measureIndex == totalMeasures - 1) {
-      // Doble barra final de obra: línea fina y línea gruesa
       canvas.drawLine(Offset(barX - 6, topStaffY), Offset(barX - 6, baseMi4Y), linePaint..strokeWidth = 2.0);
       canvas.drawLine(Offset(barX, topStaffY), Offset(barX, baseMi4Y), linePaint..strokeWidth = 5.0);
     } else {
-      // Barra simple de compás estándar
       canvas.drawLine(Offset(barX, topStaffY), Offset(barX, baseMi4Y), linePaint..strokeWidth = 3.0);
     }
 
     // Numeración del compás sobre la barra inicial
-    _drawUnicodeText(canvas, "${measureIndex + 1}", leftMargin - 15, topStaffY - 14, 16, Colors.white60);
+    _drawUnicodeText(canvas, "${measureIndex + 1}", leftMargin - 15, topStaffY - 14, 16, palette.textMutedColor);
 
     // 2. Dibujar la Clave de Sol (𝄞)
-    _drawUnicodeText(canvas, "𝄞", 25, centerY + (staffSpacing * 0.5), 100, Colors.white60);
+    _drawUnicodeText(canvas, "𝄞", 25, centerY + (staffSpacing * 0.5), 100, palette.musicalSymbolsColor);
 
     // Indicador numérico de Métrica / Compás (e.g. 4/4, 3/4, 6/8)
-    _drawUnicodeText(canvas, "${timeSignature.numerator}", 55, centerY - (staffSpacing * 0.8), 24, Colors.white70);
-    _drawUnicodeText(canvas, "${timeSignature.denominator}", 55, centerY + (staffSpacing * 0.8), 24, Colors.white70);
+    _drawUnicodeText(canvas, "${timeSignature.numerator}", 55, centerY - (staffSpacing * 0.8), 24, palette.musicalSymbolsColor);
+    _drawUnicodeText(canvas, "${timeSignature.denominator}", 55, centerY + (staffSpacing * 0.8), 24, palette.musicalSymbolsColor);
 
     // Conteo de entrada gigante
     if (isCountingIn) {
       final textPainter = TextPainter(
-        text: TextSpan(text: "$countInBeat", style: const TextStyle(color: Colors.orangeAccent, fontSize: 120, fontWeight: FontWeight.w900)),
+        text: TextSpan(text: "$countInBeat", style: TextStyle(color: palette.secondaryAccent, fontSize: 120, fontWeight: FontWeight.w900)),
         textDirection: TextDirection.ltr,
       )..layout();
       textPainter.paint(canvas, Offset((size.width - textPainter.width) / 2, (size.height - textPainter.height) / 2));
       return; 
     }
 
-    // 3. Dibujar las Figuras Musicales de la Partitura (BLANCO SÓLIDO)
-    final targetPaintFill = Paint()..color = Colors.white..style = PaintingStyle.fill;
-    final targetPaintStroke = Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 3;
+    // 3. Dibujar las Figuras Musicales de la Partitura
+    final targetPaintFill = Paint()..color = palette.musicalSymbolsColor..style = PaintingStyle.fill;
+    final targetPaintStroke = Paint()..color = palette.musicalSymbolsColor..style = PaintingStyle.stroke..strokeWidth = 3;
 
     for (var note in notes) {
       double startX = leftMargin + (note.startTick * stepWidth);
       double noteCenterX = startX + (stepWidth / 2);
 
       if (note.isRest) {
-        // Silencios mucho más legibles y grandes
         String restSymbol = "";
         if (note.durationTicks >= 16) {
           restSymbol = "𝄻"; // Redonda
@@ -338,7 +471,7 @@ class RealSheetMusicPainter extends CustomPainter {
           restSymbol = "𝄿"; // Semicorchea
         }
         
-        _drawUnicodeText(canvas, restSymbol, noteCenterX, centerY, 55, Colors.white70);
+        _drawUnicodeText(canvas, restSymbol, noteCenterX, centerY, 55, palette.musicalSymbolsColor);
       } else {
         int step = _getNoteStep(note.noteName);
         double noteY = baseMi4Y - ((step - 2) * (staffSpacing / 2));
@@ -347,14 +480,14 @@ class RealSheetMusicPainter extends CustomPainter {
         bool hasStem = note.durationTicks < 16;
         bool stemGoesDown = step >= 6; 
         
-        // Cabeza de la nota MUCHO más grande (22x16 en lugar de 15x11)
+        // Cabeza de la nota
         canvas.save();
         canvas.translate(noteCenterX, noteY);
         canvas.rotate(-0.2); 
         canvas.drawOval(Rect.fromCenter(center: Offset.zero, width: 22, height: 16), isFilled ? targetPaintFill : targetPaintStroke);
         canvas.restore();
 
-        // Plica (Stem) más gruesa
+        // Plica (Stem)
         if (hasStem) {
           double stemX = stemGoesDown ? noteCenterX - 9 : noteCenterX + 9;
           double stemYStart = noteY;
@@ -362,7 +495,7 @@ class RealSheetMusicPainter extends CustomPainter {
           
           canvas.drawLine(Offset(stemX, stemYStart), Offset(stemX, stemYEnd), targetPaintFill..strokeWidth = 3.0);
           
-          // Corchetes (Flags) más marcados
+          // Corchetes (Flags)
           if (note.durationTicks <= 2) { 
             double flagHeight = stemGoesDown ? -25 : 25;
             canvas.drawPath(
@@ -379,16 +512,16 @@ class RealSheetMusicPainter extends CustomPainter {
           }
         }
         
-        // Líneas adicionales para notas agudas/graves (más anchas y visibles)
+        // Líneas adicionales
         if (step <= 0 || step >= 12) {
           canvas.drawLine(Offset(noteCenterX - 18, noteY), Offset(noteCenterX + 18, noteY), targetPaintFill..strokeWidth = 2.0);
         }
       }
     }
 
-    // 4. Cursor de Tiempo Analítico (Playhead)
+    // 4. Cursor de Tiempo Analítico (Playhead con color de la paleta)
     if (currentSubTick >= 0) {
-      final cursorPaint = Paint()..color = Colors.greenAccent.withValues(alpha: 0.15);
+      final cursorPaint = Paint()..color = palette.playheadColor.withValues(alpha: 0.2);
       canvas.drawRect(Rect.fromLTWH(leftMargin + (currentSubTick * stepWidth), 0, stepWidth, size.height), cursorPaint);
     }
 
@@ -397,13 +530,13 @@ class RealSheetMusicPainter extends CustomPainter {
       double recordX = leftMargin + (tick * stepWidth) + (stepWidth / 2);
       
       if (record.isRest) {
-        final p = Paint()..color = record.isCorrect ? Colors.green.withValues(alpha: 0.5) : Colors.red.withValues(alpha: 0.5);
+        final p = Paint()..color = record.isCorrect ? palette.correctPitchColor.withValues(alpha: 0.5) : palette.errorPitchColor.withValues(alpha: 0.5);
         canvas.drawCircle(Offset(recordX, size.height - 20), 5, p);
       } else {
         int playedStep = _getNoteStep(record.noteName);
         if (playedStep > -100) {
           double playedY = baseMi4Y - ((playedStep - 2) * (staffSpacing / 2));
-          Color dotColor = record.isCorrect ? (record.cents.abs() <= 15 ? Colors.greenAccent : Colors.amberAccent) : Colors.redAccent;
+          Color dotColor = record.isCorrect ? (record.cents.abs() <= 15 ? palette.correctPitchColor : palette.warningPitchColor) : palette.errorPitchColor;
           
           final p = Paint()..color = dotColor..maskFilter = const MaskFilter.blur(BlurStyle.solid, 6);
           canvas.drawCircle(Offset(recordX, playedY), 10, p);
@@ -419,7 +552,7 @@ class RealSheetMusicPainter extends CustomPainter {
         double liveY = baseMi4Y - ((liveStep - 2) * (staffSpacing / 2));
         liveY -= (liveCents / 50.0) * (staffSpacing / 4);
 
-        Color liveColor = (liveCents.abs() <= 15) ? Colors.greenAccent : Colors.amberAccent;
+        Color liveColor = (liveCents.abs() <= 15) ? palette.correctPitchColor : palette.warningPitchColor;
 
         final livePaint = Paint()
           ..color = liveColor.withValues(alpha: 0.9)
@@ -431,5 +564,16 @@ class RealSheetMusicPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant RealSheetMusicPainter oldDelegate) {
+    return oldDelegate.currentSubTick != currentSubTick ||
+        oldDelegate.liveNote != liveNote ||
+        oldDelegate.liveCents != liveCents ||
+        oldDelegate.isCountingIn != isCountingIn ||
+        oldDelegate.countInBeat != countInBeat ||
+        oldDelegate.measureIndex != measureIndex ||
+        oldDelegate.timeSignature != timeSignature ||
+        oldDelegate.palette != palette ||
+        oldDelegate.notes != notes ||
+        oldDelegate.history.length != history.length;
+  }
 }

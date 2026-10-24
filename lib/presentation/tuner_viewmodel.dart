@@ -6,6 +6,7 @@ import '../domain/note_entity.dart';
 import '../domain/score_entity.dart';
 import '../domain/score_tree.dart';
 import '../domain/tempo_entity.dart';
+import 'theme/tunner_theme.dart';
 
 class PlayedRecord {
   final String noteName;
@@ -41,6 +42,13 @@ class TunerViewModel extends ChangeNotifier {
   bool _isNoteCorrect = false;
   final Map<int, PlayedRecord> _measureHistory = {};
 
+  // Personalización Estética y de Compás Pro
+  TunnerThemeMode _themeMode = TunnerThemeMode.obsidianStudio;
+  TimeSignature? _customTimeSignatureOverride;
+
+  TunnerThemeMode get themeMode => _themeMode;
+  TunnerThemePalette get currentPalette => TunnerThemePalette.fromMode(_themeMode);
+
   double get frequency => _frequency;
   String get noteName => _noteName;
   double get cents => _cents;
@@ -60,7 +68,21 @@ class TunerViewModel extends ChangeNotifier {
   Map<int, PlayedRecord> get measureHistory => _measureHistory;
 
   List<SongNote> get currentMeasureNotes => _playlist[_selectedSongIndex].notesForMeasure(_currentMeasureIndex);
-  TimeSignature get currentMeasureTimeSignature => _playlist[_selectedSongIndex].timeSignatureForMeasure(_currentMeasureIndex);
+  TimeSignature get currentMeasureTimeSignature => _customTimeSignatureOverride ?? _playlist[_selectedSongIndex].timeSignatureForMeasure(_currentMeasureIndex);
+
+  void setThemeMode(TunnerThemeMode mode) {
+    _themeMode = mode;
+    notifyListeners();
+  }
+
+  void setCustomTimeSignature(TimeSignature? signature) {
+    _customTimeSignatureOverride = signature;
+    if (_isMetronomePlaying) {
+      _metronomeService.stop().then((_) => _metronomeService.start(_bpm, ticksPerMeasure: currentMeasureTimeSignature.totalTicks));
+    }
+    resetSongState();
+    notifyListeners();
+  }
 
   TunerViewModel() {
     _pitchService.onPitchDetected = (pitch) {

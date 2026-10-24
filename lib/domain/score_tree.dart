@@ -10,6 +10,19 @@ class TimeSignature {
   static const TimeSignature waltzTime34 = TimeSignature(3, 4);
   static const TimeSignature marchTime24 = TimeSignature(2, 4);
   static const TimeSignature compoundTime68 = TimeSignature(6, 8);
+  static const TimeSignature compoundTime98 = TimeSignature(9, 8);
+  static const TimeSignature compoundTime128 = TimeSignature(12, 8);
+  static const TimeSignature complexTime54 = TimeSignature(5, 4);
+
+  static const List<TimeSignature> standardSignatures = [
+    commonTime44,
+    waltzTime34,
+    marchTime24,
+    compoundTime68,
+    compoundTime98,
+    compoundTime128,
+    complexTime54,
+  ];
 
   /// Cantidad total de sub-ticks (semicorcheas, resolución base = 1/16) en este compás.
   /// Fórmula: numerador * (16 / denominador)
