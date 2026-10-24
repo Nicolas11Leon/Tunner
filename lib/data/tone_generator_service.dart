@@ -86,4 +86,21 @@ class ToneGeneratorService {
 
     return bytes.buffer.asUint8List();
   }
+
+  /// Genera un clic auditivo de metrónomo de ultra baja latencia con envolvente percusiva.
+  /// isAccented = true para el pulso 1 (frecuencia alta 1600 Hz), false para los demás (800 Hz).
+  static Uint8List generateMetronomeClickWav({
+    required bool isAccented,
+    double volume = 0.7,
+    int durationMs = 25,
+  }) {
+    final double frequency = isAccented ? 1600.0 : 800.0;
+    return generateSineWav(
+      frequency: frequency,
+      durationMs: durationMs,
+      volume: volume,
+      attackMs: 2,
+      releaseMs: 20,
+    );
+  }
 }

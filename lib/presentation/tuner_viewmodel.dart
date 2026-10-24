@@ -6,6 +6,7 @@ import '../domain/note_entity.dart';
 import '../domain/score_entity.dart';
 import '../domain/score_tree.dart';
 import '../domain/tempo_entity.dart';
+import '../domain/mixer_track_entity.dart';
 import 'theme/tunner_theme.dart';
 
 class PlayedRecord {
@@ -46,8 +47,12 @@ class TunerViewModel extends ChangeNotifier {
   TunnerThemeMode _themeMode = TunnerThemeMode.obsidianStudio;
   TimeSignature? _customTimeSignatureOverride;
 
+  // Consola Mezcladora Multicanal (Stems y Metrónomo Independiente)
+  MixerConsoleEntity _mixerConsole = MixerConsoleEntity.defaultSetup();
+
   TunnerThemeMode get themeMode => _themeMode;
   TunnerThemePalette get currentPalette => TunnerThemePalette.fromMode(_themeMode);
+  MixerConsoleEntity get mixerConsole => _mixerConsole;
 
   double get frequency => _frequency;
   String get noteName => _noteName;
@@ -81,6 +86,22 @@ class TunerViewModel extends ChangeNotifier {
       _metronomeService.stop().then((_) => _metronomeService.start(_bpm, ticksPerMeasure: currentMeasureTimeSignature.totalTicks));
     }
     resetSongState();
+    notifyListeners();
+  }
+
+  // --- Controles de la Consola Mezcladora ---
+  void setTrackVolume(String trackId, double volume) {
+    _mixerConsole = _mixerConsole.copyWithTrackVolume(trackId, volume);
+    notifyListeners();
+  }
+
+  void toggleTrackMute(String trackId) {
+    _mixerConsole = _mixerConsole.toggleMute(trackId);
+    notifyListeners();
+  }
+
+  void toggleTrackSolo(String trackId) {
+    _mixerConsole = _mixerConsole.toggleSolo(trackId);
     notifyListeners();
   }
 
