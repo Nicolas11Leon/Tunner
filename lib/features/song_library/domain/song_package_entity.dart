@@ -1,5 +1,5 @@
-import 'mixer_track_entity.dart';
-import 'score_tree.dart';
+import '../../mixer/domain/mixer_track_entity.dart';
+import '../../sheet_music/domain/score_tree.dart';
 
 /// Dificultad pedagógica de la obra musical.
 enum SongDifficulty {

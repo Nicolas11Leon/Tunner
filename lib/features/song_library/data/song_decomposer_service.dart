@@ -1,8 +1,8 @@
-import 'mixer_track_entity.dart';
-import 'score_tree.dart';
-import 'song_package_entity.dart';
+import '../../mixer/domain/mixer_track_entity.dart';
+import '../../sheet_music/domain/score_tree.dart';
+import '../domain/song_package_entity.dart';
 
-/// Servicio de dominio puro para la gestión de la biblioteca de canciones y descomposición de pistas.
+/// Servicio de datos / repositorio para la gestión de la biblioteca de canciones y descomposición de pistas.
 class SongDecomposerService {
   /// Biblioteca canónica de canciones curadas y descompuestas por capas offline.
   static List<SongPackage> getCuratedLibrary() {

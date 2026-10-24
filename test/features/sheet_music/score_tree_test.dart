@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tunner/domain/score_tree.dart';
+import 'package:tunner/features/sheet_music/domain/score_tree.dart';
 
 void main() {
   group('TimeSignature Domain Math', () {

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tunner/domain/mixer_track_entity.dart';
+import 'package:tunner/features/mixer/domain/mixer_track_entity.dart';
 
 void main() {
   group('MixerConsoleEntity Domain Tests', () {

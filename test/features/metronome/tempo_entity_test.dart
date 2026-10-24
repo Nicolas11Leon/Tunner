@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tunner/domain/tempo_entity.dart';
+import 'package:tunner/features/metronome/domain/tempo_entity.dart';
 
 void main() {
   group('TempoMark Domain Tests', () {

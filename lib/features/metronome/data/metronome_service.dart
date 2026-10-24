@@ -1,9 +1,14 @@
 import 'dart:async';
 import 'dart:isolate';
+import '../domain/i_metronome_service.dart';
 
-class MetronomeService {
+/// Implementación de infraestructura para la temporización de alta resolución en Isolate de Dart.
+/// Implementa [IMetronomeService] y rinde el tiempo al sistema operativo sin busy-waiting.
+class MetronomeService implements IMetronomeService {
   Isolate? _isolate;
   final ReceivePort _fromIsolatePort = ReceivePort();
+
+  @override
   Function(int currentSubTick)? onSubTick;
 
   MetronomeService() {
@@ -14,6 +19,7 @@ class MetronomeService {
     });
   }
 
+  @override
   Future<void> start(int bpm, {int ticksPerMeasure = 16}) async {
     if (_isolate != null) await stop();
     _isolate = await Isolate.spawn(_highResolutionTicksLogic, {
@@ -40,6 +46,7 @@ class MetronomeService {
     });
   }
 
+  @override
   Future<void> stop() async {
     _isolate?.kill(priority: Isolate.immediate);
     _isolate = null;

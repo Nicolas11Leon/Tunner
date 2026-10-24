@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import '../theme/tunner_theme.dart';
+import '../../../core/theme/tunner_theme.dart';
 
 class StrobeTunerWidget extends StatefulWidget {
   final double cents;

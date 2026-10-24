@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tunner/domain/score_tree.dart';
-import 'package:tunner/domain/song_decomposer_service.dart';
+import 'package:tunner/features/sheet_music/domain/score_tree.dart';
+import 'package:tunner/features/song_library/data/song_decomposer_service.dart';
 
 void main() {
   group('SongDecomposerService Domain Tests', () {

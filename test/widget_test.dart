@@ -8,7 +8,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:tunner/main.dart';
-import 'package:tunner/presentation/tuner_viewmodel.dart';
+import 'package:tunner/features/tuner_viewmodel.dart';
 
 void main() {
   testWidgets('App smoke test initializes FluteTunerApp', (WidgetTester tester) async {

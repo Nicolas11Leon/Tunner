@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tunner/domain/note_entity.dart';
+import 'package:tunner/features/tuner/domain/note_entity.dart';
 
 void main() {
   group('NoteEntity Acoustic Math and Boundaries', () {

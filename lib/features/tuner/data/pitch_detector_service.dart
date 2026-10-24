@@ -3,8 +3,11 @@ import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 import 'package:pitch_detector_dart/pitch_detector.dart';
+import '../domain/i_pitch_detector_service.dart';
 
-class PitchDetectorService {
+/// Implementación de infraestructura para la captura de micrófono y procesamiento DSP en Isolate.
+/// Implementa estrictamente el contrato [IPitchDetectorService] del dominio.
+class PitchDetectorService implements IPitchDetectorService {
   final _audioRecorder = AudioRecorder();
   StreamSubscription? _audioSubscription;
   
@@ -13,6 +16,7 @@ class PitchDetectorService {
   SendPort? _toWorkerPort;
   Completer<void>? _workerReadyCompleter;
 
+  @override
   Function(double)? onPitchDetected;
 
   Future<void> _startDspWorker() async {
@@ -76,6 +80,7 @@ class PitchDetectorService {
     });
   }
 
+  @override
   Future<void> startRecording() async {
     try {
       if (await _audioRecorder.hasPermission()) {
@@ -88,7 +93,6 @@ class PitchDetectorService {
         ));
 
         _audioSubscription = stream.listen((data) {
-          // Envío inmediato al Isolate de fondo (0 microsegundos en hilo de UI)
           _toWorkerPort?.send(data);
         }, onError: (error) {
           debugPrint("Error en el flujo de audio: $error");
@@ -99,6 +103,7 @@ class PitchDetectorService {
     }
   }
 
+  @override
   Future<void> stopRecording() async {
     await _audioSubscription?.cancel();
     _audioSubscription = null;

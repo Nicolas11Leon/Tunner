@@ -1,51 +1,46 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../data/pitch_detector_service.dart';
-import '../data/metronome_service.dart';
-import '../domain/note_entity.dart';
-import '../domain/score_entity.dart';
-import '../domain/score_tree.dart';
-import '../domain/tempo_entity.dart';
-import '../domain/mixer_track_entity.dart';
-import '../domain/song_package_entity.dart';
-import '../domain/song_decomposer_service.dart';
-import 'theme/tunner_theme.dart';
 
-class PlayedRecord {
-  final String noteName;
-  final double cents;
-  final bool isCorrect;
-  final bool isRest;
-  PlayedRecord(this.noteName, this.cents, this.isCorrect, {this.isRest = false});
-}
+import '../core/theme/tunner_theme.dart';
+import 'tuner/domain/note_entity.dart';
+import 'tuner/domain/i_pitch_detector_service.dart';
+import 'tuner/data/pitch_detector_service.dart';
+import 'metronome/domain/tempo_entity.dart';
+import 'metronome/domain/i_metronome_service.dart';
+import 'metronome/data/metronome_service.dart';
+import 'sheet_music/domain/score_tree.dart';
+import 'sheet_music/presentation/real_sheet_music_painter.dart';
+import 'mixer/domain/mixer_track_entity.dart';
+import 'song_library/domain/song_package_entity.dart';
+import 'song_library/data/song_decomposer_service.dart';
 
+/// ViewModel principal orquestador del estudio interactivo.
+/// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
+/// Recibe abstracciones de servicios en lugar de construirlos acopladamente.
 class TunerViewModel extends ChangeNotifier {
-  final PitchDetectorService _pitchService = PitchDetectorService();
-  final MetronomeService _metronomeService = MetronomeService();
-  
+  final IPitchDetectorService _pitchService;
+  final IMetronomeService _metronomeService;
+
   double _frequency = 0.0;
   String _noteName = "--";
   double _cents = 0.0;
   bool _isRecording = false;
 
-  Timer? _silenceTimer; // Temporizador para limpiar nota
+  Timer? _silenceTimer;
 
   bool _isMetronomePlaying = false;
   int _currentSubTick = -1;
   int _currentMeasureIndex = 0;
-  int _bpm = 75; 
-  
+  int _bpm = 75;
+
   bool _isCountingIn = false;
   int _countInBeat = 0;
-  
-  final List<SongEntity> _playlist = SongEntity.getMockSongs();
-  int _selectedSongIndex = 0;
-  
-  // Catálogo de canciones descompuestas completas
-  final List<SongPackage> _curatedLibrary = SongDecomposerService.getCuratedLibrary();
-  SongPackage? _activePackage;
 
-  SongNote? _expectedNote;
+  // Catálogo de canciones descompuestas canónicas
+  final List<SongPackage> _curatedLibrary = SongDecomposerService.getCuratedLibrary();
+  late SongPackage _activePackage;
+
+  HierarchicalNote? _expectedNote;
   bool _isNoteCorrect = false;
   final Map<int, PlayedRecord> _measureHistory = {};
 
@@ -53,14 +48,30 @@ class TunerViewModel extends ChangeNotifier {
   TunnerThemeMode _themeMode = TunnerThemeMode.obsidianStudio;
   TimeSignature? _customTimeSignatureOverride;
 
-  // Consola Mezcladora Multicanal (Stems y Metrónomo Independiente)
+  // Consola Mezcladora Multicanal
   MixerConsoleEntity _mixerConsole = MixerConsoleEntity.defaultSetup();
 
+  // Inyección de dependencias en el constructor
+  TunerViewModel({
+    IPitchDetectorService? pitchService,
+    IMetronomeService? metronomeService,
+  })  : _pitchService = pitchService ?? PitchDetectorService(),
+        _metronomeService = metronomeService ?? MetronomeService() {
+    _activePackage = _curatedLibrary.first;
+    _bpm = _activePackage.defaultBpm;
+    _mixerConsole = MixerConsoleEntity(
+      metronomeTrack: _mixerConsole.metronomeTrack,
+      stems: _activePackage.tracks,
+    );
+    _initListeners();
+  }
+
+  // --- Getters del Estado ---
   TunnerThemeMode get themeMode => _themeMode;
   TunnerThemePalette get currentPalette => TunnerThemePalette.fromMode(_themeMode);
   MixerConsoleEntity get mixerConsole => _mixerConsole;
   List<SongPackage> get curatedLibrary => _curatedLibrary;
-  SongPackage? get activePackage => _activePackage;
+  SongPackage get activePackage => _activePackage;
 
   double get frequency => _frequency;
   String get noteName => _noteName;
@@ -69,54 +80,25 @@ class TunerViewModel extends ChangeNotifier {
   bool get isMetronomePlaying => _isMetronomePlaying;
   int get currentSubTick => _currentSubTick;
   int get currentMeasureIndex => _currentMeasureIndex;
-  int get totalMeasures => _playlist[_selectedSongIndex].totalMeasures;
+  int get totalMeasures => _activePackage.totalMeasures;
   int get bpm => _bpm;
   TempoMark get currentTempoMark => TempoMark.fromBpm(_bpm);
   bool get isCountingIn => _isCountingIn;
   int get countInBeat => _countInBeat;
-  List<SongEntity> get playlist => _playlist;
-  int get selectedSongIndex => _selectedSongIndex;
-  SongNote? get expectedNote => _expectedNote;
+  HierarchicalNote? get expectedNote => _expectedNote;
   bool get isNoteCorrect => _isNoteCorrect;
   Map<int, PlayedRecord> get measureHistory => _measureHistory;
 
-  List<SongNote> get currentMeasureNotes => _playlist[_selectedSongIndex].notesForMeasure(_currentMeasureIndex);
-  TimeSignature get currentMeasureTimeSignature => _customTimeSignatureOverride ?? _playlist[_selectedSongIndex].timeSignatureForMeasure(_currentMeasureIndex);
+  List<HierarchicalNote> get currentMeasureNotes =>
+      _activePackage.score.measures[_currentMeasureIndex].notes;
 
-  void setThemeMode(TunnerThemeMode mode) {
-    _themeMode = mode;
-    notifyListeners();
-  }
+  TimeSignature get currentMeasureTimeSignature =>
+      _customTimeSignatureOverride ??
+      _activePackage.score.measures[_currentMeasureIndex].timeSignature;
 
-  void setCustomTimeSignature(TimeSignature? signature) {
-    _customTimeSignatureOverride = signature;
-    if (_isMetronomePlaying) {
-      _metronomeService.stop().then((_) => _metronomeService.start(_bpm, ticksPerMeasure: currentMeasureTimeSignature.totalTicks));
-    }
-    resetSongState();
-    notifyListeners();
-  }
-
-  // --- Controles de la Consola Mezcladora ---
-  void setTrackVolume(String trackId, double volume) {
-    _mixerConsole = _mixerConsole.copyWithTrackVolume(trackId, volume);
-    notifyListeners();
-  }
-
-  void toggleTrackMute(String trackId) {
-    _mixerConsole = _mixerConsole.toggleMute(trackId);
-    notifyListeners();
-  }
-
-  void toggleTrackSolo(String trackId) {
-    _mixerConsole = _mixerConsole.toggleSolo(trackId);
-    notifyListeners();
-  }
-
-  TunerViewModel() {
+  void _initListeners() {
     _pitchService.onPitchDetected = (pitch) {
       _silenceTimer?.cancel();
-
       _frequency = pitch;
       final noteEntity = NoteEntity.fromFrequency(pitch);
       _noteName = noteEntity.name;
@@ -124,8 +106,6 @@ class TunerViewModel extends ChangeNotifier {
       _validatePerformance();
       notifyListeners();
 
-      // Respuesta ultrasónica para notas rápidas (solos de violín/guitarra):
-      // 60ms en lugar de 250ms para que notas sucesivas ultra-cortas no queden retenidas
       _silenceTimer = Timer(const Duration(milliseconds: 60), () {
         _frequency = 0.0;
         _noteName = "--";
@@ -137,7 +117,6 @@ class TunerViewModel extends ChangeNotifier {
 
     _metronomeService.onSubTick = (subTick) {
       if (_isCountingIn) {
-        // Un beat ocurre cada 4 subdivisiones de semicorchea
         if (subTick % 4 == 0) {
           _countInBeat++;
           if (_countInBeat > 4) {
@@ -149,17 +128,16 @@ class TunerViewModel extends ChangeNotifier {
           }
         }
       } else {
-        // Detección de avance de compás cuando el tick se reinicia a 0
         if (_currentSubTick != -1 && subTick == 0) {
-          final maxMeasures = _playlist[_selectedSongIndex].totalMeasures;
+          final maxMeasures = _activePackage.totalMeasures;
           _currentMeasureIndex = (_currentMeasureIndex + 1) % maxMeasures;
           _measureHistory.clear();
         }
-        
+
         _currentSubTick = subTick;
         _updateExpectedNoteForTick(subTick);
       }
-      
+
       _validatePerformance();
       notifyListeners();
     };
@@ -169,7 +147,7 @@ class TunerViewModel extends ChangeNotifier {
     final notes = currentMeasureNotes;
     _expectedNote = notes.firstWhere(
       (n) => tick >= n.startTick && tick < (n.startTick + n.durationTicks),
-      orElse: () => SongNote(startTick: tick, durationTicks: 1, noteName: "--"),
+      orElse: () => HierarchicalNote(startTick: tick, durationTicks: 1, noteName: "--"),
     );
   }
 
@@ -180,7 +158,6 @@ class TunerViewModel extends ChangeNotifier {
     }
 
     if (_expectedNote!.isRest) {
-      // Silencio correcto si no hay sonido o el Hz es ruido ambiental bajo
       _isNoteCorrect = _noteName == "--" || _frequency < 50;
       _measureHistory[_currentSubTick] = PlayedRecord("", 0, _isNoteCorrect, isRest: true);
     } else {
@@ -189,8 +166,7 @@ class TunerViewModel extends ChangeNotifier {
       } else {
         _isNoteCorrect = _noteName.toLowerCase() == _expectedNote!.noteName.toLowerCase();
       }
-      
-      // Guardar registro para pintar en el pentagrama
+
       if (_isNoteCorrect) {
         _measureHistory[_currentSubTick] = PlayedRecord(_noteName, _cents, true);
       } else if (_noteName != "--") {
@@ -224,7 +200,7 @@ class TunerViewModel extends ChangeNotifier {
       _currentSubTick = -1;
       _measureHistory.clear();
       _isMetronomePlaying = true;
-      final currentTicks = _playlist[_selectedSongIndex].timeSignature.totalTicks;
+      final currentTicks = currentMeasureTimeSignature.totalTicks;
       await _metronomeService.start(_bpm, ticksPerMeasure: currentTicks);
     }
     notifyListeners();
@@ -233,52 +209,20 @@ class TunerViewModel extends ChangeNotifier {
   void updateBpm(int newBpm) {
     _bpm = newBpm.clamp(20, 300);
     if (_isMetronomePlaying) {
-      final currentTicks = _playlist[_selectedSongIndex].timeSignature.totalTicks;
+      final currentTicks = currentMeasureTimeSignature.totalTicks;
       _metronomeService.stop().then((_) => _metronomeService.start(_bpm, ticksPerMeasure: currentTicks));
     }
     notifyListeners();
   }
 
-  void incrementBpm([int step = 1]) {
-    updateBpm(_bpm + step);
-  }
+  void incrementBpm([int step = 1]) => updateBpm(_bpm + step);
+  void decrementBpm([int step = 1]) => updateBpm(_bpm - step);
 
-  void decrementBpm([int step = 1]) {
-    updateBpm(_bpm - step);
-  }
-
-  void selectSong(int index) {
-    _selectedSongIndex = index;
-    resetSongState();
-    notifyListeners();
-  }
-
-  /// Carga un paquete completo de canción descompuesta, sincronizando partitura, tempo y stems del mezclador
   void loadSongPackage(SongPackage package) {
     _activePackage = package;
-    final firstMeasure = package.score.measures.first;
-    final songNotes = firstMeasure.notes.map((hNote) {
-      return SongNote(
-        startTick: hNote.startTick,
-        durationTicks: hNote.durationTicks,
-        noteName: hNote.noteName,
-        isRest: hNote.isRest,
-      );
-    }).toList();
-
-    final newSongEntity = SongEntity(
-      title: package.title,
-      notes: songNotes,
-      timeSignature: firstMeasure.timeSignature,
-      measures: package.score.measures,
-    );
-
-    _playlist.insert(0, newSongEntity);
-    _selectedSongIndex = 0;
     _bpm = package.defaultBpm;
     _customTimeSignatureOverride = null;
 
-    // Conectar automáticamente sus pistas de acompañamiento separadas a la consola de mezcla
     _mixerConsole = MixerConsoleEntity(
       metronomeTrack: _mixerConsole.metronomeTrack,
       stems: package.tracks,
@@ -297,7 +241,7 @@ class TunerViewModel extends ChangeNotifier {
   }
 
   void selectMeasure(int measureIndex) {
-    final maxMeasures = _playlist[_selectedSongIndex].totalMeasures;
+    final maxMeasures = _activePackage.totalMeasures;
     if (measureIndex >= 0 && measureIndex < maxMeasures) {
       _currentMeasureIndex = measureIndex;
       _currentSubTick = -1;
@@ -307,16 +251,44 @@ class TunerViewModel extends ChangeNotifier {
   }
 
   void nextMeasure() {
-    final maxMeasures = _playlist[_selectedSongIndex].totalMeasures;
+    final maxMeasures = _activePackage.totalMeasures;
     selectMeasure((_currentMeasureIndex + 1) % maxMeasures);
   }
 
   void previousMeasure() {
-    final maxMeasures = _playlist[_selectedSongIndex].totalMeasures;
+    final maxMeasures = _activePackage.totalMeasures;
     selectMeasure((_currentMeasureIndex - 1 + maxMeasures) % maxMeasures);
   }
 
-  /// Sintetiza y activa la referencia sonora de afinación (Ear Training)
+  void setThemeMode(TunnerThemeMode mode) {
+    _themeMode = mode;
+    notifyListeners();
+  }
+
+  void setCustomTimeSignature(TimeSignature? signature) {
+    _customTimeSignatureOverride = signature;
+    if (_isMetronomePlaying) {
+      _metronomeService.stop().then((_) => _metronomeService.start(_bpm, ticksPerMeasure: currentMeasureTimeSignature.totalTicks));
+    }
+    resetSongState();
+    notifyListeners();
+  }
+
+  void setTrackVolume(String trackId, double volume) {
+    _mixerConsole = _mixerConsole.copyWithTrackVolume(trackId, volume);
+    notifyListeners();
+  }
+
+  void toggleTrackMute(String trackId) {
+    _mixerConsole = _mixerConsole.toggleMute(trackId);
+    notifyListeners();
+  }
+
+  void toggleTrackSolo(String trackId) {
+    _mixerConsole = _mixerConsole.toggleSolo(trackId);
+    notifyListeners();
+  }
+
   void playReferenceTone([String noteName = "La4"]) {
     final double freq = NoteEntity.frequencyForNote(noteName);
     if (freq > 0) {
