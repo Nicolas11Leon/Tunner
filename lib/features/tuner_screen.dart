@@ -7,6 +7,7 @@ import 'tuner/presentation/strobe_tuner_widget.dart';
 import 'sheet_music/domain/score_tree.dart';
 import 'sheet_music/presentation/real_sheet_music_painter.dart';
 import 'song_library/data/song_decomposer_service.dart';
+import 'practice_evaluator/presentation/practice_report_modal.dart';
 
 class TunerScreen extends StatelessWidget {
   const TunerScreen({super.key});
@@ -525,13 +526,34 @@ class TunerScreen extends StatelessWidget {
       backgroundColor: palette.scaffoldBackground,
       appBar: AppBar(
         title: Text(
-          "Estudio de Flauta Interactivo",
-          style: TextStyle(fontWeight: FontWeight.w300, color: palette.textColor),
+          "Tunner Pro: Studio Pitch & Sheet Lab",
+          style: TextStyle(fontWeight: FontWeight.w400, color: palette.textColor, fontSize: 17),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         actions: [
+          if (viewModel.lastReport != null)
+            IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: palette.primaryAccent.withValues(alpha: 0.2),
+                  border: Border.all(color: palette.primaryAccent, width: 1.2),
+                ),
+                child: Icon(Icons.insights_rounded, color: palette.primaryAccent, size: 18),
+              ),
+              tooltip: "Ver Analítica de la Última Sesión",
+              onPressed: () {
+                PracticeReportModal.show(
+                  context: context,
+                  report: viewModel.lastReport!,
+                  palette: palette,
+                  onRetry: () => viewModel.startSongWithCountIn(),
+                );
+              },
+            ),
           IconButton(
             icon: Icon(Icons.library_music, color: palette.primaryAccent),
             tooltip: "Biblioteca & Descompositor de Canciones",
@@ -651,7 +673,7 @@ class TunerScreen extends StatelessWidget {
           // Selector de Compases (Navegación Multi-Compás)
           if (viewModel.totalMeasures > 1)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 4.0),
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 2.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -662,7 +684,7 @@ class TunerScreen extends StatelessWidget {
                   ),
                   Text(
                     "Compás ${viewModel.currentMeasureIndex + 1} de ${viewModel.totalMeasures}  (${viewModel.currentMeasureTimeSignature})",
-                    style: TextStyle(color: palette.textColor, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+                    style: TextStyle(color: palette.textColor, fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 0.5),
                   ),
                   IconButton(
                     icon: Icon(Icons.skip_next, color: palette.textMutedColor, size: 20),
@@ -672,6 +694,92 @@ class TunerScreen extends StatelessWidget {
                 ],
               ),
             ),
+
+          // BARRA PEDAGÓGICA INTERACTIVA: MODO EVALUACIÓN, SMART WAIT & ANALÍTICA
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  FilterChip(
+                    avatar: Icon(
+                      viewModel.isPracticeMode ? Icons.school : Icons.school_outlined,
+                      size: 16,
+                      color: viewModel.isPracticeMode ? Colors.black : palette.primaryAccent,
+                    ),
+                    label: Text(
+                      viewModel.isPracticeMode
+                          ? "Evaluando (${viewModel.practiceEvaluationsCount} notas)"
+                          : "Modo Evaluación",
+                    ),
+                    selected: viewModel.isPracticeMode,
+                    selectedColor: palette.primaryAccent,
+                    backgroundColor: palette.cardBackground,
+                    labelStyle: TextStyle(
+                      color: viewModel.isPracticeMode ? Colors.black : palette.textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11.5,
+                    ),
+                    side: BorderSide(
+                      color: viewModel.isPracticeMode
+                          ? palette.primaryAccent
+                          : palette.staffLinesColor.withValues(alpha: 0.4),
+                    ),
+                    onSelected: (_) => viewModel.togglePracticeMode(),
+                  ),
+                  const SizedBox(width: 8),
+                  FilterChip(
+                    avatar: Icon(
+                      Icons.hourglass_top_rounded,
+                      size: 16,
+                      color: viewModel.isSmartWaitEnabled ? Colors.black : palette.secondaryAccent,
+                    ),
+                    label: const Text("Smart Wait"),
+                    selected: viewModel.isSmartWaitEnabled,
+                    selectedColor: palette.secondaryAccent,
+                    backgroundColor: palette.cardBackground,
+                    labelStyle: TextStyle(
+                      color: viewModel.isSmartWaitEnabled ? Colors.black : palette.textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11.5,
+                    ),
+                    side: BorderSide(
+                      color: viewModel.isSmartWaitEnabled
+                          ? palette.secondaryAccent
+                          : palette.staffLinesColor.withValues(alpha: 0.4),
+                    ),
+                    onSelected: (_) => viewModel.toggleSmartWait(),
+                  ),
+                  if (viewModel.lastReport != null) ...[
+                    const SizedBox(width: 8),
+                    ActionChip(
+                      avatar: Icon(Icons.insights, size: 16, color: palette.primaryAccent),
+                      label: Text(
+                        "Reporte: Grado ${viewModel.lastReport!.grade.letter} (${viewModel.lastReport!.overallScore}%)",
+                      ),
+                      backgroundColor: palette.primaryAccent.withValues(alpha: 0.15),
+                      labelStyle: TextStyle(
+                        color: palette.primaryAccent,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11.5,
+                      ),
+                      side: BorderSide(color: palette.primaryAccent.withValues(alpha: 0.5)),
+                      onPressed: () {
+                        PracticeReportModal.show(
+                          context: context,
+                          report: viewModel.lastReport!,
+                          palette: palette,
+                          onRetry: () => viewModel.startSongWithCountIn(),
+                        );
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
 
           // LIENZO GRÁFICO DE LA PARTITURA REAL (Adaptado a la Paleta de Estética)
           Expanded(
@@ -745,6 +853,27 @@ class TunerScreen extends StatelessWidget {
                     style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
                   ),
                 ),
+                if (viewModel.isPracticeMode && viewModel.practiceEvaluationsCount > 0)
+                  FloatingActionButton.extended(
+                    onPressed: () {
+                      viewModel.completeManualPracticeSession();
+                      if (viewModel.lastReport != null) {
+                        PracticeReportModal.show(
+                          context: context,
+                          report: viewModel.lastReport!,
+                          palette: palette,
+                          onRetry: () => viewModel.startSongWithCountIn(),
+                        );
+                      }
+                    },
+                    backgroundColor: palette.secondaryAccent,
+                    elevation: 4,
+                    icon: const Icon(Icons.analytics_rounded, color: Colors.black),
+                    label: const Text(
+                      "Calificar",
+                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                    ),
+                  ),
               ],
             ),
           ),

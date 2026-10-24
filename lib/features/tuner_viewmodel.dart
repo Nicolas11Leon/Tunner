@@ -13,6 +13,10 @@ import 'sheet_music/presentation/real_sheet_music_painter.dart';
 import 'mixer/domain/mixer_track_entity.dart';
 import 'song_library/domain/song_package_entity.dart';
 import 'song_library/data/song_decomposer_service.dart';
+import 'practice_evaluator/domain/i_practice_evaluator_service.dart';
+import 'practice_evaluator/domain/note_evaluation_entity.dart';
+import 'practice_evaluator/domain/practice_report_entity.dart';
+import 'practice_evaluator/data/practice_evaluator_service.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -20,6 +24,7 @@ import 'song_library/data/song_decomposer_service.dart';
 class TunerViewModel extends ChangeNotifier {
   final IPitchDetectorService _pitchService;
   final IMetronomeService _metronomeService;
+  final IPracticeEvaluatorService _evaluatorService;
 
   double _frequency = 0.0;
   String _noteName = "--";
@@ -41,8 +46,16 @@ class TunerViewModel extends ChangeNotifier {
   late SongPackage _activePackage;
 
   HierarchicalNote? _expectedNote;
+  HierarchicalNote? _lastEvaluatedNote;
   bool _isNoteCorrect = false;
   final Map<int, PlayedRecord> _measureHistory = {};
+
+  // Modo de Práctica Evaluada & Analítica Pedagógica
+  bool _isPracticeMode = false;
+  bool _isSmartWaitEnabled = false;
+  final List<NoteEvaluationEntity> _activeEvaluations = [];
+  PracticeReportEntity? _lastReport;
+  final List<PracticeReportEntity> _sessionHistory = [];
 
   // Personalización Estética y de Compás Pro
   TunnerThemeMode _themeMode = TunnerThemeMode.obsidianStudio;
@@ -55,8 +68,10 @@ class TunerViewModel extends ChangeNotifier {
   TunerViewModel({
     IPitchDetectorService? pitchService,
     IMetronomeService? metronomeService,
+    IPracticeEvaluatorService? evaluatorService,
   })  : _pitchService = pitchService ?? PitchDetectorService(),
-        _metronomeService = metronomeService ?? MetronomeService() {
+        _metronomeService = metronomeService ?? MetronomeService(),
+        _evaluatorService = evaluatorService ?? const PracticeEvaluatorService() {
     _activePackage = _curatedLibrary.first;
     _bpm = _activePackage.defaultBpm;
     _mixerConsole = MixerConsoleEntity(
@@ -88,6 +103,12 @@ class TunerViewModel extends ChangeNotifier {
   HierarchicalNote? get expectedNote => _expectedNote;
   bool get isNoteCorrect => _isNoteCorrect;
   Map<int, PlayedRecord> get measureHistory => _measureHistory;
+
+  bool get isPracticeMode => _isPracticeMode;
+  bool get isSmartWaitEnabled => _isSmartWaitEnabled;
+  PracticeReportEntity? get lastReport => _lastReport;
+  List<PracticeReportEntity> get sessionHistory => _sessionHistory;
+  int get practiceEvaluationsCount => _activeEvaluations.length;
 
   List<HierarchicalNote> get currentMeasureNotes =>
       _activePackage.score.measures[_currentMeasureIndex].notes;
@@ -130,7 +151,14 @@ class TunerViewModel extends ChangeNotifier {
       } else {
         if (_currentSubTick != -1 && subTick == 0) {
           final maxMeasures = _activePackage.totalMeasures;
-          _currentMeasureIndex = (_currentMeasureIndex + 1) % maxMeasures;
+          final nextIndex = (_currentMeasureIndex + 1) % maxMeasures;
+
+          // Si completamos todas las medidas en modo práctica, generamos reporte
+          if (_isPracticeMode && nextIndex == 0 && _activeEvaluations.isNotEmpty) {
+            _generatePracticeReport();
+          }
+
+          _currentMeasureIndex = nextIndex;
           _measureHistory.clear();
         }
 
@@ -149,6 +177,22 @@ class TunerViewModel extends ChangeNotifier {
       (n) => tick >= n.startTick && tick < (n.startTick + n.durationTicks),
       orElse: () => HierarchicalNote(startTick: tick, durationTicks: 1, noteName: "--"),
     );
+
+    // Registro atómico de evaluación pedagógica si cambió la nota
+    if (_isPracticeMode &&
+        _expectedNote != null &&
+        _expectedNote != _lastEvaluatedNote &&
+        !_isCountingIn) {
+      _lastEvaluatedNote = _expectedNote;
+      final eval = _evaluatorService.evaluateNote(
+        expectedNote: _expectedNote!,
+        detectedNoteName: _noteName,
+        detectedFrequency: _frequency,
+        detectedCents: _cents,
+        timingDeltaMs: 0,
+      );
+      _activeEvaluations.add(eval);
+    }
   }
 
   void _validatePerformance() {
@@ -193,17 +237,56 @@ class TunerViewModel extends ChangeNotifier {
     if (_isMetronomePlaying) {
       await _metronomeService.stop();
       _isMetronomePlaying = false;
+      if (_isPracticeMode && _activeEvaluations.isNotEmpty) {
+        _generatePracticeReport();
+      }
       resetSongState();
     } else {
       _isCountingIn = true;
       _countInBeat = 0;
       _currentSubTick = -1;
       _measureHistory.clear();
+      _lastEvaluatedNote = null;
+      _activeEvaluations.clear();
       _isMetronomePlaying = true;
       final currentTicks = currentMeasureTimeSignature.totalTicks;
       await _metronomeService.start(_bpm, ticksPerMeasure: currentTicks);
     }
     notifyListeners();
+  }
+
+  void togglePracticeMode() {
+    _isPracticeMode = !_isPracticeMode;
+    if (_isPracticeMode) {
+      _activeEvaluations.clear();
+      _lastEvaluatedNote = null;
+    }
+    notifyListeners();
+  }
+
+  void toggleSmartWait() {
+    _isSmartWaitEnabled = !_isSmartWaitEnabled;
+    notifyListeners();
+  }
+
+  void _generatePracticeReport() {
+    if (_activeEvaluations.isEmpty) return;
+
+    final prev = _sessionHistory.isNotEmpty ? _sessionHistory.last : null;
+    final report = _evaluatorService.generateReport(
+      songTitle: _activePackage.title,
+      evaluations: List.unmodifiable(_activeEvaluations),
+      previousSession: prev,
+    );
+    _lastReport = report;
+    _sessionHistory.add(report);
+  }
+
+  void completeManualPracticeSession() {
+    if (_activeEvaluations.isNotEmpty) {
+      _generatePracticeReport();
+      notifyListeners();
+    }
   }
 
   void updateBpm(int newBpm) {
@@ -238,6 +321,8 @@ class TunerViewModel extends ChangeNotifier {
     _currentSubTick = -1;
     _currentMeasureIndex = 0;
     _measureHistory.clear();
+    _lastEvaluatedNote = null;
+    _activeEvaluations.clear();
   }
 
   void selectMeasure(int measureIndex) {
@@ -246,6 +331,7 @@ class TunerViewModel extends ChangeNotifier {
       _currentMeasureIndex = measureIndex;
       _currentSubTick = -1;
       _measureHistory.clear();
+      _lastEvaluatedNote = null;
       notifyListeners();
     }
   }
