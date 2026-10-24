@@ -1,7 +1,5 @@
-/// Modelo de dominio inmutable para la representación jerárquica de partituras musicales.
-/// Diseñado con Clean Architecture estricta en Dart puro (cero dependencias de Flutter UI).
-
 /// Métrica de compás musical (e.g. 4/4, 3/4, 2/4, 6/8).
+/// Modelo de dominio inmutable para la representación jerárquica de partituras.
 class TimeSignature {
   final int numerator;   // Número de pulsos por compás (e.g. 3, 4, 6)
   final int denominator; // Unidad de figura del pulso (e.g. 4 para negra, 8 para corchea)

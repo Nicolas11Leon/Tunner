@@ -5,6 +5,7 @@ import '../data/metronome_service.dart';
 import '../domain/note_entity.dart';
 import '../domain/score_entity.dart';
 import '../domain/score_tree.dart';
+import '../domain/tempo_entity.dart';
 
 class PlayedRecord {
   final String noteName;
@@ -49,6 +50,7 @@ class TunerViewModel extends ChangeNotifier {
   int get currentMeasureIndex => _currentMeasureIndex;
   int get totalMeasures => _playlist[_selectedSongIndex].totalMeasures;
   int get bpm => _bpm;
+  TempoMark get currentTempoMark => TempoMark.fromBpm(_bpm);
   bool get isCountingIn => _isCountingIn;
   int get countInBeat => _countInBeat;
   List<SongEntity> get playlist => _playlist;
@@ -178,12 +180,20 @@ class TunerViewModel extends ChangeNotifier {
   }
 
   void updateBpm(int newBpm) {
-    _bpm = newBpm.clamp(40, 200);
+    _bpm = newBpm.clamp(20, 300);
     if (_isMetronomePlaying) {
       final currentTicks = _playlist[_selectedSongIndex].timeSignature.totalTicks;
       _metronomeService.stop().then((_) => _metronomeService.start(_bpm, ticksPerMeasure: currentTicks));
     }
     notifyListeners();
+  }
+
+  void incrementBpm([int step = 1]) {
+    updateBpm(_bpm + step);
+  }
+
+  void decrementBpm([int step = 1]) {
+    updateBpm(_bpm - step);
   }
 
   void selectSong(int index) {

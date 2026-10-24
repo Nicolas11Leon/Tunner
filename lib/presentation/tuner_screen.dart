@@ -48,19 +48,63 @@ class TunerScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Text("${viewModel.bpm} BPM", style: const TextStyle(color: Colors.greenAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                          icon: const Icon(Icons.remove_circle_outline, color: Colors.white70, size: 20),
+                          onPressed: () => viewModel.decrementBpm(1),
+                          tooltip: "-1 BPM",
+                        ),
+                        Text(
+                          "${viewModel.bpm}",
+                          style: const TextStyle(
+                            color: Colors.greenAccent,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Text("BPM", style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w600)),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                          icon: const Icon(Icons.add_circle_outline, color: Colors.white70, size: 20),
+                          onPressed: () => viewModel.incrementBpm(1),
+                          tooltip: "+1 BPM",
+                        ),
+                      ],
+                    ),
+                    Text(
+                      viewModel.currentTempoMark.italianName.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.amberAccent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
           Slider(
             value: viewModel.bpm.toDouble(),
-            min: 40, max: 200,
+            min: 20,
+            max: 300,
             activeColor: Colors.greenAccent,
             inactiveColor: Colors.white10,
             onChanged: (val) => viewModel.updateBpm(val.round()),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
 
           // Selector de Compases (Navegación Multi-Compás)
           if (viewModel.totalMeasures > 1)
