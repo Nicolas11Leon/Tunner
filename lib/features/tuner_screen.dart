@@ -8,6 +8,7 @@ import 'sheet_music/domain/score_tree.dart';
 import 'sheet_music/presentation/real_sheet_music_painter.dart';
 import 'song_library/data/song_decomposer_service.dart';
 import 'practice_evaluator/presentation/practice_report_modal.dart';
+import 'instrument/domain/instrument_profile_entity.dart';
 
 class TunerScreen extends StatelessWidget {
   const TunerScreen({super.key});
@@ -517,6 +518,133 @@ class TunerScreen extends StatelessWidget {
     );
   }
 
+  void _showInstrumentModal(BuildContext context, TunerViewModel viewModel) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: viewModel.currentPalette.cardBackground,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        final palette = viewModel.currentPalette;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.piano, color: palette.secondaryAccent, size: 22),
+                      const SizedBox(width: 8),
+                      Text(
+                        "SELECTOR DE INSTRUMENTO",
+                        style: TextStyle(
+                          color: palette.secondaryAccent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, color: palette.textMutedColor, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "Transposición armónica automática de partitura y afinador según la clave del instrumento",
+                style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+              ),
+              const SizedBox(height: 16),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.55,
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: InstrumentProfileEntity.standardInstruments.length,
+                  itemBuilder: (context, index) {
+                    final inst = InstrumentProfileEntity.standardInstruments[index];
+                    final isSelected = viewModel.activeInstrument.id == inst.id;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? palette.primaryAccent.withValues(alpha: 0.15)
+                            : palette.scaffoldBackground,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected ? palette.primaryAccent : Colors.white10,
+                          width: isSelected ? 1.5 : 1.0,
+                        ),
+                      ),
+                      child: ListTile(
+                        onTap: () {
+                          viewModel.setInstrumentProfile(inst);
+                          Navigator.pop(ctx);
+                        },
+                        leading: CircleAvatar(
+                          backgroundColor: isSelected
+                              ? palette.primaryAccent
+                              : palette.cardBackground,
+                          child: Icon(
+                            inst.family == InstrumentFamily.brass
+                                ? Icons.sports_bar
+                                : (inst.family == InstrumentFamily.strings
+                                    ? Icons.queue_music
+                                    : Icons.music_note),
+                            color: isSelected ? Colors.black : palette.primaryAccent,
+                            size: 18,
+                          ),
+                        ),
+                        title: Text(
+                          inst.name,
+                          style: TextStyle(
+                            color: palette.textColor,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${inst.family.displayName} • Clave ${inst.key.displayName} (${inst.transpositionSemitones >= 0 ? '+' : ''}${inst.transpositionSemitones} st)',
+                          style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                        ),
+                        trailing: isSelected
+                            ? Icon(Icons.check_circle, color: palette.primaryAccent)
+                            : null,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<TunerViewModel>();
@@ -533,6 +661,11 @@ class TunerScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: Icon(Icons.piano, color: palette.secondaryAccent),
+            tooltip: "Seleccionar Instrumento (${viewModel.activeInstrument.name})",
+            onPressed: () => _showInstrumentModal(context, viewModel),
+          ),
           if (viewModel.lastReport != null)
             IconButton(
               icon: Container(
@@ -702,6 +835,21 @@ class TunerScreen extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
+                  ActionChip(
+                    avatar: Icon(Icons.piano, size: 16, color: palette.secondaryAccent),
+                    label: Text(
+                      '${viewModel.activeInstrument.name} (${viewModel.activeInstrument.key.displayName})',
+                    ),
+                    backgroundColor: palette.cardBackground,
+                    labelStyle: TextStyle(
+                      color: palette.textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11.5,
+                    ),
+                    side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.4)),
+                    onPressed: () => _showInstrumentModal(context, viewModel),
+                  ),
+                  const SizedBox(width: 8),
                   FilterChip(
                     avatar: Icon(
                       viewModel.isPracticeMode ? Icons.school : Icons.school_outlined,

@@ -27,13 +27,49 @@ void main() {
         detectedFrequency: 261.63,
         detectedCents: 0.0,
         timingDeltaMs: 10,
+        sustainRatio: 1.0,
       );
 
       expect(result.isPitchAccurate, isTrue);
       expect(result.isHit, isTrue);
       expect(result.pitchScore, closeTo(100.0, 0.1));
       expect(result.timingCategory, equals(NoteTimingCategory.onTime));
+      expect(result.sustainScore, closeTo(100.0, 0.1));
       expect(result.overallScore, closeTo(100.0, 0.1));
+    });
+
+    test('Transposed sounding note match correctly awards points for transposed instruments', () {
+      // Para trompeta en Bb, un Do4 escrito exige captar un Sib3 / La#3 sonando
+      final result = evaluator.evaluateNote(
+        expectedNote: testNoteDo4,
+        soundingExpectedNoteName: 'La#3',
+        detectedNoteName: 'La#3',
+        detectedFrequency: 233.08,
+        detectedCents: 0.0,
+        timingDeltaMs: 0,
+        sustainRatio: 1.0,
+      );
+
+      expect(result.isPitchAccurate, isTrue);
+      expect(result.isHit, isTrue);
+      expect(result.soundingExpectedNoteName, equals('La#3'));
+      expect(result.pitchScore, closeTo(100.0, 0.1));
+    });
+
+    test('Short sustain duration penalizes sustainScore proportionally', () {
+      final result = evaluator.evaluateNote(
+        expectedNote: testNoteDo4,
+        detectedNoteName: 'Do4',
+        detectedFrequency: 261.63,
+        detectedCents: 0.0,
+        timingDeltaMs: 0,
+        sustainRatio: 0.5, // 50% de la duración esperada
+      );
+
+      expect(result.sustainRatioPercentage, closeTo(50.0, 0.1));
+      expect(result.sustainScore, closeTo(50.0, 0.1));
+      // Overall = 100*0.45 + 100*0.30 + 50*0.25 = 45 + 30 + 12.5 = 87.5
+      expect(result.overallScore, closeTo(87.5, 0.1));
     });
 
     test('Match within tolerance (10 cents) awards partial high score', () {
@@ -48,7 +84,6 @@ void main() {
 
       expect(result.isPitchAccurate, isTrue);
       expect(result.isHit, isTrue);
-      // 100 - (10 / 50 * 100) = 80.0
       expect(result.pitchScore, closeTo(80.0, 0.1));
     });
 
@@ -78,6 +113,62 @@ void main() {
       expect(result.timingCategory, equals(NoteTimingCategory.missed));
       expect(result.isHit, isFalse);
       expect(result.overallScore, equals(0.0));
+    });
+
+    test('generateReport detects Rushing tendency when average timing delta is negative', () {
+      final rushingEvals = [
+        evaluator.evaluateNote(
+          expectedNote: testNoteDo4,
+          detectedNoteName: 'Do4',
+          detectedFrequency: 261.63,
+          detectedCents: 0.0,
+          timingDeltaMs: -45, // -45 ms adelanto
+        ),
+        evaluator.evaluateNote(
+          expectedNote: testNoteMi4,
+          detectedNoteName: 'Mi4',
+          detectedFrequency: 329.63,
+          detectedCents: 0.0,
+          timingDeltaMs: -35, // -35 ms adelanto
+        ),
+      ];
+
+      final report = evaluator.generateReport(
+        songTitle: 'Estudio de Tempo',
+        instrumentName: 'Trompeta en Si♭',
+        evaluations: rushingEvals,
+      );
+
+      expect(report.rhythmTendency, equals(RhythmTendency.rushing));
+      expect(report.rhythmTendencyDescription, contains('apresurar'));
+    });
+
+    test('generateReport detects Dragging tendency when average timing delta is positive', () {
+      final draggingEvals = [
+        evaluator.evaluateNote(
+          expectedNote: testNoteDo4,
+          detectedNoteName: 'Do4',
+          detectedFrequency: 261.63,
+          detectedCents: 0.0,
+          timingDeltaMs: 50, // +50 ms retraso
+        ),
+        evaluator.evaluateNote(
+          expectedNote: testNoteMi4,
+          detectedNoteName: 'Mi4',
+          detectedFrequency: 329.63,
+          detectedCents: 0.0,
+          timingDeltaMs: 40, // +40 ms retraso
+        ),
+      ];
+
+      final report = evaluator.generateReport(
+        songTitle: 'Estudio de Tempo',
+        instrumentName: 'Saxofón Alto en Mi♭',
+        evaluations: draggingEvals,
+      );
+
+      expect(report.rhythmTendency, equals(RhythmTendency.dragging));
+      expect(report.rhythmTendencyDescription, contains('retrasar'));
     });
 
     test('generateReport correctly classifies Virtuoso Grade S and mastered notes', () {

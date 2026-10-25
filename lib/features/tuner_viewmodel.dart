@@ -17,6 +17,9 @@ import 'practice_evaluator/domain/i_practice_evaluator_service.dart';
 import 'practice_evaluator/domain/note_evaluation_entity.dart';
 import 'practice_evaluator/domain/practice_report_entity.dart';
 import 'practice_evaluator/data/practice_evaluator_service.dart';
+import 'instrument/domain/instrument_profile_entity.dart';
+import 'instrument/domain/i_instrument_transposition_service.dart';
+import 'instrument/data/instrument_transposition_service.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -25,6 +28,7 @@ class TunerViewModel extends ChangeNotifier {
   final IPitchDetectorService _pitchService;
   final IMetronomeService _metronomeService;
   final IPracticeEvaluatorService _evaluatorService;
+  final IInstrumentTranspositionService _transpositionService;
 
   double _frequency = 0.0;
   String _noteName = "--";
@@ -50,6 +54,9 @@ class TunerViewModel extends ChangeNotifier {
   bool _isNoteCorrect = false;
   final Map<int, PlayedRecord> _measureHistory = {};
 
+  // Perfil de Instrumento y Transposición
+  InstrumentProfileEntity _activeInstrument = InstrumentProfileEntity.flute;
+
   // Modo de Práctica Evaluada & Analítica Pedagógica
   bool _isPracticeMode = false;
   bool _isSmartWaitEnabled = false;
@@ -69,9 +76,11 @@ class TunerViewModel extends ChangeNotifier {
     IPitchDetectorService? pitchService,
     IMetronomeService? metronomeService,
     IPracticeEvaluatorService? evaluatorService,
+    IInstrumentTranspositionService? transpositionService,
   })  : _pitchService = pitchService ?? PitchDetectorService(),
         _metronomeService = metronomeService ?? MetronomeService(),
-        _evaluatorService = evaluatorService ?? const PracticeEvaluatorService() {
+        _evaluatorService = evaluatorService ?? const PracticeEvaluatorService(),
+        _transpositionService = transpositionService ?? const InstrumentTranspositionService() {
     _activePackage = _curatedLibrary.first;
     _bpm = _activePackage.defaultBpm;
     _mixerConsole = MixerConsoleEntity(
@@ -87,6 +96,7 @@ class TunerViewModel extends ChangeNotifier {
   MixerConsoleEntity get mixerConsole => _mixerConsole;
   List<SongPackage> get curatedLibrary => _curatedLibrary;
   SongPackage get activePackage => _activePackage;
+  InstrumentProfileEntity get activeInstrument => _activeInstrument;
 
   double get frequency => _frequency;
   String get noteName => _noteName;
@@ -171,6 +181,12 @@ class TunerViewModel extends ChangeNotifier {
     };
   }
 
+  void setInstrumentProfile(InstrumentProfileEntity instrument) {
+    _activeInstrument = instrument;
+    _validatePerformance();
+    notifyListeners();
+  }
+
   void _updateExpectedNoteForTick(int tick) {
     final notes = currentMeasureNotes;
     _expectedNote = notes.firstWhere(
@@ -184,12 +200,18 @@ class TunerViewModel extends ChangeNotifier {
         _expectedNote != _lastEvaluatedNote &&
         !_isCountingIn) {
       _lastEvaluatedNote = _expectedNote;
+      final soundingExpected = _transpositionService.getSoundingNote(
+        _expectedNote!.noteName,
+        _activeInstrument,
+      );
       final eval = _evaluatorService.evaluateNote(
         expectedNote: _expectedNote!,
+        soundingExpectedNoteName: soundingExpected,
         detectedNoteName: _noteName,
         detectedFrequency: _frequency,
         detectedCents: _cents,
         timingDeltaMs: 0,
+        sustainRatio: 1.0,
       );
       _activeEvaluations.add(eval);
     }
@@ -205,10 +227,15 @@ class TunerViewModel extends ChangeNotifier {
       _isNoteCorrect = _noteName == "--" || _frequency < 50;
       _measureHistory[_currentSubTick] = PlayedRecord("", 0, _isNoteCorrect, isRest: true);
     } else {
+      final targetSoundingNote = _transpositionService.getSoundingNote(
+        _expectedNote!.noteName,
+        _activeInstrument,
+      );
+
       if (_noteName == "--") {
         _isNoteCorrect = false;
       } else {
-        _isNoteCorrect = _noteName.toLowerCase() == _expectedNote!.noteName.toLowerCase();
+        _isNoteCorrect = _noteName.toLowerCase() == targetSoundingNote.toLowerCase();
       }
 
       if (_isNoteCorrect) {
@@ -275,6 +302,7 @@ class TunerViewModel extends ChangeNotifier {
     final prev = _sessionHistory.isNotEmpty ? _sessionHistory.last : null;
     final report = _evaluatorService.generateReport(
       songTitle: _activePackage.title,
+      instrumentName: _activeInstrument.name,
       evaluations: List.unmodifiable(_activeEvaluations),
       previousSession: prev,
     );

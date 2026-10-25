@@ -4,53 +4,69 @@ import '../domain/i_practice_evaluator_service.dart';
 import '../domain/note_evaluation_entity.dart';
 import '../domain/practice_report_entity.dart';
 
-/// Implementación canónica del evaluador pedagógico de práctica musical.
+/// Implementación canónica del evaluador pedagógico multidimensional de práctica musical.
 class PracticeEvaluatorService implements IPracticeEvaluatorService {
   const PracticeEvaluatorService();
 
   @override
   NoteEvaluationEntity evaluateNote({
     required HierarchicalNote expectedNote,
+    String? soundingExpectedNoteName,
     required String detectedNoteName,
     required double detectedFrequency,
     required double detectedCents,
     required int timingDeltaMs,
+    double sustainRatio = 1.0,
     double toleranceCents = 15.0,
   }) {
+    final double clampedSustain = sustainRatio.clamp(0.0, 1.0);
+    final double sustainRatioPct = clampedSustain * 100.0;
+    final double sustainScore = sustainRatioPct;
+
     if (expectedNote.isRest) {
       final bool isSilent = detectedNoteName == '--' || detectedFrequency <= 0.0;
       return NoteEvaluationEntity(
         expectedNote: expectedNote,
+        soundingExpectedNoteName: '--',
         detectedNoteName: detectedNoteName,
         detectedFrequency: detectedFrequency,
         centsDeviation: detectedCents,
         timingCategory: isSilent ? NoteTimingCategory.onTime : NoteTimingCategory.early,
         timingDeltaMs: timingDeltaMs,
+        sustainRatioPercentage: 100.0,
         isPitchAccurate: isSilent,
         pitchScore: isSilent ? 100.0 : 40.0,
         rhythmScore: isSilent ? 100.0 : 50.0,
+        sustainScore: isSilent ? 100.0 : 50.0,
         overallScore: isSilent ? 100.0 : 45.0,
       );
     }
+
+    final String targetSoundingNote = (soundingExpectedNoteName != null && soundingExpectedNoteName.isNotEmpty)
+        ? soundingExpectedNoteName
+        : expectedNote.noteName;
 
     final bool isSilent = detectedNoteName == '--' || detectedFrequency <= 0.0;
     if (isSilent) {
       return NoteEvaluationEntity(
         expectedNote: expectedNote,
+        soundingExpectedNoteName: targetSoundingNote,
         detectedNoteName: '--',
         detectedFrequency: 0.0,
         centsDeviation: 0.0,
         timingCategory: NoteTimingCategory.missed,
         timingDeltaMs: timingDeltaMs,
+        sustainRatioPercentage: 0.0,
         isPitchAccurate: false,
         pitchScore: 0.0,
         rhythmScore: 0.0,
+        sustainScore: 0.0,
         overallScore: 0.0,
       );
     }
 
     // Normalización de notas (ej: "Do4" == "do4")
-    final bool noteMatches = expectedNote.noteName.trim().toLowerCase() ==
+    final bool noteMatches = targetSoundingNote.trim().toLowerCase() ==
         detectedNoteName.trim().toLowerCase();
 
     final double centsAbs = detectedCents.abs();
@@ -79,18 +95,22 @@ class PracticeEvaluatorService implements IPracticeEvaluatorService {
       rhythmScore = max(20.0, 100.0 - (absDelta - 80) * 0.4);
     }
 
-    final double overall = (pitchScore * 0.65) + (rhythmScore * 0.35);
+    // Ponderación multidimensional: Afinación 45%, Tempo 30%, Sostenimiento 25%
+    final double overall = (pitchScore * 0.45) + (rhythmScore * 0.30) + (sustainScore * 0.25);
 
     return NoteEvaluationEntity(
       expectedNote: expectedNote,
+      soundingExpectedNoteName: targetSoundingNote,
       detectedNoteName: detectedNoteName,
       detectedFrequency: detectedFrequency,
       centsDeviation: detectedCents,
       timingCategory: timingCategory,
       timingDeltaMs: timingDeltaMs,
+      sustainRatioPercentage: sustainRatioPct,
       isPitchAccurate: isPitchAccurate,
       pitchScore: pitchScore,
       rhythmScore: rhythmScore,
+      sustainScore: sustainScore,
       overallScore: overall,
     );
   }
@@ -98,18 +118,24 @@ class PracticeEvaluatorService implements IPracticeEvaluatorService {
   @override
   PracticeReportEntity generateReport({
     required String songTitle,
+    String instrumentName = 'Instrumento Estándar',
     required List<NoteEvaluationEntity> evaluations,
     PracticeReportEntity? previousSession,
   }) {
     if (evaluations.isEmpty) {
       return PracticeReportEntity(
         songTitle: songTitle,
+        instrumentName: instrumentName,
         timestamp: DateTime.now(),
         totalNotes: 0,
         hitNotes: 0,
         pitchAccuracyPercentage: 0.0,
-        rhythmAccuracyPercentage: 0.0,
         averageCentsDeviation: 0.0,
+        rhythmAccuracyPercentage: 0.0,
+        averageTimingDeltaMs: 0.0,
+        rhythmTendency: RhythmTendency.stable,
+        rhythmTendencyDescription: 'Sin notas registradas en la sesión',
+        sustainAccuracyPercentage: 0.0,
         overallScore: 0.0,
         grade: PerformanceGrade.d,
         evaluations: const [],
@@ -127,8 +153,11 @@ class PracticeEvaluatorService implements IPracticeEvaluatorService {
     int hits = 0;
     double sumPitchScore = 0.0;
     double sumRhythmScore = 0.0;
+    double sumSustainScore = 0.0;
     double sumCentsDeviation = 0.0;
+    double sumTimingDeltaMs = 0.0;
     int centsCount = 0;
+    int timingCount = 0;
 
     final Map<String, List<double>> noteScoresAccumulator = {};
 
@@ -136,10 +165,13 @@ class PracticeEvaluatorService implements IPracticeEvaluatorService {
       if (eval.isHit) hits++;
       sumPitchScore += eval.pitchScore;
       sumRhythmScore += eval.rhythmScore;
+      sumSustainScore += eval.sustainScore;
 
       if (eval.detectedNoteName != '--') {
         sumCentsDeviation += eval.centsDeviation.abs();
         centsCount++;
+        sumTimingDeltaMs += eval.timingDeltaMs;
+        timingCount++;
       }
 
       final key = eval.expectedNote.noteName;
@@ -150,8 +182,26 @@ class PracticeEvaluatorService implements IPracticeEvaluatorService {
 
     final double pitchAccPct = total > 0 ? (sumPitchScore / total) : 0.0;
     final double rhythmAccPct = total > 0 ? (sumRhythmScore / total) : 0.0;
+    final double sustainAccPct = total > 0 ? (sumSustainScore / total) : 0.0;
     final double avgCents = centsCount > 0 ? (sumCentsDeviation / centsCount) : 0.0;
-    final double overallScore = (pitchAccPct * 0.65) + (rhythmAccPct * 0.35);
+    final double avgTimingDelta = timingCount > 0 ? (sumTimingDeltaMs / timingCount) : 0.0;
+    
+    // Ponderación multidimensional global
+    final double overallScore = (pitchAccPct * 0.45) + (rhythmAccPct * 0.30) + (sustainAccPct * 0.25);
+
+    // Determinación de tendencia rítmica (rushing vs dragging)
+    RhythmTendency rhythmTendency;
+    String rhythmTendencyDesc;
+    if (avgTimingDelta < -25.0) {
+      rhythmTendency = RhythmTendency.rushing;
+      rhythmTendencyDesc = 'Tendencia a apresurar los ataques (${avgTimingDelta.round()} ms promedio)';
+    } else if (avgTimingDelta > 25.0) {
+      rhythmTendency = RhythmTendency.dragging;
+      rhythmTendencyDesc = 'Tendencia a retrasar los ataques (+${avgTimingDelta.round()} ms promedio)';
+    } else {
+      rhythmTendency = RhythmTendency.stable;
+      rhythmTendencyDesc = 'Pulso rítmico centrado y consistente (${avgTimingDelta.abs().round()} ms de desviación)';
+    }
 
     // Desglose por nota
     final Map<String, double> noteAccuracyMap = {};
@@ -176,22 +226,27 @@ class PracticeEvaluatorService implements IPracticeEvaluatorService {
       trendDelta = overallScore - previousSession.overallScore;
       final String deltaStr = '${trendDelta >= 0 ? '+' : ''}${trendDelta.toStringAsFixed(1)}%';
       if (trendDelta > 2.0) {
-        trendText = '▲ Progreso notable ($deltaStr). Mayor estabilidad de afinación y pulso rítmico.';
+        trendText = '▲ Progreso notable ($deltaStr). Mayor solidez de afinación, tempo y duración.';
       } else if (trendDelta < -2.0) {
-        trendText = '▼ Desvío de $deltaStr vs. sesión previa. Se sugiere repasar pasajes complejos con Smart Wait.';
+        trendText = '▼ Desvío de $deltaStr vs. sesión previa. Se sugiere practicar con Smart Wait a menor BPM.';
       } else {
-        trendText = '● Rendimiento estable ($deltaStr). Afinación consistente respecto a la sesión anterior.';
+        trendText = '● Rendimiento estable ($deltaStr). Interpretación consistente respecto a la sesión anterior.';
       }
     }
 
     return PracticeReportEntity(
       songTitle: songTitle,
+      instrumentName: instrumentName,
       timestamp: DateTime.now(),
       totalNotes: total,
       hitNotes: hits,
       pitchAccuracyPercentage: double.parse(pitchAccPct.toStringAsFixed(1)),
-      rhythmAccuracyPercentage: double.parse(rhythmAccPct.toStringAsFixed(1)),
       averageCentsDeviation: double.parse(avgCents.toStringAsFixed(1)),
+      rhythmAccuracyPercentage: double.parse(rhythmAccPct.toStringAsFixed(1)),
+      averageTimingDeltaMs: double.parse(avgTimingDelta.toStringAsFixed(1)),
+      rhythmTendency: rhythmTendency,
+      rhythmTendencyDescription: rhythmTendencyDesc,
+      sustainAccuracyPercentage: double.parse(sustainAccPct.toStringAsFixed(1)),
       overallScore: double.parse(overallScore.toStringAsFixed(1)),
       grade: PerformanceGrade.fromScore(overallScore),
       evaluations: evaluations,

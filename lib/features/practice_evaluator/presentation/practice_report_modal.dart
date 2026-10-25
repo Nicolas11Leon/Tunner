@@ -3,7 +3,7 @@ import 'package:tunner/core/theme/tunner_theme.dart';
 import '../domain/practice_report_entity.dart';
 
 /// Modal analítico de alta fidelidad que presenta el reporte de desempeño
-/// y la tendencia histórica de progreso pedagógico.
+/// multidimensional y la tendencia histórica de progreso pedagógico.
 class PracticeReportModal extends StatelessWidget {
   final PracticeReportEntity report;
   final TunnerThemePalette palette;
@@ -81,7 +81,7 @@ class PracticeReportModal extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header con Badge de Grado y Título
+              // Header con Badge de Grado, Título e Instrumento
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -118,13 +118,30 @@ class PracticeReportModal extends StatelessWidget {
                       children: [
                         Row(
                           children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: gradeColor.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: gradeColor.withValues(alpha: 0.4)),
+                              ),
+                              child: Text(
+                                report.grade.title.toUpperCase(),
+                                style: TextStyle(
+                                  color: gradeColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                             Text(
-                              report.grade.title.toUpperCase(),
+                              report.instrumentName,
                               style: TextStyle(
-                                color: gradeColor,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.5,
+                                color: palette.textMutedColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             const Spacer(),
@@ -162,7 +179,7 @@ class PracticeReportModal extends StatelessWidget {
                 ],
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
 
               // Banner de Análisis de Tendencia (Mejora o Declive)
               Container(
@@ -219,27 +236,34 @@ class PracticeReportModal extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
 
-              // Telemetría Cuantitativa: 3 Cards (Afinación, Ritmo, Aciertos)
+              // Telemetría Cuatridimensional: 4 Cards (Afinación, Tempo, Sostenimiento, Aciertos)
               Row(
                 children: [
                   _buildMetricTile(
                     title: 'AFINACIÓN',
                     value: '${report.pitchAccuracyPercentage}%',
-                    subtitle: '±${report.averageCentsDeviation} cents med.',
+                    subtitle: '±${report.averageCentsDeviation} cents',
                     color: palette.correctPitchColor,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   _buildMetricTile(
-                    title: 'PULSO RÍTMICO',
+                    title: 'TEMPO & ATAQUE',
                     value: '${report.rhythmAccuracyPercentage}%',
-                    subtitle: 'precisión temporal',
+                    subtitle: '${report.averageTimingDeltaMs >= 0 ? '+' : ''}${report.averageTimingDeltaMs} ms',
                     color: palette.primaryAccent,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   _buildMetricTile(
-                    title: 'NOTAS ACIDAS',
+                    title: 'SOSTENIMIENTO',
+                    value: '${report.sustainAccuracyPercentage}%',
+                    subtitle: 'duración nota',
+                    color: palette.secondaryAccent,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildMetricTile(
+                    title: 'ACIERTOS',
                     value: '${report.hitNotes}/${report.totalNotes}',
                     subtitle: '${((report.hitNotes / (report.totalNotes > 0 ? report.totalNotes : 1)) * 100).round()}% total',
                     color: gradeColor,
@@ -247,7 +271,64 @@ class PracticeReportModal extends StatelessWidget {
                 ],
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
+
+              // Tarjeta de Tendencia de Tempo (Rushing vs Dragging)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: palette.scaffoldBackground,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: report.rhythmTendency == RhythmTendency.stable
+                        ? palette.correctPitchColor.withValues(alpha: 0.3)
+                        : palette.warningPitchColor.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      report.rhythmTendency == RhythmTendency.rushing
+                          ? Icons.fast_forward_rounded
+                          : (report.rhythmTendency == RhythmTendency.dragging
+                              ? Icons.fast_rewind_rounded
+                              : Icons.check_circle_outline_rounded),
+                      color: report.rhythmTendency == RhythmTendency.stable
+                          ? palette.correctPitchColor
+                          : palette.warningPitchColor,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'PULSO TEMPORAL: ${report.rhythmTendency.title.toUpperCase()}',
+                            style: TextStyle(
+                              color: report.rhythmTendency == RhythmTendency.stable
+                                  ? palette.correctPitchColor
+                                  : palette.warningPitchColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          Text(
+                            report.rhythmTendencyDescription,
+                            style: TextStyle(
+                              color: palette.textColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 18),
 
               // Desglose de Notas: Dominadas vs Críticas (Mapa de Calor Pedagógico)
               if (report.masteredNotes.isNotEmpty || report.criticalNotes.isNotEmpty) ...[
@@ -334,10 +415,10 @@ class PracticeReportModal extends StatelessWidget {
   }) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
         decoration: BoxDecoration(
           color: palette.scaffoldBackground,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Column(
@@ -346,17 +427,19 @@ class PracticeReportModal extends StatelessWidget {
               title,
               style: TextStyle(
                 color: palette.textMutedColor,
-                fontSize: 9.5,
+                fontSize: 8.5,
                 fontWeight: FontWeight.bold,
-                letterSpacing: 0.8,
+                letterSpacing: 0.6,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
             Text(
               value,
               style: TextStyle(
                 color: color,
-                fontSize: 17,
+                fontSize: 15,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -365,7 +448,7 @@ class PracticeReportModal extends StatelessWidget {
               subtitle,
               style: TextStyle(
                 color: palette.textMutedColor,
-                fontSize: 10,
+                fontSize: 9.5,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
