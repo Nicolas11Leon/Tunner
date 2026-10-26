@@ -1,4 +1,5 @@
 import 'note_evaluation_entity.dart';
+import '../../practice_recorder/domain/practice_recording_entity.dart';
 
 /// Tendencia temporal general de la interpretación del músico.
 enum RhythmTendency {
@@ -74,6 +75,9 @@ class PracticeReportEntity {
   final double trendDeltaPercentage;
   final String trendAnalysisText;
 
+  /// Grabación de audio físico asociada a esta sesión de práctica (si fue activada)
+  final PracticeRecordingEntity? recording;
+
   const PracticeReportEntity({
     required this.songTitle,
     this.instrumentName = 'Instrumento Estándar',
@@ -95,5 +99,6 @@ class PracticeReportEntity {
     required this.masteredNotes,
     this.trendDeltaPercentage = 0.0,
     this.trendAnalysisText = 'Primera sesión registrada para esta obra',
+    this.recording,
   });
 }

@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:tunner/features/sheet_music/domain/score_tree.dart';
+import '../../practice_recorder/domain/practice_recording_entity.dart';
 import '../domain/i_practice_evaluator_service.dart';
 import '../domain/note_evaluation_entity.dart';
 import '../domain/practice_report_entity.dart';
@@ -121,6 +122,7 @@ class PracticeEvaluatorService implements IPracticeEvaluatorService {
     String instrumentName = 'Instrumento Estándar',
     required List<NoteEvaluationEntity> evaluations,
     PracticeReportEntity? previousSession,
+    PracticeRecordingEntity? recording,
   }) {
     if (evaluations.isEmpty) {
       return PracticeReportEntity(
@@ -143,6 +145,7 @@ class PracticeEvaluatorService implements IPracticeEvaluatorService {
         criticalNotes: const [],
         masteredNotes: const [],
         trendAnalysisText: 'Sin notas registradas en la sesión',
+        recording: recording,
       );
     }
 
@@ -255,6 +258,7 @@ class PracticeEvaluatorService implements IPracticeEvaluatorService {
       masteredNotes: masteredNotes,
       trendDeltaPercentage: double.parse(trendDelta.toStringAsFixed(1)),
       trendAnalysisText: trendText,
+      recording: recording,
     );
   }
 }

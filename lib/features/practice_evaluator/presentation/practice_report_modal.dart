@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tunner/core/theme/tunner_theme.dart';
+import '../../practice_recorder/presentation/practice_recording_player_modal.dart';
 import '../domain/practice_report_entity.dart';
 
 /// Modal analítico de alta fidelidad que presenta el reporte de desempeño
@@ -362,7 +363,72 @@ class PracticeReportModal extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
+              ],
+
+              // Tarjeta de Auto-Escucha de la Toma Grabada (si estuvo activa)
+              if (report.recording != null) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: palette.scaffoldBackground,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: palette.primaryAccent.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: palette.primaryAccent.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.headphones_rounded, color: palette.primaryAccent, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Toma Grabada (${report.recording!.formattedDuration})',
+                              style: TextStyle(
+                                color: palette.textColor,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Auto-escucha sincronizada para evaluar afinación',
+                              style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        key: const Key('report_listen_take_button'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: palette.primaryAccent,
+                          foregroundColor: palette.brightness == Brightness.dark ? Colors.black : Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          elevation: 0,
+                        ),
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => const PracticeRecordingPlayerModal(),
+                          );
+                        },
+                        icon: const Icon(Icons.play_circle_fill_rounded, size: 16),
+                        label: const Text('Escuchar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ),
               ],
 
               // Botones de Acción

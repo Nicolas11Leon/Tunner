@@ -21,6 +21,12 @@ import 'practice_evaluator/data/practice_evaluator_service.dart';
 import 'instrument/domain/instrument_profile_entity.dart';
 import 'instrument/domain/i_instrument_transposition_service.dart';
 import 'instrument/data/instrument_transposition_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'practice_recorder/domain/practice_recording_entity.dart';
+import 'practice_recorder/domain/i_practice_recorder_service.dart';
+import 'practice_recorder/domain/i_audio_playback_service.dart';
+import 'practice_recorder/data/practice_recorder_service.dart';
+import 'practice_recorder/data/audio_playback_service.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -30,6 +36,27 @@ class TunerViewModel extends ChangeNotifier {
   final IMetronomeService _metronomeService;
   final IPracticeEvaluatorService _evaluatorService;
   final IInstrumentTranspositionService _transpositionService;
+  final IPracticeRecorderService _recorderService;
+  final IAudioPlaybackService _playbackService;
+  final Future<String> Function()? _recordingPathProvider;
+
+  StreamSubscription<double>? _amplitudeSubscription;
+  StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<Duration>? _durationSubscription;
+  StreamSubscription<void>? _completeSubscription;
+
+  // Estado de Grabación de Práctica & Auto-Escucha (Loopback)
+  bool _isAudioRecording = false;
+  Duration _recordingDuration = Duration.zero;
+  Timer? _recordingTimer;
+  final List<double> _currentWaveformPeaks = [];
+  PracticeRecordingEntity? _activeRecording;
+  final List<PracticeRecordingEntity> _recordingHistory = [];
+
+  bool _isPlayingAudio = false;
+  Duration _playbackPosition = Duration.zero;
+  Duration _playbackDuration = Duration.zero;
+  double _playbackSpeed = 1.0;
 
   double _frequency = 0.0;
   String _noteName = "--";
@@ -80,10 +107,16 @@ class TunerViewModel extends ChangeNotifier {
     IMetronomeService? metronomeService,
     IPracticeEvaluatorService? evaluatorService,
     IInstrumentTranspositionService? transpositionService,
+    IPracticeRecorderService? recorderService,
+    IAudioPlaybackService? playbackService,
+    Future<String> Function()? recordingPathProvider,
   })  : _pitchService = pitchService ?? PitchDetectorService(),
         _metronomeService = metronomeService ?? MetronomeService(),
         _evaluatorService = evaluatorService ?? const PracticeEvaluatorService(),
-        _transpositionService = transpositionService ?? const InstrumentTranspositionService() {
+        _transpositionService = transpositionService ?? const InstrumentTranspositionService(),
+        _recorderService = recorderService ?? PracticeRecorderService(),
+        _playbackService = playbackService ?? AudioPlaybackService(),
+        _recordingPathProvider = recordingPathProvider {
     _activePackage = _curatedLibrary.first;
     _bpm = _activePackage.defaultBpm;
     _mixerConsole = MixerConsoleEntity(
@@ -102,6 +135,17 @@ class TunerViewModel extends ChangeNotifier {
   List<SongPackage> get curatedLibrary => _curatedLibrary;
   SongPackage get activePackage => _activePackage;
   InstrumentProfileEntity get activeInstrument => _activeInstrument;
+
+  // --- Getters de Grabación & Auto-Escucha (Loopback) ---
+  bool get isAudioRecording => _isAudioRecording;
+  Duration get recordingDuration => _recordingDuration;
+  List<double> get currentWaveformPeaks => List.unmodifiable(_currentWaveformPeaks);
+  PracticeRecordingEntity? get activeRecording => _activeRecording;
+  List<PracticeRecordingEntity> get recordingHistory => List.unmodifiable(_recordingHistory);
+  bool get isPlayingAudio => _isPlayingAudio;
+  Duration get playbackPosition => _playbackPosition;
+  Duration get playbackDuration => _playbackDuration;
+  double get playbackSpeed => _playbackSpeed;
 
   double get frequency => _frequency;
   String get noteName => _noteName;
@@ -184,6 +228,29 @@ class TunerViewModel extends ChangeNotifier {
       _validatePerformance();
       notifyListeners();
     };
+
+    _amplitudeSubscription = _recorderService.amplitudeStream.listen((peak) {
+      if (_isAudioRecording) {
+        _currentWaveformPeaks.add(peak);
+        notifyListeners();
+      }
+    });
+
+    _positionSubscription = _playbackService.onPositionChanged.listen((pos) {
+      _playbackPosition = pos;
+      notifyListeners();
+    });
+
+    _durationSubscription = _playbackService.onDurationChanged.listen((dur) {
+      _playbackDuration = dur;
+      notifyListeners();
+    });
+
+    _completeSubscription = _playbackService.onPlayerComplete.listen((_) {
+      _isPlayingAudio = false;
+      _playbackPosition = Duration.zero;
+      notifyListeners();
+    });
   }
 
   void setInstrumentProfile(InstrumentProfileEntity instrument) {
@@ -310,6 +377,7 @@ class TunerViewModel extends ChangeNotifier {
       instrumentName: _activeInstrument.name,
       evaluations: List.unmodifiable(_activeEvaluations),
       previousSession: prev,
+      recording: _activeRecording,
     );
     _lastReport = report;
     _sessionHistory.add(report);
@@ -475,11 +543,142 @@ class TunerViewModel extends ChangeNotifier {
     }
   }
 
+  // --- Métodos de Grabación de Práctica & Auto-Escucha (Loopback) ---
+
+  Future<String> _getRecordingPath() async {
+    if (_recordingPathProvider != null) {
+      return _recordingPathProvider();
+    }
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      return '${dir.path}/take_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    } catch (_) {
+      return '/tmp/tunner_take_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    }
+  }
+
+  /// Inicia la grabación acústica de la interpretación en segundo plano.
+  Future<void> startPracticeRecording() async {
+    if (_isAudioRecording) return;
+    if (_isPlayingAudio) {
+      await stopActiveRecordingPlayback();
+    }
+
+    _currentWaveformPeaks.clear();
+    _recordingDuration = Duration.zero;
+    final path = await _getRecordingPath();
+
+    try {
+      await _recorderService.startRecording(destinationPath: path);
+      _isAudioRecording = true;
+      _recordingTimer?.cancel();
+      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        _recordingDuration += const Duration(seconds: 1);
+        notifyListeners();
+      });
+      notifyListeners();
+    } catch (_) {
+      _isAudioRecording = false;
+      notifyListeners();
+    }
+  }
+
+  /// Detiene la grabación activa y consolida la toma como [PracticeRecordingEntity].
+  Future<void> stopPracticeRecording() async {
+    if (!_isAudioRecording) return;
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+    _isAudioRecording = false;
+
+    final filePath = await _recorderService.stopRecording();
+    if (filePath != null && _recordingDuration.inMilliseconds >= 500) {
+      final recording = PracticeRecordingEntity(
+        id: "rec_${DateTime.now().millisecondsSinceEpoch}",
+        filePath: filePath,
+        recordedAt: DateTime.now(),
+        duration: _recordingDuration,
+        songTitle: _activePackage.title,
+        bpm: _bpm,
+        waveformPeaks: List.unmodifiable(_currentWaveformPeaks),
+      );
+      _activeRecording = recording;
+      _recordingHistory.insert(0, recording);
+    }
+    notifyListeners();
+  }
+
+  /// Alterna entre iniciar y detener la grabación de práctica con un solo toque.
+  Future<void> togglePracticeRecording() async {
+    if (_isAudioRecording) {
+      await stopPracticeRecording();
+    } else {
+      await startPracticeRecording();
+    }
+  }
+
+  /// Reproduce la toma de práctica activa o la toma especificada en [targetRecording].
+  Future<void> playActiveRecording([PracticeRecordingEntity? targetRecording]) async {
+    final toPlay = targetRecording ?? _activeRecording;
+    if (toPlay == null) return;
+    _activeRecording = toPlay;
+    await _playbackService.play(toPlay.filePath);
+    _isPlayingAudio = true;
+    notifyListeners();
+  }
+
+  /// Pausa la auto-escucha de la toma activa.
+  Future<void> pauseActiveRecording() async {
+    await _playbackService.pause();
+    _isPlayingAudio = false;
+    notifyListeners();
+  }
+
+  /// Detiene la reproducción y regresa al inicio de la toma.
+  Future<void> stopActiveRecordingPlayback() async {
+    await _playbackService.stop();
+    _isPlayingAudio = false;
+    _playbackPosition = Duration.zero;
+    notifyListeners();
+  }
+
+  /// Salta a una posición temporal específica dentro de la toma de audio.
+  Future<void> seekPlayback(Duration position) async {
+    await _playbackService.seek(position);
+    _playbackPosition = position;
+    notifyListeners();
+  }
+
+  /// Ajusta la velocidad de reproducción de auto-escucha (ej. 0.75x, 1.0x, 1.25x).
+  Future<void> setPlaybackSpeed(double speed) async {
+    _playbackSpeed = speed;
+    await _playbackService.setPlaybackRate(speed);
+    notifyListeners();
+  }
+
+  /// Descarta la toma activa actual.
+  void discardActiveRecording() {
+    if (_isPlayingAudio) {
+      stopActiveRecordingPlayback();
+    }
+    if (_activeRecording != null) {
+      _recordingHistory.removeWhere((r) => r.id == _activeRecording!.id);
+    }
+    _activeRecording = null;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _silenceTimer?.cancel();
     _pitchService.stopRecording();
     _metronomeService.stop();
+    _amplitudeSubscription?.cancel();
+    _positionSubscription?.cancel();
+    _durationSubscription?.cancel();
+    _completeSubscription?.cancel();
+    _recordingTimer?.cancel();
+    _recorderService.dispose();
+    _playbackService.dispose();
     super.dispose();
   }
 }

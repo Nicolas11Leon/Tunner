@@ -1,4 +1,5 @@
 import 'package:tunner/features/sheet_music/domain/score_tree.dart';
+import '../../practice_recorder/domain/practice_recording_entity.dart';
 import 'note_evaluation_entity.dart';
 import 'practice_report_entity.dart';
 
@@ -22,5 +23,6 @@ abstract class IPracticeEvaluatorService {
     String instrumentName = 'Instrumento Estándar',
     required List<NoteEvaluationEntity> evaluations,
     PracticeReportEntity? previousSession,
+    PracticeRecordingEntity? recording,
   });
 }

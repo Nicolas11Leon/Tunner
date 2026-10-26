@@ -8,6 +8,8 @@ import 'song_library/presentation/song_decomposer_modal.dart';
 import 'practice_evaluator/presentation/practice_report_modal.dart';
 import 'instrument/domain/instrument_profile_entity.dart';
 import 'customization/presentation/theme_customization_modal.dart';
+import 'practice_recorder/presentation/practice_recorder_dock.dart';
+import 'practice_recorder/presentation/practice_recording_player_modal.dart';
 
 class TunerScreen extends StatelessWidget {
   const TunerScreen({super.key});
@@ -546,6 +548,19 @@ class TunerScreen extends StatelessWidget {
                 );
               },
             ),
+          if (viewModel.activeRecording != null)
+            IconButton(
+              icon: Icon(Icons.headphones_rounded, color: palette.primaryAccent),
+              tooltip: "Reproductor de Auto-Escucha (Toma lista)",
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => const PracticeRecordingPlayerModal(),
+                );
+              },
+            ),
           IconButton(
             icon: Icon(Icons.library_music, color: palette.primaryAccent),
             tooltip: "Biblioteca & Descompositor de Canciones",
@@ -821,7 +836,7 @@ class TunerScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
           // AFINADOR ESTROBOSCÓPICO VIRTUAL DE ALTA PRECISIÓN (UC-04)
           Padding(
@@ -835,11 +850,15 @@ class TunerScreen extends StatelessWidget {
               palette: palette,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 6),
+
+          // BARRA DE GRABACIÓN DE PRÁCTICA & AUTO-ESCUCHA
+          const PracticeRecorderDock(),
+          const SizedBox(height: 8),
 
           // BOTONES DE ACCIÓN
           Padding(
-            padding: const EdgeInsets.only(bottom: 40.0),
+            padding: const EdgeInsets.only(bottom: 4.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
