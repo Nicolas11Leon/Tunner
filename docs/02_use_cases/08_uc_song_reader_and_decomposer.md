@@ -1,22 +1,29 @@
-# UC-08: Lector Universal de Canciones, Ingesta Multi-Pista y Biblioteca de Repertorio
+# UC-08: Lector Universal de Canciones, Ingesta Multi-Pista y Estudio de Descomposición
 
 ---
 
 ## Metadatos del Caso de Uso
 
-- **ID del Caso de Uso:** `UC-08-SONG-INGESTION-AND-LIBRARY`
-- **Nombre Canónico:** `Lector de Canciones Multi-Pista y Biblioteca de Repertorio Descompuesto`
+- **ID del Caso de Uso:** `UC-08-SONG-INGESTION-AND-DECOMPOSITION-STUDIO`
+- **Nombre Canónico:** `Lector de Canciones Multi-Pista, Estudio de Descomposición y Biblioteca de Repertorio`
 - **Fase Asociada:** `Fase 4`
 - **Actor Principal:** `Estudiante / Músico`
-- **Actores Secundarios:** `Parser Local (Domain/Data), Consola Mezcladora (MixerConsoleEntity), Motor de Partituras`
-- **Estado:** `Approved`
+- **Actores Secundarios:** `Parser Local (SongDecomposerService), Consola Mezcladora (MixerConsoleEntity), Motor de Partituras (ScoreTree/RealSheetMusicPainter)`
+- **Estado:** `Approved & Implemented`
 - **ADR Relacionado:** `docs/04_adrs/0003_hybrid_song_library_and_midi_parser.md`
 
 ---
 
 ## 1. Descripción Breve y Propósito
 
-Permite al usuario acceder a una biblioteca organizada de canciones con acompañamiento descompuesto (Voz, Piano, Bajo, Metrónomo), así como **subir o importar cualquier canción externa** (en formato multi-pista estándar). Al cargar la canción, el motor descompone automáticamente sus pistas en la consola de mezcla y proyecta las notas de la melodía elegida directamente sobre el pentagrama para su estudio interactivo y afinación en tiempo real.
+Permite al usuario acceder a una biblioteca organizada de canciones con acompañamiento descompuesto (Voz, Piano, Bajo, Metrónomo), así como **crear, componer o descomponer interactivamente obras musicales** mediante el **Estudio de Descomposición Musical** (`SongDecomposerModal`).
+
+El estudio permite:
+1. **Entrada melódica libre:** Soporta notación textual flexible (solfeo `Do4 Re4 Mi4` o internacional `C4 D4 E4`, duraciones explícitas `:4`, `:8`, silencios `_` o `R` y barras de compás `|`).
+2. **Teclado rápido de notas:** Teclas táctiles para Do, Re, Mi, Fa, Sol, La, Si, silencios, selección de octavas (3, 4, 5), alteraciones (#, b), figuras rítmicas (Redonda, Blanca, Negra, Corchea) y divisores de compás.
+3. **Catálogo de plantillas maestras:** Obras didácticas preconfiguradas (Mozart, Bach, Vivaldi, Greensleeves, Escalas) cargables en un solo toque.
+4. **Descomposición por capas (Stems):** Configuración granular de pistas a aislar (Melodía Principal, Acompañamiento Armónico, Bajo, Ritmo/Percusión).
+5. **Carga directa al estudio de práctica:** Ingesta inmediata en `TunerViewModel.addSongPackage(...)` y `loadSongPackage(...)` para visualización rítmica en el pentagrama y control independiente de volúmenes en la consola de mezcla.
 
 ---
 
@@ -25,25 +32,28 @@ Permite al usuario acceder a una biblioteca organizada de canciones con acompañ
 ```mermaid
 flowchart LR
     Musician(("Músico / Estudiante"))
-    FileStorage[("Almacenamiento Local del Dispositivo")]
 
-    subgraph TunnerSystem ["Tunner Platform (Monolito Local)"]
-        UC08(["UC-08: Lector y Biblioteca de Canciones"])
-        LibraryBrowser(["Explorador de Repertorio Canónico"])
-        LocalFileImporter(["Importador de Archivos de Canción"])
-        SongDecomposer(["Descompositor de Pistas (Stems) y Notas"])
-        ScoreView(["Pentagrama Interactivo (Presentation)"])
-        MixerConsole(["Consola de Mezcla Multicanal (Stems)"])
+    subgraph TunnerSystem ["Tunner Platform (Monolito Local Offline)"]
+        UC08(["UC-08: Lector y Descompositor Musical"])
+        LibraryModal(["Modal de Biblioteca de Canciones"])
+        StudioModal(["Estudio de Descomposición (SongDecomposerModal)"])
+        QuickKeypad(["Teclado Rápido de Notas y Duraciones"])
+        TemplateCatalog(["Plantillas Maestras Curadas"])
+        ParserEngine(["Motor de Análisis Melódico y Métrica"])
+        StemDecomposer(["Generador de Capas Pedagógicas (Stems)"])
+        ScoreView(["Pentagrama Interactivo (RealSheetMusicPainter)"])
+        MixerConsole(["Consola Mezcladora (MixerConsoleEntity)"])
     end
 
-    Musician -->|Explora repertorio o pulsa 'Importar Canción'| UC08
-    UC08 --> LibraryBrowser
-    UC08 --> LocalFileImporter
-    LocalFileImporter <-->|Lee bytes de archivo local| FileStorage
-    LibraryBrowser --> SongDecomposer
-    LocalFileImporter --> SongDecomposer
-    SongDecomposer -->|Despacha pistas separadas (Voz, Piano, etc.)| MixerConsole
-    SongDecomposer -->|Despacha notas y compases para afinación| ScoreView
+    Musician -->|Pulsa 'Subir & Descomponer' en Biblioteca| StudioModal
+    Musician -->|Inserta notas interactivamente| QuickKeypad
+    Musician -->|Selecciona obra clásica/didáctica| TemplateCatalog
+    StudioModal --> QuickKeypad
+    StudioModal --> TemplateCatalog
+    StudioModal -->|Procesa cadena melódica y métrica| ParserEngine
+    ParserEngine -->|Genera compases matemáticamente balanceados| StemDecomposer
+    StemDecomposer -->|Despacha stems independientes (Lead, Piano, Bass, Ritmo)| MixerConsole
+    StemDecomposer -->|Despacha árbol jerárquico de notas| ScoreView
 ```
 
 ---
@@ -54,32 +64,38 @@ flowchart LR
 sequenceDiagram
     autonumber
     actor Musician as Músico / Estudiante
-    participant UI as TunerScreen (Librería / Importador)
-    participant VM as TunerViewModel
+    participant LibUI as Modal de Biblioteca
+    participant StudioUI as SongDecomposerModal
     participant Decomp as SongDecomposerService
+    participant VM as TunerViewModel
     participant Mixer as MixerConsoleEntity
     participant Score as RealSheetMusicPainter
 
-    Musician->>UI: Pulsa icono "Biblioteca / Cargar Canción"
-    UI->>Musician: Despliega catálogo con canciones (Clásica, Jazz, Pop) y botón "+ Importar Canción"
-    alt Elige canción de la biblioteca
-        Musician->>UI: Selecciona canción (ej. "Beethoven - Für Elise (Multi-Pista)")
-        UI->>VM: loadSongFromLibrary(songId)
-    else Sube su propia canción
-        Musician->>UI: Carga archivo del teléfono/PC
-        UI->>VM: importCustomSong(fileName, fileBytes)
+    Musician->>LibUI: Pulsa "Subir & Descomponer Canción"
+    LibUI->>StudioUI: SongDecomposerModal.show(context, viewModel)
+    alt Escribe o edita melodía personalizada
+        Musician->>StudioUI: Usa teclado táctil de notas (Do, Re, Mi...) y duraciones
+        StudioUI->>Decomp: parseMelodyText(input, timeSignature) [Live Preview]
+        Decomp-->>StudioUI: Previsualización de compases y conteo de notas
+    else Carga plantilla de estudio
+        Musician->>StudioUI: Selecciona pestaña "Plantillas de Estudio" (ej. Bach Minuet)
+        StudioUI->>StudioUI: Carga título, BPM, métrica y notación en el editor
     end
-    VM->>Decomp: decompose(songData)
-    Decomp-->>VM: Entrega {measures, melodyNotes, stems: [voice, piano, accompaniment]}
-    VM->>Mixer: Actualiza stems en la consola de mezcla
-    VM->>Score: Renderiza compases y notas en el pentagrama
-    VM->>UI: notifyListeners() (Canción cargada y lista para tocar)
+    Musician->>StudioUI: Configura stems activos y pulsa "Descomponer y Cargar al Estudio"
+    StudioUI->>Decomp: decomposeCustomScore(...)
+    Decomp-->>StudioUI: SongPackage estructurado
+    StudioUI->>VM: addSongPackage(package) & loadSongPackage(package)
+    VM->>Mixer: Carga pistas aisladas a la consola de mezcla
+    VM->>Score: Proyecta compases y notas sobre el pentagrama
+    VM->>Musician: Feedback SnackBar ("¡Obra descompuesta con éxito!")
 ```
 
 ---
 
 ## 4. Criterios de Aceptación (Definition of Done)
 
-- **Cero dependencia de red:** Todo el procesamiento ocurre 100% en local.
-- **Sincronización:** Cada pista descompuesta se refleja inmediatamente en la consola de mezcla con volumen, mute y solo individuales.
-- **Pentagrama actualizado:** Las notas melódicas son proyectadas con precisión rítmica en el pentagrama adaptado al tempo de la canción.
+- **Cero latencia de red:** 100% de la descomposición y estructuración ocurre localmente en el dispositivo.
+- **Tolerancia a errores de notación:** Relleno automático con silencios si un compás no alcanza la suma de sub-ticks de su métrica.
+- **Soporte bilingüe de notación:** Acepta tanto nomenclatura latina (Do, Re, Mi, Fa, Sol, La, Si) como anglosajona (C, D, E, F, G, A, B).
+- **Integración con mezclador:** Cada capa descompuesta (Lead, Armonía, Bajo, Ritmo) cuenta con control individual de volumen, mute y solo.
+- **Pruebas automatizadas:** Cobertura unitaria para parseo, normalización y widget tests para todas las interacciones de UI.

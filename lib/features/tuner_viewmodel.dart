@@ -334,6 +334,12 @@ class TunerViewModel extends ChangeNotifier {
   void incrementBpm([int step = 1]) => updateBpm(_bpm + step);
   void decrementBpm([int step = 1]) => updateBpm(_bpm - step);
 
+  void addSongPackage(SongPackage package) {
+    _curatedLibrary.removeWhere((p) => p.id == package.id);
+    _curatedLibrary.insert(0, package);
+    loadSongPackage(package);
+  }
+
   void loadSongPackage(SongPackage package) {
     _activePackage = package;
     _bpm = package.defaultBpm;

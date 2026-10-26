@@ -3,9 +3,8 @@ import 'package:provider/provider.dart';
 
 import 'tuner_viewmodel.dart';
 import 'tuner/presentation/strobe_tuner_widget.dart';
-import 'sheet_music/domain/score_tree.dart';
 import 'sheet_music/presentation/real_sheet_music_painter.dart';
-import 'song_library/data/song_decomposer_service.dart';
+import 'song_library/presentation/song_decomposer_modal.dart';
 import 'practice_evaluator/presentation/practice_report_modal.dart';
 import 'instrument/domain/instrument_profile_entity.dart';
 import 'customization/presentation/theme_customization_modal.dart';
@@ -79,33 +78,7 @@ class TunerScreen extends StatelessWidget {
                   InkWell(
                     onTap: () {
                       Navigator.pop(context);
-                      final decomposed = SongDecomposerService.decomposeCustomScore(
-                        title: "Canción Importada (Stems Descompuestos)",
-                        composer: "Archivo Local",
-                        bpm: 120,
-                        timeSignature: TimeSignature.commonTime44,
-                        measures: [
-                          MeasureEntity(
-                            index: 0,
-                            timeSignature: TimeSignature.commonTime44,
-                            notes: [
-                              HierarchicalNote.note(startTick: 0, durationTicks: 4, noteName: "Mi4"),
-                              HierarchicalNote.note(startTick: 4, durationTicks: 4, noteName: "Sol4"),
-                              HierarchicalNote.note(startTick: 8, durationTicks: 4, noteName: "La4"),
-                              HierarchicalNote.note(startTick: 12, durationTicks: 4, noteName: "Si4"),
-                            ],
-                          ),
-                          MeasureEntity(
-                            index: 1,
-                            timeSignature: TimeSignature.commonTime44,
-                            notes: [
-                              HierarchicalNote.note(startTick: 0, durationTicks: 8, noteName: "Do5"),
-                              HierarchicalNote.note(startTick: 8, durationTicks: 8, noteName: "Sol4"),
-                            ],
-                          ),
-                        ],
-                      );
-                      viewModel.loadSongPackage(decomposed);
+                      SongDecomposerModal.show(context, viewModel);
                     },
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
