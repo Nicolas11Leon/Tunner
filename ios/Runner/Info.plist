@@ -66,5 +66,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Tunner requiere acceso al micrófono para la detección acústica de tono y afinación en tiempo real.</string>
 </dict>
 </plist>

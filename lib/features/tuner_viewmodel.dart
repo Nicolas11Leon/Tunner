@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../core/theme/tunner_theme.dart';
@@ -66,6 +67,8 @@ class TunerViewModel extends ChangeNotifier {
 
   // Personalización Estética y de Compás Pro
   TunnerThemeMode _themeMode = TunnerThemeMode.obsidianStudio;
+  TunnerThemePalette _currentPalette = TunnerThemePalette.obsidianStudio;
+  final List<TunnerThemePalette> _customPalettes = [];
   TimeSignature? _customTimeSignatureOverride;
 
   // Consola Mezcladora Multicanal
@@ -92,7 +95,9 @@ class TunerViewModel extends ChangeNotifier {
 
   // --- Getters del Estado ---
   TunnerThemeMode get themeMode => _themeMode;
-  TunnerThemePalette get currentPalette => TunnerThemePalette.fromMode(_themeMode);
+  TunnerThemePalette get currentPalette => _currentPalette;
+  List<TunnerThemePalette> get availablePalettes => [...TunnerThemePalette.allPresets, ..._customPalettes];
+  List<TunnerThemePalette> get customPalettes => List.unmodifiable(_customPalettes);
   MixerConsoleEntity get mixerConsole => _mixerConsole;
   List<SongPackage> get curatedLibrary => _curatedLibrary;
   SongPackage get activePackage => _activePackage;
@@ -374,9 +379,60 @@ class TunerViewModel extends ChangeNotifier {
     selectMeasure((_currentMeasureIndex - 1 + maxMeasures) % maxMeasures);
   }
 
+  void setPalette(TunnerThemePalette palette) {
+    _currentPalette = palette;
+    _themeMode = palette.mode;
+    notifyListeners();
+  }
+
   void setThemeMode(TunnerThemeMode mode) {
     _themeMode = mode;
+    _currentPalette = TunnerThemePalette.fromMode(mode);
     notifyListeners();
+  }
+
+  void addCustomPalette(TunnerThemePalette palette) {
+    _customPalettes.removeWhere((p) => p.id == palette.id);
+    _customPalettes.add(palette);
+    _currentPalette = palette;
+    _themeMode = palette.mode;
+    notifyListeners();
+  }
+
+  void updateCustomPalette(TunnerThemePalette palette) {
+    final index = _customPalettes.indexWhere((p) => p.id == palette.id);
+    if (index != -1) {
+      _customPalettes[index] = palette;
+    } else {
+      _customPalettes.add(palette);
+    }
+    if (_currentPalette.id == palette.id) {
+      _currentPalette = palette;
+    }
+    notifyListeners();
+  }
+
+  void deleteCustomPalette(String paletteId) {
+    _customPalettes.removeWhere((p) => p.id == paletteId);
+    if (_currentPalette.id == paletteId) {
+      _currentPalette = TunnerThemePalette.obsidianStudio;
+      _themeMode = TunnerThemeMode.obsidianStudio;
+    }
+    notifyListeners();
+  }
+
+  bool importPaletteFromJson(String jsonString) {
+    try {
+      final decoded = jsonDecode(jsonString);
+      if (decoded is Map<String, dynamic>) {
+        final imported = TunnerThemePalette.fromJson(decoded);
+        addCustomPalette(imported);
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
   }
 
   void setCustomTimeSignature(TimeSignature? signature) {

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../core/theme/tunner_theme.dart';
 import 'tuner_viewmodel.dart';
 import 'tuner/presentation/strobe_tuner_widget.dart';
 import 'sheet_music/domain/score_tree.dart';
@@ -9,6 +8,7 @@ import 'sheet_music/presentation/real_sheet_music_painter.dart';
 import 'song_library/data/song_decomposer_service.dart';
 import 'practice_evaluator/presentation/practice_report_modal.dart';
 import 'instrument/domain/instrument_profile_entity.dart';
+import 'customization/presentation/theme_customization_modal.dart';
 
 class TunerScreen extends StatelessWidget {
   const TunerScreen({super.key});
@@ -197,121 +197,7 @@ class TunerScreen extends StatelessWidget {
   }
 
   void _showCustomizationModal(BuildContext context, TunerViewModel viewModel) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: viewModel.currentPalette.cardBackground,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final palette = viewModel.currentPalette;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "PERSONALIZACIÓN DE ESTUDIO",
-                        style: TextStyle(
-                          color: palette.primaryAccent,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.close, color: palette.textMutedColor, size: 20),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 1. Selector de Tema Visual
-                  Text("Tema y Estética", style: TextStyle(color: palette.textColor, fontSize: 14, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: TunnerThemePalette.allPalettes.map((p) {
-                      final isSelected = viewModel.themeMode == p.mode;
-                      return ChoiceChip(
-                        label: Text(p.displayName),
-                        selected: isSelected,
-                        selectedColor: p.primaryAccent.withValues(alpha: 0.3),
-                        backgroundColor: p.staffBackground,
-                        labelStyle: TextStyle(
-                          color: isSelected ? p.primaryAccent : Colors.white70,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 12,
-                        ),
-                        side: BorderSide(
-                          color: isSelected ? p.primaryAccent : Colors.white12,
-                          width: isSelected ? 1.5 : 1,
-                        ),
-                        onSelected: (val) {
-                          if (val) {
-                            viewModel.setThemeMode(p.mode);
-                            setModalState(() {});
-                          }
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // 2. Selector de Métrica de Compás Libre
-                  Text("Métrica de Compás", style: TextStyle(color: palette.textColor, fontSize: 14, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: TimeSignature.standardSignatures.map((sig) {
-                      final isSelected = viewModel.currentMeasureTimeSignature == sig;
-                      return ActionChip(
-                        avatar: Icon(Icons.timer_outlined, size: 16, color: isSelected ? palette.primaryAccent : palette.textMutedColor),
-                        label: Text(sig.toString()),
-                        backgroundColor: isSelected ? palette.primaryAccent.withValues(alpha: 0.2) : Colors.white10,
-                        labelStyle: TextStyle(
-                          color: isSelected ? palette.primaryAccent : Colors.white70,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 12,
-                        ),
-                        side: BorderSide(
-                          color: isSelected ? palette.primaryAccent : Colors.white12,
-                        ),
-                        onPressed: () {
-                          viewModel.setCustomTimeSignature(sig);
-                          setModalState(() {});
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
+    ThemeCustomizationModal.show(context, viewModel);
   }
 
   void _showMixerModal(BuildContext context, TunerViewModel viewModel) {

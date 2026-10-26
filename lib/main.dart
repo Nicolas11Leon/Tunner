@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'core/theme/tunner_theme.dart';
 import 'features/tuner_screen.dart';
 import 'features/tuner_viewmodel.dart';
 
@@ -26,17 +25,15 @@ class TunnerApp extends StatelessWidget {
     final viewModel = context.watch<TunerViewModel>();
     final palette = viewModel.currentPalette;
 
+    final isLight = palette.brightness == Brightness.light;
+
     // Sincronización de la barra de estado del sistema con el tema activo
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: palette.mode == TunnerThemeMode.vintageParchment
-            ? Brightness.dark
-            : Brightness.light,
+        statusBarIconBrightness: isLight ? Brightness.dark : Brightness.light,
         systemNavigationBarColor: palette.scaffoldBackground,
-        systemNavigationBarIconBrightness: palette.mode == TunnerThemeMode.vintageParchment
-            ? Brightness.dark
-            : Brightness.light,
+        systemNavigationBarIconBrightness: isLight ? Brightness.dark : Brightness.light,
       ),
     );
 
@@ -45,16 +42,12 @@ class TunnerApp extends StatelessWidget {
       title: 'Tunner: Studio Pitch & Sheet Music Lab',
       theme: ThemeData(
         useMaterial3: true,
-        brightness: palette.mode == TunnerThemeMode.vintageParchment
-            ? Brightness.light
-            : Brightness.dark,
+        brightness: palette.brightness,
         scaffoldBackgroundColor: palette.scaffoldBackground,
         cardColor: palette.cardBackground,
         colorScheme: ColorScheme.fromSeed(
           seedColor: palette.primaryAccent,
-          brightness: palette.mode == TunnerThemeMode.vintageParchment
-              ? Brightness.light
-              : Brightness.dark,
+          brightness: palette.brightness,
           surface: palette.cardBackground,
         ),
       ),

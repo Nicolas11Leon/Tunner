@@ -233,7 +233,7 @@ class RealSheetMusicPainter extends CustomPainter {
           ..color = liveColor.withValues(alpha: 0.9)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
         canvas.drawCircle(Offset(currentX, liveY), 14, livePaint);
-        canvas.drawCircle(Offset(currentX, liveY), 6, Paint()..color = Colors.white);
+        canvas.drawCircle(Offset(currentX, liveY), 6, Paint()..color = palette.musicalSymbolsColor);
       }
     }
   }

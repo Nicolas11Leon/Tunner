@@ -123,6 +123,6 @@ graph LR
 | Fase | Título | Estado | % Completado | Componentes Principales Entregados |
 | :--- | :--- | :--- | :--- | :--- |
 | **Fase 1** | Núcleo Acústico y Reloj de Audio | **Completado** | 100% | YIN Isolate Worker, Strobe Tuner Widget, Reloj sin busy-waiting, Síntesis senoidal |
-| **Fase 2** | Motor de Partituras Dinámicas & Estética | **Completado** | 100% | Score Tree Domain, RealSheetMusicPainter modular, Temas (Obsidian, Parchment, Neon, OLED), Metrónomo 20-300 BPM |
+| **Fase 2** | Motor de Partituras Dinámicas & Estética | **Completado** | 100% | Score Tree Domain, RealSheetMusicPainter modular, 7 Estéticas Maestras, Theme Customization Studio interactivo, Importación/Exportación JSON |
 | **Fase 3** | Síntesis y Mezcla Multicanal (Stems) | **En progreso** | 80% | Consola mezcladora multicanal, Ganancia/Mute/Solo, Clics de metrónomo acentuados |
 | **Fase 4** | Ingesta Universal y Biblioteca | **En progreso** | 60% | Monolito Modular Feature-First, Paquetes de canciones descompuestas, Repertorio curado |

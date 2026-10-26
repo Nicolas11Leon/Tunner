@@ -127,7 +127,7 @@ class _StrobeTunerWidgetState extends State<StrobeTunerWidget> with SingleTicker
                       Text(
                         "NOTA FUNDAMENTAL",
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.4),
+                          color: p.textMutedColor,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 1.2,
@@ -140,18 +140,18 @@ class _StrobeTunerWidgetState extends State<StrobeTunerWidget> with SingleTicker
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF00FF88).withValues(alpha: 0.15),
+                              color: p.correctPitchColor.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: const Color(0xFF00FF88).withValues(alpha: 0.3)),
+                              border: Border.all(color: p.correctPitchColor.withValues(alpha: 0.3)),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.volume_up, size: 10, color: Color(0xFF00FF88)),
-                                SizedBox(width: 3),
+                                Icon(Icons.volume_up, size: 10, color: p.correctPitchColor),
+                                const SizedBox(width: 3),
                                 Text(
                                   "ESCUCHAR A4",
-                                  style: TextStyle(fontSize: 8, color: Color(0xFF00FF88), fontWeight: FontWeight.bold),
+                                  style: TextStyle(fontSize: 8, color: p.correctPitchColor, fontWeight: FontWeight.bold),
                                 ),
                               ],
                             ),
@@ -164,7 +164,7 @@ class _StrobeTunerWidgetState extends State<StrobeTunerWidget> with SingleTicker
                   Text(
                     widget.noteName,
                     style: TextStyle(
-                      color: hasSound ? statusColor : Colors.white30,
+                      color: hasSound ? statusColor : p.textMutedColor,
                       fontSize: 38,
                       fontWeight: FontWeight.bold,
                       letterSpacing: -1,
@@ -177,11 +177,11 @@ class _StrobeTunerWidgetState extends State<StrobeTunerWidget> with SingleTicker
                 children: [
                   Text(
                     hasSound ? "${widget.frequency.toStringAsFixed(1)} Hz" : "-- Hz",
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: p.textColor,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      fontFeatures: [FontFeature.tabularFigures()],
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -222,6 +222,7 @@ class _StrobeTunerWidgetState extends State<StrobeTunerWidget> with SingleTicker
                   hasSound: hasSound,
                   cents: widget.cents,
                   statusColor: statusColor,
+                  palette: p,
                 ),
               ),
             ),
@@ -232,11 +233,11 @@ class _StrobeTunerWidgetState extends State<StrobeTunerWidget> with SingleTicker
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("-50", style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 10)),
-              Text("-25", style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 10)),
-              Text("PERFECTO (0)", style: TextStyle(color: isDeadCenter ? const Color(0xFF00FF88) : Colors.white.withValues(alpha: 0.4), fontSize: 10, fontWeight: FontWeight.bold)),
-              Text("+25", style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 10)),
-              Text("+50", style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 10)),
+              Text("-50", style: TextStyle(color: p.textMutedColor, fontSize: 10)),
+              Text("-25", style: TextStyle(color: p.textMutedColor, fontSize: 10)),
+              Text("PERFECTO (0)", style: TextStyle(color: isDeadCenter ? p.correctPitchColor : p.textMutedColor, fontSize: 10, fontWeight: FontWeight.bold)),
+              Text("+25", style: TextStyle(color: p.textMutedColor, fontSize: 10)),
+              Text("+50", style: TextStyle(color: p.textMutedColor, fontSize: 10)),
             ],
           ),
         ],
@@ -250,18 +251,20 @@ class _StrobePainter extends CustomPainter {
   final bool hasSound;
   final double cents;
   final Color statusColor;
+  final TunnerThemePalette palette;
 
   _StrobePainter({
     required this.phase,
     required this.hasSound,
     required this.cents,
     required this.statusColor,
+    required this.palette,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Fondo oscuro de cámara estroboscópica
-    final bgPaint = Paint()..color = const Color(0xFF0A0B10);
+    // Fondo de la cámara estroboscópica adaptado al brillo
+    final bgPaint = Paint()..color = palette.brightness == Brightness.dark ? const Color(0xFF0A0B10) : const Color(0xFFE2E8F0);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
     final double barWidth = 14.0;
@@ -275,7 +278,7 @@ class _StrobePainter extends CustomPainter {
     final barPaint = Paint()
       ..color = hasSound
           ? statusColor.withValues(alpha: 0.85)
-          : Colors.white.withValues(alpha: 0.08)
+          : palette.textMutedColor.withValues(alpha: 0.2)
       ..style = PaintingStyle.fill;
 
     // Dibujo de las bandas estroboscópicas que rotan
@@ -293,7 +296,7 @@ class _StrobePainter extends CustomPainter {
     // Línea central de referencia fija (Target Centerline)
     final double centerX = size.width / 2;
     final centerLinePaint = Paint()
-      ..color = hasSound && cents.abs() <= 3.0 ? const Color(0xFF00FF88) : Colors.white
+      ..color = hasSound && cents.abs() <= 3.0 ? palette.correctPitchColor : palette.textColor
       ..strokeWidth = 2.5;
 
     canvas.drawLine(
@@ -304,7 +307,7 @@ class _StrobePainter extends CustomPainter {
 
     // Triángulos de guía superior e inferior
     final trianglePaint = Paint()
-      ..color = hasSound && cents.abs() <= 3.0 ? const Color(0xFF00FF88) : Colors.white70
+      ..color = hasSound && cents.abs() <= 3.0 ? palette.correctPitchColor : palette.textMutedColor
       ..style = PaintingStyle.fill;
 
     final topPath = Path()
@@ -327,6 +330,7 @@ class _StrobePainter extends CustomPainter {
     return oldDelegate.phase != phase ||
         oldDelegate.cents != cents ||
         oldDelegate.hasSound != hasSound ||
-        oldDelegate.statusColor != statusColor;
+        oldDelegate.statusColor != statusColor ||
+        oldDelegate.palette != palette;
   }
 }

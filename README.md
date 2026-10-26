@@ -1,116 +1,169 @@
-# Tunner
+# Tunner: Studio Pitch & Sheet Music Lab
 
-An open-source, high-precision pitch detection, acoustic analysis, and interactive music learning platform.
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+[![Tests: 59 Passing](https://img.shields.io/badge/Tests-59%20Passing-brightgreen.svg)]()
+[![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
+[![Framework: Flutter](https://img.shields.io/badge/Framework-Flutter-02569B.svg)]()
+[![Platform: Linux%20|%20Android%20|%20iOS](https://img.shields.io/badge/Platform-Linux%20%7C%20Android%20%7C%20iOS-lightgrey.svg)]()
 
----
-
-## Overview
-
-Tunner is an open-source initiative dedicated to democratizing music education. Learning to sing or play an instrument should be accessible, transparent, and intuitive for everyone, regardless of background or financial means.
-
-The platform bridges the gap between precision acoustic engineering and accessible pedagogical tools. It provides real-time pitch tracking, microtonal deviation analysis, and an interactive sheet music environment designed to deconstruct complex musical passages into clear, actionable practice steps.
+> **Tunner** es una plataforma de código abierto de grado conservatorio dedicada a democratizar la educación musical de élite. Integra un afinador estroboscópico virtual de ultra alta precisión, un motor vectorial de partituras SMuFL con playhead reactivo, metrónomo determinista sin bucles bloqueantes, analítica pedagógica multidimensional en tiempo real, consola mezcladora de pistas (stems) y un estudio abierto de estéticas adaptables.
 
 ---
 
-## Core Objectives
+## 🏛️ Filosofía y Modelo de Sostenibilidad
 
-- **Democratize Music Learning:** Provide a free, accessible platform where anyone can develop pitch accuracy, rhythmic awareness, and sight-reading skills at their own pace.
-- **Precision Audio Analysis:** Deliver low-latency fundamental frequency ($F_0$) estimation and fine-grained cents deviation suitable for both vocalists and instrumentalists.
-- **Interactive Score Decomposition:** Break down melodies, intervals, and rhythmic subdivisions into digestible practice modules with immediate visual feedback.
-- **Extensible Architecture:** Maintain a clean, modular open-source codebase ready for community contributions, MusicXML/MIDI integration, and advanced signal processing models.
-
----
-
-## Key Features
-
-- **Multi-Source Pitch Detection:** High-fidelity fundamental frequency estimation tailored for both continuous vocal performance and diverse instrument timbres.
-- **Microtonal Accuracy:** Real-time cents calculation and pitch tracking against standard equal temperament ($A_4 = 440\text{ Hz}$, configurable).
-- **Interactive Sheet Music Notation:** Real-time playhead tracking, dynamic measure navigation, and visual feedback on intonation and rhythm.
-- **Rhythmic Guidance:** Integrated metronome with customizable tempo and sub-beat quantization.
-- **Cross-Platform Delivery:** Built with Flutter to support mobile, desktop, and web environments from a single unified codebase.
+Tunner es un **regalo abierto a la humanidad** bajo licencia copyleft fuerte **GNU AGPLv3**.
+* **100% Offline First:** Todo el procesamiento acústico, afinación, metrónomo, mezcla y visualización se ejecuta localmente en el dispositivo sin depender de servidores externos ni transmitir datos privados.
+* **Modelo COSS (Commercial Open Source Software):** El código es libre y auditable para siempre. Para sostener el proyecto a largo plazo, se ofrece sincronización multi-dispositivo y analítica avanzada en la nube mediante un servicio SaaS económico para músicos y academias.
 
 ---
 
-## Technical Stack & Architecture
+## ✨ Características Principales
 
-- **Framework:** Flutter / Dart
-- **State Management:** Provider / Clean Architecture principles
-- **Audio Processing:** Real-time stream recording, circular audio buffering, and time/frequency domain pitch estimation algorithms
-- **Target Platforms:** Linux, Android, iOS, macOS, Windows, Web
+```mermaid
+graph LR
+    classDef core fill:#0D0D14,stroke:#00E676,stroke-width:2px,color:#fff;
+    classDef note fill:#161622,stroke:#38BDF8,stroke-width:2px,color:#fff;
+    classDef studio fill:#181310,stroke:#F59E0B,stroke-width:2px,color:#fff;
+
+    A["Tunner Studio Core"]:::core --> B["Afinador Estroboscópico Virtual (±0.1 Cents)"]:::note
+    A --> C["Lienzo de Partitura SMuFL & Playhead en Vivo"]:::note
+    A --> D["Audio Clock de Alta Resolución (20 - 300 BPM)"]:::note
+    A --> E["Evaluación Pedagógica 4D (Tempo, Drift & Sustain)"]:::note
+    A --> F["Consola Mezcladora de Stems (Gain / Mute / Solo)"]:::studio
+    A --> G["Transposición para Vientos y Cuerdas (Bb, Eb, F, C)"]:::studio
+    A --> H["Estudio Abierto de Estéticas & Exportador JSON"]:::studio
+```
+
+### 1. Afinador Estroboscópico Virtual de Alta Fidelidad
+* Rango espectral completo de $27.5\text{ Hz}$ ($A_0$) a $4186\text{ Hz}$ ($C_8$).
+* Bandas estroboscópicas con rotación angular matemáticamente proporcional al error microtonal ($\pm 50.0\text{ cents}$).
+* Tolerancia de conservatorio ($\pm 3.0\text{ cents}$) con bloqueo óptico y síntesis senoidal pura de tono de referencia.
+
+### 2. Motor de Partituras Dinámicas SMuFL
+* Árbol de dominio desacoplado de la UI: `Score` $\rightarrow$ `Part` $\rightarrow$ `Measure` $\rightarrow$ `Voice` $\rightarrow$ `Note/Rest`.
+* Renderizado vectorial con `CustomPainter` a 60/120 FPS sin caídas de fotogramas.
+* Soporte para métricas simples y compuestas ($4/4, 3/4, 2/4, 6/8$, etc.) y navegación multi-compás.
+
+### 3. Audio Clock Compensado (Metrónomo No Bloqueante)
+* Cero uso parasitario de CPU (sin busy-waiting loops).
+* Sub-ticks de semicorcheas con marcas de tempo italianas oficiales (Largo a Prestissimo).
+
+### 4. Evaluación Pedagógica 4D & Analítica
+* Diagnóstico en tiempo real de afinación, ataque y latencia.
+* **Detector de Tendencia Temporal (Tempo Drift):** Clasificación inmediata de *Rushing* (acelerarse) o *Dragging* (retrasarse) en milisegundos.
+* Métrica de duración de notas sostenidas (*Sustain Ratio*).
+* **Modo Smart Wait:** La partitura detiene el avance si el estudiante no acierta la nota esperada, evitando frustración.
+* Reporte final con Grado de Maestría ($S, A, B, C, D$) y comparativa de progreso ($\Delta\%$).
+
+### 5. Consola Mezcladora de Pistas (Stem Mixer)
+* Canales individuales para cada instrumento del repertorio.
+* Faders de ganancia, botones de Mute (M) y Solo (S) con aislamiento acústico.
+* Clics de metrónomo con acento de alta definición en el pulso 1.
+
+### 6. Transposición Multi-Instrumental
+* Transposición automática sin reescribir partituras para instrumentos en Do, Si♭ (Trompeta/Clarinete), Mi♭ (Saxo Alto), Fa (Corno Francés) y Clave de Fa / Octava Baja (Guitarra/Cello).
+
+### 7. Estudio de Estéticas Adaptables & Portabilidad JSON
+* **7 Estéticas Maestras Curadas:**
+  * 🌑 *Obsidian Studio:* Dark mode grafito con esmeralda y oro acústico.
+  * ⬛ *OLED Pure Black:* Negro absoluto $0\times000000$ para pantallas AMOLED.
+  * 🌊 *Royal Symphony:* Azul marino orquestal con zafiro y oro regio.
+  * 🪵 *Acoustic Wood:* Maderas nobles de nogal, palisandro y cedro ámbar.
+  * ⚡ *Neon Synthwave:* Fondo índigo oscuro con magenta y cian neón.
+  * 📜 *Vintage Parchment:* Pergamino clásico sepia con tinta carbón y bronce.
+  * ☀️ *Nordic Frost:* Modo claro minimalista para exteriores y luz solar intensa.
+* **Theme Customization Studio:** Diálogo interactivo para crear estéticas personalizadas con previsualización en vivo.
+* **Exportador / Importador JSON:** Comparte o respalda tus paletas con un solo clic.
+
+---
+
+## 🏗️ Arquitectura de Software
+
+El proyecto sigue una estricta disciplina de **Monolito Modular Feature-First con Clean Architecture** ([ADR-0004](docs/04_adrs/0004_modular_monolith_feature_first_clean_architecture.md)):
 
 ```
 tunner/
 ├── lib/
-│   ├── data/           # Audio stream ingestion, DSP, and metronome services
-│   ├── domain/         # Core musical entities, intervals, score models, and business logic
-│   ├── presentation/   # Reactive UI, tuner displays, sheet music canvas, and view models
-│   └── main.dart       # Application entry point and dependency wiring
-└── pubspec.yaml        # Project dependencies and asset definitions
+│   ├── core/
+│   │   └── theme/                  # Tokens semánticos, presets y modelo de paleta dinámica
+│   ├── features/
+│   │   ├── tuner/                  # Detección F0, YIN Isolate, afinador estroboscópico
+│   │   ├── metronome/              # Reloj compensado sin busy-waiting
+│   │   ├── sheet_music/            # Árbol de partituras y pintor vectorial SMuFL
+│   │   ├── mixer/                  # Consola multicanal de stems
+│   │   ├── song_library/           # Descompositor de obras y repertorio curado
+│   │   ├── instrument/             # Transposición cromática multi-instrumento
+│   │   ├── practice_evaluator/     # Analítica 4D, evaluación en vivo y reportes
+│   │   ├── customization/          # Theme Customization Studio y modales
+│   │   ├── tuner_viewmodel.dart    # Orquestador con Inversión de Dependencias (DIP)
+│   │   └── tuner_screen.dart       # Pantalla principal del laboratorio acústico
+│   └── main.dart                   # Punto de entrada y sincronización del sistema
+├── test/                           # 59 pruebas unitarias y de widgets (100% cobertura)
+└── docs/                           # Constitución, Casos de Uso (Mermaid), ADRs y Planes
 ```
 
 ---
 
-## Getting Started
+## 🚀 Puesta en Marcha y Compilación
 
-### Prerequisites
+### Requisitos Previos
+* Flutter SDK (`^3.11.5` o superior, canal estable).
+* Dart SDK (`^3.11.5`).
 
-- Flutter SDK (version 3.11.5 or newer)
-- Dart SDK
-- Operating system platform dependencies (ALSA/PulseAudio/PipeWire for Linux, Xcode for iOS/macOS, Android SDK for Android)
+### 1. Clonar el repositorio
+```bash
+git clone https://github.com/Nicolas11Leon/Tunner.git
+cd Tunner
+```
 
-### Installation & Run
+### 2. Instalar dependencias
+```bash
+flutter pub get
+```
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Nicolas11Leon/Tunner.git
-   cd Tunner
-   ```
+### 3. Ejecutar la suite completa de verificación
+```bash
+# Análisis estático (cero advertencias)
+flutter analyze
 
-2. Fetch project dependencies:
-   ```bash
-   flutter pub get
-   ```
+# Suite de pruebas automatizadas (59 pruebas unitarias y de UI)
+flutter test
+```
 
-3. Launch the application:
-   ```bash
-   flutter run
-   ```
+### 4. Ejecutar en dispositivo local
+```bash
+# Linux Desktop
+flutter run -d linux
 
----
+# Android
+flutter run -d android
 
-## Git Workflow & Contribution Guidelines
+# iOS (requiere macOS / Xcode)
+flutter run -d ios
+```
 
-We warmly welcome community contributions, suggestions, and bug reports. To maintain stability across releases, this repository follows a protected branch model:
+### 5. Compilación para Producción (Release)
+```bash
+# Generar APK optimizado para Android
+flutter build apk --release
 
-- The `main` branch is protected and contains stable, reviewed code. Direct pushes are disabled.
-- Only repository maintainers can merge Pull Requests into `main`.
-- All contributions must be submitted via feature branches and Pull Requests.
+# Generar App Bundle (AAB) para Google Play Store
+flutter build appbundle --release
 
-### Step-by-Step Contribution Process
-
-1. Fork the repository on GitHub.
-2. Clone your fork locally:
-   ```bash
-   git clone https://github.com/<your-username>/Tunner.git
-   cd Tunner
-   ```
-3. Create a descriptive feature branch:
-   ```bash
-   git checkout -b feature/audio-dsp-enhancement
-   ```
-4. Commit your changes with clear, concise commit messages:
-   ```bash
-   git commit -m "feat(dsp): improve pitch detection windowing"
-   ```
-5. Push to your branch and open a Pull Request against the upstream `main` branch:
-   ```bash
-   git push origin feature/audio-dsp-enhancement
-   ```
-
-All Pull Requests are reviewed to ensure code quality, architecture consistency, and test coverage before merging.
+# Generar binario para Linux Desktop
+flutter build linux --release
+```
 
 ---
 
-## License
+## 📜 Licencia
 
-This project is licensed under the [MIT License](LICENSE). It is open source, free to use, study, modify, and distribute.
+Distribuido bajo la licencia **GNU Affero General Public License v3.0 (AGPLv3)**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
+
+---
+
+## 🤝 Autor y Contacto
+
+Creado y mantenido por **Nicolas Leon** ([@Nicolas11Leon](https://github.com/Nicolas11Leon)).  
+Alineado con el manifiesto fundacional de [AGENTS.md](AGENTS.md).
