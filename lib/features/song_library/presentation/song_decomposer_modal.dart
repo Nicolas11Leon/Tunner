@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../sheet_music/domain/score_tree.dart';
 import '../../tuner_viewmodel.dart';
 import '../data/song_decomposer_service.dart';
+import '../../universal_importer/presentation/score_import_tab_view.dart';
 
 /// Modal interactivo de estudio para la creación, importación y descomposición pedagógica
 /// de canciones en pistas aisladas (stems).
@@ -256,7 +257,7 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
                       ),
                       alignment: Alignment.center,
                       child: Text(
-                        "Editor & Entrada Rápida",
+                        "Editor",
                         style: TextStyle(
                           color: _selectedTab == 0
                               ? (isDark ? Colors.black : Colors.white)
@@ -280,13 +281,37 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
                       ),
                       alignment: Alignment.center,
                       child: Text(
-                        "Plantillas de Estudio",
+                        "Plantillas",
                         style: TextStyle(
                           color: _selectedTab == 1
                               ? (isDark ? Colors.black : Colors.white)
                               : palette.textMutedColor,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _selectedTab = 2),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedTab == 2 ? palette.primaryAccent : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        "Importar (.xml / .mid)",
+                        style: TextStyle(
+                          color: _selectedTab == 2
+                              ? (isDark ? Colors.black : Colors.white)
+                              : palette.textMutedColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
                         ),
                       ),
                     ),
@@ -299,34 +324,38 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
 
           // Contenido principal scrolleable
           Expanded(
-            child: SingleChildScrollView(
-              child: _selectedTab == 0
-                  ? _buildEditorTab(palette, isDark, parsedPreview, totalNotes)
-                  : _buildTemplatesTab(palette, isDark),
-            ),
+            child: _selectedTab == 2
+                ? ScoreImportTabView(viewModel: widget.viewModel)
+                : SingleChildScrollView(
+                    child: _selectedTab == 0
+                        ? _buildEditorTab(palette, isDark, parsedPreview, totalNotes)
+                        : _buildTemplatesTab(palette, isDark),
+                  ),
           ),
 
-          const SizedBox(height: 12),
+          if (_selectedTab != 2) ...[
+            const SizedBox(height: 12),
 
-          // Botón de descomposición
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: _executeDecomposition,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: palette.primaryAccent,
-                foregroundColor: isDark ? Colors.black : Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-              icon: const Icon(Icons.splitscreen_rounded),
-              label: Text(
-                "Descomponer y Cargar al Estudio (${parsedPreview.length} compases)",
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            // Botón de descomposición
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: _executeDecomposition,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: palette.primaryAccent,
+                  foregroundColor: isDark ? Colors.black : Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.splitscreen_rounded),
+                label: Text(
+                  "Descomponer y Cargar al Estudio (${parsedPreview.length} compases)",
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../core/theme/tunner_theme.dart';
@@ -30,6 +31,9 @@ import 'practice_recorder/data/audio_playback_service.dart';
 import 'persistence/domain/app_user_settings_entity.dart';
 import 'persistence/domain/i_local_persistence_service.dart';
 import 'persistence/data/json_local_persistence_service.dart';
+import 'universal_importer/domain/i_score_parser_service.dart';
+import 'universal_importer/domain/parsed_score_result_entity.dart';
+import 'universal_importer/data/universal_score_importer_service.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -42,6 +46,7 @@ class TunerViewModel extends ChangeNotifier {
   final IPracticeRecorderService _recorderService;
   final IAudioPlaybackService _playbackService;
   final ILocalPersistenceService _persistenceService;
+  final IScoreParserService _scoreImporterService;
   final Future<String> Function()? _recordingPathProvider;
 
   StreamSubscription<double>? _amplitudeSubscription;
@@ -117,6 +122,7 @@ class TunerViewModel extends ChangeNotifier {
     IPracticeRecorderService? recorderService,
     IAudioPlaybackService? playbackService,
     ILocalPersistenceService? persistenceService,
+    IScoreParserService? scoreImporterService,
     Future<String> Function()? recordingPathProvider,
   })  : _pitchService = pitchService ?? PitchDetectorService(),
         _metronomeService = metronomeService ?? MetronomeService(),
@@ -126,6 +132,7 @@ class TunerViewModel extends ChangeNotifier {
         _playbackService = playbackService ?? AudioPlaybackService(),
         _persistenceService = persistenceService ??
             JsonLocalPersistenceService(documentsPathProvider: recordingPathProvider),
+        _scoreImporterService = scoreImporterService ?? const UniversalScoreImporterService(),
         _recordingPathProvider = recordingPathProvider {
     _activePackage = _curatedLibrary.first;
     _bpm = _activePackage.defaultBpm;
@@ -433,6 +440,24 @@ class TunerViewModel extends ChangeNotifier {
 
   void incrementBpm([int step = 1]) => updateBpm(_bpm + step);
   void decrementBpm([int step = 1]) => updateBpm(_bpm - step);
+
+  IScoreParserService get scoreImporterService => _scoreImporterService;
+
+  /// Importa una partitura externa en formato MusicXML o MIDI a partir de su contenido en bytes.
+  Future<ParsedScoreResult?> importScoreFromBytes(Uint8List bytes, String fileName) async {
+    try {
+      final result = await _scoreImporterService.parseScoreData(
+        bytes: bytes,
+        fileName: fileName,
+      );
+      addSongPackage(result.package);
+      notifyListeners();
+      return result;
+    } catch (e) {
+      debugPrint("Error al importar partitura: $e");
+      return null;
+    }
+  }
 
   void addSongPackage(SongPackage package) {
     _curatedLibrary.removeWhere((p) => p.id == package.id);

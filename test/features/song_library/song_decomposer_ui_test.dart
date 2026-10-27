@@ -50,8 +50,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text("Estudio de Descomposición"), findsOneWidget);
-    expect(find.text("Editor & Entrada Rápida"), findsOneWidget);
-    expect(find.text("Plantillas de Estudio"), findsOneWidget);
+    expect(find.text("Editor"), findsOneWidget);
+    expect(find.text("Plantillas"), findsOneWidget);
+    expect(find.text("Importar (.xml / .mid)"), findsOneWidget);
 
     // Keypad notes
     expect(find.text("Do"), findsOneWidget);
@@ -95,8 +96,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Tap on Plantillas de Estudio tab
-    await tester.tap(find.text("Plantillas de Estudio"));
+    // Tap on Plantillas tab
+    await tester.tap(find.text("Plantillas"));
     await tester.pumpAndSettle();
 
     expect(find.textContaining("Estrellita"), findsOneWidget);

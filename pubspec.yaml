@@ -40,6 +40,7 @@ dependencies:
   provider: ^6.1.5+1
   audioplayers: ^6.7.1
   path_provider: ^2.1.6
+  xml: ^6.5.0
 
 dev_dependencies:
   flutter_test:
