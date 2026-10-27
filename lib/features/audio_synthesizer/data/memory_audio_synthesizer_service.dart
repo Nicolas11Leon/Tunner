@@ -32,8 +32,21 @@ class MemoryAudioSynthesizerService implements IAudioSynthesizerService {
     _activeDiapasonFrequency = 0.0;
   }
 
+  final List<({double frequency, Duration duration, double volume})> playedNotes = [];
+
+  @override
+  Future<void> playNoteTone({
+    required double frequency,
+    required Duration duration,
+    double volume = 0.8,
+  }) async {
+    playedNotes.add((frequency: frequency, duration: duration, volume: volume));
+  }
+
   @override
   void dispose() {
     _isDiapasonPlaying = false;
+    clickHistory.clear();
+    playedNotes.clear();
   }
 }

@@ -19,6 +19,17 @@ abstract class IAudioSynthesizerService {
   /// Frecuencia actualmente activa en el diapasón, o 0.0 si está inactivo.
   double get activeDiapasonFrequency;
 
+  /// Sintetiza y reproduce una nota musical melódica con duración y envolvente ADSR suave.
+  ///
+  /// * [frequency]: Frecuencia exacta en Hz.
+  /// * [duration]: Duración física de la nota.
+  /// * [volume]: Ganancia normalizada entre 0.0 y 1.0.
+  Future<void> playNoteTone({
+    required double frequency,
+    required Duration duration,
+    double volume = 0.8,
+  });
+
   /// Libera recursos de audio nativos.
   void dispose();
 }

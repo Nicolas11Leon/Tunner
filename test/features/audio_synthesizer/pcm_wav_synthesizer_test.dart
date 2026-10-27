@@ -89,5 +89,32 @@ void main() {
         expect(String.fromCharCodes(wav.sublist(0, 4)), 'RIFF');
       }
     });
+
+    test('generateMusicalNoteWav creates valid ADSR harmonic note buffer', () {
+      const durationMs = 250;
+      final noteWav = PcmWavSynthesizer.generateMusicalNoteWav(
+        frequency: 440.0,
+        durationMs: durationMs,
+        sampleRate: 44100,
+      );
+
+      final expectedSamples = (44100 * (durationMs / 1000.0)).round();
+      expect(noteWav.length, 44 + expectedSamples * 2);
+      expect(String.fromCharCodes(noteWav.sublist(0, 4)), 'RIFF');
+      expect(String.fromCharCodes(noteWav.sublist(8, 12)), 'WAVE');
+
+      // Check audio samples are non-clipped and oscillate
+      final bd = ByteData.sublistView(noteWav, 44);
+      int positiveCount = 0;
+      int negativeCount = 0;
+      for (int i = 0; i < expectedSamples; i++) {
+        final sample = bd.getInt16(i * 2, Endian.little);
+        expect(sample, inInclusiveRange(-32768, 32767));
+        if (sample > 500) positiveCount++;
+        if (sample < -500) negativeCount++;
+      }
+      expect(positiveCount, greaterThan(expectedSamples ~/ 4));
+      expect(negativeCount, greaterThan(expectedSamples ~/ 4));
+    });
   });
 }

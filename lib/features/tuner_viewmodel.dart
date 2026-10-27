@@ -81,6 +81,7 @@ class TunerViewModel extends ChangeNotifier {
   int _currentSubTick = -1;
   int _currentMeasureIndex = 0;
   int _bpm = 75;
+  bool _isScorePlaybackEnabled = true;
 
   bool _isCountingIn = false;
   int _countInBeat = 0;
@@ -176,6 +177,14 @@ class TunerViewModel extends ChangeNotifier {
   double get referencePitch => _referencePitch;
   bool get isRecording => _isRecording;
   bool get isMetronomePlaying => _isMetronomePlaying;
+  bool get isScorePlaybackEnabled => _isScorePlaybackEnabled;
+
+  /// Alterna la reproducción acústica de las notas de la partitura durante el metrónomo.
+  void toggleScorePlayback() {
+    _isScorePlaybackEnabled = !_isScorePlaybackEnabled;
+    notifyListeners();
+  }
+
   int get currentSubTick => _currentSubTick;
   int get currentMeasureIndex => _currentMeasureIndex;
   int get totalMeasures => _activePackage.totalMeasures;
@@ -254,6 +263,31 @@ class TunerViewModel extends ChangeNotifier {
 
         _currentSubTick = subTick;
         _updateExpectedNoteForTick(subTick);
+
+        // Disparo sonoro de la nota musical de la partitura
+        if (_isScorePlaybackEnabled &&
+            _expectedNote != null &&
+            _expectedNote!.startTick == subTick) {
+          final noteName = _expectedNote!.noteName;
+          if (noteName != "--" && noteName.toLowerCase() != "rest") {
+            final leadTrackId = _activePackage.tracks.isNotEmpty
+                ? _activePackage.tracks.first.id
+                : "voice";
+            final voiceGain = _mixerConsole.getEffectiveGain(leadTrackId);
+            if (voiceGain > 0.001) {
+              final freq = NoteEntity.frequencyForNote(noteName, a4Ref: _referencePitch);
+              if (freq > 20.0) {
+                final msPerTick = 60000.0 / _bpm / 4.0;
+                final durationMs = (_expectedNote!.durationTicks * msPerTick).round();
+                _audioSynthesizer.playNoteTone(
+                  frequency: freq,
+                  duration: Duration(milliseconds: durationMs),
+                  volume: voiceGain,
+                );
+              }
+            }
+          }
+        }
 
         if (subTick % 4 == 0) {
           final metroGain = _mixerConsole.getEffectiveGain(_mixerConsole.metronomeTrack.id);

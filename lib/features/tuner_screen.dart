@@ -606,6 +606,16 @@ class TunerScreen extends StatelessWidget {
               },
             ),
           IconButton(
+            icon: Icon(
+              viewModel.isScorePlaybackEnabled ? Icons.music_note : Icons.music_off,
+              color: viewModel.isScorePlaybackEnabled ? palette.primaryAccent : palette.textMutedColor,
+            ),
+            tooltip: viewModel.isScorePlaybackEnabled
+                ? "Audio de Partitura Activado"
+                : "Audio de Partitura Desactivado (Minus One)",
+            onPressed: viewModel.toggleScorePlayback,
+          ),
+          IconButton(
             icon: Icon(Icons.library_music, color: palette.primaryAccent),
             tooltip: "Biblioteca & Descompositor de Canciones",
             onPressed: () => _showLibraryModal(context, viewModel),

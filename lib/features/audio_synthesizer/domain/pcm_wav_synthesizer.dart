@@ -160,4 +160,69 @@ class PcmWavSynthesizer {
     wavBuffer.add(pcmBytes.buffer.asUint8List());
     return wavBuffer.toBytes();
   }
+
+  /// Sintetiza una nota musical acústica melódica con armónicos y envolvente ADSR completa.
+  ///
+  /// * [frequency]: Frecuencia fundamental $f_0$ en Hz.
+  /// * [durationMs]: Duración de la nota en milisegundos.
+  /// * [sampleRate]: Tasa de muestreo (por defecto 44100 Hz).
+  static Uint8List generateMusicalNoteWav({
+    required double frequency,
+    required int durationMs,
+    int sampleRate = defaultSampleRate,
+  }) {
+    final int safeDurationMs = math.max(20, durationMs);
+    final int totalSamples = (sampleRate * (safeDurationMs / 1000.0)).round();
+    final pcmBytes = ByteData(totalSamples * 2);
+
+    const double maxAmplitude = 26000.0;
+
+    // Etapas ADSR adaptativas según la duración
+    final double attackSeconds = math.min(0.015, safeDurationMs * 0.00015);
+    final double decaySeconds = math.min(0.035, safeDurationMs * 0.00020);
+    final double releaseSeconds = math.min(0.025, safeDurationMs * 0.00020);
+    const double sustainLevel = 0.85;
+
+    final int attackSamples = (sampleRate * attackSeconds).round();
+    final int decaySamples = (sampleRate * decaySeconds).round();
+    final int releaseSamples = (sampleRate * releaseSeconds).round();
+    final int releaseStartIndex = math.max(0, totalSamples - releaseSamples);
+
+    for (int i = 0; i < totalSamples; i++) {
+      final double t = i / sampleRate;
+
+      // Cálculo de envolvente ADSR
+      double envelope = sustainLevel;
+      if (i < attackSamples && attackSamples > 0) {
+        envelope = i / attackSamples; // Ataque lineal 0 -> 1.0
+      } else if (i < attackSamples + decaySamples && decaySamples > 0) {
+        final double progress = (i - attackSamples) / decaySamples;
+        envelope = 1.0 - (1.0 - sustainLevel) * progress; // Decaimiento 1.0 -> sustainLevel
+      } else if (i >= releaseStartIndex && releaseSamples > 0) {
+        final double progress = (i - releaseStartIndex) / releaseSamples;
+        envelope = sustainLevel * (1.0 - progress); // Relajación sustainLevel -> 0
+      }
+
+      // Síntesis armónica aditiva: 72% fundamental, 20% 2do armónico, 8% 3er armónico
+      final double signal = 0.72 * math.sin(2.0 * math.pi * frequency * t) +
+          0.20 * math.sin(4.0 * math.pi * frequency * t) +
+          0.08 * math.sin(6.0 * math.pi * frequency * t);
+
+      final double sampleValue = maxAmplitude * envelope * signal;
+      final int sampleClamped = sampleValue.clamp(-32768.0, 32767.0).round();
+      pcmBytes.setInt16(i * 2, sampleClamped, Endian.little);
+    }
+
+    final header = buildWavHeader(
+      pcmDataBytes: pcmBytes.lengthInBytes,
+      sampleRate: sampleRate,
+      channels: 1,
+      bitsPerSample: 16,
+    );
+
+    final wavBuffer = BytesBuilder(copy: false);
+    wavBuffer.add(header);
+    wavBuffer.add(pcmBytes.buffer.asUint8List());
+    return wavBuffer.toBytes();
+  }
 }

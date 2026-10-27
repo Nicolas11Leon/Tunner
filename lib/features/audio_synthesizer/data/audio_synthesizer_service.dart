@@ -8,9 +8,11 @@ import '../domain/pcm_wav_synthesizer.dart';
 class AudioSynthesizerService implements IAudioSynthesizerService {
   AudioPlayer? _clickPlayerInstance;
   AudioPlayer? _diapasonPlayerInstance;
+  AudioPlayer? _notePlayerInstance;
 
   AudioPlayer get _clickPlayer => _clickPlayerInstance ??= AudioPlayer();
   AudioPlayer get _diapasonPlayer => _diapasonPlayerInstance ??= AudioPlayer();
+  AudioPlayer get _notePlayer => _notePlayerInstance ??= AudioPlayer();
 
   // Buffers PCM pre-calculados en memoria RAM para rendimiento instantáneo
   late final Uint8List _downbeatBytes;
@@ -22,8 +24,10 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
   AudioSynthesizerService({
     AudioPlayer? clickPlayer,
     AudioPlayer? diapasonPlayer,
+    AudioPlayer? notePlayer,
   })  : _clickPlayerInstance = clickPlayer,
-        _diapasonPlayerInstance = diapasonPlayer {
+        _diapasonPlayerInstance = diapasonPlayer,
+        _notePlayerInstance = notePlayer {
     _downbeatBytes = PcmWavSynthesizer.generateMetronomeClickWav(isDownbeat: true);
     _offbeatBytes = PcmWavSynthesizer.generateMetronomeClickWav(isDownbeat: false);
   }
@@ -81,8 +85,31 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
   }
 
   @override
+  Future<void> playNoteTone({
+    required double frequency,
+    required Duration duration,
+    double volume = 0.8,
+  }) async {
+    final clampedVolume = volume.clamp(0.0, 1.0);
+    if (clampedVolume <= 0.001 || frequency <= 20.0) return;
+
+    try {
+      final wavBytes = PcmWavSynthesizer.generateMusicalNoteWav(
+        frequency: frequency,
+        durationMs: duration.inMilliseconds,
+      );
+      await _notePlayer.stop();
+      await _notePlayer.setVolume(clampedVolume);
+      await _notePlayer.play(BytesSource(wavBytes, mimeType: 'audio/wav'));
+    } catch (e) {
+      debugPrint('Error reproduciendo nota musical: $e');
+    }
+  }
+
+  @override
   void dispose() {
     _clickPlayerInstance?.dispose();
     _diapasonPlayerInstance?.dispose();
+    _notePlayerInstance?.dispose();
   }
 }

@@ -5,6 +5,7 @@ import 'package:tunner/features/persistence/data/memory_persistence_service.dart
 import 'package:tunner/features/practice_recorder/domain/i_audio_playback_service.dart';
 import 'package:tunner/features/practice_recorder/domain/i_practice_recorder_service.dart';
 import 'package:tunner/features/tuner/domain/i_pitch_detector_service.dart';
+import 'package:tunner/features/tuner/domain/note_entity.dart';
 import 'package:tunner/features/tuner_viewmodel.dart';
 import 'package:tunner/features/universal_importer/data/universal_score_importer_service.dart';
 
@@ -159,6 +160,42 @@ void main() {
       viewModel.playReferenceTone('Do4'); // C4 ~ 261.63 Hz
       expect(memorySynthesizer.isDiapasonPlaying, isTrue);
       expect(memorySynthesizer.activeDiapasonFrequency, closeTo(261.63, 0.1));
+    });
+
+    test('Plays score notes on sub-tick note onsets with duration and frequency', () {
+      expect(viewModel.isScorePlaybackEnabled, isTrue);
+      expect(memorySynthesizer.playedNotes, isEmpty);
+
+      // On subTick 0, measure 0 has a note starting at tick 0
+      final noteAt0 = viewModel.currentMeasureNotes.firstWhere((n) => n.startTick == 0);
+      mockMetronome.onSubTick!(0);
+
+      expect(memorySynthesizer.playedNotes, isNotEmpty);
+      final lastPlayed = memorySynthesizer.playedNotes.last;
+      final expectedFreq = NoteEntity.frequencyForNote(noteAt0.noteName, a4Ref: viewModel.referencePitch);
+      expect(lastPlayed.frequency, closeTo(expectedFreq, 0.1));
+      expect(lastPlayed.duration.inMilliseconds, greaterThan(50));
+      final leadTrack = viewModel.mixerConsole.stems.first;
+      expect(lastPlayed.volume, closeTo(leadTrack.volume, 0.05));
+    });
+
+    test('toggleScorePlayback disables note emission during metronome playback', () {
+      viewModel.toggleScorePlayback();
+      expect(viewModel.isScorePlaybackEnabled, isFalse);
+
+      memorySynthesizer.playedNotes.clear();
+      mockMetronome.onSubTick!(0);
+
+      expect(memorySynthesizer.playedNotes, isEmpty);
+    });
+
+    test('Muting lead stem in mixer suppresses score note synthesis', () {
+      final leadTrack = viewModel.mixerConsole.stems.first;
+      viewModel.toggleTrackMute(leadTrack.id);
+      memorySynthesizer.playedNotes.clear();
+
+      mockMetronome.onSubTick!(0);
+      expect(memorySynthesizer.playedNotes, isEmpty);
     });
   });
 }
