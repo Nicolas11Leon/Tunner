@@ -632,6 +632,29 @@ class TunerScreen extends StatelessWidget {
             onPressed: () => _showCustomizationModal(context, viewModel),
           ),
           IconButton(
+            icon: Icon(
+              viewModel.isLiveTranscriptionActive ? Icons.mic : Icons.mic_none,
+              color: viewModel.isLiveTranscriptionActive ? palette.errorPitchColor : palette.textColor,
+            ),
+            tooltip: viewModel.isLiveTranscriptionActive
+                ? "Detener Transcripción en Vivo"
+                : "Iniciar Transcripción de Micrófono a Partitura",
+            onPressed: () {
+              viewModel.toggleLiveTranscription();
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    viewModel.isLiveTranscriptionActive
+                        ? "Transcripción acústica en vivo iniciada: toca tu instrumento"
+                        : "Transcripción acústica finalizada y volcada a la partitura",
+                  ),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: Icon(Icons.edit_note, color: palette.textColor),
             tooltip: "Editor de Partituras SMuFL & Exportación",
             onPressed: () => ScoreEditorModal.show(context),

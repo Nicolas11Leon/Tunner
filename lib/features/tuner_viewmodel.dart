@@ -39,6 +39,7 @@ import 'audio_synthesizer/data/audio_synthesizer_service.dart';
 import 'score_editor/domain/score_editor_domain.dart';
 import 'universal_importer/domain/canonical_musicxml_exporter.dart';
 import 'universal_importer/domain/canonical_midi_exporter.dart';
+import 'transcription/domain/live_transcription_engine.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -125,6 +126,8 @@ class TunerViewModel extends ChangeNotifier {
   final ScoreUndoRedoHistory _scoreHistory = ScoreUndoRedoHistory();
   final CanonicalMusicXmlExporter _musicXmlExporter = const CanonicalMusicXmlExporter();
   final CanonicalMidiExporter _midiExporter = const CanonicalMidiExporter();
+  final LiveTranscriptionEngine _transcriptionEngine = LiveTranscriptionEngine();
+  bool _isLiveTranscriptionActive = false;
 
   // Inyección de dependencias en el constructor
   TunerViewModel({
@@ -187,6 +190,7 @@ class TunerViewModel extends ChangeNotifier {
   bool get isRecording => _isRecording;
   bool get isMetronomePlaying => _isMetronomePlaying;
   bool get isScorePlaybackEnabled => _isScorePlaybackEnabled;
+  bool get isLiveTranscriptionActive => _isLiveTranscriptionActive;
 
   /// Alterna la reproducción acústica de las notas de la partitura durante el metrónomo.
   void toggleScorePlayback() {
@@ -225,6 +229,19 @@ class TunerViewModel extends ChangeNotifier {
       final noteEntity = NoteEntity.fromFrequency(pitch, a4Ref: _referencePitch);
       _noteName = noteEntity.name;
       _cents = noteEntity.cents;
+
+      if (_isLiveTranscriptionActive) {
+        final updatedPkg = _transcriptionEngine.processPitchFrame(
+          frequencyHz: pitch,
+          clarity: pitch > 20.0 ? 0.95 : 0.0,
+          noteName: noteEntity.name,
+        );
+        if (updatedPkg != null) {
+          _scoreHistory.recordState(_activePackage);
+          _activePackage = updatedPkg;
+        }
+      }
+
       _validatePerformance();
       notifyListeners();
 
@@ -232,6 +249,19 @@ class TunerViewModel extends ChangeNotifier {
         _frequency = 0.0;
         _noteName = "--";
         _cents = 0.0;
+
+        if (_isLiveTranscriptionActive) {
+          final updatedPkg = _transcriptionEngine.processPitchFrame(
+            frequencyHz: 0.0,
+            clarity: 0.0,
+            noteName: "--",
+          );
+          if (updatedPkg != null) {
+            _scoreHistory.recordState(_activePackage);
+            _activePackage = updatedPkg;
+          }
+        }
+
         _validatePerformance();
         notifyListeners();
       });
@@ -1006,6 +1036,25 @@ class TunerViewModel extends ChangeNotifier {
   /// Exporta la partitura activa al estándar binario Standard MIDI File (SMF Tipo 0).
   Uint8List exportActiveScoreToMidi() {
     return _midiExporter.exportToMidi(_activePackage);
+  }
+
+  /// Activa o detiene la transcripción acústica de notas del micrófono a la partitura en tiempo real.
+  void toggleLiveTranscription() {
+    _isLiveTranscriptionActive = !_isLiveTranscriptionActive;
+    if (_isLiveTranscriptionActive) {
+      _transcriptionEngine.start(
+        initialPackage: _activePackage,
+        startMeasureIndex: _currentMeasureIndex,
+        startTick: _currentSubTick >= 0 ? _currentSubTick : 0,
+      );
+    } else {
+      final finalPkg = _transcriptionEngine.stop();
+      if (finalPkg != null) {
+        _scoreHistory.recordState(_activePackage);
+        _activePackage = finalPkg;
+      }
+    }
+    notifyListeners();
   }
 
   @override

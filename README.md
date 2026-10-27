@@ -1,7 +1,7 @@
 # Tunner: Studio Pitch, Real-Time Acoustic Lab & Sheet Music Engine
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
-[![Tests: 148 Passing](https://img.shields.io/badge/Tests-148%20Passing-brightgreen.svg)]()
+[![Tests: 159 Passing](https://img.shields.io/badge/Tests-159%20Passing-brightgreen.svg)]()
 [![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
 [![Framework: Flutter](https://img.shields.io/badge/Framework-Flutter-02569B.svg)]()
 [![Platform: Linux%20|%20Android%20|%20iOS%20|%20macOS%20|%20Windows](https://img.shields.io/badge/Platform-Linux%20%7C%20Android%20%7C%20iOS%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
@@ -197,6 +197,12 @@ graph TD
   * Inyección de meta-eventos `Set Tempo` ($500000\,\mu\text{s}$ para 120 BPM) y `End of Track`.
   * Compatibilidad nativa total con DAWs profesionales (Reaper, Logic Pro, Cubase, Ableton Live).
 
+### 15. Transcripción Acústica en Tiempo Real (Mic-to-Score Live Ingestion)
+* **Captura y Transcripción Inmediata:** Toca cualquier instrumento acústico (flauta, violín, voz, guitarra, viento) y Tunner transcribe las notas directamente al pentagrama vectorial SMuFL en tiempo real.
+* **Cuantización Rítmica Determinista:** Mapeo musical exacto de la duración física de sostenimiento a las figuras canónicas de notación: redonda ($16\text{ ticks}$), blanca ($8\text{ ticks}$), negra ($4\text{ ticks}$), corchea ($2\text{ ticks}$) y semicorchea ($1\text{ tick}$).
+* **Filtro de Histéresis Acústica:** Discriminación inteligente entre ataques de nota reales (*onsets*), vibratos naturales y ruidos espurios de respiración o llaves mecánicas.
+* **Secuenciamiento Dinámico de Compases:** Rellena y avanza automáticamente compás a compás al agotarse la métrica ($4/4$), con persistencia total en el historial Memento para deshacer/rehacer.
+
 ---
 
 ## Arquitectura de Software y Estructura del Código
@@ -214,6 +220,7 @@ tunner/
 │   │   ├── sheet_music/            # Árbol de partituras ScoreTree y pintor vectorial SMuFL
 │   │   ├── audio_engine/           # Síntesis procedural en memoria con envolvente ADSR
 │   │   ├── score_editor/           # Editor SMuFL interactivo, paleta y patrón Memento
+│   │   ├── transcription/          # Transcripción de micrófono a partitura en tiempo real
 │   │   ├── mixer/                  # Consola mezcladora multicanal de stems
 │   │   ├── song_library/           # Descompositor pedagógico de canciones y biblioteca
 │   │   ├── instrument/             # Transposición cromática multi-instrumento
@@ -225,7 +232,7 @@ tunner/
 │   │   ├── tuner_viewmodel.dart    # Orquestador principal con Inversión de Dependencias (DIP)
 │   │   └── tuner_screen.dart       # Pantalla unificada del laboratorio acústico
 │   └── main.dart                   # Punto de entrada de la aplicación
-├── test/                           # 148 pruebas unitarias, de integración y de widgets
+├── test/                           # 159 pruebas unitarias, de integración y de widgets
 └── docs/                           # Documentación formal, Casos de Uso (Mermaid) y ADRs
 ```
 
@@ -254,7 +261,7 @@ flutter pub get
 # Comprobación de linter (0 issues)
 flutter analyze
 
-# Ejecución de la suite completa de 148 pruebas
+# Ejecución de la suite completa de 159 pruebas
 flutter test
 ```
 
