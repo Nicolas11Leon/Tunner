@@ -41,6 +41,7 @@ import 'universal_importer/domain/canonical_musicxml_exporter.dart';
 import 'universal_importer/domain/canonical_midi_exporter.dart';
 import 'transcription/domain/live_transcription_engine.dart';
 import 'exercise_generator/domain/algorithmic_exercise_generator.dart';
+import 'tuner/domain/temperament_engine.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -131,6 +132,9 @@ class TunerViewModel extends ChangeNotifier {
   final LiveTranscriptionEngine _transcriptionEngine = LiveTranscriptionEngine();
   bool _isLiveTranscriptionActive = false;
   final AlgorithmicExerciseGenerator _exerciseGenerator = const AlgorithmicExerciseGenerator();
+  final TemperamentEngine _temperamentEngine = const TemperamentEngine();
+  MusicalTemperament _selectedTemperament = TemperamentEngine.allTemperaments.first;
+  int _temperamentRootKey = 0;
 
   // Inyección de dependencias en el constructor
   TunerViewModel({
@@ -210,6 +214,56 @@ class TunerViewModel extends ChangeNotifier {
   String get noteName => _noteName;
   double get cents => _cents;
   double get referencePitch => _referencePitch;
+  MusicalTemperament get selectedTemperament => _selectedTemperament;
+  int get temperamentRootKey => _temperamentRootKey;
+  List<MusicalTemperament> get availableTemperaments => TemperamentEngine.allTemperaments;
+  TemperamentEngine get temperamentEngine => _temperamentEngine;
+
+  /// Modifica el temperamento histórico activo (ej. Werckmeister III, Mesotónico, Justo).
+  void setTemperament(String temperamentId) {
+    final target = TemperamentEngine.getById(temperamentId);
+    if (_selectedTemperament.id != target.id) {
+      _selectedTemperament = target;
+      if (_frequency > 0) {
+        _recalculatePitchForActiveTemperament();
+      }
+      notifyListeners();
+      _triggerAutoSave();
+    }
+  }
+
+  /// Modifica la tónica o nota raíz del temperamento (0 = Do, 1 = Do#, ..., 11 = Si).
+  void setTemperamentRoot(int rootKey) {
+    final normalized = (rootKey % 12 + 12) % 12;
+    if (_temperamentRootKey != normalized) {
+      _temperamentRootKey = normalized;
+      if (_frequency > 0) {
+        _recalculatePitchForActiveTemperament();
+      }
+      notifyListeners();
+      _triggerAutoSave();
+    }
+  }
+
+  void _recalculatePitchForActiveTemperament() {
+    final noteEntity = NoteEntity.fromFrequency(_frequency, a4Ref: _referencePitch);
+    _noteName = noteEntity.name;
+    if (_selectedTemperament.id == 'equal') {
+      _cents = noteEntity.cents;
+    } else {
+      final targetFreq = _temperamentEngine.getTargetFrequency(
+        midiNumber: noteEntity.midiNumber,
+        temperament: _selectedTemperament,
+        a4Ref: _referencePitch,
+        rootKey: _temperamentRootKey,
+      );
+      _cents = _temperamentEngine.calculateCentsDeviation(
+        detectedFrequency: _frequency,
+        targetFrequency: targetFreq,
+      );
+    }
+  }
+
   bool get isRecording => _isRecording;
   bool get isMetronomePlaying => _isMetronomePlaying;
   bool get isScorePlaybackEnabled => _isScorePlaybackEnabled;
@@ -251,7 +305,20 @@ class TunerViewModel extends ChangeNotifier {
       _frequency = pitch;
       final noteEntity = NoteEntity.fromFrequency(pitch, a4Ref: _referencePitch);
       _noteName = noteEntity.name;
-      _cents = noteEntity.cents;
+      if (_selectedTemperament.id == 'equal') {
+        _cents = noteEntity.cents;
+      } else {
+        final targetFreq = _temperamentEngine.getTargetFrequency(
+          midiNumber: noteEntity.midiNumber,
+          temperament: _selectedTemperament,
+          a4Ref: _referencePitch,
+          rootKey: _temperamentRootKey,
+        );
+        _cents = _temperamentEngine.calculateCentsDeviation(
+          detectedFrequency: pitch,
+          targetFrequency: targetFreq,
+        );
+      }
 
       if (_isLiveTranscriptionActive) {
         final updatedPkg = _transcriptionEngine.processPitchFrame(
@@ -905,6 +972,8 @@ class TunerViewModel extends ChangeNotifier {
       );
       _activeInstrument = targetInstrument;
       _displayMode = settings.displayMode;
+      _selectedTemperament = TemperamentEngine.getById(settings.selectedTemperamentId);
+      _temperamentRootKey = settings.temperamentRootKey;
 
       if (settings.sessionHistory.isNotEmpty) {
         _sessionHistory.clear();
@@ -941,6 +1010,8 @@ class TunerViewModel extends ChangeNotifier {
         bpm: _bpm,
         isSmartWaitEnabled: _isSmartWaitEnabled,
         displayMode: _displayMode,
+        selectedTemperamentId: _selectedTemperament.id,
+        temperamentRootKey: _temperamentRootKey,
         customPalettes: _customPalettes,
         sessionHistory: _sessionHistory,
         recordingHistory: _recordingHistory,

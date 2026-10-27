@@ -4,12 +4,18 @@ class NoteEntity {
   final String name;
   final double frequency;
   final double cents; // Desviación precisa de -50 a +50
+  final int midiNumber;
 
-  NoteEntity({required this.name, required this.frequency, required this.cents});
+  NoteEntity({
+    required this.name,
+    required this.frequency,
+    required this.cents,
+    this.midiNumber = 69,
+  });
 
   static NoteEntity fromFrequency(double freq, {double a4Ref = 440.0}) {
     if (freq <= 0 || freq.isNaN || freq.isInfinite) {
-      return NoteEntity(name: "--", frequency: 0.0, cents: 0.0);
+      return NoteEntity(name: "--", frequency: 0.0, cents: 0.0, midiNumber: 0);
     }
 
     final notes = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"];
@@ -27,6 +33,7 @@ class NoteEntity {
       name: "$noteName$octave",
       frequency: freq,
       cents: centsDeviation,
+      midiNumber: roundedMidi,
     );
   }
 
