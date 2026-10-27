@@ -2,11 +2,12 @@ import 'dart:async';
 import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
-import 'package:pitch_detector_dart/pitch_detector.dart';
 import '../domain/i_pitch_detector_service.dart';
+import '../domain/mcleod_pitch_method.dart';
 
 /// Implementación de infraestructura para la captura de micrófono y procesamiento DSP en Isolate.
-/// Implementa estrictamente el contrato [IPitchDetectorService] del dominio.
+/// Implementa estrictamente el contrato [IPitchDetectorService] del dominio
+/// utilizando el algoritmo McLeod Pitch Method (MPM) con NSDF e interpolación parabólica.
 class PitchDetectorService implements IPitchDetectorService {
   final _audioRecorder = AudioRecorder();
   StreamSubscription? _audioSubscription;
@@ -48,34 +49,50 @@ class PitchDetectorService implements IPitchDetectorService {
     final workerReceivePort = ReceivePort();
     toMainPort.send(workerReceivePort.sendPort);
 
-    final pitchDetector = PitchDetector();
+    const mpm = McleodPitchMethod();
+
+    // Ventana deslizante de análisis: 4096 bytes (2048 muestras a 16 bits = 46.4 ms a 44.1 kHz)
+    const windowSizeBytes = 4096;
+    final slidingBuffer = Uint8List(windowSizeBytes);
+    int bufferFilled = 0;
 
     workerReceivePort.listen((message) {
       if (message is Uint8List || message is List<int>) {
-        final uint8Buffer = message is Uint8List ? message : Uint8List.fromList(message as List<int>);
-        if (uint8Buffer.isEmpty) return;
+        final incoming = message is Uint8List ? message : Uint8List.fromList(message as List<int>);
+        if (incoming.isEmpty) return;
 
-        // 1. Noise Gate: calcular potencia acústica cuadrática media (RMS)
-        double sumSquares = 0.0;
-        for (int i = 0; i < uint8Buffer.length; i++) {
-          final sample = uint8Buffer[i].toDouble();
-          sumSquares += sample * sample;
+        // Acumular en la ventana deslizante
+        if (incoming.length >= windowSizeBytes) {
+          // Si el chunk entrante es igual o mayor a la ventana, tomar las últimas muestras
+          slidingBuffer.setRange(0, windowSizeBytes, incoming, incoming.length - windowSizeBytes);
+          bufferFilled = windowSizeBytes;
+        } else {
+          final toShift = incoming.length;
+          if (bufferFilled + toShift > windowSizeBytes) {
+            // Desplazar muestras previas a la izquierda
+            final keep = windowSizeBytes - toShift;
+            slidingBuffer.setRange(0, keep, slidingBuffer, toShift);
+            slidingBuffer.setRange(keep, windowSizeBytes, incoming);
+            bufferFilled = windowSizeBytes;
+          } else {
+            slidingBuffer.setRange(bufferFilled, bufferFilled + toShift, incoming);
+            bufferFilled += toShift;
+          }
         }
-        final rms = sumSquares / uint8Buffer.length;
 
-        // Si es ruido de fondo o silencio, no consumir ciclos innecesarios
-        if (rms < 50.0) return;
+        // Ejecutar estimación si se dispone de al menos media ventana (1024 muestras)
+        if (bufferFilled >= 2048) {
+          final activeBytes = Uint8List.sublistView(slidingBuffer, 0, bufferFilled);
+          final result = mpm.estimatePitchFromPcm16(activeBytes, sampleRate: 44100);
 
-        // 2. Estimación matemática de tono (YIN en hilo secundario)
-        pitchDetector.getPitchFromIntBuffer(uint8Buffer).then((pitchResult) {
-          if (pitchResult.pitched) {
-            final pitch = pitchResult.pitch;
+          if (result.pitched) {
+            final pitch = result.pitchHz;
             // Rango acústico universal: A0 (27.5 Hz) a C8 (4186.0 Hz)
             if (pitch >= 27.5 && pitch <= 4186.0) {
               toMainPort.send(pitch);
             }
           }
-        });
+        }
       }
     });
   }
