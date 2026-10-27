@@ -115,6 +115,7 @@ class TunerViewModel extends ChangeNotifier {
   TunnerThemePalette _currentPalette = TunnerThemePalette.obsidianStudio;
   final List<TunnerThemePalette> _customPalettes = [];
   TimeSignature? _customTimeSignatureOverride;
+  AppDisplayMode _displayMode = AppDisplayMode.conservatoryPro;
 
   // Consola Mezcladora Multicanal
   MixerConsoleEntity _mixerConsole = MixerConsoleEntity.defaultSetup();
@@ -169,6 +170,26 @@ class TunerViewModel extends ChangeNotifier {
   TunnerThemePalette get currentPalette => _currentPalette;
   List<TunnerThemePalette> get availablePalettes => [...TunnerThemePalette.allPresets, ..._customPalettes];
   List<TunnerThemePalette> get customPalettes => List.unmodifiable(_customPalettes);
+  AppDisplayMode get displayMode => _displayMode;
+  bool get isEssentialMode => _displayMode == AppDisplayMode.essential;
+
+  /// Cambia el modo de visualización de interfaz (Esencial vs. Conservatorio Pro).
+  void setDisplayMode(AppDisplayMode mode) {
+    if (_displayMode != mode) {
+      _displayMode = mode;
+      notifyListeners();
+      _triggerAutoSave();
+    }
+  }
+
+  /// Alterna entre el Modo Esencial minimalista y el Modo Conservatorio Pro completo.
+  void toggleDisplayMode() {
+    _displayMode = _displayMode == AppDisplayMode.essential
+        ? AppDisplayMode.conservatoryPro
+        : AppDisplayMode.essential;
+    notifyListeners();
+    _triggerAutoSave();
+  }
   MixerConsoleEntity get mixerConsole => _mixerConsole;
   List<SongPackage> get curatedLibrary => _curatedLibrary;
   SongPackage get activePackage => _activePackage;
@@ -883,6 +904,7 @@ class TunerViewModel extends ChangeNotifier {
         orElse: () => InstrumentProfileEntity.flute,
       );
       _activeInstrument = targetInstrument;
+      _displayMode = settings.displayMode;
 
       if (settings.sessionHistory.isNotEmpty) {
         _sessionHistory.clear();
@@ -918,6 +940,7 @@ class TunerViewModel extends ChangeNotifier {
         selectedInstrumentId: _activeInstrument.id,
         bpm: _bpm,
         isSmartWaitEnabled: _isSmartWaitEnabled,
+        displayMode: _displayMode,
         customPalettes: _customPalettes,
         sessionHistory: _sessionHistory,
         recordingHistory: _recordingHistory,

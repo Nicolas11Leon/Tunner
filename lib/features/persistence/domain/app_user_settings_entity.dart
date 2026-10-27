@@ -3,6 +3,15 @@ import '../../../core/theme/tunner_theme.dart';
 import '../../practice_evaluator/domain/practice_report_entity.dart';
 import '../../practice_recorder/domain/practice_recording_entity.dart';
 
+/// Modo de experiencia de interfaz de usuario.
+enum AppDisplayMode {
+  /// Modo Esencial: limpio, minimalista, enfocado en la nota gigante, tolerancia visual y estroboscopio.
+  essential,
+
+  /// Modo Conservatorio Pro: atril de partitura SMuFL, stems, espectrograma, editor y analítica completa.
+  conservatoryPro,
+}
+
 /// Entidad inmutable de dominio que agrupa todas las preferencias, calibraciones,
 /// temas personalizados e historial persistible del usuario de Tunner.
 class AppUserSettingsEntity {
@@ -11,6 +20,7 @@ class AppUserSettingsEntity {
   final String selectedInstrumentId;
   final int bpm;
   final bool isSmartWaitEnabled;
+  final AppDisplayMode displayMode;
   final List<TunnerThemePalette> customPalettes;
   final List<PracticeReportEntity> sessionHistory;
   final List<PracticeRecordingEntity> recordingHistory;
@@ -21,6 +31,7 @@ class AppUserSettingsEntity {
     this.selectedInstrumentId = 'flute',
     this.bpm = 68,
     this.isSmartWaitEnabled = false,
+    this.displayMode = AppDisplayMode.conservatoryPro,
     this.customPalettes = const [],
     this.sessionHistory = const [],
     this.recordingHistory = const [],
@@ -35,6 +46,7 @@ class AppUserSettingsEntity {
     String? selectedInstrumentId,
     int? bpm,
     bool? isSmartWaitEnabled,
+    AppDisplayMode? displayMode,
     List<TunnerThemePalette>? customPalettes,
     List<PracticeReportEntity>? sessionHistory,
     List<PracticeRecordingEntity>? recordingHistory,
@@ -45,6 +57,7 @@ class AppUserSettingsEntity {
       selectedInstrumentId: selectedInstrumentId ?? this.selectedInstrumentId,
       bpm: bpm ?? this.bpm,
       isSmartWaitEnabled: isSmartWaitEnabled ?? this.isSmartWaitEnabled,
+      displayMode: displayMode ?? this.displayMode,
       customPalettes: customPalettes ?? this.customPalettes,
       sessionHistory: sessionHistory ?? this.sessionHistory,
       recordingHistory: recordingHistory ?? this.recordingHistory,
@@ -58,6 +71,7 @@ class AppUserSettingsEntity {
       'selectedInstrumentId': selectedInstrumentId,
       'bpm': bpm,
       'isSmartWaitEnabled': isSmartWaitEnabled,
+      'displayMode': displayMode.name,
       'customPalettes': customPalettes.map((p) => p.toJson()).toList(),
       // Limitar a las últimas 50 sesiones para evitar sobrecarga de I/O
       'sessionHistory': sessionHistory.take(50).map((s) => s.toMap()).toList(),
@@ -88,6 +102,10 @@ class AppUserSettingsEntity {
       selectedInstrumentId: map['selectedInstrumentId'] as String? ?? 'flute',
       bpm: map['bpm'] as int? ?? 68,
       isSmartWaitEnabled: map['isSmartWaitEnabled'] as bool? ?? false,
+      displayMode: AppDisplayMode.values.firstWhere(
+        (d) => d.name == map['displayMode'],
+        orElse: () => AppDisplayMode.conservatoryPro,
+      ),
       customPalettes: customPalettes,
       sessionHistory: sessionHistory,
       recordingHistory: recordingHistory,
