@@ -47,10 +47,11 @@ class ConcertPitchSelectorModal extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             // Handle superior
             Center(
               child: Container(
@@ -275,7 +276,38 @@ class ConcertPitchSelectorModal extends StatelessWidget {
               }).toList(),
             ),
 
-            const SizedBox(height: 24),
+            // Botón de Diapasón Acústico Senoidal
+            OutlinedButton.icon(
+              icon: Icon(
+                vm.isDiapasonPlaying ? Icons.volume_up : Icons.hearing,
+                color: vm.isDiapasonPlaying ? palette.primaryAccent : palette.textColor,
+                size: 20,
+              ),
+              label: Text(
+                vm.isDiapasonPlaying
+                    ? 'Detener Diapasón (${vm.referencePitch.toStringAsFixed(1)} Hz)'
+                    : 'Escuchar Diapasón A4 (${vm.referencePitch.toStringAsFixed(1)} Hz)',
+                style: TextStyle(
+                  color: vm.isDiapasonPlaying ? palette.primaryAccent : palette.textColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(
+                  color: vm.isDiapasonPlaying ? palette.primaryAccent : palette.surfaceBorderColor,
+                  width: vm.isDiapasonPlaying ? 1.5 : 1.0,
+                ),
+                backgroundColor: vm.isDiapasonPlaying
+                    ? palette.primaryAccent.withValues(alpha: 0.15)
+                    : Colors.transparent,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => vm.toggleDiapasonTone(),
+            ),
+
+            const SizedBox(height: 12),
 
             // Botón de Confirmación
             ElevatedButton(
@@ -287,13 +319,17 @@ class ConcertPitchSelectorModal extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                vm.stopDiapasonTone();
+                Navigator.of(context).pop();
+              },
               child: const Text(
                 'Confirmar y Aplicar',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
           ],
+        ),
         ),
       ),
     );

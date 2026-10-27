@@ -126,4 +126,14 @@ class MixerConsoleEntity {
       stems: stems.map((t) => t.id == trackId ? t.copyWith(isSolo: !t.isSolo) : t).toList(),
     );
   }
+
+  /// Retorna la ganancia efectiva (de 0.0 a 1.0) para una pista por su identificador.
+  double getEffectiveGain(String trackId) {
+    if (trackId == metronomeTrack.id) {
+      return metronomeTrack.getEffectiveGain(hasAnySolo: hasAnySolo);
+    }
+    final track = stems.where((t) => t.id == trackId).firstOrNull;
+    if (track == null) return 0.0;
+    return track.getEffectiveGain(hasAnySolo: hasAnySolo);
+  }
 }

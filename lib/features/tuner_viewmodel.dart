@@ -34,6 +34,8 @@ import 'persistence/data/json_local_persistence_service.dart';
 import 'universal_importer/domain/i_score_parser_service.dart';
 import 'universal_importer/domain/parsed_score_result_entity.dart';
 import 'universal_importer/data/universal_score_importer_service.dart';
+import 'audio_synthesizer/domain/i_audio_synthesizer_service.dart';
+import 'audio_synthesizer/data/audio_synthesizer_service.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -47,6 +49,7 @@ class TunerViewModel extends ChangeNotifier {
   final IAudioPlaybackService _playbackService;
   final ILocalPersistenceService _persistenceService;
   final IScoreParserService _scoreImporterService;
+  final IAudioSynthesizerService _audioSynthesizer;
   final Future<String> Function()? _recordingPathProvider;
 
   StreamSubscription<double>? _amplitudeSubscription;
@@ -123,6 +126,7 @@ class TunerViewModel extends ChangeNotifier {
     IAudioPlaybackService? playbackService,
     ILocalPersistenceService? persistenceService,
     IScoreParserService? scoreImporterService,
+    IAudioSynthesizerService? audioSynthesizerService,
     Future<String> Function()? recordingPathProvider,
   })  : _pitchService = pitchService ?? PitchDetectorService(),
         _metronomeService = metronomeService ?? MetronomeService(),
@@ -133,6 +137,7 @@ class TunerViewModel extends ChangeNotifier {
         _persistenceService = persistenceService ??
             JsonLocalPersistenceService(documentsPathProvider: recordingPathProvider),
         _scoreImporterService = scoreImporterService ?? const UniversalScoreImporterService(),
+        _audioSynthesizer = audioSynthesizerService ?? AudioSynthesizerService(),
         _recordingPathProvider = recordingPathProvider {
     _activePackage = _curatedLibrary.first;
     _bpm = _activePackage.defaultBpm;
@@ -217,6 +222,13 @@ class TunerViewModel extends ChangeNotifier {
     _metronomeService.onSubTick = (subTick) {
       if (_isCountingIn) {
         if (subTick % 4 == 0) {
+          final metroGain = _mixerConsole.getEffectiveGain(_mixerConsole.metronomeTrack.id);
+          if (metroGain > 0.001) {
+            _audioSynthesizer.playMetronomeClick(
+              isDownbeat: _countInBeat == 1,
+              volume: metroGain,
+            );
+          }
           _countInBeat++;
           if (_countInBeat > 4) {
             _isCountingIn = false;
@@ -242,6 +254,16 @@ class TunerViewModel extends ChangeNotifier {
 
         _currentSubTick = subTick;
         _updateExpectedNoteForTick(subTick);
+
+        if (subTick % 4 == 0) {
+          final metroGain = _mixerConsole.getEffectiveGain(_mixerConsole.metronomeTrack.id);
+          if (metroGain > 0.001) {
+            _audioSynthesizer.playMetronomeClick(
+              isDownbeat: subTick == 0,
+              volume: metroGain,
+            );
+          }
+        }
       }
 
       _validatePerformance();
@@ -290,9 +312,33 @@ class TunerViewModel extends ChangeNotifier {
         _noteName = noteEntity.name;
         _cents = noteEntity.cents;
       }
+      if (_audioSynthesizer.isDiapasonPlaying) {
+        _audioSynthesizer.startDiapasonTone(_referencePitch);
+      }
       _validatePerformance();
       notifyListeners();
       _triggerAutoSave();
+    }
+  }
+
+  /// Indica si el diapasón acústico de concierto está sonando actualmente.
+  bool get isDiapasonPlaying => _audioSynthesizer.isDiapasonPlaying;
+
+  /// Alterna (inicia / detiene) la emisión del tono continuo de diapasón A4 calibrado.
+  Future<void> toggleDiapasonTone() async {
+    if (_audioSynthesizer.isDiapasonPlaying) {
+      await _audioSynthesizer.stopDiapasonTone();
+    } else {
+      await _audioSynthesizer.startDiapasonTone(_referencePitch);
+    }
+    notifyListeners();
+  }
+
+  /// Detiene la emisión del diapasón de concierto.
+  Future<void> stopDiapasonTone() async {
+    if (_audioSynthesizer.isDiapasonPlaying) {
+      await _audioSynthesizer.stopDiapasonTone();
+      notifyListeners();
     }
   }
 
@@ -601,6 +647,7 @@ class TunerViewModel extends ChangeNotifier {
       _frequency = freq;
       _noteName = noteName;
       _cents = 0.0;
+      _audioSynthesizer.startDiapasonTone(freq);
       notifyListeners();
     }
   }
@@ -811,6 +858,7 @@ class TunerViewModel extends ChangeNotifier {
     _silenceTimer?.cancel();
     _pitchService.stopRecording();
     _metronomeService.stop();
+    _audioSynthesizer.dispose();
     _amplitudeSubscription?.cancel();
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
