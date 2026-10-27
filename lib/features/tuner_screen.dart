@@ -13,6 +13,7 @@ import 'practice_recorder/presentation/practice_recording_player_modal.dart';
 import 'tuner/presentation/concert_pitch_selector_modal.dart';
 import 'score_editor/presentation/score_editor_modal.dart';
 import 'acoustic_lab/presentation/harmonic_spectrogram_modal.dart';
+import 'exercise_generator/presentation/exercise_generator_modal.dart';
 
 class TunerScreen extends StatelessWidget {
   const TunerScreen({super.key});
@@ -664,6 +665,11 @@ class TunerScreen extends StatelessWidget {
             icon: Icon(Icons.graphic_eq, color: palette.textColor),
             tooltip: "Laboratorio de Armónicos y Timbre",
             onPressed: () => HarmonicSpectrogramModal.show(context),
+          ),
+          IconButton(
+            icon: Icon(Icons.auto_awesome, color: palette.textColor),
+            tooltip: "Generador Algorítmico de Ejercicios y Escalas",
+            onPressed: () => ExerciseGeneratorModal.show(context),
           ),
         ],
       ),

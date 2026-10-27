@@ -40,6 +40,7 @@ import 'score_editor/domain/score_editor_domain.dart';
 import 'universal_importer/domain/canonical_musicxml_exporter.dart';
 import 'universal_importer/domain/canonical_midi_exporter.dart';
 import 'transcription/domain/live_transcription_engine.dart';
+import 'exercise_generator/domain/algorithmic_exercise_generator.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -128,6 +129,7 @@ class TunerViewModel extends ChangeNotifier {
   final CanonicalMidiExporter _midiExporter = const CanonicalMidiExporter();
   final LiveTranscriptionEngine _transcriptionEngine = LiveTranscriptionEngine();
   bool _isLiveTranscriptionActive = false;
+  final AlgorithmicExerciseGenerator _exerciseGenerator = const AlgorithmicExerciseGenerator();
 
   // Inyección de dependencias en el constructor
   TunerViewModel({
@@ -1054,6 +1056,32 @@ class TunerViewModel extends ChangeNotifier {
         _activePackage = finalPkg;
       }
     }
+    notifyListeners();
+  }
+
+  /// Genera proceduralmente una rutina técnica o escala de conservatorio y la carga en el atril digital.
+  void generateAndLoadExercise({
+    required String rootNote,
+    required ExerciseType type,
+    ExerciseRhythm rhythm = ExerciseRhythm.quarter,
+    int bpm = 80,
+  }) {
+    _scoreHistory.recordState(_activePackage);
+    final generatedPkg = _exerciseGenerator.generate(
+      rootNote: rootNote,
+      type: type,
+      rhythm: rhythm,
+      bpm: bpm,
+    );
+    _activePackage = generatedPkg;
+    _bpm = bpm;
+    _currentMeasureIndex = 0;
+    _currentSubTick = -1;
+    _measureHistory.clear();
+    _mixerConsole = MixerConsoleEntity(
+      metronomeTrack: _mixerConsole.metronomeTrack,
+      stems: _activePackage.tracks,
+    );
     notifyListeners();
   }
 
