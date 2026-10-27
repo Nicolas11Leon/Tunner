@@ -126,7 +126,7 @@ class HierarchicalScore {
   bool get isValidScore => measures.isNotEmpty && measures.every((m) => m.isValidMeasure);
 
   /// Genera estudios pedagógicos canónicos para validación y práctica interactiva.
-  static List<HierarchicalScore> getMockStudies() {
+  static List<HierarchicalScore> getCanonicalStudies() {
     return [
       HierarchicalScore(
         title: "Estudio Multi-Compás 4/4 (2 Compases)",
@@ -207,4 +207,7 @@ class HierarchicalScore {
       ),
     ];
   }
+
+  /// Alias canónico para compatibilidad hacia atrás
+  static List<HierarchicalScore> getMockStudies() => getCanonicalStudies();
 }

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../../tuner_viewmodel.dart';
 
@@ -16,6 +17,23 @@ class ScoreImportTabView extends StatefulWidget {
     required this.viewModel,
     this.filePicker,
   });
+
+  /// Implementación por defecto que invoca el diálogo de selección nativo del dispositivo.
+  static Future<({Uint8List bytes, String fileName})?> defaultNativeFilePicker() async {
+    try {
+      final file = await FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: const ['xml', 'musicxml', 'mid', 'midi'],
+      );
+
+      if (file == null) return null;
+      final fileBytes = await file.readAsBytes();
+      return (bytes: fileBytes, fileName: file.name);
+    } catch (e) {
+      debugPrint('Error en defaultNativeFilePicker: $e');
+      return null;
+    }
+  }
 
   @override
   State<ScoreImportTabView> createState() => _ScoreImportTabViewState();
@@ -213,31 +231,31 @@ class _ScoreImportTabViewState extends State<ScoreImportTabView> {
 
           const SizedBox(height: 16),
 
-          // Selector de Archivo Nativo
-          if (widget.filePicker != null)
-            ElevatedButton.icon(
-              icon: const Icon(Icons.folder_open, size: 20),
-              label: const Text(
-                "Seleccionar Archivo Local del Dispositivo",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: palette.secondaryAccent,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: _isProcessing
-                  ? null
-                  : () async {
-                      final picked = await widget.filePicker!();
-                      if (picked != null) {
-                        _processBytes(picked.bytes, picked.fileName);
-                      }
-                    },
+          // Selector de Archivo Nativo (Navegador del dispositivo)
+          ElevatedButton.icon(
+            icon: const Icon(Icons.folder_open, size: 20),
+            label: const Text(
+              "Seleccionar Archivo Local (.xml / .mid)",
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: palette.secondaryAccent,
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: _isProcessing
+                ? null
+                : () async {
+                    final picker = widget.filePicker ?? ScoreImportTabView.defaultNativeFilePicker;
+                    final picked = await picker();
+                    if (picked != null) {
+                      _processBytes(picked.bytes, picked.fileName);
+                    }
+                  },
+          ),
 
-          if (widget.filePicker != null) const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
           // Presets / Muestras de prueba con 1 toque
           Text(
