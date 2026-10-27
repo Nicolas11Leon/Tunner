@@ -4,6 +4,7 @@ import 'package:tunner/features/tuner/domain/i_pitch_detector_service.dart';
 import 'package:tunner/features/metronome/domain/i_metronome_service.dart';
 import 'package:tunner/features/practice_evaluator/data/practice_evaluator_service.dart';
 import 'package:tunner/features/instrument/data/instrument_transposition_service.dart';
+import 'package:tunner/features/persistence/data/memory_persistence_service.dart';
 import 'mock_recorder_services.dart';
 
 class MockPitchService implements IPitchDetectorService {
@@ -42,6 +43,7 @@ void main() {
       transpositionService: const InstrumentTranspositionService(),
       recorderService: mockRecorder,
       playbackService: mockPlayback,
+      persistenceService: MemoryPersistenceService(),
     );
   });
 

@@ -7,15 +7,16 @@ class NoteEntity {
 
   NoteEntity({required this.name, required this.frequency, required this.cents});
 
-  static NoteEntity fromFrequency(double freq) {
+  static NoteEntity fromFrequency(double freq, {double a4Ref = 440.0}) {
     if (freq <= 0 || freq.isNaN || freq.isInfinite) {
       return NoteEntity(name: "--", frequency: 0.0, cents: 0.0);
     }
 
     final notes = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"];
     
-    // Fórmula matemática estándar MIDI: 12 * log2(f / 440) + 69
-    double midi = 12 * (log(freq / 440.0) / log(2)) + 69;
+    // Fórmula matemática estándar MIDI con tono de concierto parametrizable: 12 * log2(f / a4Ref) + 69
+    final double safeRef = (a4Ref <= 0 || a4Ref.isNaN || a4Ref.isInfinite) ? 440.0 : a4Ref;
+    double midi = 12 * (log(freq / safeRef) / log(2)) + 69;
     int roundedMidi = midi.round();
     double centsDeviation = (midi - roundedMidi) * 100;
 

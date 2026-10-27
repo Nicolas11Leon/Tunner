@@ -27,6 +27,9 @@ import 'practice_recorder/domain/i_practice_recorder_service.dart';
 import 'practice_recorder/domain/i_audio_playback_service.dart';
 import 'practice_recorder/data/practice_recorder_service.dart';
 import 'practice_recorder/data/audio_playback_service.dart';
+import 'persistence/domain/app_user_settings_entity.dart';
+import 'persistence/domain/i_local_persistence_service.dart';
+import 'persistence/data/json_local_persistence_service.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -38,6 +41,7 @@ class TunerViewModel extends ChangeNotifier {
   final IInstrumentTranspositionService _transpositionService;
   final IPracticeRecorderService _recorderService;
   final IAudioPlaybackService _playbackService;
+  final ILocalPersistenceService _persistenceService;
   final Future<String> Function()? _recordingPathProvider;
 
   StreamSubscription<double>? _amplitudeSubscription;
@@ -101,6 +105,9 @@ class TunerViewModel extends ChangeNotifier {
   // Consola Mezcladora Multicanal
   MixerConsoleEntity _mixerConsole = MixerConsoleEntity.defaultSetup();
 
+  // Calibración de Concierto A4 (415 Hz - 466 Hz)
+  double _referencePitch = 440.0;
+
   // Inyección de dependencias en el constructor
   TunerViewModel({
     IPitchDetectorService? pitchService,
@@ -109,6 +116,7 @@ class TunerViewModel extends ChangeNotifier {
     IInstrumentTranspositionService? transpositionService,
     IPracticeRecorderService? recorderService,
     IAudioPlaybackService? playbackService,
+    ILocalPersistenceService? persistenceService,
     Future<String> Function()? recordingPathProvider,
   })  : _pitchService = pitchService ?? PitchDetectorService(),
         _metronomeService = metronomeService ?? MetronomeService(),
@@ -116,6 +124,8 @@ class TunerViewModel extends ChangeNotifier {
         _transpositionService = transpositionService ?? const InstrumentTranspositionService(),
         _recorderService = recorderService ?? PracticeRecorderService(),
         _playbackService = playbackService ?? AudioPlaybackService(),
+        _persistenceService = persistenceService ??
+            JsonLocalPersistenceService(documentsPathProvider: recordingPathProvider),
         _recordingPathProvider = recordingPathProvider {
     _activePackage = _curatedLibrary.first;
     _bpm = _activePackage.defaultBpm;
@@ -124,6 +134,7 @@ class TunerViewModel extends ChangeNotifier {
       stems: _activePackage.tracks,
     );
     _initListeners();
+    loadPersistedState();
   }
 
   // --- Getters del Estado ---
@@ -150,6 +161,7 @@ class TunerViewModel extends ChangeNotifier {
   double get frequency => _frequency;
   String get noteName => _noteName;
   double get cents => _cents;
+  double get referencePitch => _referencePitch;
   bool get isRecording => _isRecording;
   bool get isMetronomePlaying => _isMetronomePlaying;
   int get currentSubTick => _currentSubTick;
@@ -180,7 +192,7 @@ class TunerViewModel extends ChangeNotifier {
     _pitchService.onPitchDetected = (pitch) {
       _silenceTimer?.cancel();
       _frequency = pitch;
-      final noteEntity = NoteEntity.fromFrequency(pitch);
+      final noteEntity = NoteEntity.fromFrequency(pitch, a4Ref: _referencePitch);
       _noteName = noteEntity.name;
       _cents = noteEntity.cents;
       _validatePerformance();
@@ -257,6 +269,24 @@ class TunerViewModel extends ChangeNotifier {
     _activeInstrument = instrument;
     _validatePerformance();
     notifyListeners();
+    _triggerAutoSave();
+  }
+
+  /// Calibra la afinación de concierto del tono A4 (rango 415.0 Hz a 466.0 Hz).
+  /// Presets típicos: 432 Hz (Filosófico/Verdi), 440 Hz (Estándar ISO), 442 Hz (Sinfónico), 444 Hz (Brillante).
+  void setReferencePitch(double pitch) {
+    final clamped = pitch.clamp(415.0, 466.0);
+    if ((_referencePitch - clamped).abs() > 0.01) {
+      _referencePitch = clamped;
+      if (_frequency > 0) {
+        final noteEntity = NoteEntity.fromFrequency(_frequency, a4Ref: _referencePitch);
+        _noteName = noteEntity.name;
+        _cents = noteEntity.cents;
+      }
+      _validatePerformance();
+      notifyListeners();
+      _triggerAutoSave();
+    }
   }
 
   void _updateExpectedNoteForTick(int tick) {
@@ -366,6 +396,7 @@ class TunerViewModel extends ChangeNotifier {
   void toggleSmartWait() {
     _isSmartWaitEnabled = !_isSmartWaitEnabled;
     notifyListeners();
+    _triggerAutoSave();
   }
 
   void _generatePracticeReport() {
@@ -381,6 +412,7 @@ class TunerViewModel extends ChangeNotifier {
     );
     _lastReport = report;
     _sessionHistory.add(report);
+    _triggerAutoSave();
   }
 
   void completeManualPracticeSession() {
@@ -457,12 +489,14 @@ class TunerViewModel extends ChangeNotifier {
     _currentPalette = palette;
     _themeMode = palette.mode;
     notifyListeners();
+    _triggerAutoSave();
   }
 
   void setThemeMode(TunnerThemeMode mode) {
     _themeMode = mode;
     _currentPalette = TunnerThemePalette.fromMode(mode);
     notifyListeners();
+    _triggerAutoSave();
   }
 
   void addCustomPalette(TunnerThemePalette palette) {
@@ -471,6 +505,7 @@ class TunerViewModel extends ChangeNotifier {
     _currentPalette = palette;
     _themeMode = palette.mode;
     notifyListeners();
+    _triggerAutoSave();
   }
 
   void updateCustomPalette(TunnerThemePalette palette) {
@@ -484,6 +519,7 @@ class TunerViewModel extends ChangeNotifier {
       _currentPalette = palette;
     }
     notifyListeners();
+    _triggerAutoSave();
   }
 
   void deleteCustomPalette(String paletteId) {
@@ -493,6 +529,7 @@ class TunerViewModel extends ChangeNotifier {
       _themeMode = TunnerThemeMode.obsidianStudio;
     }
     notifyListeners();
+    _triggerAutoSave();
   }
 
   bool importPaletteFromJson(String jsonString) {
@@ -603,6 +640,7 @@ class TunerViewModel extends ChangeNotifier {
       );
       _activeRecording = recording;
       _recordingHistory.insert(0, recording);
+      _triggerAutoSave();
     }
     notifyListeners();
   }
@@ -662,9 +700,85 @@ class TunerViewModel extends ChangeNotifier {
     }
     if (_activeRecording != null) {
       _recordingHistory.removeWhere((r) => r.id == _activeRecording!.id);
+      _triggerAutoSave();
     }
     _activeRecording = null;
     notifyListeners();
+  }
+
+  final Completer<void> _initCompleter = Completer<void>();
+  Future<void> get isInitialized => _initCompleter.future;
+
+  /// Carga asíncronamente las preferencias y estado persistido desde almacenamiento offline.
+  Future<void> loadPersistedState() async {
+    try {
+      final settings = await _persistenceService.loadSettings();
+      _referencePitch = settings.referencePitch.clamp(415.0, 466.0);
+      _isSmartWaitEnabled = settings.isSmartWaitEnabled;
+      if (settings.bpm >= 20 && settings.bpm <= 300) {
+        _bpm = settings.bpm;
+      }
+
+      if (settings.customPalettes.isNotEmpty) {
+        _customPalettes.clear();
+        _customPalettes.addAll(settings.customPalettes);
+      }
+
+      final targetPalette = availablePalettes.firstWhere(
+        (p) => p.id == settings.selectedThemeId,
+        orElse: () => TunnerThemePalette.obsidianStudio,
+      );
+      _currentPalette = targetPalette;
+      _themeMode = targetPalette.mode;
+
+      final targetInstrument = InstrumentProfileEntity.standardInstruments.firstWhere(
+        (inst) => inst.id == settings.selectedInstrumentId,
+        orElse: () => InstrumentProfileEntity.flute,
+      );
+      _activeInstrument = targetInstrument;
+
+      if (settings.sessionHistory.isNotEmpty) {
+        _sessionHistory.clear();
+        _sessionHistory.addAll(settings.sessionHistory);
+        _lastReport = _sessionHistory.last;
+      }
+
+      if (settings.recordingHistory.isNotEmpty) {
+        _recordingHistory.clear();
+        _recordingHistory.addAll(settings.recordingHistory);
+        _activeRecording = _recordingHistory.first;
+      }
+
+      notifyListeners();
+    } catch (_) {
+      // Ignorar fallas de carga silenciosamente
+    } finally {
+      if (!_initCompleter.isCompleted) {
+        _initCompleter.complete();
+      }
+    }
+  }
+
+  /// Método público para forzar y esperar la persistencia de estado atómica en disco.
+  Future<void> savePersistedState() => _triggerAutoSave();
+
+  /// Persiste el estado consolidado de la aplicación en disco local atómicamente.
+  Future<void> _triggerAutoSave() async {
+    try {
+      final settings = AppUserSettingsEntity(
+        referencePitch: _referencePitch,
+        selectedThemeId: _currentPalette.id,
+        selectedInstrumentId: _activeInstrument.id,
+        bpm: _bpm,
+        isSmartWaitEnabled: _isSmartWaitEnabled,
+        customPalettes: _customPalettes,
+        sessionHistory: _sessionHistory,
+        recordingHistory: _recordingHistory,
+      );
+      await _persistenceService.saveSettings(settings);
+    } catch (_) {
+      // Ignorar fallas de guardado secundarias
+    }
   }
 
   @override

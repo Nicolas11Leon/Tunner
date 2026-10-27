@@ -10,6 +10,7 @@ import 'instrument/domain/instrument_profile_entity.dart';
 import 'customization/presentation/theme_customization_modal.dart';
 import 'practice_recorder/presentation/practice_recorder_dock.dart';
 import 'practice_recorder/presentation/practice_recording_player_modal.dart';
+import 'tuner/presentation/concert_pitch_selector_modal.dart';
 
 class TunerScreen extends StatelessWidget {
   const TunerScreen({super.key});
@@ -522,6 +523,49 @@ class TunerScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
         actions: [
+          // Chip de Calibración de Afinación de Concierto A4
+          GestureDetector(
+            onTap: () => ConcertPitchSelectorModal.show(context),
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: palette.cardBackground,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: (viewModel.referencePitch - 440.0).abs() > 0.1
+                      ? palette.secondaryAccent
+                      : palette.staffLinesColor.withValues(alpha: 0.3),
+                  width: (viewModel.referencePitch - 440.0).abs() > 0.1 ? 1.4 : 1.0,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'A4',
+                    style: TextStyle(
+                      color: palette.textMutedColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${viewModel.referencePitch.toStringAsFixed(1)}Hz',
+                    style: TextStyle(
+                      color: (viewModel.referencePitch - 440.0).abs() > 0.1
+                          ? palette.secondaryAccent
+                          : palette.textColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           IconButton(
             icon: Icon(Icons.piano, color: palette.secondaryAccent),
             tooltip: "Seleccionar Instrumento (${viewModel.activeInstrument.name})",

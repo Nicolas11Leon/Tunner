@@ -69,5 +69,33 @@ void main() {
       expect(NoteEntity.frequencyForNote(''), equals(0.0));
       expect(NoteEntity.frequencyForNote('Invalida'), equals(0.0));
     });
+
+    test('Custom A4 calibration (432 Hz Verdi Pitch) calculates 0 cents for 432 Hz', () {
+      final note = NoteEntity.fromFrequency(432.0, a4Ref: 432.0);
+      expect(note.name, equals('La4'));
+      expect(note.cents.abs(), lessThan(0.01));
+    });
+
+    test('Custom A4 calibration (442 Hz Symphony Pitch) calculates 0 cents for 442 Hz', () {
+      final note = NoteEntity.fromFrequency(442.0, a4Ref: 442.0);
+      expect(note.name, equals('La4'));
+      expect(note.cents.abs(), lessThan(0.01));
+
+      // Comparado con 440 Hz estándar, 442 Hz en estándar 440 tiene desvío positivo (+7.85 cents)
+      final noteAt440Ref = NoteEntity.fromFrequency(442.0, a4Ref: 440.0);
+      expect(noteAt440Ref.cents, closeTo(7.85, 0.1));
+    });
+
+    test('Baroque A4 calibration (415 Hz) calculates 0 cents for 415 Hz', () {
+      final note = NoteEntity.fromFrequency(415.0, a4Ref: 415.0);
+      expect(note.name, equals('La4'));
+      expect(note.cents.abs(), lessThan(0.01));
+    });
+
+    test('frequencyForNote respects custom a4Ref calibration', () {
+      expect(NoteEntity.frequencyForNote('La4', a4Ref: 432.0), closeTo(432.0, 0.01));
+      expect(NoteEntity.frequencyForNote('La4', a4Ref: 442.0), closeTo(442.0, 0.01));
+      expect(NoteEntity.frequencyForNote('La4', a4Ref: 415.0), closeTo(415.0, 0.01));
+    });
   });
 }

@@ -101,4 +101,72 @@ class PracticeReportEntity {
     this.trendAnalysisText = 'Primera sesión registrada para esta obra',
     this.recording,
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'songTitle': songTitle,
+      'instrumentName': instrumentName,
+      'timestamp': timestamp.toIso8601String(),
+      'totalNotes': totalNotes,
+      'hitNotes': hitNotes,
+      'pitchAccuracyPercentage': pitchAccuracyPercentage,
+      'averageCentsDeviation': averageCentsDeviation,
+      'rhythmAccuracyPercentage': rhythmAccuracyPercentage,
+      'averageTimingDeltaMs': averageTimingDeltaMs,
+      'rhythmTendency': rhythmTendency.name,
+      'rhythmTendencyDescription': rhythmTendencyDescription,
+      'sustainAccuracyPercentage': sustainAccuracyPercentage,
+      'overallScore': overallScore,
+      'grade': grade.name,
+      'noteAccuracyMap': noteAccuracyMap,
+      'criticalNotes': criticalNotes,
+      'masteredNotes': masteredNotes,
+      'trendDeltaPercentage': trendDeltaPercentage,
+      'trendAnalysisText': trendAnalysisText,
+      'recording': recording?.toMap(),
+    };
+  }
+
+  factory PracticeReportEntity.fromMap(Map<String, dynamic> map) {
+    final gradeName = map['grade'] as String? ?? 'd';
+    final grade = PerformanceGrade.values.firstWhere(
+      (g) => g.name == gradeName,
+      orElse: () => PerformanceGrade.d,
+    );
+
+    final rhythmName = map['rhythmTendency'] as String? ?? 'stable';
+    final rhythm = RhythmTendency.values.firstWhere(
+      (r) => r.name == rhythmName,
+      orElse: () => RhythmTendency.stable,
+    );
+
+    final rawAccuracyMap = map['noteAccuracyMap'] as Map<String, dynamic>? ?? {};
+    final noteAccuracyMap = rawAccuracyMap.map((k, v) => MapEntry(k, (v as num).toDouble()));
+
+    return PracticeReportEntity(
+      songTitle: map['songTitle'] as String? ?? 'Obra',
+      instrumentName: map['instrumentName'] as String? ?? 'Instrumento Estándar',
+      timestamp: map['timestamp'] != null
+          ? DateTime.tryParse(map['timestamp'] as String) ?? DateTime.now()
+          : DateTime.now(),
+      totalNotes: map['totalNotes'] as int? ?? 0,
+      hitNotes: map['hitNotes'] as int? ?? 0,
+      pitchAccuracyPercentage: (map['pitchAccuracyPercentage'] as num?)?.toDouble() ?? 0.0,
+      averageCentsDeviation: (map['averageCentsDeviation'] as num?)?.toDouble() ?? 0.0,
+      rhythmAccuracyPercentage: (map['rhythmAccuracyPercentage'] as num?)?.toDouble() ?? 0.0,
+      averageTimingDeltaMs: (map['averageTimingDeltaMs'] as num?)?.toDouble() ?? 0.0,
+      rhythmTendency: rhythm,
+      rhythmTendencyDescription: map['rhythmTendencyDescription'] as String? ?? '',
+      sustainAccuracyPercentage: (map['sustainAccuracyPercentage'] as num?)?.toDouble() ?? 100.0,
+      overallScore: (map['overallScore'] as num?)?.toDouble() ?? 0.0,
+      grade: grade,
+      evaluations: const [],
+      noteAccuracyMap: noteAccuracyMap,
+      criticalNotes: (map['criticalNotes'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      masteredNotes: (map['masteredNotes'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      trendDeltaPercentage: (map['trendDeltaPercentage'] as num?)?.toDouble() ?? 0.0,
+      trendAnalysisText: map['trendAnalysisText'] as String? ?? '',
+      recording: map['recording'] != null ? PracticeRecordingEntity.fromMap(map['recording'] as Map<String, dynamic>) : null,
+    );
+  }
 }
