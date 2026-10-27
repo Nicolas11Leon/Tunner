@@ -76,7 +76,7 @@ void main() {
       await tester.pump();
 
       // Estado inicial: Modo Conservatorio Pro
-      expect(find.text("Tunner Pro: Studio Pitch & Sheet Lab"), findsOneWidget);
+      expect(find.text("Tunner Pro"), findsOneWidget);
       expect(find.byKey(const Key('toggle_essential_mode_btn')), findsOneWidget);
 
       // Cambiar a Modo Esencial
@@ -84,7 +84,7 @@ void main() {
       await tester.pump();
 
       expect(viewModel.isEssentialMode, isTrue);
-      expect(find.text("Tunner (Modo Esencial)"), findsOneWidget);
+      expect(find.text("Tunner"), findsOneWidget);
       expect(find.byKey(const Key('essential_note_display')), findsOneWidget);
       expect(find.byKey(const Key('essential_mic_toggle_btn')), findsOneWidget);
       expect(find.byKey(const Key('essential_switch_to_pro_card')), findsOneWidget);
@@ -94,7 +94,7 @@ void main() {
       await tester.pump();
 
       expect(viewModel.isEssentialMode, isFalse);
-      expect(find.text("Tunner Pro: Studio Pitch & Sheet Lab"), findsOneWidget);
+      expect(find.text("Tunner Pro"), findsOneWidget);
     });
 
     testWidgets('Essential mode correctly reflects detected pitch and tuning feedback', (tester) async {

@@ -11,6 +11,8 @@ import 'customization/presentation/theme_customization_modal.dart';
 import 'practice_recorder/presentation/practice_recorder_dock.dart';
 import 'practice_recorder/presentation/practice_recording_player_modal.dart';
 import 'tuner/presentation/concert_pitch_selector_modal.dart';
+import 'tuner/presentation/temperament_selector_modal.dart';
+import 'tuner/domain/temperament_engine.dart';
 import 'score_editor/presentation/score_editor_modal.dart';
 import 'acoustic_lab/presentation/harmonic_spectrogram_modal.dart';
 import 'exercise_generator/presentation/exercise_generator_modal.dart';
@@ -522,14 +524,25 @@ class TunerScreen extends StatelessWidget {
       backgroundColor: palette.scaffoldBackground,
       appBar: AppBar(
         title: Text(
-          isEssential ? "Tunner (Modo Esencial)" : "Tunner Pro: Studio Pitch & Sheet Lab",
-          style: TextStyle(fontWeight: FontWeight.w400, color: palette.textColor, fontSize: 17),
+          isEssential ? "Tunner" : "Tunner Pro",
+          style: TextStyle(fontWeight: FontWeight.w600, color: palette.textColor, fontSize: 16),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
+        centerTitle: false,
         actions: [
-          if (isEssential) ...[
+          Builder(
+            builder: (context) {
+              final screenWidth = MediaQuery.of(context).size.width;
+              final maxActionsWidth = screenWidth > 200 ? screenWidth - 140 : 200.0;
+              return SizedBox(
+                width: maxActionsWidth,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isEssential) ...[
             // En Modo Esencial: Calibración A4, Instrumento y botón para pasar a Modo Pro
             GestureDetector(
               onTap: () => ConcertPitchSelectorModal.show(context),
@@ -577,6 +590,50 @@ class TunerScreen extends StatelessWidget {
               icon: Icon(Icons.piano, color: palette.secondaryAccent),
               tooltip: "Seleccionar Instrumento (${viewModel.activeInstrument.name})",
               onPressed: () => _showInstrumentModal(context, viewModel),
+            ),
+            // Chip de Temperamento Histórico en Modo Esencial
+            GestureDetector(
+              key: const Key('essential_temperament_selector_chip'),
+              onTap: () => TemperamentSelectorModal.show(context),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: palette.cardBackground,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: viewModel.selectedTemperament.id != 'equal'
+                        ? palette.primaryAccent
+                        : palette.staffLinesColor.withValues(alpha: 0.3),
+                    width: viewModel.selectedTemperament.id != 'equal' ? 1.4 : 1.0,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.history_edu,
+                      size: 13,
+                      color: viewModel.selectedTemperament.id != 'equal'
+                          ? palette.primaryAccent
+                          : palette.textMutedColor,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      viewModel.selectedTemperament.id == 'equal'
+                          ? '12-EDO'
+                          : '${viewModel.selectedTemperament.name.split(' ').first} (${TemperamentEngine.chromaticNoteNames[viewModel.temperamentRootKey]})',
+                      style: TextStyle(
+                        color: viewModel.selectedTemperament.id != 'equal'
+                            ? palette.primaryAccent
+                            : palette.textColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             IconButton(
               key: const Key('toggle_pro_mode_btn'),
@@ -629,6 +686,50 @@ class TunerScreen extends StatelessWidget {
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Chip de Temperamento Histórico en Modo Conservatorio Pro
+            GestureDetector(
+              key: const Key('pro_temperament_selector_chip'),
+              onTap: () => TemperamentSelectorModal.show(context),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: palette.cardBackground,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: viewModel.selectedTemperament.id != 'equal'
+                        ? palette.primaryAccent
+                        : palette.staffLinesColor.withValues(alpha: 0.3),
+                    width: viewModel.selectedTemperament.id != 'equal' ? 1.4 : 1.0,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.history_edu,
+                      size: 13,
+                      color: viewModel.selectedTemperament.id != 'equal'
+                          ? palette.primaryAccent
+                          : palette.textMutedColor,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      viewModel.selectedTemperament.id == 'equal'
+                          ? '12-EDO'
+                          : '${viewModel.selectedTemperament.name.split(' ').first} (${TemperamentEngine.chromaticNoteNames[viewModel.temperamentRootKey]})',
+                      style: TextStyle(
+                        color: viewModel.selectedTemperament.id != 'equal'
+                            ? palette.primaryAccent
+                            : palette.textColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -738,6 +839,12 @@ class TunerScreen extends StatelessWidget {
               onPressed: () => ExerciseGeneratorModal.show(context),
             ),
           ],
+        ],
+      ),
+                ),
+              );
+            },
+          ),
         ],
       ),
       body: isEssential

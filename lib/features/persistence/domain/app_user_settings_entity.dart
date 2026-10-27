@@ -21,6 +21,8 @@ class AppUserSettingsEntity {
   final int bpm;
   final bool isSmartWaitEnabled;
   final AppDisplayMode displayMode;
+  final String selectedTemperamentId;
+  final int temperamentRootKey;
   final List<TunnerThemePalette> customPalettes;
   final List<PracticeReportEntity> sessionHistory;
   final List<PracticeRecordingEntity> recordingHistory;
@@ -32,6 +34,8 @@ class AppUserSettingsEntity {
     this.bpm = 68,
     this.isSmartWaitEnabled = false,
     this.displayMode = AppDisplayMode.conservatoryPro,
+    this.selectedTemperamentId = 'equal',
+    this.temperamentRootKey = 0,
     this.customPalettes = const [],
     this.sessionHistory = const [],
     this.recordingHistory = const [],
@@ -47,6 +51,8 @@ class AppUserSettingsEntity {
     int? bpm,
     bool? isSmartWaitEnabled,
     AppDisplayMode? displayMode,
+    String? selectedTemperamentId,
+    int? temperamentRootKey,
     List<TunnerThemePalette>? customPalettes,
     List<PracticeReportEntity>? sessionHistory,
     List<PracticeRecordingEntity>? recordingHistory,
@@ -58,6 +64,8 @@ class AppUserSettingsEntity {
       bpm: bpm ?? this.bpm,
       isSmartWaitEnabled: isSmartWaitEnabled ?? this.isSmartWaitEnabled,
       displayMode: displayMode ?? this.displayMode,
+      selectedTemperamentId: selectedTemperamentId ?? this.selectedTemperamentId,
+      temperamentRootKey: temperamentRootKey ?? this.temperamentRootKey,
       customPalettes: customPalettes ?? this.customPalettes,
       sessionHistory: sessionHistory ?? this.sessionHistory,
       recordingHistory: recordingHistory ?? this.recordingHistory,
@@ -72,6 +80,8 @@ class AppUserSettingsEntity {
       'bpm': bpm,
       'isSmartWaitEnabled': isSmartWaitEnabled,
       'displayMode': displayMode.name,
+      'selectedTemperamentId': selectedTemperamentId,
+      'temperamentRootKey': temperamentRootKey,
       'customPalettes': customPalettes.map((p) => p.toJson()).toList(),
       // Limitar a las últimas 50 sesiones para evitar sobrecarga de I/O
       'sessionHistory': sessionHistory.take(50).map((s) => s.toMap()).toList(),
@@ -106,6 +116,8 @@ class AppUserSettingsEntity {
         (d) => d.name == map['displayMode'],
         orElse: () => AppDisplayMode.conservatoryPro,
       ),
+      selectedTemperamentId: map['selectedTemperamentId'] as String? ?? 'equal',
+      temperamentRootKey: (map['temperamentRootKey'] as num?)?.toInt() ?? 0,
       customPalettes: customPalettes,
       sessionHistory: sessionHistory,
       recordingHistory: recordingHistory,
