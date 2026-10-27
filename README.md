@@ -1,7 +1,7 @@
 # Tunner: Studio Pitch, Real-Time Acoustic Lab & Sheet Music Engine
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
-[![Tests: 170 Passing](https://img.shields.io/badge/Tests-170%20Passing-brightgreen.svg)]()
+[![Tests: 173 Passing](https://img.shields.io/badge/Tests-173%20Passing-brightgreen.svg)]()
 [![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
 [![Framework: Flutter](https://img.shields.io/badge/Framework-Flutter-02569B.svg)]()
 [![Platform: Linux%20|%20Android%20|%20iOS%20|%20macOS%20|%20Windows](https://img.shields.io/badge/Platform-Linux%20%7C%20Android%20%7C%20iOS%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
@@ -274,7 +274,7 @@ flutter pub get
 # Comprobación de linter (0 issues)
 flutter analyze
 
-# Ejecución de la suite completa de 170 pruebas
+# Ejecución de la suite completa de 173 pruebas
 flutter test
 ```
 

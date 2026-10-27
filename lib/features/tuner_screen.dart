@@ -14,6 +14,8 @@ import 'tuner/presentation/concert_pitch_selector_modal.dart';
 import 'score_editor/presentation/score_editor_modal.dart';
 import 'acoustic_lab/presentation/harmonic_spectrogram_modal.dart';
 import 'exercise_generator/presentation/exercise_generator_modal.dart';
+import 'persistence/domain/app_user_settings_entity.dart';
+import '../core/theme/tunner_theme.dart';
 
 class TunerScreen extends StatelessWidget {
   const TunerScreen({super.key});
@@ -514,167 +516,427 @@ class TunerScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final viewModel = context.watch<TunerViewModel>();
     final palette = viewModel.currentPalette;
+    final isEssential = viewModel.isEssentialMode;
 
     return Scaffold(
       backgroundColor: palette.scaffoldBackground,
       appBar: AppBar(
         title: Text(
-          "Tunner Pro: Studio Pitch & Sheet Lab",
+          isEssential ? "Tunner (Modo Esencial)" : "Tunner Pro: Studio Pitch & Sheet Lab",
           style: TextStyle(fontWeight: FontWeight.w400, color: palette.textColor, fontSize: 17),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         actions: [
-          // Chip de Calibración de Afinación de Concierto A4
-          GestureDetector(
-            onTap: () => ConcertPitchSelectorModal.show(context),
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: palette.cardBackground,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: (viewModel.referencePitch - 440.0).abs() > 0.1
-                      ? palette.secondaryAccent
-                      : palette.staffLinesColor.withValues(alpha: 0.3),
-                  width: (viewModel.referencePitch - 440.0).abs() > 0.1 ? 1.4 : 1.0,
+          if (isEssential) ...[
+            // En Modo Esencial: Calibración A4, Instrumento y botón para pasar a Modo Pro
+            GestureDetector(
+              onTap: () => ConcertPitchSelectorModal.show(context),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: palette.cardBackground,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: (viewModel.referencePitch - 440.0).abs() > 0.1
+                        ? palette.secondaryAccent
+                        : palette.staffLinesColor.withValues(alpha: 0.3),
+                    width: (viewModel.referencePitch - 440.0).abs() > 0.1 ? 1.4 : 1.0,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'A4',
+                      style: TextStyle(
+                        color: palette.textMutedColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${viewModel.referencePitch.toStringAsFixed(1)}Hz',
+                      style: TextStyle(
+                        color: (viewModel.referencePitch - 440.0).abs() > 0.1
+                            ? palette.secondaryAccent
+                            : palette.textColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
+            ),
+            IconButton(
+              icon: Icon(Icons.piano, color: palette.secondaryAccent),
+              tooltip: "Seleccionar Instrumento (${viewModel.activeInstrument.name})",
+              onPressed: () => _showInstrumentModal(context, viewModel),
+            ),
+            IconButton(
+              key: const Key('toggle_pro_mode_btn'),
+              icon: Icon(Icons.dashboard_customize_outlined, color: palette.secondaryAccent),
+              tooltip: "Cambiar a Modo Conservatorio Pro",
+              onPressed: () => viewModel.setDisplayMode(AppDisplayMode.conservatoryPro),
+            ),
+          ] else ...[
+            // En Modo Conservatorio Pro: Botón para simplificar a Esencial + herramientas avanzadas
+            IconButton(
+              key: const Key('toggle_essential_mode_btn'),
+              icon: Icon(Icons.flash_on_outlined, color: palette.primaryAccent),
+              tooltip: "Cambiar a Modo Esencial (Afinador Rápido)",
+              onPressed: () => viewModel.setDisplayMode(AppDisplayMode.essential),
+            ),
+            // Chip de Calibración de Afinación de Concierto A4
+            GestureDetector(
+              onTap: () => ConcertPitchSelectorModal.show(context),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: palette.cardBackground,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: (viewModel.referencePitch - 440.0).abs() > 0.1
+                        ? palette.secondaryAccent
+                        : palette.staffLinesColor.withValues(alpha: 0.3),
+                    width: (viewModel.referencePitch - 440.0).abs() > 0.1 ? 1.4 : 1.0,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'A4',
+                      style: TextStyle(
+                        color: palette.textMutedColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${viewModel.referencePitch.toStringAsFixed(1)}Hz',
+                      style: TextStyle(
+                        color: (viewModel.referencePitch - 440.0).abs() > 0.1
+                            ? palette.secondaryAccent
+                            : palette.textColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.piano, color: palette.secondaryAccent),
+              tooltip: "Seleccionar Instrumento (${viewModel.activeInstrument.name})",
+              onPressed: () => _showInstrumentModal(context, viewModel),
+            ),
+            if (viewModel.lastReport != null)
+              IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: palette.primaryAccent.withValues(alpha: 0.2),
+                    border: Border.all(color: palette.primaryAccent, width: 1.2),
+                  ),
+                  child: Icon(Icons.insights_rounded, color: palette.primaryAccent, size: 18),
+                ),
+                tooltip: "Ver Analítica de la Última Sesión",
+                onPressed: () {
+                  PracticeReportModal.show(
+                    context: context,
+                    report: viewModel.lastReport!,
+                    palette: palette,
+                    onRetry: () => viewModel.startSongWithCountIn(),
+                  );
+                },
+              ),
+            if (viewModel.activeRecording != null)
+              IconButton(
+                icon: Icon(Icons.headphones_rounded, color: palette.primaryAccent),
+                tooltip: "Reproductor de Auto-Escucha (Toma lista)",
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => const PracticeRecordingPlayerModal(),
+                  );
+                },
+              ),
+            IconButton(
+              icon: Icon(
+                viewModel.isScorePlaybackEnabled ? Icons.music_note : Icons.music_off,
+                color: viewModel.isScorePlaybackEnabled ? palette.primaryAccent : palette.textMutedColor,
+              ),
+              tooltip: viewModel.isScorePlaybackEnabled
+                  ? "Audio de Partitura Activado"
+                  : "Audio de Partitura Desactivado (Minus One)",
+              onPressed: viewModel.toggleScorePlayback,
+            ),
+            IconButton(
+              icon: Icon(Icons.library_music, color: palette.primaryAccent),
+              tooltip: "Biblioteca & Descompositor de Canciones",
+              onPressed: () => _showLibraryModal(context, viewModel),
+            ),
+            IconButton(
+              icon: Icon(Icons.equalizer, color: palette.secondaryAccent),
+              tooltip: "Consola Mezcladora de Pistas (Stems)",
+              onPressed: () => _showMixerModal(context, viewModel),
+            ),
+            IconButton(
+              icon: Icon(Icons.tune, color: palette.textColor),
+              tooltip: "Personalización Estética y Compás",
+              onPressed: () => _showCustomizationModal(context, viewModel),
+            ),
+            IconButton(
+              icon: Icon(
+                viewModel.isLiveTranscriptionActive ? Icons.mic : Icons.mic_none,
+                color: viewModel.isLiveTranscriptionActive ? palette.errorPitchColor : palette.textColor,
+              ),
+              tooltip: viewModel.isLiveTranscriptionActive
+                  ? "Detener Transcripción en Vivo"
+                  : "Iniciar Transcripción de Micrófono a Partitura",
+              onPressed: () {
+                viewModel.toggleLiveTranscription();
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      viewModel.isLiveTranscriptionActive
+                          ? "Transcripción acústica en vivo iniciada: toca tu instrumento"
+                          : "Transcripción acústica finalizada y volcada a la partitura",
+                    ),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+            IconButton(
+              icon: Icon(Icons.edit_note, color: palette.textColor),
+              tooltip: "Editor de Partituras SMuFL & Exportación",
+              onPressed: () => ScoreEditorModal.show(context),
+            ),
+            IconButton(
+              icon: Icon(Icons.graphic_eq, color: palette.textColor),
+              tooltip: "Laboratorio de Armónicos y Timbre",
+              onPressed: () => HarmonicSpectrogramModal.show(context),
+            ),
+            IconButton(
+              icon: Icon(Icons.auto_awesome, color: palette.textColor),
+              tooltip: "Generador Algorítmico de Ejercicios y Escalas",
+              onPressed: () => ExerciseGeneratorModal.show(context),
+            ),
+          ],
+        ],
+      ),
+      body: isEssential
+          ? _buildEssentialModeView(context, viewModel, palette)
+          : _buildConservatoryProView(context, viewModel, palette),
+    );
+  }
+
+  Widget _buildEssentialModeView(
+    BuildContext context,
+    TunerViewModel viewModel,
+    TunnerThemePalette palette,
+  ) {
+    final note = viewModel.noteName.isEmpty ? "--" : viewModel.noteName;
+    final cents = viewModel.cents;
+    final isListening = viewModel.isRecording;
+    final isInTune = cents.abs() <= 5.0 && viewModel.frequency > 0;
+    final centsColor = isInTune
+        ? palette.correctPitchColor
+        : (cents.abs() <= 15 ? palette.secondaryAccent : palette.errorPitchColor);
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+        child: Column(
+          children: [
+            // Tarjeta Heroica Monumental de la Nota
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
+              decoration: BoxDecoration(
+                color: palette.cardBackground,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: isInTune
+                      ? palette.correctPitchColor.withValues(alpha: 0.6)
+                      : palette.staffLinesColor.withValues(alpha: 0.2),
+                  width: isInTune ? 2.0 : 1.0,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isInTune
+                        ? palette.correctPitchColor.withValues(alpha: 0.15)
+                        : Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'A4',
+                    note,
+                    key: const Key('essential_note_display'),
                     style: TextStyle(
-                      color: palette.textMutedColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 72,
+                      fontWeight: FontWeight.w900,
+                      color: isInTune ? palette.correctPitchColor : palette.textColor,
+                      letterSpacing: -1,
+                      fontFamily: 'monospace',
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    '${viewModel.referencePitch.toStringAsFixed(1)}Hz',
+                    viewModel.frequency > 0
+                        ? "${viewModel.frequency.toStringAsFixed(1)} Hz"
+                        : "-- Hz",
                     style: TextStyle(
-                      color: (viewModel.referencePitch - 440.0).abs() > 0.1
-                          ? palette.secondaryAccent
-                          : palette.textColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: palette.textMutedColor,
                       fontFamily: 'monospace',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: centsColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: centsColor.withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      viewModel.frequency > 0
+                          ? (isInTune
+                              ? "AFINADO (${cents >= 0 ? '+' : ''}${cents.toStringAsFixed(1)} cents)"
+                              : "${cents >= 0 ? '+' : ''}${cents.toStringAsFixed(1)} cents")
+                          : "ESPERANDO AUDIO",
+                      style: TextStyle(
+                        color: centsColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          IconButton(
-            icon: Icon(Icons.piano, color: palette.secondaryAccent),
-            tooltip: "Seleccionar Instrumento (${viewModel.activeInstrument.name})",
-            onPressed: () => _showInstrumentModal(context, viewModel),
-          ),
-          if (viewModel.lastReport != null)
-            IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: palette.primaryAccent.withValues(alpha: 0.2),
-                  border: Border.all(color: palette.primaryAccent, width: 1.2),
-                ),
-                child: Icon(Icons.insights_rounded, color: palette.primaryAccent, size: 18),
-              ),
-              tooltip: "Ver Analítica de la Última Sesión",
-              onPressed: () {
-                PracticeReportModal.show(
-                  context: context,
-                  report: viewModel.lastReport!,
-                  palette: palette,
-                  onRetry: () => viewModel.startSongWithCountIn(),
-                );
-              },
+            const SizedBox(height: 12),
+
+            // Afinador Estroboscópico de Alta Precisión
+            StrobeTunerWidget(
+              cents: viewModel.cents,
+              frequency: viewModel.frequency,
+              noteName: viewModel.noteName,
+              isRecording: viewModel.isRecording,
+              onPlayReferenceTone: () => viewModel.playReferenceTone("La4"),
+              palette: palette,
             ),
-          if (viewModel.activeRecording != null)
-            IconButton(
-              icon: Icon(Icons.headphones_rounded, color: palette.primaryAccent),
-              tooltip: "Reproductor de Auto-Escucha (Toma lista)",
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => const PracticeRecordingPlayerModal(),
-                );
-              },
-            ),
-          IconButton(
-            icon: Icon(
-              viewModel.isScorePlaybackEnabled ? Icons.music_note : Icons.music_off,
-              color: viewModel.isScorePlaybackEnabled ? palette.primaryAccent : palette.textMutedColor,
-            ),
-            tooltip: viewModel.isScorePlaybackEnabled
-                ? "Audio de Partitura Activado"
-                : "Audio de Partitura Desactivado (Minus One)",
-            onPressed: viewModel.toggleScorePlayback,
-          ),
-          IconButton(
-            icon: Icon(Icons.library_music, color: palette.primaryAccent),
-            tooltip: "Biblioteca & Descompositor de Canciones",
-            onPressed: () => _showLibraryModal(context, viewModel),
-          ),
-          IconButton(
-            icon: Icon(Icons.equalizer, color: palette.secondaryAccent),
-            tooltip: "Consola Mezcladora de Pistas (Stems)",
-            onPressed: () => _showMixerModal(context, viewModel),
-          ),
-          IconButton(
-            icon: Icon(Icons.tune, color: palette.textColor),
-            tooltip: "Personalización Estética y Compás",
-            onPressed: () => _showCustomizationModal(context, viewModel),
-          ),
-          IconButton(
-            icon: Icon(
-              viewModel.isLiveTranscriptionActive ? Icons.mic : Icons.mic_none,
-              color: viewModel.isLiveTranscriptionActive ? palette.errorPitchColor : palette.textColor,
-            ),
-            tooltip: viewModel.isLiveTranscriptionActive
-                ? "Detener Transcripción en Vivo"
-                : "Iniciar Transcripción de Micrófono a Partitura",
-            onPressed: () {
-              viewModel.toggleLiveTranscription();
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    viewModel.isLiveTranscriptionActive
-                        ? "Transcripción acústica en vivo iniciada: toca tu instrumento"
-                        : "Transcripción acústica finalizada y volcada a la partitura",
+            const SizedBox(height: 16),
+
+            // Barra de Controles Esenciales
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FloatingActionButton.extended(
+                  key: const Key('essential_mic_toggle_btn'),
+                  onPressed: viewModel.toggleRecording,
+                  backgroundColor: isListening
+                      ? palette.errorPitchColor.withValues(alpha: 0.2)
+                      : palette.primaryAccent,
+                  elevation: 3,
+                  icon: Icon(
+                    isListening ? Icons.mic_off : Icons.mic,
+                    color: isListening ? palette.errorPitchColor : Colors.black,
                   ),
-                  duration: const Duration(seconds: 2),
+                  label: Text(
+                    isListening ? "Pausar Escucha" : "Activar Afinador",
+                    style: TextStyle(
+                      color: isListening ? palette.errorPitchColor : Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              );
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.edit_note, color: palette.textColor),
-            tooltip: "Editor de Partituras SMuFL & Exportación",
-            onPressed: () => ScoreEditorModal.show(context),
-          ),
-          IconButton(
-            icon: Icon(Icons.graphic_eq, color: palette.textColor),
-            tooltip: "Laboratorio de Armónicos y Timbre",
-            onPressed: () => HarmonicSpectrogramModal.show(context),
-          ),
-          IconButton(
-            icon: Icon(Icons.auto_awesome, color: palette.textColor),
-            tooltip: "Generador Algorítmico de Ejercicios y Escalas",
-            onPressed: () => ExerciseGeneratorModal.show(context),
-          ),
-        ],
+                const SizedBox(width: 14),
+                OutlinedButton.icon(
+                  onPressed: () => viewModel.playReferenceTone("La4"),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: palette.secondaryAccent,
+                    side: BorderSide(color: palette.secondaryAccent.withValues(alpha: 0.5)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  icon: const Icon(Icons.volume_up_outlined, size: 18),
+                  label: const Text(
+                    "Tono La4",
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Acceso Rápido al Modo Pro
+            InkWell(
+              key: const Key('essential_switch_to_pro_card'),
+              onTap: () => viewModel.setDisplayMode(AppDisplayMode.conservatoryPro),
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: palette.cardBackground.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.school_outlined, size: 18, color: palette.secondaryAccent),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Modo Conservatorio Pro (Partituras, Stems, Labs)",
+                      style: TextStyle(
+                        color: palette.textColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(Icons.arrow_forward, size: 14, color: palette.secondaryAccent),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-      body: Column(
-        children: [
+    );
+  }
+
+  Widget _buildConservatoryProView(
+    BuildContext context,
+    TunerViewModel viewModel,
+    TunnerThemePalette palette,
+  ) {
+    return Column(
+      children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
             child: Row(
@@ -999,7 +1261,6 @@ class TunerScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
+      );
   }
 }
