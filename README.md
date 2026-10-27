@@ -1,7 +1,7 @@
 # Tunner: Studio Pitch, Real-Time Acoustic Lab & Sheet Music Engine
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
-[![Tests: 159 Passing](https://img.shields.io/badge/Tests-159%20Passing-brightgreen.svg)]()
+[![Tests: 164 Passing](https://img.shields.io/badge/Tests-164%20Passing-brightgreen.svg)]()
 [![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
 [![Framework: Flutter](https://img.shields.io/badge/Framework-Flutter-02569B.svg)]()
 [![Platform: Linux%20|%20Android%20|%20iOS%20|%20macOS%20|%20Windows](https://img.shields.io/badge/Platform-Linux%20%7C%20Android%20%7C%20iOS%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
@@ -203,6 +203,12 @@ graph TD
 * **Filtro de Histéresis Acústica:** Discriminación inteligente entre ataques de nota reales (*onsets*), vibratos naturales y ruidos espurios de respiración o llaves mecánicas.
 * **Secuenciamiento Dinámico de Compases:** Rellena y avanza automáticamente compás a compás al agotarse la métrica ($4/4$), con persistencia total en el historial Memento para deshacer/rehacer.
 
+### 16. Espectrograma de Armónicos y Análisis de Timbre (Acoustic Lab)
+* **Descomposición Espectral en Vivo:** Descompone la señal acústica en la serie armónica de los primeros 8 armónicos ($f_0$ a $8f_0$), visualizando la energía en barras vectoriales con escala logarítmica ($\text{dBFS}$) y etiquetas de intervalos musicales.
+* **Centroide Espectral (Spectral Centroid):** Mide con precisión física el centro de gravedad del espectro en Hertz, cuantificando el "brillo" tímbrico del instrumento.
+* **Distorsión Armónica Total (THD %):** Evalúa la pureza senoidal del sonido frente a los sobretonos de resonancia.
+* **Diagnóstico de Cualidad Tímbrica:** Clasificación automática de conservatorio: *Puro/Suave*, *Cálido y Redondo*, *Brillante y Resonante*, o *Penetrante y Armónico*.
+
 ---
 
 ## Arquitectura de Software y Estructura del Código
@@ -221,6 +227,7 @@ tunner/
 │   │   ├── audio_engine/           # Síntesis procedural en memoria con envolvente ADSR
 │   │   ├── score_editor/           # Editor SMuFL interactivo, paleta y patrón Memento
 │   │   ├── transcription/          # Transcripción de micrófono a partitura en tiempo real
+│   │   ├── acoustic_lab/           # Espectrograma de armónicos, centroide y calidad timbral
 │   │   ├── mixer/                  # Consola mezcladora multicanal de stems
 │   │   ├── song_library/           # Descompositor pedagógico de canciones y biblioteca
 │   │   ├── instrument/             # Transposición cromática multi-instrumento
@@ -232,7 +239,7 @@ tunner/
 │   │   ├── tuner_viewmodel.dart    # Orquestador principal con Inversión de Dependencias (DIP)
 │   │   └── tuner_screen.dart       # Pantalla unificada del laboratorio acústico
 │   └── main.dart                   # Punto de entrada de la aplicación
-├── test/                           # 159 pruebas unitarias, de integración y de widgets
+├── test/                           # 164 pruebas unitarias, de integración y de widgets
 └── docs/                           # Documentación formal, Casos de Uso (Mermaid) y ADRs
 ```
 
@@ -261,7 +268,7 @@ flutter pub get
 # Comprobación de linter (0 issues)
 flutter analyze
 
-# Ejecución de la suite completa de 159 pruebas
+# Ejecución de la suite completa de 164 pruebas
 flutter test
 ```
 
