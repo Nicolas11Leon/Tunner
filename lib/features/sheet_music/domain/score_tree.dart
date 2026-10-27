@@ -85,6 +85,20 @@ class HierarchicalNote {
   }
 
   int get endTick => startTick + durationTicks;
+
+  HierarchicalNote copyWith({
+    int? startTick,
+    int? durationTicks,
+    String? noteName,
+    bool? isRest,
+  }) {
+    return HierarchicalNote(
+      startTick: startTick ?? this.startTick,
+      durationTicks: durationTicks ?? this.durationTicks,
+      noteName: noteName ?? this.noteName,
+      isRest: isRest ?? this.isRest,
+    );
+  }
 }
 
 /// Compás individual dentro de la obra musical.
@@ -107,6 +121,18 @@ class MeasureEntity {
     }
     return totalOccupiedTicks == timeSignature.totalTicks;
   }
+
+  MeasureEntity copyWith({
+    int? index,
+    TimeSignature? timeSignature,
+    List<HierarchicalNote>? notes,
+  }) {
+    return MeasureEntity(
+      index: index ?? this.index,
+      timeSignature: timeSignature ?? this.timeSignature,
+      notes: notes ?? this.notes,
+    );
+  }
 }
 
 /// Obra musical o estudio pedagógico completo.
@@ -124,6 +150,18 @@ class HierarchicalScore {
   int get totalMeasures => measures.length;
 
   bool get isValidScore => measures.isNotEmpty && measures.every((m) => m.isValidMeasure);
+
+  HierarchicalScore copyWith({
+    String? title,
+    int? baseBpm,
+    List<MeasureEntity>? measures,
+  }) {
+    return HierarchicalScore(
+      title: title ?? this.title,
+      baseBpm: baseBpm ?? this.baseBpm,
+      measures: measures ?? this.measures,
+    );
+  }
 
   /// Genera estudios pedagógicos canónicos para validación y práctica interactiva.
   static List<HierarchicalScore> getCanonicalStudies() {

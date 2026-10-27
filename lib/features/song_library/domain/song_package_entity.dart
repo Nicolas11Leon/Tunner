@@ -43,4 +43,26 @@ class SongPackage {
 
   int get totalMeasures => score.totalMeasures;
   TimeSignature get initialTimeSignature => score.measures.isNotEmpty ? score.measures.first.timeSignature : TimeSignature.commonTime44;
+
+  SongPackage copyWith({
+    String? id,
+    String? title,
+    String? composer,
+    MusicGenre? genre,
+    SongDifficulty? difficulty,
+    int? defaultBpm,
+    HierarchicalScore? score,
+    List<AudioTrack>? tracks,
+  }) {
+    return SongPackage(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      composer: composer ?? this.composer,
+      genre: genre ?? this.genre,
+      difficulty: difficulty ?? this.difficulty,
+      defaultBpm: defaultBpm ?? this.defaultBpm,
+      score: score ?? this.score,
+      tracks: tracks ?? this.tracks,
+    );
+  }
 }

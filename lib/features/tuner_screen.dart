@@ -11,6 +11,7 @@ import 'customization/presentation/theme_customization_modal.dart';
 import 'practice_recorder/presentation/practice_recorder_dock.dart';
 import 'practice_recorder/presentation/practice_recording_player_modal.dart';
 import 'tuner/presentation/concert_pitch_selector_modal.dart';
+import 'score_editor/presentation/score_editor_modal.dart';
 
 class TunerScreen extends StatelessWidget {
   const TunerScreen({super.key});
@@ -629,6 +630,11 @@ class TunerScreen extends StatelessWidget {
             icon: Icon(Icons.tune, color: palette.textColor),
             tooltip: "Personalización Estética y Compás",
             onPressed: () => _showCustomizationModal(context, viewModel),
+          ),
+          IconButton(
+            icon: Icon(Icons.edit_note, color: palette.textColor),
+            tooltip: "Editor de Partituras SMuFL & Exportación",
+            onPressed: () => ScoreEditorModal.show(context),
           ),
         ],
       ),

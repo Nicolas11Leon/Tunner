@@ -36,6 +36,9 @@ import 'universal_importer/domain/parsed_score_result_entity.dart';
 import 'universal_importer/data/universal_score_importer_service.dart';
 import 'audio_synthesizer/domain/i_audio_synthesizer_service.dart';
 import 'audio_synthesizer/data/audio_synthesizer_service.dart';
+import 'score_editor/domain/score_editor_domain.dart';
+import 'universal_importer/domain/canonical_musicxml_exporter.dart';
+import 'universal_importer/domain/canonical_midi_exporter.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -116,6 +119,12 @@ class TunerViewModel extends ChangeNotifier {
 
   // Calibración de Concierto A4 (415 Hz - 466 Hz)
   double _referencePitch = 440.0;
+
+  // Editor de Partituras & Exportadores Canónicos
+  final ScoreEditorOperations _editorOps = const ScoreEditorOperations();
+  final ScoreUndoRedoHistory _scoreHistory = ScoreUndoRedoHistory();
+  final CanonicalMusicXmlExporter _musicXmlExporter = const CanonicalMusicXmlExporter();
+  final CanonicalMidiExporter _midiExporter = const CanonicalMidiExporter();
 
   // Inyección de dependencias en el constructor
   TunerViewModel({
@@ -885,6 +894,118 @@ class TunerViewModel extends ChangeNotifier {
     } catch (_) {
       // Ignorar fallas de guardado secundarias
     }
+  }
+
+  // --- Métodos de Edición de Partituras & Historial Memento ---
+  bool get canUndoScoreEdit => _scoreHistory.canUndo;
+  bool get canRedoScoreEdit => _scoreHistory.canRedo;
+  int get scoreUndoCount => _scoreHistory.undoCount;
+  int get scoreRedoCount => _scoreHistory.redoCount;
+
+  /// Inserta o actualiza una nota musical en un compás y tick específicos con feedback auditivo inmediato.
+  void insertOrUpdateScoreNote({
+    required int measureIndex,
+    required int startTick,
+    required int durationTicks,
+    required String noteName,
+    bool playAudibleFeedback = true,
+  }) {
+    _scoreHistory.recordState(_activePackage);
+    _activePackage = _editorOps.insertOrUpdateNote(
+      package: _activePackage,
+      measureIndex: measureIndex,
+      startTick: startTick,
+      durationTicks: durationTicks,
+      noteName: noteName,
+    );
+
+    if (playAudibleFeedback && noteName != "--" && noteName.toLowerCase() != "rest") {
+      final freq = NoteEntity.frequencyForNote(noteName, a4Ref: _referencePitch);
+      if (freq > 20.0) {
+        final ms = (durationTicks * (60000.0 / _bpm / 4.0)).round();
+        _audioSynthesizer.playNoteTone(
+          frequency: freq,
+          duration: Duration(milliseconds: ms),
+          volume: 0.85,
+        );
+      }
+    }
+
+    _validatePerformance();
+    notifyListeners();
+  }
+
+  /// Elimina una nota en la posición dada reemplazándola por un silencio.
+  void deleteScoreNote({
+    required int measureIndex,
+    required int startTick,
+  }) {
+    _scoreHistory.recordState(_activePackage);
+    _activePackage = _editorOps.deleteNoteAt(
+      package: _activePackage,
+      measureIndex: measureIndex,
+      startTick: startTick,
+    );
+    notifyListeners();
+  }
+
+  /// Deshace la última modificación de partitura.
+  void undoScoreEdit() {
+    final prev = _scoreHistory.undo(_activePackage);
+    if (prev != null) {
+      _activePackage = prev;
+      notifyListeners();
+    }
+  }
+
+  /// Rehace la última modificación revertida.
+  void redoScoreEdit() {
+    final next = _scoreHistory.redo(_activePackage);
+    if (next != null) {
+      _activePackage = next;
+      notifyListeners();
+    }
+  }
+
+  /// Añade un nuevo compás a la partitura activa.
+  void addScoreMeasure() {
+    _scoreHistory.recordState(_activePackage);
+    _activePackage = _editorOps.addMeasure(package: _activePackage);
+    notifyListeners();
+  }
+
+  /// Elimina un compás en el índice especificado.
+  void removeScoreMeasure(int measureIndex) {
+    _scoreHistory.recordState(_activePackage);
+    _activePackage = _editorOps.removeMeasure(
+      package: _activePackage,
+      measureIndex: measureIndex,
+    );
+    if (_currentMeasureIndex >= _activePackage.totalMeasures) {
+      _currentMeasureIndex = _activePackage.totalMeasures - 1;
+    }
+    notifyListeners();
+  }
+
+  /// Transpone todas las notas de la partitura por una cantidad de semitonos.
+  void transposeActiveScore(int semitones) {
+    if (semitones == 0) return;
+    _scoreHistory.recordState(_activePackage);
+    _activePackage = _editorOps.transposeScore(
+      package: _activePackage,
+      semitones: semitones,
+    );
+    notifyListeners();
+  }
+
+  /// Exporta la partitura activa al estándar internacional MusicXML.
+  String exportActiveScoreToMusicXml() {
+    return _musicXmlExporter.exportToMusicXml(_activePackage);
+  }
+
+  /// Exporta la partitura activa al estándar binario Standard MIDI File (SMF Tipo 0).
+  Uint8List exportActiveScoreToMidi() {
+    return _midiExporter.exportToMidi(_activePackage);
   }
 
   @override
