@@ -10,7 +10,7 @@
 
 ---
 
-## 🏛️ Filosofía y Modelo de Sostenibilidad
+## Filosofía y Modelo de Sostenibilidad
 
 Tunner es un **bien público abierto** bajo licencia **GNU AGPLv3**.
 * **100% Offline First:** Todo el procesamiento DSP, análisis de frecuencias, decodificación binaria, síntesis, grabación, almacenamiento y renderizado vectorial se ejecuta localmente en el dispositivo. Cero telemetría invasiva, cero latencia de red y cero dependencia de servidores en la nube.
@@ -19,7 +19,7 @@ Tunner es un **bien público abierto** bajo licencia **GNU AGPLv3**.
 
 ---
 
-## 🗺️ Mapa Completo de Capacidades del Sistema
+## Mapa de Capacidades del Sistema
 
 ```mermaid
 graph TD
@@ -68,7 +68,7 @@ graph TD
 
 ---
 
-## ⚡ Detalle Exclusivo de Funcionalidades
+## Especificación Técnica de Funcionalidades
 
 ### 1. Afinador Estroboscópico Virtual de Ultra Alta Precisión
 * **Espectro Completo:** Soporta desde el sub-bajo $27.50\text{ Hz}$ ($A_0$) hasta el soprano extremo $4186.01\text{ Hz}$ ($C_8$).
@@ -101,7 +101,7 @@ graph TD
 * **Historial de Tomas de Práctica:** Registro de todas las interpretaciones de la sesión con fecha, hora, duración y vinculación automática al reporte pedagógico.
 
 ### 5. Importador Universal de Partituras MusicXML y MIDI Estándar
-* **Selector Nativo de Archivos del Dispositivo (`file_picker`):** Abre partituras locales directamente desde el almacenamiento de tu teléfono, tablet o computador (`.xml`, `.musicxml`, `.mid`, `.midi`).
+* **Selector Nativo de Archivos del Dispositivo (`file_picker`):** Abre partituras locales directamente desde el almacenamiento de tu dispositivo (`.xml`, `.musicxml`, `.mid`, `.midi`).
 * **Decodificador MusicXML Puro:**
   * Parsea árboles DOM XML de especificaciones MusicXML 3.0/3.1.
   * Extrae títulos, compositores, tempo dinámico (`<sound tempo="..."/>`) y métricas de compás.
@@ -150,19 +150,19 @@ graph TD
 
 ### 10. Estudio de Estéticas Adaptables & Portabilidad JSON
 * **7 Estéticas de Fábrica de Alto Contraste:**
-  * 🌑 **Obsidian Studio:** Fondo grafito oscuro con detalles en verde esmeralda acústico.
-  * ⬛ **OLED Pure Black:** Negro puro $0\times000000$ con contraste optimizado para pantallas AMOLED y ahorro de batería.
-  * 🌊 **Royal Symphony:** Azul zafiro orquestal con acentos dorados imperiales.
-  * 🪵 **Acoustic Wood:** Tonalidades cálidas de caoba, nogal y ámbar.
-  * ⚡ **Neon Synthwave:** Púrpura y cian fluorescente para estudio nocturno de alta energía.
-  * 📜 **Vintage Parchment:** Tinta carbón sobre papel pergamino clásico sepia.
-  * ☀️ **Nordic Frost:** Interfaz diurna clara de máxima legibilidad bajo luz solar directa.
+  * **Obsidian Studio:** Fondo grafito oscuro con detalles en verde esmeralda acústico.
+  * **OLED Pure Black:** Negro puro $0\times000000$ con contraste optimizado para pantallas AMOLED y ahorro de batería.
+  * **Royal Symphony:** Azul zafiro orquestal con acentos dorados imperiales.
+  * **Acoustic Wood:** Tonalidades cálidas de caoba, nogal y ámbar.
+  * **Neon Synthwave:** Púrpura y cian fluorescente para estudio nocturno de alta energía.
+  * **Vintage Parchment:** Tinta carbón sobre papel pergamino clásico sepia.
+  * **Nordic Frost:** Interfaz diurna clara de máxima legibilidad bajo luz solar directa.
 * **Theme Editor Dialog:** Personaliza colores primarios, secundarios, fondos y acentos.
 * **Exportador / Importador JSON:** Comparte tus paletas de colores mediante cadenas JSON portables.
 
 ---
 
-## 🏗️ Arquitectura de Software y Estructura del Código
+## Arquitectura de Software y Estructura del Código
 
 El proyecto está construido bajo los principios de **Monolito Modular Feature-First con Clean Architecture** ([ADR-0004](docs/04_adrs/0004_modular_monolith_feature_first_clean_architecture.md)):
 
@@ -192,7 +192,7 @@ tunner/
 
 ---
 
-## 🚀 Puesta en Marcha y Compilación
+## Puesta en Marcha y Compilación
 
 ### Requisitos Previos
 * **Flutter SDK:** Canal estable (`^3.11.5` o superior).
@@ -257,13 +257,13 @@ flutter build windows --release
 
 ---
 
-## 📜 Licencia
+## Licencia
 
 Distribuido bajo la licencia **GNU Affero General Public License v3.0 (AGPLv3)**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
 
 ---
 
-## 🤝 Autor y Visión del Proyecto
+## Autor y Visión del Proyecto
 
 Creado y mantenido por **Nicolas Leon** ([@Nicolas11Leon](https://github.com/Nicolas11Leon)).  
 Desarrollado bajo el manifiesto fundacional y los estándares de ingeniería de [AGENTS.md](AGENTS.md).
