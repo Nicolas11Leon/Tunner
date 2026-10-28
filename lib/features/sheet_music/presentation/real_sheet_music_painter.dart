@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/tunner_theme.dart';
+import '../../instrument/domain/instrument_profile_entity.dart';
 import '../domain/score_tree.dart';
 
 /// Registro de ejecución de una nota o silencio por el usuario para coloreado histórico.
@@ -18,7 +19,7 @@ class PlayedRecord {
 }
 
 /// Motor gráfico vectorial para el renderizado del pentagrama musical clásico,
-/// figuras, silencios, armaduras, playhead dinámico y retroalimentación de afinación en vivo.
+/// figuras, silencios, armaduras, claves (Sol y Fa), playhead dinámico y retroalimentación de afinación en vivo.
 class RealSheetMusicPainter extends CustomPainter {
   final int currentSubTick;
   final List<HierarchicalNote> notes;
@@ -31,6 +32,7 @@ class RealSheetMusicPainter extends CustomPainter {
   final int measureIndex;
   final int totalMeasures;
   final TunnerThemePalette palette;
+  final InstrumentClef clef;
 
   RealSheetMusicPainter({
     required this.currentSubTick,
@@ -44,26 +46,33 @@ class RealSheetMusicPainter extends CustomPainter {
     this.measureIndex = 0,
     this.totalMeasures = 1,
     this.palette = TunnerThemePalette.obsidianStudio,
+    this.clef = InstrumentClef.treble,
   });
 
+  /// Calcula el offset de semiespacio de la nota respecto a la línea 1 del pentagrama.
+  /// Línea 1 = 0, Línea 2 = 2, Línea 3 (centro) = 4, Línea 4 = 6, Línea 5 = 8.
   int _getNoteStep(String note) {
     if (note.isEmpty || note == "--") return -100;
-    String raw = note.replaceAll(RegExp(r'[0-9#]'), '').toLowerCase();
+    String raw = note.replaceAll(RegExp(r'[0-9#b♭♯]'), '').toLowerCase();
     int octave = int.tryParse(note.replaceAll(RegExp(r'[^0-9]'), '')) ?? 4;
-    
-    int step = 0;
+
+    int diatonic = 0;
     switch (raw) {
-      case "do": step = 0; break;
-      case "re": step = 1; break;
-      case "mi": step = 2; break; // Línea inferior del pentagrama
-      case "fa": step = 3; break;
-      case "sol": step = 4; break;
-      case "la": step = 5; break;
-      case "si": step = 6; break; // Tercera línea (Centro)
-      default: step = 0;
+      case "do": case "c": diatonic = 0; break;
+      case "re": case "d": diatonic = 1; break;
+      case "mi": case "e": diatonic = 2; break;
+      case "fa": case "f": diatonic = 3; break;
+      case "sol": case "g": diatonic = 4; break;
+      case "la": case "a": diatonic = 5; break;
+      case "si": case "b": diatonic = 6; break;
+      default: diatonic = 0;
     }
-    step += (octave - 4) * 7;
-    return step;
+    final absStep = (octave * 7) + diatonic;
+
+    // En Clave de Sol (treble): Línea 1 es Mi4 (4*7 + 2 = 30)
+    // En Clave de Fa (bass): Línea 1 es Sol2 (2*7 + 4 = 18)
+    final refStep = (clef == InstrumentClef.bass) ? 18 : 30;
+    return absStep - refStep;
   }
 
   void _drawUnicodeText(Canvas canvas, String text, double x, double y, double size, Color color) {
@@ -86,29 +95,36 @@ class RealSheetMusicPainter extends CustomPainter {
     final double staffSpacing = size.height / 14;
     final double centerY = size.height / 2;
     
-    double baseMi4Y = centerY + (staffSpacing * 2); 
-    double topStaffY = baseMi4Y - (4 * staffSpacing);
+    // Línea 1 inferior del pentagrama
+    double baseLine1Y = centerY + (staffSpacing * 2); 
+    double topStaffY = baseLine1Y - (4 * staffSpacing);
 
     // 1. Dibujar el Pentagrama (5 líneas equidistantes)
     for (int i = 0; i < 5; i++) {
-      double y = baseMi4Y - (i * staffSpacing);
+      double y = baseLine1Y - (i * staffSpacing);
       canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
     }
 
     // Barra divisoria o final de compás (Barline)
     final double barX = size.width - rightMargin;
     if (measureIndex == totalMeasures - 1) {
-      canvas.drawLine(Offset(barX - 6, topStaffY), Offset(barX - 6, baseMi4Y), linePaint..strokeWidth = 2.0);
-      canvas.drawLine(Offset(barX, topStaffY), Offset(barX, baseMi4Y), linePaint..strokeWidth = 5.0);
+      canvas.drawLine(Offset(barX - 6, topStaffY), Offset(barX - 6, baseLine1Y), linePaint..strokeWidth = 2.0);
+      canvas.drawLine(Offset(barX, topStaffY), Offset(barX, baseLine1Y), linePaint..strokeWidth = 5.0);
     } else {
-      canvas.drawLine(Offset(barX, topStaffY), Offset(barX, baseMi4Y), linePaint..strokeWidth = 3.0);
+      canvas.drawLine(Offset(barX, topStaffY), Offset(barX, baseLine1Y), linePaint..strokeWidth = 3.0);
     }
 
     // Numeración del compás sobre la barra inicial
     _drawUnicodeText(canvas, "${measureIndex + 1}", leftMargin - 15, topStaffY - 14, 16, palette.textMutedColor);
 
-    // 2. Dibujar la Clave de Sol (𝄞)
-    _drawUnicodeText(canvas, "𝄞", 25, centerY + (staffSpacing * 0.5), 100, palette.musicalSymbolsColor);
+    // 2. Dibujar la Clave (Sol o Fa)
+    if (clef == InstrumentClef.bass) {
+      // Clave de Fa (𝄢)
+      _drawUnicodeText(canvas, "𝄢", 25, centerY - (staffSpacing * 0.1), 75, palette.musicalSymbolsColor);
+    } else {
+      // Clave de Sol (𝄞)
+      _drawUnicodeText(canvas, "𝄞", 25, centerY + (staffSpacing * 0.5), 100, palette.musicalSymbolsColor);
+    }
 
     // Indicador numérico de Métrica / Compás (e.g. 4/4, 3/4, 6/8)
     _drawUnicodeText(canvas, "${timeSignature.numerator}", 55, centerY - (staffSpacing * 0.8), 24, palette.musicalSymbolsColor);
@@ -149,11 +165,11 @@ class RealSheetMusicPainter extends CustomPainter {
         _drawUnicodeText(canvas, restSymbol, noteCenterX, centerY, 55, palette.musicalSymbolsColor);
       } else {
         int step = _getNoteStep(note.noteName);
-        double noteY = baseMi4Y - ((step - 2) * (staffSpacing / 2));
+        double noteY = baseLine1Y - (step * (staffSpacing / 2));
         
         bool isFilled = note.durationTicks <= 4;
         bool hasStem = note.durationTicks < 16;
-        bool stemGoesDown = step >= 6; 
+        bool stemGoesDown = step >= 4; // Línea 3 (centro) hacia arriba plica hacia abajo
         
         // Cabeza de la nota
         canvas.save();
@@ -188,8 +204,16 @@ class RealSheetMusicPainter extends CustomPainter {
         }
         
         // Líneas adicionales
-        if (step <= 0 || step >= 12) {
-          canvas.drawLine(Offset(noteCenterX - 18, noteY), Offset(noteCenterX + 18, noteY), targetPaintFill..strokeWidth = 2.0);
+        if (step <= -2) {
+          for (int s = -2; s >= step; s -= 2) {
+            double ledgerY = baseLine1Y - (s * (staffSpacing / 2));
+            canvas.drawLine(Offset(noteCenterX - 18, ledgerY), Offset(noteCenterX + 18, ledgerY), targetPaintFill..strokeWidth = 2.0);
+          }
+        } else if (step >= 10) {
+          for (int s = 10; s <= step; s += 2) {
+            double ledgerY = baseLine1Y - (s * (staffSpacing / 2));
+            canvas.drawLine(Offset(noteCenterX - 18, ledgerY), Offset(noteCenterX + 18, ledgerY), targetPaintFill..strokeWidth = 2.0);
+          }
         }
       }
     }
@@ -198,43 +222,40 @@ class RealSheetMusicPainter extends CustomPainter {
     if (currentSubTick >= 0) {
       final cursorPaint = Paint()..color = palette.playheadColor.withValues(alpha: 0.2);
       canvas.drawRect(Rect.fromLTWH(leftMargin + (currentSubTick * stepWidth), 0, stepWidth, size.height), cursorPaint);
+      
+      final playheadLinePaint = Paint()..color = palette.playheadColor..strokeWidth = 2.0;
+      canvas.drawLine(
+        Offset(leftMargin + (currentSubTick * stepWidth), 0),
+        Offset(leftMargin + (currentSubTick * stepWidth), size.height),
+        playheadLinePaint,
+      );
     }
 
-    // 5. Historial Dinámico de Colores
+    // 5. Historial Dinámico de Evaluación
     history.forEach((tick, record) {
-      double recordX = leftMargin + (tick * stepWidth) + (stepWidth / 2);
+      double startX = leftMargin + (tick * stepWidth);
+      Color feedbackColor = record.isCorrect 
+          ? palette.correctPitchColor.withValues(alpha: 0.45) 
+          : palette.errorPitchColor.withValues(alpha: 0.45);
       
-      if (record.isRest) {
-        final p = Paint()..color = record.isCorrect ? palette.correctPitchColor.withValues(alpha: 0.5) : palette.errorPitchColor.withValues(alpha: 0.5);
-        canvas.drawCircle(Offset(recordX, size.height - 20), 5, p);
-      } else {
-        int playedStep = _getNoteStep(record.noteName);
-        if (playedStep > -100) {
-          double playedY = baseMi4Y - ((playedStep - 2) * (staffSpacing / 2));
-          Color dotColor = record.isCorrect ? (record.cents.abs() <= 15 ? palette.correctPitchColor : palette.warningPitchColor) : palette.errorPitchColor;
-          
-          final p = Paint()..color = dotColor..maskFilter = const MaskFilter.blur(BlurStyle.solid, 6);
-          canvas.drawCircle(Offset(recordX, playedY), 10, p);
-        }
-      }
+      final histPaint = Paint()..color = feedbackColor;
+      canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(startX + 2, topStaffY, stepWidth - 4, baseLine1Y - topStaffY), const Radius.circular(4)), histPaint);
     });
 
-    // 6. Efecto de "Esfera Flotante" para la afinación en tiempo real
-    if (currentSubTick >= 0 && liveNote != "--") {
+    // 6. Afinación en Tiempo Real Sobre el Playhead
+    if (currentSubTick >= 0 && liveNote != "--" && liveNote.isNotEmpty) {
+      double currentPlayheadX = leftMargin + (currentSubTick * stepWidth) + (stepWidth / 2);
       int liveStep = _getNoteStep(liveNote);
-      if (liveStep > -100) {
-        double currentX = leftMargin + (currentSubTick * stepWidth) + (stepWidth / 2);
-        double liveY = baseMi4Y - ((liveStep - 2) * (staffSpacing / 2));
-        liveY -= (liveCents / 50.0) * (staffSpacing / 4);
+      double liveY = baseLine1Y - (liveStep * (staffSpacing / 2));
 
-        Color liveColor = (liveCents.abs() <= 15) ? palette.correctPitchColor : palette.warningPitchColor;
-
-        final livePaint = Paint()
-          ..color = liveColor.withValues(alpha: 0.9)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-        canvas.drawCircle(Offset(currentX, liveY), 14, livePaint);
-        canvas.drawCircle(Offset(currentX, liveY), 6, Paint()..color = palette.musicalSymbolsColor);
-      }
+      Color liveColor = liveCents.abs() <= 10.0 ? palette.correctPitchColor : palette.errorPitchColor;
+      
+      // Dibujar indicador estroboscópico en miniatura siguiendo la frecuencia
+      final liveCirclePaint = Paint()..color = liveColor..style = PaintingStyle.fill;
+      canvas.drawCircle(Offset(currentPlayheadX, liveY), 7.0, liveCirclePaint);
+      
+      final livePulsePaint = Paint()..color = liveColor.withValues(alpha: 0.4)..style = PaintingStyle.stroke..strokeWidth = 3.0;
+      canvas.drawCircle(Offset(currentPlayheadX, liveY), 12.0, livePulsePaint);
     }
   }
 
@@ -246,9 +267,9 @@ class RealSheetMusicPainter extends CustomPainter {
         oldDelegate.isCountingIn != isCountingIn ||
         oldDelegate.countInBeat != countInBeat ||
         oldDelegate.measureIndex != measureIndex ||
-        oldDelegate.timeSignature != timeSignature ||
-        oldDelegate.palette != palette ||
         oldDelegate.notes != notes ||
-        oldDelegate.history.length != history.length;
+        oldDelegate.history != history ||
+        oldDelegate.palette != palette ||
+        oldDelegate.clef != clef;
   }
 }

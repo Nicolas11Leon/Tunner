@@ -3,6 +3,7 @@ import '../domain/i_instrument_transposition_service.dart';
 import '../domain/instrument_profile_entity.dart';
 
 /// Implementación canónica del servicio de transposición musical por instrumento.
+/// Soporta notación solfeo (Do, Re, Mi...) y anglosajona (C, D, E...), bemoles (b, ♭) y sostenidos (#, ♯).
 class InstrumentTranspositionService implements IInstrumentTranspositionService {
   static const List<String> _chromaticScale = [
     'Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'
@@ -13,20 +14,54 @@ class InstrumentTranspositionService implements IInstrumentTranspositionService 
   int? _noteNameToMidi(String note) {
     if (note == '--' || note.isEmpty) return null;
 
-    final match = RegExp(r'^([A-Za-z#]+)(-?\d+)$').firstMatch(note.trim());
+    final trimmed = note.trim();
+    // Reemplazar símbolos tipográficos Unicode comunes
+    final sanitized = trimmed.replaceAll('♭', 'b').replaceAll('♯', '#');
+
+    final match = RegExp(r'^([A-Za-z#]+)(-?\d+)$').firstMatch(sanitized);
     if (match == null) return null;
 
     final noteNamePart = match.group(1);
     final octavePart = int.tryParse(match.group(2) ?? '');
     if (noteNamePart == null || octavePart == null) return null;
 
-    // Normalizar bemoles comunes si aplican
+    // 1. Mapeo anglosajón a Solfeo si aplica (e.g. C4 -> Do4, Bb3 -> Sib3)
+    const englishToSolfege = {
+      'C': 'Do',
+      'D': 'Re',
+      'E': 'Mi',
+      'F': 'Fa',
+      'G': 'Sol',
+      'A': 'La',
+      'B': 'Si',
+    };
+
     String normalizedName = noteNamePart;
-    if (normalizedName.toLowerCase() == 'sib') normalizedName = 'La#';
-    if (normalizedName.toLowerCase() == 'mib') normalizedName = 'Re#';
-    if (normalizedName.toLowerCase() == 'lab') normalizedName = 'Sol#';
-    if (normalizedName.toLowerCase() == 'reb') normalizedName = 'Do#';
-    if (normalizedName.toLowerCase() == 'solb') normalizedName = 'Fa#';
+    final upperFirst = normalizedName[0].toUpperCase();
+    if (englishToSolfege.containsKey(upperFirst) &&
+        (normalizedName.length == 1 || normalizedName[1] == '#' || normalizedName[1].toLowerCase() == 'b')) {
+      final solfegeBase = englishToSolfege[upperFirst]!;
+      final accidental = normalizedName.length > 1 ? normalizedName.substring(1) : '';
+      normalizedName = '$solfegeBase$accidental';
+    }
+
+    // 2. Normalizar enarmonías de bemoles a sostenidos estándar
+    final lower = normalizedName.toLowerCase();
+    if (lower == 'sib') {
+      normalizedName = 'La#';
+    } else if (lower == 'mib') {
+      normalizedName = 'Re#';
+    } else if (lower == 'lab') {
+      normalizedName = 'Sol#';
+    } else if (lower == 'reb') {
+      normalizedName = 'Do#';
+    } else if (lower == 'solb') {
+      normalizedName = 'Fa#';
+    } else if (lower == 'dob') {
+      normalizedName = 'Si';
+    } else if (lower == 'fab') {
+      normalizedName = 'Mi';
+    }
 
     final index = _chromaticScale.indexWhere(
       (n) => n.toLowerCase() == normalizedName.toLowerCase(),

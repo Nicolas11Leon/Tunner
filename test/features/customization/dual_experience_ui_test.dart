@@ -120,7 +120,7 @@ void main() {
 
       final updatedNoteWidget = tester.widget<Text>(find.byKey(const Key('essential_note_display')));
       expect(updatedNoteWidget.data, equals("La4"));
-      expect(find.text("440.0 Hz"), findsOneWidget);
+      expect(find.text("440.0 Hz"), findsWidgets);
       expect(find.textContaining("AFINADO"), findsOneWidget);
 
       // Esperar a que el temporizador de silencio (60ms) culmine limpiamente

@@ -498,12 +498,31 @@ class TunerScreen extends StatelessWidget {
                           ),
                         ),
                         subtitle: Text(
-                          '${inst.family.displayName} • Clave ${inst.key.displayName} (${inst.transpositionSemitones >= 0 ? '+' : ''}${inst.transpositionSemitones} st)',
+                          '${inst.family.displayName} • ${inst.key.displayName} • ${inst.clef.displayName} (${inst.transpositionSemitones >= 0 ? '+' : ''}${inst.transpositionSemitones} st)',
                           style: TextStyle(color: palette.textMutedColor, fontSize: 11),
                         ),
-                        trailing: isSelected
-                            ? Icon(Icons.check_circle, color: palette.primaryAccent)
-                            : null,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (inst.isTransposing)
+                              IconButton(
+                                key: Key('transpose_score_btn_${inst.id}'),
+                                icon: Icon(Icons.transform, size: 18, color: palette.secondaryAccent),
+                                tooltip: "Transponer partitura a ${inst.name}",
+                                onPressed: () {
+                                  viewModel.transposeActiveScoreForInstrument(inst);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text("Partitura transpuesta para ${inst.name}"),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                              ),
+                            if (isSelected)
+                              Icon(Icons.check_circle, color: palette.primaryAccent),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -1037,7 +1056,9 @@ class TunerScreen extends StatelessWidget {
     TunerViewModel viewModel,
     TunnerThemePalette palette,
   ) {
-    final note = viewModel.noteName.isEmpty ? "--" : viewModel.noteName;
+    final displayNote = viewModel.hasTransposition
+        ? (viewModel.writtenNoteName.isEmpty ? "--" : viewModel.writtenNoteName)
+        : (viewModel.noteName.isEmpty ? "--" : viewModel.noteName);
     final cents = viewModel.cents;
     final isListening = viewModel.isRecording;
     final isInTune = cents.abs() <= 5.0 && viewModel.frequency > 0;
@@ -1077,7 +1098,7 @@ class TunerScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    note,
+                    displayNote,
                     key: const Key('essential_note_display'),
                     style: TextStyle(
                       fontSize: 72,
@@ -1087,6 +1108,29 @@ class TunerScreen extends StatelessWidget {
                       fontFamily: 'monospace',
                     ),
                   ),
+                  if (viewModel.hasTransposition &&
+                      viewModel.frequency > 0 &&
+                      viewModel.noteName.isNotEmpty &&
+                      viewModel.noteName != "--") ...[
+                    const SizedBox(height: 2),
+                    Container(
+                      key: const Key('essential_sounding_badge'),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: palette.secondaryAccent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: palette.secondaryAccent.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        "Sonando: ${viewModel.noteName} (Tono Real)",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: palette.secondaryAccent,
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text(
                     viewModel.frequency > 0
@@ -1130,7 +1174,8 @@ class TunerScreen extends StatelessWidget {
             StrobeTunerWidget(
               cents: viewModel.cents,
               frequency: viewModel.frequency,
-              noteName: viewModel.noteName,
+              noteName: viewModel.hasTransposition ? viewModel.writtenNoteName : viewModel.noteName,
+              soundingNoteName: viewModel.hasTransposition ? viewModel.noteName : null,
               isRecording: viewModel.isRecording,
               onPlayReferenceTone: () => viewModel.playReferenceTone("La4"),
               palette: palette,
@@ -1379,6 +1424,7 @@ class TunerScreen extends StatelessWidget {
               child: Row(
                 children: [
                   ActionChip(
+                    key: const Key('instrument_selector_chip'),
                     avatar: Icon(Icons.piano, size: 16, color: palette.secondaryAccent),
                     label: Text(
                       '${viewModel.activeInstrument.name} (${viewModel.activeInstrument.key.displayName})',
@@ -1500,12 +1546,13 @@ class TunerScreen extends StatelessWidget {
                     measureIndex: viewModel.currentMeasureIndex,
                     totalMeasures: viewModel.totalMeasures,
                     palette: palette,
+                    clef: viewModel.activeInstrument.clef,
                   ),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
 
           // AFINADOR ESTROBOSCÓPICO VIRTUAL DE ALTA PRECISIÓN (UC-04)
           Padding(
@@ -1513,17 +1560,18 @@ class TunerScreen extends StatelessWidget {
             child: StrobeTunerWidget(
               cents: viewModel.cents,
               frequency: viewModel.frequency,
-              noteName: viewModel.noteName,
+              noteName: viewModel.hasTransposition ? viewModel.writtenNoteName : viewModel.noteName,
+              soundingNoteName: viewModel.hasTransposition ? viewModel.noteName : null,
               isRecording: viewModel.isRecording,
               onPlayReferenceTone: () => viewModel.playReferenceTone("La4"),
               palette: palette,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
 
           // BARRA DE GRABACIÓN DE PRÁCTICA & AUTO-ESCUCHA
           const PracticeRecorderDock(),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
 
           // BOTONES DE ACCIÓN
           Padding(
