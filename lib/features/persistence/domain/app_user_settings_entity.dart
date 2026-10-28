@@ -3,6 +3,7 @@ import '../../../core/theme/tunner_theme.dart';
 import '../../practice_evaluator/domain/practice_report_entity.dart';
 import '../../practice_recorder/domain/practice_recording_entity.dart';
 import '../../pedagogy_profiles/domain/learner_profile_entity.dart';
+import '../../workspaces/domain/workspace_type.dart';
 
 /// Modo de experiencia de interfaz de usuario.
 enum AppDisplayMode {
@@ -28,6 +29,7 @@ class AppUserSettingsEntity {
   final List<PracticeReportEntity> sessionHistory;
   final List<PracticeRecordingEntity> recordingHistory;
   final LearnerProfileEntity learnerProfile;
+  final WorkspaceType activeWorkspace;
 
   const AppUserSettingsEntity({
     this.referencePitch = 440.0,
@@ -41,6 +43,7 @@ class AppUserSettingsEntity {
     this.customPalettes = const [],
     this.sessionHistory = const [],
     this.recordingHistory = const [],
+    this.activeWorkspace = WorkspaceType.learning,
     this.learnerProfile = const LearnerProfileEntity(
       type: LearnerProfileType.adultDeliberate,
       title: 'Modo Adulto (Práctica Deliberada)',
@@ -69,6 +72,7 @@ class AppUserSettingsEntity {
     List<PracticeReportEntity>? sessionHistory,
     List<PracticeRecordingEntity>? recordingHistory,
     LearnerProfileEntity? learnerProfile,
+    WorkspaceType? activeWorkspace,
   }) {
     return AppUserSettingsEntity(
       referencePitch: referencePitch ?? this.referencePitch,
@@ -83,6 +87,7 @@ class AppUserSettingsEntity {
       sessionHistory: sessionHistory ?? this.sessionHistory,
       recordingHistory: recordingHistory ?? this.recordingHistory,
       learnerProfile: learnerProfile ?? this.learnerProfile,
+      activeWorkspace: activeWorkspace ?? this.activeWorkspace,
     );
   }
 
@@ -102,6 +107,7 @@ class AppUserSettingsEntity {
       // Limitar a las últimas 50 grabaciones
       'recordingHistory': recordingHistory.take(50).map((r) => r.toMap()).toList(),
       'learnerProfile': learnerProfile.toJson(),
+      'activeWorkspace': activeWorkspace.serializedKey,
     };
   }
 
@@ -126,6 +132,9 @@ class AppUserSettingsEntity {
         ? LearnerProfileEntity.fromJson(rawProfile)
         : LearnerProfileEntity.adult();
 
+    final rawWorkspace = map['activeWorkspace'] as String?;
+    final activeWorkspace = WorkspaceType.fromSerializedKey(rawWorkspace);
+
     return AppUserSettingsEntity(
       referencePitch: (map['referencePitch'] as num?)?.toDouble() ?? 440.0,
       selectedThemeId: map['selectedThemeId'] as String? ?? 'obsidian_studio',
@@ -142,6 +151,7 @@ class AppUserSettingsEntity {
       sessionHistory: sessionHistory,
       recordingHistory: recordingHistory,
       learnerProfile: learnerProfile,
+      activeWorkspace: activeWorkspace,
     );
   }
 

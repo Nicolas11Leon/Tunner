@@ -58,6 +58,7 @@ import 'pedagogy_report/domain/pedagogical_report_models.dart';
 import 'pedagogy_report/domain/pedagogical_report_pdf_generator.dart';
 import 'pedagogy_profiles/domain/learner_profile_entity.dart';
 import 'pedagogy_profiles/domain/adaptive_scaffolding_engine.dart';
+import 'workspaces/domain/workspace_type.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -175,6 +176,7 @@ class TunerViewModel extends ChangeNotifier {
   int _consecutiveSuccesses = 0;
   int _consecutiveErrors = 0;
   PedagogicalDiagnosticResult? _lastPedagogicalDiagnostic;
+  WorkspaceType _activeWorkspace = WorkspaceType.learning;
 
   // Inyección de dependencias en el constructor
   TunerViewModel({
@@ -283,6 +285,16 @@ class TunerViewModel extends ChangeNotifier {
       );
   PedagogicalDiagnosticResult? get lastPedagogicalDiagnostic => _lastPedagogicalDiagnostic;
   AcousticEchoSuppressor get echoSuppressor => _echoSuppressor;
+  WorkspaceType get activeWorkspace => _activeWorkspace;
+
+  /// Cambia el espacio de trabajo activo (Aprender, Componer, Producir).
+  void setWorkspace(WorkspaceType workspace) {
+    if (_activeWorkspace != workspace) {
+      _activeWorkspace = workspace;
+      notifyListeners();
+      _triggerAutoSave();
+    }
+  }
 
   /// Modifica el temperamento histórico activo (ej. Werckmeister III, Mesotónico, Justo).
   void setTemperament(String temperamentId) {
@@ -337,8 +349,19 @@ class TunerViewModel extends ChangeNotifier {
 
   bool get isRecording => _isRecording;
   bool get isMetronomePlaying => _isMetronomePlaying;
+  bool get isMetronomeActive => _isMetronomePlaying;
   bool get isScorePlaybackEnabled => _isScorePlaybackEnabled;
   bool get isLiveTranscriptionActive => _isLiveTranscriptionActive;
+
+  /// Alterna el metrónomo de práctica.
+  void toggleMetronome() => startSongWithCountIn();
+
+  /// Detiene la reproducción de la partitura si está activa.
+  void stopSong() {
+    if (_isMetronomePlaying) {
+      startSongWithCountIn();
+    }
+  }
 
   /// Alterna la reproducción acústica de las notas de la partitura durante el metrónomo.
   void toggleScorePlayback() {
@@ -1393,6 +1416,7 @@ class TunerViewModel extends ChangeNotifier {
       _selectedTemperament = TemperamentEngine.getById(settings.selectedTemperamentId);
       _temperamentRootKey = settings.temperamentRootKey;
       _learnerProfile = settings.learnerProfile;
+      _activeWorkspace = settings.activeWorkspace;
 
       if (settings.sessionHistory.isNotEmpty) {
         _sessionHistory.clear();
@@ -1435,6 +1459,7 @@ class TunerViewModel extends ChangeNotifier {
         sessionHistory: _sessionHistory,
         recordingHistory: _recordingHistory,
         learnerProfile: _learnerProfile,
+        activeWorkspace: _activeWorkspace,
       );
       await _persistenceService.saveSettings(settings);
     } catch (_) {
