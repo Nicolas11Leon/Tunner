@@ -23,7 +23,7 @@ class ScoreImportTabView extends StatefulWidget {
     try {
       final file = await FilePicker.pickFile(
         type: FileType.custom,
-        allowedExtensions: const ['xml', 'musicxml', 'mxl', 'mid', 'midi', 'abc', 'wav'],
+        allowedExtensions: const ['xml', 'musicxml', 'mxl', 'mid', 'midi', 'abc', 'wav', 'pdf'],
       );
 
       if (file == null) return null;
@@ -198,6 +198,57 @@ A c d e | d B G A | c A A ^G | B ^G E2 |]''';
     _processBytes(bytes, "greensleeves.abc");
   }
 
+  void _loadSamplePdf() {
+    const pdfStream = '''
+50 100 m 450 100 l S
+50 110 m 450 110 l S
+50 120 m 450 120 l S
+50 130 m 450 130 l S
+50 140 m 450 140 l S
+250 100 m 250 140 l S
+450 100 m 450 140 l S
+96 96 8 8 re f
+146 106 8 8 re f
+196 116 8 8 re f
+296 126 8 8 re f
+346 136 8 8 re f
+''';
+    final streamBytes = utf8.encode(pdfStream);
+    final streamLen = streamBytes.length;
+
+    final pdfContent = '''%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 500 300] /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length $streamLen >>
+stream
+$pdfStream
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000010 00000 n 
+0000000060 00000 n 
+0000000115 00000 n 
+0000000200 00000 n 
+trailer
+<< /Size 5 /Root 1 0 R /Info << /Title (Estudio Pentagrama PDF) >> >>
+startxref
+400
+%%EOF''';
+
+    final bytes = Uint8List.fromList(utf8.encode(pdfContent));
+    _processBytes(bytes, "estudio_pentagrama.pdf");
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = widget.viewModel.currentPalette;
@@ -232,7 +283,7 @@ A c d e | d B G A | c A A ^G | B ^G E2 |]''';
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        "Soporta MusicXML (.mxl, .musicxml), MIDI (.mid), ABC (.abc) y Transcripción de Audio WAV (.wav) offline.",
+                        "Soporta MusicXML (.mxl, .musicxml), MIDI (.mid), ABC (.abc), PDF OMR (.pdf) y Transcripción de Audio WAV (.wav) offline.",
                         style: TextStyle(color: palette.textMutedColor, fontSize: 11),
                       ),
                     ],
@@ -248,7 +299,7 @@ A c d e | d B G A | c A A ^G | B ^G E2 |]''';
           ElevatedButton.icon(
             icon: const Icon(Icons.folder_open, size: 20),
             label: const Text(
-              "Seleccionar Archivo Local (.xml / .mid)",
+              "Seleccionar Archivo Local (.xml / .mid / .abc / .pdf / .wav)",
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(
@@ -315,7 +366,13 @@ A c d e | d B G A | c A A ^G | B ^G E2 |]''';
                   onPressed: _isProcessing ? null : _loadSampleMidi,
                 ),
               ),
-              const SizedBox(width: 8),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          Row(
+            children: [
               Expanded(
                 child: OutlinedButton.icon(
                   key: const Key('load_sample_abc_btn'),
@@ -330,6 +387,23 @@ A c d e | d B G A | c A A ^G | B ^G E2 |]''';
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: _isProcessing ? null : _loadSampleAbc,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const Key('load_sample_pdf_btn'),
+                  icon: Icon(Icons.picture_as_pdf_outlined, size: 16, color: palette.secondaryAccent),
+                  label: Text(
+                    "Pentagrama (PDF)",
+                    style: TextStyle(color: palette.textColor, fontSize: 11),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: palette.surfaceBorderColor),
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: _isProcessing ? null : _loadSamplePdf,
                 ),
               ),
             ],

@@ -107,7 +107,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Importador Universal Offline'), findsOneWidget);
-      expect(find.text('Seleccionar Archivo Local (.xml / .mid)'), findsOneWidget);
+      expect(find.textContaining('Seleccionar Archivo Local'), findsOneWidget);
       expect(find.text('Beethoven (MusicXML)'), findsOneWidget);
       expect(find.text('Arpegio (MIDI)'), findsOneWidget);
       expect(find.text('O PEGAR CÓDIGO XML DIRECTO'), findsOneWidget);
@@ -163,7 +163,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final fileBtn = find.text('Seleccionar Archivo Local (.xml / .mid)');
+      final fileBtn = find.textContaining('Seleccionar Archivo Local');
       expect(fileBtn, findsOneWidget);
       await tester.tap(fileBtn);
       await tester.pumpAndSettle();

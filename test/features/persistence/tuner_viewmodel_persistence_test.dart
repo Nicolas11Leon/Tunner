@@ -123,6 +123,7 @@ void main() {
       vm.setReferencePitch(500.0);
       expect(vm.referencePitch, equals(466.0));
 
+      await vm.savePersistedState();
       vm.dispose();
     });
 

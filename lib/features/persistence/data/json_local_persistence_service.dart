@@ -37,6 +37,13 @@ class JsonLocalPersistenceService implements ILocalPersistenceService {
 
   @override
   Future<AppUserSettingsEntity> loadSettings() async {
+    final pending = _pendingSaveOperation;
+    if (pending != null) {
+      try {
+        await pending;
+      } catch (_) {}
+    }
+
     try {
       final file = await _getTargetFile();
       if (!await file.exists()) {
