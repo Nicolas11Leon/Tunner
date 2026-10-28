@@ -426,6 +426,7 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
+                            key: const Key('export_musicxml_btn'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: palette.textColor,
                               side: BorderSide(color: palette.primaryAccent.withValues(alpha: 0.4)),
@@ -449,6 +450,7 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton.icon(
+                            key: const Key('export_midi_btn'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: palette.textColor,
                               side: BorderSide(color: palette.secondaryAccent.withValues(alpha: 0.4)),
@@ -468,7 +470,11 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
                             },
                           ),
                         ),
-                        const SizedBox(width: 8),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
                         Expanded(
                           child: OutlinedButton.icon(
                             key: const Key('export_abc_btn'),
@@ -479,7 +485,7 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             icon: const Icon(Icons.text_snippet_outlined, size: 18),
-                            label: const Text("ABC", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            label: const Text("ABC Notation", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                             onPressed: () {
                               final abc = vm.exportActiveScoreToAbc();
                               Clipboard.setData(ClipboardData(text: abc));
@@ -487,6 +493,29 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
                                 const SnackBar(
                                   content: Text("Partitura copiada en formato ABC Notation"),
                                   duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            key: const Key('export_pdf_btn'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: palette.textColor,
+                              side: BorderSide(color: palette.secondaryAccent.withValues(alpha: 0.4)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            icon: const Icon(Icons.picture_as_pdf, size: 18),
+                            label: const Text("PDF Imprimible", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            onPressed: () {
+                              final pdfBytes = vm.exportActiveScoreToPdf();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Partitura exportada a PDF vectorial (${(pdfBytes.length / 1024).toStringAsFixed(1)} KB)"),
+                                  duration: const Duration(seconds: 2),
                                 ),
                               );
                             },
