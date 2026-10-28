@@ -8,6 +8,7 @@ import 'abc_score_parser.dart';
 import 'compressed_musicxml_parser.dart';
 import 'midi_score_parser.dart';
 import 'musicxml_score_parser.dart';
+import 'pdf_score_parser.dart';
 
 /// Servicio orquestador del dominio para ingesta y decodificación universal de música y partituras.
 /// Inspecciona extensiones y firmas binarias para delegar al parser o transcriptor correspondiente:
@@ -15,12 +16,14 @@ import 'musicxml_score_parser.dart';
 /// - Compressed MusicXML (.mxl)
 /// - MIDI (.mid, .midi)
 /// - ABC Notation (.abc)
+/// - Partituras PDF (.pdf) vía Vector OMR
 /// - Audio Digital (.wav) para transcripción offline a partitura
 class UniversalScoreImporterService implements IScoreParserService {
   final MusicXmlScoreParser _musicXmlParser;
   final CompressedMusicXmlParser _compressedMusicXmlParser;
   final MidiScoreParser _midiParser;
   final AbcScoreParser _abcParser;
+  final PdfScoreParser _pdfParser;
   final AudioToScoreTranscriptionEngine _audioTranscriber;
 
   const UniversalScoreImporterService({
@@ -28,11 +31,13 @@ class UniversalScoreImporterService implements IScoreParserService {
     CompressedMusicXmlParser? compressedMusicXmlParser,
     MidiScoreParser midiParser = const MidiScoreParser(),
     AbcScoreParser abcParser = const AbcScoreParser(),
+    PdfScoreParser pdfParser = const PdfScoreParser(),
     AudioToScoreTranscriptionEngine audioTranscriber = const AudioToScoreTranscriptionEngine(),
   })  : _musicXmlParser = musicXmlParser,
         _compressedMusicXmlParser = compressedMusicXmlParser ?? const CompressedMusicXmlParser(),
         _midiParser = midiParser,
         _abcParser = abcParser,
+        _pdfParser = pdfParser,
         _audioTranscriber = audioTranscriber;
 
   @override
@@ -41,6 +46,7 @@ class UniversalScoreImporterService implements IScoreParserService {
     return _compressedMusicXmlParser.canParse(fileName, bytes) ||
         _abcParser.canParse(fileName, bytes) ||
         _midiParser.canParse(fileName, bytes) ||
+        _pdfParser.canParse(fileName, bytes) ||
         _musicXmlParser.canParse(fileName, bytes) ||
         lower.endsWith('.wav') ||
         _isWavHeader(bytes);
@@ -74,12 +80,17 @@ class UniversalScoreImporterService implements IScoreParserService {
       return _abcParser.parseScoreData(bytes: bytes, fileName: fileName);
     }
 
-    // 4. MusicXML plano (.musicxml, .xml)
+    // 4. Partituras PDF (.pdf) vía Vector OMR
+    if (_pdfParser.canParse(fileName, bytes)) {
+      return _pdfParser.parseScoreData(bytes: bytes, fileName: fileName);
+    }
+
+    // 5. MusicXML plano (.musicxml, .xml)
     if (_musicXmlParser.canParse(fileName, bytes)) {
       return _musicXmlParser.parseScoreData(bytes: bytes, fileName: fileName);
     }
 
-    // 5. Audio Digital (WAV) para Transcripción Offline
+    // 6. Audio Digital (WAV) para Transcripción Offline
     if (fileName.toLowerCase().endsWith('.wav') || _isWavHeader(bytes)) {
       return transcribeAudioToScoreResult(bytes: bytes, fileName: fileName);
     }
@@ -94,9 +105,13 @@ class UniversalScoreImporterService implements IScoreParserService {
         try {
           return await _abcParser.parseScoreData(bytes: bytes, fileName: fileName);
         } catch (_) {
-          throw FormatException(
-            'Formato no reconocido para "$fileName". Tunner soporta MusicXML (.mxl, .musicxml, .xml), MIDI (.mid, .midi), ABC (.abc) y Audio WAV (.wav).',
-          );
+          try {
+            return await _pdfParser.parseScoreData(bytes: bytes, fileName: fileName);
+          } catch (_) {
+            throw FormatException(
+              'Formato no reconocido para "$fileName". Tunner soporta MusicXML (.mxl, .musicxml, .xml), MIDI (.mid, .midi), ABC (.abc), PDF (.pdf) y Audio WAV (.wav).',
+            );
+          }
         }
       }
     }
