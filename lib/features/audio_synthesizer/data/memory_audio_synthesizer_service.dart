@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../domain/i_audio_synthesizer_service.dart';
 
 /// Implementación en memoria y aislada de [IAudioSynthesizerService] para pruebas unitarias.
@@ -43,9 +45,29 @@ class MemoryAudioSynthesizerService implements IAudioSynthesizerService {
     playedNotes.add((frequency: frequency, duration: duration, volume: volume));
   }
 
+  bool _isDroneLoopPlaying = false;
+  Uint8List? lastDroneBuffer;
+  double lastDroneVolume = 0.0;
+
+  @override
+  bool get isDroneLoopPlaying => _isDroneLoopPlaying;
+
+  @override
+  Future<void> startDroneLoop(Uint8List wavBytes, {double volume = 0.7}) async {
+    _isDroneLoopPlaying = true;
+    lastDroneBuffer = wavBytes;
+    lastDroneVolume = volume;
+  }
+
+  @override
+  Future<void> stopDroneLoop() async {
+    _isDroneLoopPlaying = false;
+  }
+
   @override
   void dispose() {
     _isDiapasonPlaying = false;
+    _isDroneLoopPlaying = false;
     clickHistory.clear();
     playedNotes.clear();
   }

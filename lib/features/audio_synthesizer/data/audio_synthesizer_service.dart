@@ -9,10 +9,12 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
   AudioPlayer? _clickPlayerInstance;
   AudioPlayer? _diapasonPlayerInstance;
   AudioPlayer? _notePlayerInstance;
+  AudioPlayer? _dronePlayerInstance;
 
   AudioPlayer get _clickPlayer => _clickPlayerInstance ??= AudioPlayer();
   AudioPlayer get _diapasonPlayer => _diapasonPlayerInstance ??= AudioPlayer();
   AudioPlayer get _notePlayer => _notePlayerInstance ??= AudioPlayer();
+  AudioPlayer get _dronePlayer => _dronePlayerInstance ??= AudioPlayer();
 
   // Buffers PCM pre-calculados en memoria RAM para rendimiento instantáneo
   late final Uint8List _downbeatBytes;
@@ -20,14 +22,17 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
 
   bool _isDiapasonPlaying = false;
   double _activeDiapasonFrequency = 0.0;
+  bool _isDroneLoopPlaying = false;
 
   AudioSynthesizerService({
     AudioPlayer? clickPlayer,
     AudioPlayer? diapasonPlayer,
     AudioPlayer? notePlayer,
+    AudioPlayer? dronePlayer,
   })  : _clickPlayerInstance = clickPlayer,
         _diapasonPlayerInstance = diapasonPlayer,
-        _notePlayerInstance = notePlayer {
+        _notePlayerInstance = notePlayer,
+        _dronePlayerInstance = dronePlayer {
     _downbeatBytes = PcmWavSynthesizer.generateMetronomeClickWav(isDownbeat: true);
     _offbeatBytes = PcmWavSynthesizer.generateMetronomeClickWav(isDownbeat: false);
   }
@@ -107,9 +112,37 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
   }
 
   @override
+  bool get isDroneLoopPlaying => _isDroneLoopPlaying;
+
+  @override
+  Future<void> startDroneLoop(Uint8List wavBytes, {double volume = 0.7}) async {
+    final clampedVolume = volume.clamp(0.0, 1.0);
+    _isDroneLoopPlaying = true;
+
+    try {
+      await _dronePlayer.setReleaseMode(ReleaseMode.loop);
+      await _dronePlayer.setVolume(clampedVolume);
+      await _dronePlayer.play(BytesSource(wavBytes, mimeType: 'audio/wav'));
+    } catch (e) {
+      debugPrint('Error iniciando bucle de dron: $e');
+    }
+  }
+
+  @override
+  Future<void> stopDroneLoop() async {
+    _isDroneLoopPlaying = false;
+    try {
+      await _dronePlayer.stop();
+    } catch (e) {
+      debugPrint('Error deteniendo dron: $e');
+    }
+  }
+
+  @override
   void dispose() {
     _clickPlayerInstance?.dispose();
     _diapasonPlayerInstance?.dispose();
     _notePlayerInstance?.dispose();
+    _dronePlayerInstance?.dispose();
   }
 }

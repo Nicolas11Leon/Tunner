@@ -104,6 +104,12 @@ class TemperamentEngine {
     );
   }
 
+  /// Instancia canónica del Temperamento Igual (12-EDO).
+  static MusicalTemperament get equalTemperament => allTemperaments[0];
+
+  /// Instancia canónica de Entonación Justa (5-Limit Just).
+  static MusicalTemperament get justIntonation => allTemperaments[2];
+
   /// Calcula la desviación en cents de una nota cromática específica según el temperamento
   /// y la nota raíz o tónica seleccionada.
   ///
