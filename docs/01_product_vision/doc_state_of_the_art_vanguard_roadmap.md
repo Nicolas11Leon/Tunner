@@ -55,18 +55,19 @@ graph LR
     classDef phase fill:#161622,stroke:#38BDF8,stroke-width:2px,color:#fff;
     classDef done fill:#0D0D14,stroke:#00E676,stroke-width:2px,color:#fff;
 
-    F6["Fase 6: Vanguardia Base (MPM, Editor, Exporter, Lab, Gen)"]:::done --> F71["Fase 7.1: Experiencia Dual (Esencial vs. Pro)"]:::phase
-    F71 --> F72["Fase 7.2: Temperamentos Históricos & Microtonales"]:::phase
-    F72 --> F73["Fase 7.3: Dron Armónico de Referencia Continua"]:::phase
-    F73 --> F74["Fase 7.4: Reconocimiento Polifónico de Acordes (Chroma)"]:::phase
-    F74 --> F75["Fase 7.5: Tap Tempo Determinista & Sincronización"]:::phase
+    F6["Fase 6: Vanguardia Base (MPM, Editor, Exporter, Lab, Gen)"]:::done --> F71["Fase 7.1: Experiencia Dual (Esencial vs. Pro)"]:::done
+    F71 --> F72["Fase 7.2: Temperamentos Históricos & Microtonales"]:::done
+    F72 --> F73["Fase 7.3: Dron Armónico de Referencia Continua"]:::done
+    F73 --> F74["Fase 7.4: Reconocimiento Polifónico de Acordes (Chroma)"]:::done
+    F74 --> F75["Fase 7.5: Tap Tempo Determinista & Sincronización"]:::done
 ```
 
-### Fase 7.1: Experiencia Dual Progresiva (Modo Esencial Minimalista vs. Modo Conservatorio Pro)
+### Fase 7.1: Experiencia Dual Progresiva (Modo Esencial Minimalista vs. Modo Conservatorio Pro) [COMPLETADA]
 - **Objetivo:** Ofrecer una experiencia visual limpia, monumental y enfocada para afinación rápida sin fricción, y permitir conmutar con 1 toque al entorno integral de conservatorio.
 - **Persistencia:** Guardar y restaurar la preferencia del usuario atómicamente.
+- **Entregables:** `TunerExperienceMode`, conmutador dinámico en `TunerScreen`, persistencia en `AppUserSettingsEntity` y `JsonLocalPersistenceService`.
 
-### Fase 7.2: Motor de Temperamentos Históricos y Microtonales
+### Fase 7.2: Motor de Temperamentos Históricos y Microtonales [COMPLETADA]
 - **Objetivo:** Implementar los 7 sistemas de afinación canónicos en el dominio puro:
   1. *Temperamento Igual (Equal Temperament, 12-TET)*
   2. *Pitagórico (Pythagorean Tuning - Quintas puras 3:2)*
@@ -76,12 +77,16 @@ graph LR
   6. *Kirnberger III*
   7. *Vallotti & Tartini*
 - **Recálculo Físico en Vivo:** Ajuste microtonal de frecuencias diapasón, cents y desviaciones estroboscópicas.
+- **Entregables:** `TemperamentEngine`, `TemperamentPreset`, `TemperamentSelectorModal`, integración directa en aguja estroboscópica y evaluación pedagógica.
 
-### Fase 7.3: Dron Armónico de Referencia Continua (Tone Drone Studio)
+### Fase 7.3: Dron Armónico de Referencia Continua (Tone Drone Studio) [COMPLETADA]
 - **Objetivo:** Generador procedural de notas pedal continuas (fundamental y quinta justa) en cualquier tonalidad y temperamento activo para práctica de entonación.
+- **Entregables:** `HarmonicDroneSynthesizer` (crossfade de fase cero en memoria PCM 16-bit), `HarmonicDroneConfig`, `HarmonicDroneModal` y chip interactivo.
 
-### Fase 7.4: Reconocimiento Polifónico de Acordes (Pitch Class Profile & Chroma)
-- **Objetivo:** Cálculo del vector de 12 clases cromáticas $[C, C\sharp, D\dots B]$ y clasificación probabilística de tríadas y cuatriadas mayores, menores, disminuidas, aumentadas y de séptima.
+### Fase 7.4: Reconocimiento Polifónico de Acordes (Pitch Class Profile & Chroma) [COMPLETADA]
+- **Objetivo:** Cálculo del vector de 12 clases cromáticas $[C, C\sharp, D\dots B]$ con supresión de no-máximos (NMS) y clasificación de tríadas y cuatriadas mayores, menores, disminuidas, aumentadas y de séptima.
+- **Entregables:** `ChromaVectorCalculator`, `PolyphonicChordRecognizer`, `ChordEntity`, `ChordRadarWidget` (radar circular SVG/Canvas) y `ChordAnalyzerModal`.
 
-### Fase 7.5: Tap Tempo Determinista con Filtrado de Jitter
-- **Objetivo:** Medición del pulso manual mediante promedio móvil ponderado de intervalos temporales con rechazo de valores atípicos.
+### Fase 7.5: Tap Tempo Determinista con Filtrado de Jitter [COMPLETADA]
+- **Objetivo:** Medición del pulso manual mediante promedio móvil linealmente ponderado de intervalos temporales con rechazo de valores atípicos y diagnóstico motriz de jitter ($\sigma\text{ en ms}$).
+- **Entregables:** `TapTempoEngine`, `TapTempoResult`, `TapTempoModal` con pad de respuesta táctil y botón de acceso directo en consola de metrónomo.
