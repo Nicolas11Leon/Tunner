@@ -19,6 +19,7 @@ import 'exercise_generator/presentation/exercise_generator_modal.dart';
 import 'persistence/domain/app_user_settings_entity.dart';
 import 'drone/presentation/harmonic_drone_modal.dart';
 import 'chord_analyzer/presentation/chord_analyzer_modal.dart';
+import 'metronome/presentation/tap_tempo_modal.dart';
 import '../core/theme/tunner_theme.dart';
 
 class TunerScreen extends StatelessWidget {
@@ -1292,6 +1293,32 @@ class TunerScreen extends StatelessWidget {
                           icon: Icon(Icons.add_circle_outline, color: palette.textMutedColor, size: 20),
                           onPressed: () => viewModel.incrementBpm(1),
                           tooltip: "+1 BPM",
+                        ),
+                        const SizedBox(width: 4),
+                        InkWell(
+                          key: const Key('tap_tempo_modal_btn'),
+                          onTap: () => TapTempoModal.show(context, viewModel),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: palette.primaryAccent.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: palette.primaryAccent.withValues(alpha: 0.4),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              'TAP',
+                              style: TextStyle(
+                                color: palette.primaryAccent,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
