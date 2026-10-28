@@ -6,6 +6,7 @@ class StrobeTunerWidget extends StatefulWidget {
   final double cents;
   final double frequency;
   final String noteName;
+  final String? soundingNoteName;
   final bool isRecording;
   final VoidCallback? onPlayReferenceTone;
   final TunnerThemePalette? palette;
@@ -15,6 +16,7 @@ class StrobeTunerWidget extends StatefulWidget {
     required this.cents,
     required this.frequency,
     required this.noteName,
+    this.soundingNoteName,
     required this.isRecording,
     this.onPlayReferenceTone,
     this.palette,
@@ -74,7 +76,7 @@ class _StrobeTunerWidgetState extends State<StrobeTunerWidget> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    final bool hasSound = widget.isRecording && widget.noteName != "--";
+    final bool hasSound = (widget.isRecording || widget.frequency > 0) && widget.noteName != "--";
     final bool isDeadCenter = hasSound && widget.cents.abs() <= 3.0; // Precisión de conservatorio: +-3 cents
     final bool isFairlyTuned = hasSound && widget.cents.abs() <= 10.0;
 
@@ -89,7 +91,7 @@ class _StrobeTunerWidgetState extends State<StrobeTunerWidget> with SingleTicker
                 : p.warningPitchColor;    // Sostenido
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: p.cardBackground,
         borderRadius: BorderRadius.circular(18),
@@ -170,6 +172,19 @@ class _StrobeTunerWidgetState extends State<StrobeTunerWidget> with SingleTicker
                       letterSpacing: -1,
                     ),
                   ),
+                  if (widget.soundingNoteName != null &&
+                      widget.soundingNoteName != "--" &&
+                      hasSound) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      "Real: ${widget.soundingNoteName}",
+                      style: TextStyle(
+                        color: p.secondaryAccent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ],
               ),
               Column(
@@ -208,7 +223,7 @@ class _StrobeTunerWidgetState extends State<StrobeTunerWidget> with SingleTicker
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
           // Pantalla Estroboscópica Virtual
           SizedBox(

@@ -237,6 +237,12 @@ class TunerViewModel extends ChangeNotifier {
 
   double get frequency => _frequency;
   String get noteName => _noteName;
+  bool get hasTransposition => _activeInstrument.isTransposing;
+  String get writtenNoteName {
+    if (_noteName == "--" || _noteName.isEmpty) return "--";
+    if (!_activeInstrument.isTransposing) return _noteName;
+    return _transpositionService.getWrittenNote(_noteName, _activeInstrument);
+  }
   double get cents => _cents;
   double get referencePitch => _referencePitch;
   MusicalTemperament get selectedTemperament => _selectedTemperament;
@@ -1300,6 +1306,14 @@ class TunerViewModel extends ChangeNotifier {
       semitones: semitones,
     );
     notifyListeners();
+  }
+
+  /// Transpone la partitura activa para adaptarla a la tonalidad escrita del instrumento indicado.
+  void transposeActiveScoreForInstrument(InstrumentProfileEntity targetInstrument) {
+    if (targetInstrument.transpositionSemitones == 0) return;
+    // Si la partitura está en concierto y el instrumento es Si♭ (-2), la partitura escrita debe subir +2
+    final semitones = -targetInstrument.transpositionSemitones;
+    transposeActiveScore(semitones);
   }
 
   /// Exporta la partitura activa al estándar internacional MusicXML.
