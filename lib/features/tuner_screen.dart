@@ -3,14 +3,11 @@ import 'package:provider/provider.dart';
 
 import 'tuner_viewmodel.dart';
 import 'tuner/presentation/strobe_tuner_widget.dart';
-import 'sheet_music/presentation/real_sheet_music_painter.dart';
 import 'song_library/presentation/song_decomposer_modal.dart';
 import 'practice_evaluator/presentation/practice_report_modal.dart';
 import 'instrument/domain/instrument_profile_entity.dart';
 import 'customization/presentation/theme_customization_modal.dart';
-import 'practice_recorder/presentation/practice_recorder_dock.dart';
 import 'practice_recorder/presentation/practice_recording_player_modal.dart';
-import 'practice_recorder/presentation/spectral_comparator_modal.dart';
 import 'tuner/presentation/concert_pitch_selector_modal.dart';
 import 'tuner/presentation/temperament_selector_modal.dart';
 import 'tuner/domain/temperament_engine.dart';
@@ -20,9 +17,11 @@ import 'exercise_generator/presentation/exercise_generator_modal.dart';
 import 'persistence/domain/app_user_settings_entity.dart';
 import 'drone/presentation/harmonic_drone_modal.dart';
 import 'chord_analyzer/presentation/chord_analyzer_modal.dart';
-import 'metronome/presentation/tap_tempo_modal.dart';
-import 'pedagogy_report/presentation/pedagogical_report_modal.dart';
-import 'pedagogy_profiles/presentation/learner_profile_selector_modal.dart';
+import 'workspaces/domain/workspace_type.dart';
+import 'workspaces/presentation/workspace_switch_bar.dart';
+import 'workspaces/presentation/learning_practice_workspace_view.dart';
+import 'workspaces/presentation/composition_notation_workspace_view.dart';
+import 'workspaces/presentation/production_acoustic_lab_workspace_view.dart';
 import '../core/theme/tunner_theme.dart';
 
 class TunerScreen extends StatelessWidget {
@@ -1047,11 +1046,49 @@ class TunerScreen extends StatelessWidget {
             },
           ),
         ],
+        bottom: isEssential
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(46),
+                child: WorkspaceSwitchBar(
+                  activeWorkspace: viewModel.activeWorkspace,
+                  onWorkspaceSelected: viewModel.setWorkspace,
+                  palette: palette,
+                ),
+              ),
       ),
       body: isEssential
           ? _buildEssentialModeView(context, viewModel, palette)
-          : _buildConservatoryProView(context, viewModel, palette),
+          : _buildWorkspaceBody(context, viewModel, palette),
     );
+  }
+
+  Widget _buildWorkspaceBody(
+    BuildContext context,
+    TunerViewModel viewModel,
+    TunnerThemePalette palette,
+  ) {
+    switch (viewModel.activeWorkspace) {
+      case WorkspaceType.learning:
+        return LearningPracticeWorkspaceView(
+          viewModel: viewModel,
+          palette: palette,
+          onOpenInstrumentModal: () => _showInstrumentModal(context, viewModel),
+        );
+      case WorkspaceType.composition:
+        return CompositionNotationWorkspaceView(
+          viewModel: viewModel,
+          palette: palette,
+          onOpenLibraryModal: () => _showLibraryModal(context, viewModel),
+          onOpenMixerModal: () => _showMixerModal(context, viewModel),
+        );
+      case WorkspaceType.production:
+        return ProductionAcousticLabWorkspaceView(
+          viewModel: viewModel,
+          palette: palette,
+          onOpenMixerModal: () => _showMixerModal(context, viewModel),
+        );
+    }
   }
 
   Widget _buildEssentialModeView(
@@ -1263,411 +1300,5 @@ class TunerScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Widget _buildConservatoryProView(
-    BuildContext context,
-    TunerViewModel viewModel,
-    TunnerThemePalette palette,
-  ) {
-    return Column(
-      children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: palette.cardBackground,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.3)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: InkWell(
-                      onTap: () => _showLibraryModal(context, viewModel),
-                      child: Row(
-                        children: [
-                          Icon(Icons.music_note, size: 18, color: palette.primaryAccent),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              viewModel.activePackage.title,
-                              style: TextStyle(color: palette.textColor, fontSize: 14, fontWeight: FontWeight.w600),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Icon(Icons.keyboard_arrow_down, color: palette.primaryAccent, size: 18),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          icon: Icon(Icons.remove_circle_outline, color: palette.textMutedColor, size: 20),
-                          onPressed: () => viewModel.decrementBpm(1),
-                          tooltip: "-1 BPM",
-                        ),
-                        Text(
-                          "${viewModel.bpm}",
-                          style: TextStyle(
-                            color: palette.primaryAccent,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        Text("BPM", style: TextStyle(color: palette.textMutedColor, fontSize: 11, fontWeight: FontWeight.w600)),
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          icon: Icon(Icons.add_circle_outline, color: palette.textMutedColor, size: 20),
-                          onPressed: () => viewModel.incrementBpm(1),
-                          tooltip: "+1 BPM",
-                        ),
-                        const SizedBox(width: 4),
-                        InkWell(
-                          key: const Key('tap_tempo_modal_btn'),
-                          onTap: () => TapTempoModal.show(context, viewModel),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: palette.primaryAccent.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: palette.primaryAccent.withValues(alpha: 0.4),
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              'TAP',
-                              style: TextStyle(
-                                color: palette.primaryAccent,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      viewModel.currentTempoMark.italianName.toUpperCase(),
-                      style: TextStyle(
-                        color: palette.secondaryAccent,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Slider(
-            value: viewModel.bpm.toDouble(),
-            min: 20,
-            max: 300,
-            activeColor: palette.primaryAccent,
-            inactiveColor: palette.staffLinesColor.withValues(alpha: 0.3),
-            onChanged: (val) => viewModel.updateBpm(val.round()),
-          ),
-          const SizedBox(height: 6),
-
-          // Selector de Compases (Navegación Multi-Compás)
-          if (viewModel.totalMeasures > 1)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 2.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.skip_previous, color: palette.textMutedColor, size: 20),
-                    onPressed: () => viewModel.previousMeasure(),
-                    tooltip: "Compás Anterior",
-                  ),
-                  Text(
-                    "Compás ${viewModel.currentMeasureIndex + 1} de ${viewModel.totalMeasures}  (${viewModel.currentMeasureTimeSignature})",
-                    style: TextStyle(color: palette.textColor, fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 0.5),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.skip_next, color: palette.textMutedColor, size: 20),
-                    onPressed: () => viewModel.nextMeasure(),
-                    tooltip: "Siguiente Compás",
-                  ),
-                ],
-              ),
-            ),
-
-          // BARRA PEDAGÓGICA INTERACTIVA: MODO EVALUACIÓN, SMART WAIT & ANALÍTICA
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  ActionChip(
-                    key: const Key('instrument_selector_chip'),
-                    avatar: Icon(Icons.piano, size: 16, color: palette.secondaryAccent),
-                    label: Text(
-                      '${viewModel.activeInstrument.name} (${viewModel.activeInstrument.key.displayName})',
-                    ),
-                    backgroundColor: palette.cardBackground,
-                    labelStyle: TextStyle(
-                      color: palette.textColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11.5,
-                    ),
-                    side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.4)),
-                    onPressed: () => _showInstrumentModal(context, viewModel),
-                  ),
-                  const SizedBox(width: 8),
-                  FilterChip(
-                    avatar: Icon(
-                      viewModel.isPracticeMode ? Icons.school : Icons.school_outlined,
-                      size: 16,
-                      color: viewModel.isPracticeMode ? Colors.black : palette.primaryAccent,
-                    ),
-                    label: Text(
-                      viewModel.isPracticeMode
-                          ? "Evaluando (${viewModel.practiceEvaluationsCount} notas)"
-                          : "Modo Evaluación",
-                    ),
-                    selected: viewModel.isPracticeMode,
-                    selectedColor: palette.primaryAccent,
-                    backgroundColor: palette.cardBackground,
-                    labelStyle: TextStyle(
-                      color: viewModel.isPracticeMode ? Colors.black : palette.textColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11.5,
-                    ),
-                    side: BorderSide(
-                      color: viewModel.isPracticeMode
-                          ? palette.primaryAccent
-                          : palette.staffLinesColor.withValues(alpha: 0.4),
-                    ),
-                    onSelected: (_) => viewModel.togglePracticeMode(),
-                  ),
-                  const SizedBox(width: 8),
-                  FilterChip(
-                    avatar: Icon(
-                      Icons.hourglass_top_rounded,
-                      size: 16,
-                      color: viewModel.isSmartWaitEnabled ? Colors.black : palette.secondaryAccent,
-                    ),
-                    label: const Text("Smart Wait"),
-                    selected: viewModel.isSmartWaitEnabled,
-                    selectedColor: palette.secondaryAccent,
-                    backgroundColor: palette.cardBackground,
-                    labelStyle: TextStyle(
-                      color: viewModel.isSmartWaitEnabled ? Colors.black : palette.textColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11.5,
-                    ),
-                    side: BorderSide(
-                      color: viewModel.isSmartWaitEnabled
-                          ? palette.secondaryAccent
-                          : palette.staffLinesColor.withValues(alpha: 0.4),
-                    ),
-                    onSelected: (_) => viewModel.toggleSmartWait(),
-                  ),
-                  const SizedBox(width: 8),
-                  ActionChip(
-                    key: const Key('open_spectral_comparator_chip'),
-                    avatar: Icon(Icons.compare_arrows, size: 16, color: palette.secondaryAccent),
-                    label: const Text("Comparar Tomas"),
-                    backgroundColor: palette.cardBackground,
-                    labelStyle: TextStyle(
-                      color: palette.textColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11.5,
-                    ),
-                    side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.4)),
-                    onPressed: () => SpectralComparatorModal.show(context, viewModel),
-                  ),
-                  const SizedBox(width: 8),
-                  ActionChip(
-                    key: const Key('open_pedagogical_report_chip'),
-                    avatar: Icon(Icons.picture_as_pdf, size: 16, color: palette.primaryAccent),
-                    label: const Text("Reporte PDF"),
-                    backgroundColor: palette.cardBackground,
-                    labelStyle: TextStyle(
-                      color: palette.textColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11.5,
-                    ),
-                    side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.4)),
-                    onPressed: () => PedagogicalReportModal.show(context),
-                  ),
-                  const SizedBox(width: 8),
-                  ActionChip(
-                    key: const Key('open_learner_profile_chip'),
-                    avatar: Icon(Icons.psychology, size: 16, color: palette.primaryAccent),
-                    label: Text(viewModel.learnerProfile.title.split('(').first.trim()),
-                    backgroundColor: palette.cardBackground,
-                    labelStyle: TextStyle(
-                      color: palette.textColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11.5,
-                    ),
-                    side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.4)),
-                    onPressed: () => LearnerProfileSelectorModal.show(context),
-                  ),
-                  if (viewModel.lastReport != null) ...[
-                    const SizedBox(width: 8),
-                    ActionChip(
-                      avatar: Icon(Icons.insights, size: 16, color: palette.primaryAccent),
-                      label: Text(
-                        "Reporte: Grado ${viewModel.lastReport!.grade.letter} (${viewModel.lastReport!.overallScore}%)",
-                      ),
-                      backgroundColor: palette.primaryAccent.withValues(alpha: 0.15),
-                      labelStyle: TextStyle(
-                        color: palette.primaryAccent,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11.5,
-                      ),
-                      side: BorderSide(color: palette.primaryAccent.withValues(alpha: 0.5)),
-                      onPressed: () {
-                        PracticeReportModal.show(
-                          context: context,
-                          report: viewModel.lastReport!,
-                          palette: palette,
-                          onRetry: () => viewModel.startSongWithCountIn(),
-                        );
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-
-          // LIENZO GRÁFICO DE LA PARTITURA REAL (Adaptado a la Paleta de Estética)
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: palette.staffBackground,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.2)),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 15, offset: const Offset(0, 10)),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: CustomPaint(
-                  painter: RealSheetMusicPainter(
-                    currentSubTick: viewModel.currentSubTick,
-                    notes: viewModel.currentMeasureNotes,
-                    history: viewModel.measureHistory,
-                    liveNote: viewModel.noteName,
-                    liveCents: viewModel.cents,
-                    isCountingIn: viewModel.isCountingIn,
-                    countInBeat: viewModel.countInBeat,
-                    timeSignature: viewModel.currentMeasureTimeSignature,
-                    measureIndex: viewModel.currentMeasureIndex,
-                    totalMeasures: viewModel.totalMeasures,
-                    palette: palette,
-                    clef: viewModel.activeInstrument.clef,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-
-          // AFINADOR ESTROBOSCÓPICO VIRTUAL DE ALTA PRECISIÓN (UC-04)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: StrobeTunerWidget(
-              cents: viewModel.cents,
-              frequency: viewModel.frequency,
-              noteName: viewModel.hasTransposition ? viewModel.writtenNoteName : viewModel.noteName,
-              soundingNoteName: viewModel.hasTransposition ? viewModel.noteName : null,
-              isRecording: viewModel.isRecording,
-              onPlayReferenceTone: () => viewModel.playReferenceTone("La4"),
-              palette: palette,
-              centsTolerance: viewModel.centsTolerance,
-            ),
-          ),
-          const SizedBox(height: 4),
-
-          // BARRA DE GRABACIÓN DE PRÁCTICA & AUTO-ESCUCHA
-          const PracticeRecorderDock(),
-          const SizedBox(height: 4),
-
-          // BOTONES DE ACCIÓN
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                FloatingActionButton.extended(
-                  onPressed: viewModel.toggleRecording,
-                  backgroundColor: viewModel.isRecording ? palette.errorPitchColor.withValues(alpha: 0.2) : palette.cardBackground,
-                  elevation: 0,
-                  icon: Icon(viewModel.isRecording ? Icons.mic_off : Icons.mic, color: viewModel.isRecording ? palette.errorPitchColor : palette.textColor),
-                  label: Text(viewModel.isRecording ? "Apagar" : "Micro", style: TextStyle(color: viewModel.isRecording ? palette.errorPitchColor : palette.textColor)),
-                ),
-                FloatingActionButton.extended(
-                  onPressed: viewModel.startSongWithCountIn,
-                  backgroundColor: viewModel.isMetronomePlaying ? palette.secondaryAccent : palette.primaryAccent,
-                  elevation: 5,
-                  icon: const Icon(Icons.play_arrow, color: Colors.black),
-                  label: Text(
-                    viewModel.isMetronomePlaying ? "Detener" : "Practicar",
-                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                if (viewModel.isPracticeMode && viewModel.practiceEvaluationsCount > 0)
-                  FloatingActionButton.extended(
-                    onPressed: () {
-                      viewModel.completeManualPracticeSession();
-                      if (viewModel.lastReport != null) {
-                        PracticeReportModal.show(
-                          context: context,
-                          report: viewModel.lastReport!,
-                          palette: palette,
-                          onRetry: () => viewModel.startSongWithCountIn(),
-                        );
-                      }
-                    },
-                    backgroundColor: palette.secondaryAccent,
-                    elevation: 4,
-                    icon: const Icon(Icons.analytics_rounded, color: Colors.black),
-                    label: const Text(
-                      "Calificar",
-                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      );
   }
 }
