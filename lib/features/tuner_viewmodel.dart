@@ -47,6 +47,8 @@ import 'drone/domain/harmonic_drone_synthesizer.dart';
 import 'chord_analyzer/domain/chord_entity.dart';
 import 'chord_analyzer/domain/chroma_vector_calculator.dart';
 import 'chord_analyzer/domain/polyphonic_chord_recognizer.dart';
+import 'metronome/domain/tap_tempo_engine.dart';
+import 'metronome/domain/tap_tempo_result.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -148,6 +150,8 @@ class TunerViewModel extends ChangeNotifier {
   bool _isChordRecognitionActive = false;
   List<double> _activeChromaVector = List<double>.filled(12, 0.0);
   final List<ChordEntity> _chordHistory = [];
+  final TapTempoEngine _tapTempoEngine = TapTempoEngine();
+  TapTempoResult? _lastTapTempoResult;
 
   // Inyección de dependencias en el constructor
   TunerViewModel({
@@ -237,6 +241,7 @@ class TunerViewModel extends ChangeNotifier {
   bool get isChordRecognitionActive => _isChordRecognitionActive;
   List<double> get activeChromaVector => _activeChromaVector;
   List<ChordEntity> get chordHistory => List.unmodifiable(_chordHistory);
+  TapTempoResult? get lastTapTempoResult => _lastTapTempoResult;
 
   /// Modifica el temperamento histórico activo (ej. Werckmeister III, Mesotónico, Justo).
   void setTemperament(String temperamentId) {
@@ -789,6 +794,24 @@ class TunerViewModel extends ChangeNotifier {
 
   void incrementBpm([int step = 1]) => updateBpm(_bpm + step);
   void decrementBpm([int step = 1]) => updateBpm(_bpm - step);
+
+  /// Registra una pulsación manual en el motor de Tap Tempo y calibra automáticamente el metrónomo.
+  void recordTapTempo([int? timestampMs]) {
+    final result = _tapTempoEngine.recordTap(timestampMs);
+    _lastTapTempoResult = result;
+    if (result.isCalibrated) {
+      updateBpm(result.bpm);
+    } else {
+      notifyListeners();
+    }
+  }
+
+  /// Limpia la sesión actual del motor de Tap Tempo.
+  void resetTapTempo() {
+    _tapTempoEngine.reset();
+    _lastTapTempoResult = null;
+    notifyListeners();
+  }
 
   IScoreParserService get scoreImporterService => _scoreImporterService;
 
