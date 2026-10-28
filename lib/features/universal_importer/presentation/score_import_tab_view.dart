@@ -23,7 +23,7 @@ class ScoreImportTabView extends StatefulWidget {
     try {
       final file = await FilePicker.pickFile(
         type: FileType.custom,
-        allowedExtensions: const ['xml', 'musicxml', 'mid', 'midi'],
+        allowedExtensions: const ['xml', 'musicxml', 'mxl', 'mid', 'midi', 'abc', 'wav'],
       );
 
       if (file == null) return null;
@@ -185,6 +185,19 @@ class _ScoreImportTabViewState extends State<ScoreImportTabView> {
     _processBytes(midiBytes, "arpegio_estudio.mid");
   }
 
+  void _loadSampleAbc() {
+    const abcSample = '''X: 1
+T: Greensleeves (ABC)
+C: Tradicional Inglesa
+M: 4/4
+L: 1/4
+Q: 1/4=100
+K: C
+A c d e | d B G A | c A A ^G | B ^G E2 |]''';
+    final bytes = Uint8List.fromList(utf8.encode(abcSample));
+    _processBytes(bytes, "greensleeves.abc");
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = widget.viewModel.currentPalette;
@@ -219,7 +232,7 @@ class _ScoreImportTabViewState extends State<ScoreImportTabView> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        "Soporta partituras MusicXML (.xml, .musicxml) y archivos MIDI (.mid, .midi) sin conexión.",
+                        "Soporta MusicXML (.mxl, .musicxml), MIDI (.mid), ABC (.abc) y Transcripción de Audio WAV (.wav) offline.",
                         style: TextStyle(color: palette.textMutedColor, fontSize: 11),
                       ),
                     ],
@@ -300,6 +313,23 @@ class _ScoreImportTabViewState extends State<ScoreImportTabView> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: _isProcessing ? null : _loadSampleMidi,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const Key('load_sample_abc_btn'),
+                  icon: Icon(Icons.text_snippet_outlined, size: 16, color: palette.primaryAccent),
+                  label: Text(
+                    "Greensleeves (ABC)",
+                    style: TextStyle(color: palette.textColor, fontSize: 11),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: palette.surfaceBorderColor),
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: _isProcessing ? null : _loadSampleAbc,
                 ),
               ),
             ],

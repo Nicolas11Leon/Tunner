@@ -468,6 +468,30 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
                             },
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            key: const Key('export_abc_btn'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: palette.textColor,
+                              side: BorderSide(color: palette.primaryAccent.withValues(alpha: 0.4)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            icon: const Icon(Icons.text_snippet_outlined, size: 18),
+                            label: const Text("ABC", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            onPressed: () {
+                              final abc = vm.exportActiveScoreToAbc();
+                              Clipboard.setData(ClipboardData(text: abc));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Partitura copiada en formato ABC Notation"),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ],
                     ),
                   ],
