@@ -22,6 +22,7 @@ import 'drone/presentation/harmonic_drone_modal.dart';
 import 'chord_analyzer/presentation/chord_analyzer_modal.dart';
 import 'metronome/presentation/tap_tempo_modal.dart';
 import 'pedagogy_report/presentation/pedagogical_report_modal.dart';
+import 'pedagogy_profiles/presentation/learner_profile_selector_modal.dart';
 import '../core/theme/tunner_theme.dart';
 
 class TunerScreen extends StatelessWidget {
@@ -1181,6 +1182,7 @@ class TunerScreen extends StatelessWidget {
               isRecording: viewModel.isRecording,
               onPlayReferenceTone: () => viewModel.playReferenceTone("La4"),
               palette: palette,
+              centsTolerance: viewModel.centsTolerance,
             ),
             const SizedBox(height: 16),
 
@@ -1518,6 +1520,20 @@ class TunerScreen extends StatelessWidget {
                     side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.4)),
                     onPressed: () => PedagogicalReportModal.show(context),
                   ),
+                  const SizedBox(width: 8),
+                  ActionChip(
+                    key: const Key('open_learner_profile_chip'),
+                    avatar: Icon(Icons.psychology, size: 16, color: palette.primaryAccent),
+                    label: Text(viewModel.learnerProfile.title.split('(').first.trim()),
+                    backgroundColor: palette.cardBackground,
+                    labelStyle: TextStyle(
+                      color: palette.textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11.5,
+                    ),
+                    side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.4)),
+                    onPressed: () => LearnerProfileSelectorModal.show(context),
+                  ),
                   if (viewModel.lastReport != null) ...[
                     const SizedBox(width: 8),
                     ActionChip(
@@ -1595,6 +1611,7 @@ class TunerScreen extends StatelessWidget {
               isRecording: viewModel.isRecording,
               onPlayReferenceTone: () => viewModel.playReferenceTone("La4"),
               palette: palette,
+              centsTolerance: viewModel.centsTolerance,
             ),
           ),
           const SizedBox(height: 4),

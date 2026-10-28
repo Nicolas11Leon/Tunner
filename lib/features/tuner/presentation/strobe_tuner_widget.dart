@@ -10,6 +10,7 @@ class StrobeTunerWidget extends StatefulWidget {
   final bool isRecording;
   final VoidCallback? onPlayReferenceTone;
   final TunnerThemePalette? palette;
+  final double centsTolerance;
 
   const StrobeTunerWidget({
     super.key,
@@ -20,6 +21,7 @@ class StrobeTunerWidget extends StatefulWidget {
     required this.isRecording,
     this.onPlayReferenceTone,
     this.palette,
+    this.centsTolerance = 10.0,
   });
 
   @override
@@ -77,8 +79,9 @@ class _StrobeTunerWidgetState extends State<StrobeTunerWidget> with SingleTicker
   @override
   Widget build(BuildContext context) {
     final bool hasSound = (widget.isRecording || widget.frequency > 0) && widget.noteName != "--";
-    final bool isDeadCenter = hasSound && widget.cents.abs() <= 3.0; // Precisión de conservatorio: +-3 cents
-    final bool isFairlyTuned = hasSound && widget.cents.abs() <= 10.0;
+    final double deadCenterThreshold = (widget.centsTolerance * 0.4).clamp(1.5, 10.0);
+    final bool isDeadCenter = hasSound && widget.cents.abs() <= deadCenterThreshold;
+    final bool isFairlyTuned = hasSound && widget.cents.abs() <= widget.centsTolerance;
 
     final p = widget.palette ?? TunnerThemePalette.obsidianStudio;
 

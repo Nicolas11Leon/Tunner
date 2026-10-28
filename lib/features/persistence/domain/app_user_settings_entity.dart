@@ -2,6 +2,7 @@ import 'dart:convert';
 import '../../../core/theme/tunner_theme.dart';
 import '../../practice_evaluator/domain/practice_report_entity.dart';
 import '../../practice_recorder/domain/practice_recording_entity.dart';
+import '../../pedagogy_profiles/domain/learner_profile_entity.dart';
 
 /// Modo de experiencia de interfaz de usuario.
 enum AppDisplayMode {
@@ -26,6 +27,7 @@ class AppUserSettingsEntity {
   final List<TunnerThemePalette> customPalettes;
   final List<PracticeReportEntity> sessionHistory;
   final List<PracticeRecordingEntity> recordingHistory;
+  final LearnerProfileEntity learnerProfile;
 
   const AppUserSettingsEntity({
     this.referencePitch = 440.0,
@@ -39,6 +41,16 @@ class AppUserSettingsEntity {
     this.customPalettes = const [],
     this.sessionHistory = const [],
     this.recordingHistory = const [],
+    this.learnerProfile = const LearnerProfileEntity(
+      type: LearnerProfileType.adultDeliberate,
+      title: 'Modo Adulto (Práctica Deliberada)',
+      description: 'Diseño andragógico centrado en la resolución de problemas.',
+      centsTolerance: 10.0,
+      feedbackStyle: FeedbackStyle.constructiveBiomechanical,
+      visualDensity: VisualDensityLevel.focusedAndragogic,
+      enableSmartWait: true,
+      enableScaffoldingFadeOut: false,
+    ),
   });
 
   /// Configuración por defecto estándar de conservatorio.
@@ -56,6 +68,7 @@ class AppUserSettingsEntity {
     List<TunnerThemePalette>? customPalettes,
     List<PracticeReportEntity>? sessionHistory,
     List<PracticeRecordingEntity>? recordingHistory,
+    LearnerProfileEntity? learnerProfile,
   }) {
     return AppUserSettingsEntity(
       referencePitch: referencePitch ?? this.referencePitch,
@@ -69,6 +82,7 @@ class AppUserSettingsEntity {
       customPalettes: customPalettes ?? this.customPalettes,
       sessionHistory: sessionHistory ?? this.sessionHistory,
       recordingHistory: recordingHistory ?? this.recordingHistory,
+      learnerProfile: learnerProfile ?? this.learnerProfile,
     );
   }
 
@@ -87,6 +101,7 @@ class AppUserSettingsEntity {
       'sessionHistory': sessionHistory.take(50).map((s) => s.toMap()).toList(),
       // Limitar a las últimas 50 grabaciones
       'recordingHistory': recordingHistory.take(50).map((r) => r.toMap()).toList(),
+      'learnerProfile': learnerProfile.toJson(),
     };
   }
 
@@ -106,6 +121,11 @@ class AppUserSettingsEntity {
         .map((item) => PracticeRecordingEntity.fromMap(item as Map<String, dynamic>))
         .toList();
 
+    final rawProfile = map['learnerProfile'] as Map<String, dynamic>?;
+    final learnerProfile = rawProfile != null
+        ? LearnerProfileEntity.fromJson(rawProfile)
+        : LearnerProfileEntity.adult();
+
     return AppUserSettingsEntity(
       referencePitch: (map['referencePitch'] as num?)?.toDouble() ?? 440.0,
       selectedThemeId: map['selectedThemeId'] as String? ?? 'obsidian_studio',
@@ -121,6 +141,7 @@ class AppUserSettingsEntity {
       customPalettes: customPalettes,
       sessionHistory: sessionHistory,
       recordingHistory: recordingHistory,
+      learnerProfile: learnerProfile,
     );
   }
 

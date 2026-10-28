@@ -56,6 +56,8 @@ import 'metronome/domain/tap_tempo_engine.dart';
 import 'metronome/domain/tap_tempo_result.dart';
 import 'pedagogy_report/domain/pedagogical_report_models.dart';
 import 'pedagogy_report/domain/pedagogical_report_pdf_generator.dart';
+import 'pedagogy_profiles/domain/learner_profile_entity.dart';
+import 'pedagogy_profiles/domain/adaptive_scaffolding_engine.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -168,6 +170,11 @@ class TunerViewModel extends ChangeNotifier {
   final TapTempoEngine _tapTempoEngine = TapTempoEngine();
   TapTempoResult? _lastTapTempoResult;
   final PedagogicalReportPdfGenerator _pedagogicalPdfGenerator = const PedagogicalReportPdfGenerator();
+  LearnerProfileEntity _learnerProfile = LearnerProfileEntity.adult();
+  final AdaptiveScaffoldingEngine _scaffoldingEngine = const AdaptiveScaffoldingEngine();
+  int _consecutiveSuccesses = 0;
+  int _consecutiveErrors = 0;
+  PedagogicalDiagnosticResult? _lastPedagogicalDiagnostic;
 
   // Inyección de dependencias en el constructor
   TunerViewModel({
@@ -268,6 +275,13 @@ class TunerViewModel extends ChangeNotifier {
   List<double> get activeChromaVector => _activeChromaVector;
   List<ChordEntity> get chordHistory => List.unmodifiable(_chordHistory);
   TapTempoResult? get lastTapTempoResult => _lastTapTempoResult;
+  LearnerProfileEntity get learnerProfile => _learnerProfile;
+  AdaptiveScaffoldingEngine get scaffoldingEngine => _scaffoldingEngine;
+  double get centsTolerance => _scaffoldingEngine.computeEffectiveTolerance(
+        profile: _learnerProfile,
+        consecutiveSuccesses: _consecutiveSuccesses,
+      );
+  PedagogicalDiagnosticResult? get lastPedagogicalDiagnostic => _lastPedagogicalDiagnostic;
   AcousticEchoSuppressor get echoSuppressor => _echoSuppressor;
 
   /// Modifica el temperamento histórico activo (ej. Werckmeister III, Mesotónico, Justo).
@@ -379,6 +393,22 @@ class TunerViewModel extends ChangeNotifier {
           detectedFrequency: pitch,
           targetFrequency: targetFreq,
         );
+      }
+
+      // Evaluación pedagógica adaptativa
+      final diagnostic = _scaffoldingEngine.evaluateNote(
+        centsDeviation: _cents,
+        profile: _learnerProfile,
+        consecutiveSuccesses: _consecutiveSuccesses,
+        consecutiveErrors: _consecutiveErrors,
+      );
+      _lastPedagogicalDiagnostic = diagnostic;
+      if (diagnostic.isInTune) {
+        _consecutiveSuccesses++;
+        _consecutiveErrors = 0;
+      } else {
+        _consecutiveErrors++;
+        _consecutiveSuccesses = 0;
       }
 
       if (_isLiveTranscriptionActive) {
@@ -622,6 +652,41 @@ class TunerViewModel extends ChangeNotifier {
       temperamentRootKey: _temperamentRootKey,
     );
     await _audioSynthesizer.startDroneLoop(buffer, volume: _droneConfig.volume);
+  }
+
+  /// Selecciona el perfil pedagógico de aprendizaje (Infantil, Adulto, Conservatorio).
+  void setLearnerProfileType(LearnerProfileType type) {
+    switch (type) {
+      case LearnerProfileType.childPlayful:
+        _learnerProfile = LearnerProfileEntity.child();
+        _isSmartWaitEnabled = true;
+        break;
+      case LearnerProfileType.adultDeliberate:
+        _learnerProfile = LearnerProfileEntity.adult();
+        _isSmartWaitEnabled = true;
+        break;
+      case LearnerProfileType.conservatoryMastery:
+        _learnerProfile = LearnerProfileEntity.conservatory();
+        _isSmartWaitEnabled = false;
+        break;
+      case LearnerProfileType.custom:
+        _learnerProfile = _learnerProfile.copyWith(type: LearnerProfileType.custom);
+        break;
+    }
+    _consecutiveSuccesses = 0;
+    _consecutiveErrors = 0;
+    _triggerAutoSave();
+    notifyListeners();
+  }
+
+  /// Actualiza la configuración detallada del perfil pedagógico.
+  void updateLearnerProfile(LearnerProfileEntity profile) {
+    _learnerProfile = profile;
+    _isSmartWaitEnabled = profile.enableSmartWait;
+    _consecutiveSuccesses = 0;
+    _consecutiveErrors = 0;
+    _triggerAutoSave();
+    notifyListeners();
   }
 
   /// Alterna el estado activo del reconocedor polifónico de acordes.
@@ -1327,6 +1392,7 @@ class TunerViewModel extends ChangeNotifier {
       _displayMode = settings.displayMode;
       _selectedTemperament = TemperamentEngine.getById(settings.selectedTemperamentId);
       _temperamentRootKey = settings.temperamentRootKey;
+      _learnerProfile = settings.learnerProfile;
 
       if (settings.sessionHistory.isNotEmpty) {
         _sessionHistory.clear();
@@ -1368,6 +1434,7 @@ class TunerViewModel extends ChangeNotifier {
         customPalettes: _customPalettes,
         sessionHistory: _sessionHistory,
         recordingHistory: _recordingHistory,
+        learnerProfile: _learnerProfile,
       );
       await _persistenceService.saveSettings(settings);
     } catch (_) {
