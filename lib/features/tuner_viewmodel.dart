@@ -52,6 +52,8 @@ import 'drone/domain/harmonic_drone_synthesizer.dart';
 import 'chord_analyzer/domain/chord_entity.dart';
 import 'chord_analyzer/domain/chroma_vector_calculator.dart';
 import 'chord_analyzer/domain/polyphonic_chord_recognizer.dart';
+import 'chord_analyzer/domain/polyphonic_pitch_entity.dart';
+import 'chord_analyzer/domain/polyphonic_multitone_detector.dart';
 import 'metronome/domain/tap_tempo_engine.dart';
 import 'metronome/domain/tap_tempo_result.dart';
 import 'pedagogy_report/domain/pedagogical_report_models.dart';
@@ -167,7 +169,9 @@ class TunerViewModel extends ChangeNotifier {
   HarmonicDroneConfig _droneConfig = const HarmonicDroneConfig();
   final PolyphonicChordRecognizer _chordRecognizer = PolyphonicChordRecognizer();
   final ChromaVectorCalculator _chromaCalculator = const ChromaVectorCalculator();
+  late final PolyphonicMultiToneDetector _multiToneDetector;
   ChordEntity _recognizedChord = ChordEntity.none;
+  PolyphonicMultiToneAnalysisResult _multiToneResult = PolyphonicMultiToneAnalysisResult.empty;
   bool _isChordRecognitionActive = false;
   List<double> _activeChromaVector = List<double>.filled(12, 0.0);
   final List<ChordEntity> _chordHistory = [];
@@ -201,6 +205,7 @@ class TunerViewModel extends ChangeNotifier {
     AcousticEchoSuppressor? echoSuppressor,
     StemAudioSynthesizer? stemSynthesizer,
     StemExportPersistenceService? exportPersistenceService,
+    PolyphonicMultiToneDetector? multiToneDetector,
     Future<String> Function()? recordingPathProvider,
   })  : _pitchService = pitchService ?? PitchDetectorService(),
         _metronomeService = metronomeService ?? MetronomeService(),
@@ -216,6 +221,7 @@ class TunerViewModel extends ChangeNotifier {
         _stemSynthesizer = stemSynthesizer ?? const StemAudioSynthesizer(),
         _exportPersistenceService = exportPersistenceService ??
             StemExportPersistenceService(documentsPathProvider: recordingPathProvider),
+        _multiToneDetector = multiToneDetector ?? PolyphonicMultiToneDetector(),
         _recordingPathProvider = recordingPathProvider {
     _activePackage = _curatedLibrary.first;
     _bpm = _activePackage.defaultBpm;
@@ -287,6 +293,7 @@ class TunerViewModel extends ChangeNotifier {
   HarmonicDroneConfig get droneConfig => _droneConfig;
   bool get isDronePlaying => _audioSynthesizer.isDroneLoopPlaying;
   ChordEntity get recognizedChord => _recognizedChord;
+  PolyphonicMultiToneAnalysisResult get polyphonicAnalysisResult => _multiToneResult;
   bool get isChordRecognitionActive => _isChordRecognitionActive;
   List<double> get activeChromaVector => _activeChromaVector;
   List<ChordEntity> get chordHistory => List.unmodifiable(_chordHistory);
@@ -731,6 +738,7 @@ class TunerViewModel extends ChangeNotifier {
     _isChordRecognitionActive = !_isChordRecognitionActive;
     if (!_isChordRecognitionActive) {
       _recognizedChord = ChordEntity.none;
+      _multiToneResult = PolyphonicMultiToneAnalysisResult.empty;
       _chordRecognizer.reset();
       _activeChromaVector = List<double>.filled(12, 0.0);
     }
@@ -744,15 +752,27 @@ class TunerViewModel extends ChangeNotifier {
     }
   }
 
-  /// Procesa muestras PCM normalizadas [-1.0, 1.0] para análisis armónico polifónico.
+  /// Procesa muestras PCM normalizadas [-1.0, 1.0] para análisis armónico polifónico multitonal.
   void processChordSamples(List<double> samples) {
     if (!_isChordRecognitionActive) return;
+
+    final multiResult = _multiToneDetector.detectFromSamples(
+      samples: samples,
+      sampleRate: 44100.0,
+      a4Ref: _referencePitch,
+    );
+    _multiToneResult = multiResult;
+
     final chroma = _chromaCalculator.calculateFromSamples(
       samples: samples,
       a4Ref: _referencePitch,
     );
     _activeChromaVector = chroma;
-    final detected = _chordRecognizer.identifyFromChroma(chroma);
+
+    final detected = multiResult.chord.isRecognized
+        ? multiResult.chord
+        : _chordRecognizer.identifyFromChroma(chroma);
+
     if (detected.isRecognized) {
       if (_chordHistory.isEmpty || _chordHistory.last != detected) {
         _chordHistory.add(detected);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/tunner_theme.dart';
 import '../../tuner_viewmodel.dart';
 import 'chord_radar_widget.dart';
+import 'multi_tone_voicing_widget.dart';
 
 /// Modal interactivo para el Reconocimiento Polifónico de Acordes y Análisis Armónico.
 class ChordAnalyzerModal extends StatelessWidget {
@@ -116,9 +117,17 @@ class ChordAnalyzerModal extends StatelessWidget {
                 // 1. Tarjeta Monumental del Acorde Activo
                 _buildActiveChordCard(context, palette, chord),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
 
-                // 2. Radar Cromático de 12 Semitonos
+                // 2. Descomposición Multitonal en Vivo (Voces, Octavas y Cents)
+                MultiToneVoicingWidget(
+                  analysisResult: viewModel.polyphonicAnalysisResult,
+                  palette: palette,
+                ),
+
+                const SizedBox(height: 18),
+
+                // 3. Radar Cromático de 12 Semitonos
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
