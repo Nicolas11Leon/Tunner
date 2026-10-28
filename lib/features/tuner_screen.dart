@@ -21,6 +21,7 @@ import 'persistence/domain/app_user_settings_entity.dart';
 import 'drone/presentation/harmonic_drone_modal.dart';
 import 'chord_analyzer/presentation/chord_analyzer_modal.dart';
 import 'metronome/presentation/tap_tempo_modal.dart';
+import 'pedagogy_report/presentation/pedagogical_report_modal.dart';
 import '../core/theme/tunner_theme.dart';
 
 class TunerScreen extends StatelessWidget {
@@ -1502,6 +1503,20 @@ class TunerScreen extends StatelessWidget {
                     ),
                     side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.4)),
                     onPressed: () => SpectralComparatorModal.show(context, viewModel),
+                  ),
+                  const SizedBox(width: 8),
+                  ActionChip(
+                    key: const Key('open_pedagogical_report_chip'),
+                    avatar: Icon(Icons.picture_as_pdf, size: 16, color: palette.primaryAccent),
+                    label: const Text("Reporte PDF"),
+                    backgroundColor: palette.cardBackground,
+                    labelStyle: TextStyle(
+                      color: palette.textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11.5,
+                    ),
+                    side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.4)),
+                    onPressed: () => PedagogicalReportModal.show(context),
                   ),
                   if (viewModel.lastReport != null) ...[
                     const SizedBox(width: 8),
