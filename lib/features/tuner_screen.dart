@@ -10,6 +10,7 @@ import 'instrument/domain/instrument_profile_entity.dart';
 import 'customization/presentation/theme_customization_modal.dart';
 import 'practice_recorder/presentation/practice_recorder_dock.dart';
 import 'practice_recorder/presentation/practice_recording_player_modal.dart';
+import 'practice_recorder/presentation/spectral_comparator_modal.dart';
 import 'tuner/presentation/concert_pitch_selector_modal.dart';
 import 'tuner/presentation/temperament_selector_modal.dart';
 import 'tuner/domain/temperament_engine.dart';
@@ -1487,6 +1488,20 @@ class TunerScreen extends StatelessWidget {
                           : palette.staffLinesColor.withValues(alpha: 0.4),
                     ),
                     onSelected: (_) => viewModel.toggleSmartWait(),
+                  ),
+                  const SizedBox(width: 8),
+                  ActionChip(
+                    key: const Key('open_spectral_comparator_chip'),
+                    avatar: Icon(Icons.compare_arrows, size: 16, color: palette.secondaryAccent),
+                    label: const Text("Comparar Tomas"),
+                    backgroundColor: palette.cardBackground,
+                    labelStyle: TextStyle(
+                      color: palette.textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11.5,
+                    ),
+                    side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.4)),
+                    onPressed: () => SpectralComparatorModal.show(context, viewModel),
                   ),
                   if (viewModel.lastReport != null) ...[
                     const SizedBox(width: 8),
