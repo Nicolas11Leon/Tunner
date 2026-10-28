@@ -40,6 +40,7 @@ import 'score_editor/domain/score_editor_domain.dart';
 import 'universal_importer/domain/canonical_musicxml_exporter.dart';
 import 'universal_importer/domain/canonical_midi_exporter.dart';
 import 'universal_importer/domain/canonical_abc_exporter.dart';
+import 'universal_importer/domain/canonical_pdf_exporter.dart';
 import 'transcription/domain/live_transcription_engine.dart';
 import 'exercise_generator/domain/algorithmic_exercise_generator.dart';
 import 'tuner/domain/temperament_engine.dart';
@@ -140,6 +141,7 @@ class TunerViewModel extends ChangeNotifier {
   final CanonicalMusicXmlExporter _musicXmlExporter = const CanonicalMusicXmlExporter();
   final CanonicalMidiExporter _midiExporter = const CanonicalMidiExporter();
   final CanonicalAbcExporter _abcExporter = const CanonicalAbcExporter();
+  final CanonicalPdfExporter _pdfExporter = const CanonicalPdfExporter();
   final LiveTranscriptionEngine _transcriptionEngine = LiveTranscriptionEngine();
   bool _isLiveTranscriptionActive = false;
   final AlgorithmicExerciseGenerator _exerciseGenerator = const AlgorithmicExerciseGenerator();
@@ -1313,6 +1315,11 @@ class TunerViewModel extends ChangeNotifier {
   /// Exporta la partitura activa al estándar de texto plano ABC Notation.
   String exportActiveScoreToAbc() {
     return _abcExporter.exportToAbc(_activePackage);
+  }
+
+  /// Exporta la partitura activa al estándar internacional PDF vectorial imprimible (ISO 32000-1).
+  Uint8List exportActiveScoreToPdf() {
+    return _pdfExporter.exportToPdf(_activePackage);
   }
 
   /// Transcribe un archivo de audio (.wav) directamente a la partitura activa.
