@@ -64,6 +64,9 @@ import 'workspaces/domain/workspace_type.dart';
 import 'audio_synthesizer/domain/stem_export_entity.dart';
 import 'audio_synthesizer/domain/stem_audio_synthesizer.dart';
 import 'audio_synthesizer/data/stem_export_persistence_service.dart';
+import 'guided_lessons/domain/guided_lesson_entity.dart';
+import 'guided_lessons/domain/curated_guided_lessons.dart';
+import 'guided_lessons/domain/guided_lesson_evaluator.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -191,6 +194,10 @@ class TunerViewModel extends ChangeNotifier {
   ExportBundleResult? _lastExportBundle;
   bool _isExportingStems = false;
 
+  // Motor de Lecciones Guiadas Interactivas
+  final GuidedLessonEvaluator _guidedLessonEvaluator;
+  DateTime? _lastLessonFrameTime;
+
   // Inyección de dependencias en el constructor
   TunerViewModel({
     IPitchDetectorService? pitchService,
@@ -206,6 +213,7 @@ class TunerViewModel extends ChangeNotifier {
     StemAudioSynthesizer? stemSynthesizer,
     StemExportPersistenceService? exportPersistenceService,
     PolyphonicMultiToneDetector? multiToneDetector,
+    GuidedLessonEvaluator? guidedLessonEvaluator,
     Future<String> Function()? recordingPathProvider,
   })  : _pitchService = pitchService ?? PitchDetectorService(),
         _metronomeService = metronomeService ?? MetronomeService(),
@@ -222,6 +230,7 @@ class TunerViewModel extends ChangeNotifier {
         _exportPersistenceService = exportPersistenceService ??
             StemExportPersistenceService(documentsPathProvider: recordingPathProvider),
         _multiToneDetector = multiToneDetector ?? PolyphonicMultiToneDetector(),
+        _guidedLessonEvaluator = guidedLessonEvaluator ?? GuidedLessonEvaluator(),
         _recordingPathProvider = recordingPathProvider {
     _activePackage = _curatedLibrary.first;
     _bpm = _activePackage.defaultBpm;
@@ -475,6 +484,24 @@ class TunerViewModel extends ChangeNotifier {
         _recordSampleForMultiTrack(pitch, _cents, noteEntity.name);
       }
 
+      if (_guidedLessonEvaluator.hasActiveLesson && pitch > 20.0) {
+        final now = DateTime.now();
+        final double deltaSeconds;
+        if (_lastLessonFrameTime == null) {
+          deltaSeconds = 0.05;
+        } else {
+          final diffMs = now.difference(_lastLessonFrameTime!).inMilliseconds;
+          deltaSeconds = (diffMs / 1000.0).clamp(0.01, 0.25);
+        }
+        _lastLessonFrameTime = now;
+        _guidedLessonEvaluator.evaluateSample(
+          frequencyHz: pitch,
+          cents: _cents,
+          detectedNoteName: noteEntity.name,
+          deltaSeconds: deltaSeconds,
+        );
+      }
+
       _validatePerformance();
       notifyListeners();
 
@@ -482,6 +509,7 @@ class TunerViewModel extends ChangeNotifier {
         _frequency = 0.0;
         _noteName = "--";
         _cents = 0.0;
+        _lastLessonFrameTime = null;
 
         if (_isLiveTranscriptionActive) {
           final updatedPkg = _transcriptionEngine.processPitchFrame(
@@ -1801,6 +1829,35 @@ class TunerViewModel extends ChangeNotifier {
       _isExportingStems = false;
       notifyListeners();
     }
+  }
+
+  // --- Métodos de Lecciones Guiadas Interactivas ---
+  GuidedLessonProgressEntity? get activeLessonProgress => _guidedLessonEvaluator.activeProgress;
+  bool get hasActiveGuidedLesson => _guidedLessonEvaluator.hasActiveLesson;
+  List<GuidedLessonEntity> get availableGuidedLessons => CuratedGuidedLessons.all;
+
+  /// Inicia una nueva sesión de práctica guiada para la lección seleccionada.
+  void startGuidedLesson(GuidedLessonEntity lesson) {
+    _lastLessonFrameTime = null;
+    _guidedLessonEvaluator.startLesson(
+      lesson,
+      customToleranceCents: centsTolerance,
+    );
+    notifyListeners();
+  }
+
+  /// Cancela o cierra la lección guiada activa.
+  void cancelGuidedLesson() {
+    _lastLessonFrameTime = null;
+    _guidedLessonEvaluator.cancelLesson();
+    notifyListeners();
+  }
+
+  /// Salta manualmente a un paso específico dentro de la lección activa.
+  void jumpToLessonStep(int stepIndex) {
+    _lastLessonFrameTime = null;
+    _guidedLessonEvaluator.jumpToStep(stepIndex);
+    notifyListeners();
   }
 
   @override
