@@ -44,6 +44,9 @@ import 'exercise_generator/domain/algorithmic_exercise_generator.dart';
 import 'tuner/domain/temperament_engine.dart';
 import 'drone/domain/harmonic_drone_config.dart';
 import 'drone/domain/harmonic_drone_synthesizer.dart';
+import 'chord_analyzer/domain/chord_entity.dart';
+import 'chord_analyzer/domain/chroma_vector_calculator.dart';
+import 'chord_analyzer/domain/polyphonic_chord_recognizer.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -139,6 +142,12 @@ class TunerViewModel extends ChangeNotifier {
   int _temperamentRootKey = 0;
   final HarmonicDroneSynthesizer _droneSynthesizer = const HarmonicDroneSynthesizer();
   HarmonicDroneConfig _droneConfig = const HarmonicDroneConfig();
+  final PolyphonicChordRecognizer _chordRecognizer = PolyphonicChordRecognizer();
+  final ChromaVectorCalculator _chromaCalculator = const ChromaVectorCalculator();
+  ChordEntity _recognizedChord = ChordEntity.none;
+  bool _isChordRecognitionActive = false;
+  List<double> _activeChromaVector = List<double>.filled(12, 0.0);
+  final List<ChordEntity> _chordHistory = [];
 
   // Inyección de dependencias en el constructor
   TunerViewModel({
@@ -224,6 +233,10 @@ class TunerViewModel extends ChangeNotifier {
   TemperamentEngine get temperamentEngine => _temperamentEngine;
   HarmonicDroneConfig get droneConfig => _droneConfig;
   bool get isDronePlaying => _audioSynthesizer.isDroneLoopPlaying;
+  ChordEntity get recognizedChord => _recognizedChord;
+  bool get isChordRecognitionActive => _isChordRecognitionActive;
+  List<double> get activeChromaVector => _activeChromaVector;
+  List<ChordEntity> get chordHistory => List.unmodifiable(_chordHistory);
 
   /// Modifica el temperamento histórico activo (ej. Werckmeister III, Mesotónico, Justo).
   void setTemperament(String temperamentId) {
@@ -344,6 +357,10 @@ class TunerViewModel extends ChangeNotifier {
         }
       }
 
+      if (_isChordRecognitionActive) {
+        _updateChordFromPitch(pitch);
+      }
+
       _validatePerformance();
       notifyListeners();
 
@@ -362,6 +379,10 @@ class TunerViewModel extends ChangeNotifier {
             _scoreHistory.recordState(_activePackage);
             _activePackage = updatedPkg;
           }
+        }
+
+        if (_isChordRecognitionActive) {
+          _recognizedChord = ChordEntity.none;
         }
 
         _validatePerformance();
@@ -555,6 +576,73 @@ class TunerViewModel extends ChangeNotifier {
       temperamentRootKey: _temperamentRootKey,
     );
     await _audioSynthesizer.startDroneLoop(buffer, volume: _droneConfig.volume);
+  }
+
+  /// Alterna el estado activo del reconocedor polifónico de acordes.
+  void toggleChordRecognition() {
+    _isChordRecognitionActive = !_isChordRecognitionActive;
+    if (!_isChordRecognitionActive) {
+      _recognizedChord = ChordEntity.none;
+      _chordRecognizer.reset();
+      _activeChromaVector = List<double>.filled(12, 0.0);
+    }
+    notifyListeners();
+  }
+
+  /// Establece explícitamente el estado del reconocedor de acordes.
+  void setChordRecognitionActive(bool active) {
+    if (_isChordRecognitionActive != active) {
+      toggleChordRecognition();
+    }
+  }
+
+  /// Procesa muestras PCM normalizadas [-1.0, 1.0] para análisis armónico polifónico.
+  void processChordSamples(List<double> samples) {
+    if (!_isChordRecognitionActive) return;
+    final chroma = _chromaCalculator.calculateFromSamples(
+      samples: samples,
+      a4Ref: _referencePitch,
+    );
+    _activeChromaVector = chroma;
+    final detected = _chordRecognizer.identifyFromChroma(chroma);
+    if (detected.isRecognized) {
+      if (_chordHistory.isEmpty || _chordHistory.last != detected) {
+        _chordHistory.add(detected);
+        if (_chordHistory.length > 20) {
+          _chordHistory.removeAt(0);
+        }
+      }
+    }
+    _recognizedChord = detected;
+    notifyListeners();
+  }
+
+  void _updateChordFromPitch(double pitchHz) {
+    if (pitchHz > 20.0) {
+      final chroma = _chromaCalculator.calculateFromFrequencies(
+        frequencyAmplitudes: {pitchHz: 1.0},
+        a4Ref: _referencePitch,
+      );
+      _activeChromaVector = chroma;
+      final detected = _chordRecognizer.identifyFromChroma(chroma);
+      if (detected.isRecognized) {
+        if (_chordHistory.isEmpty || _chordHistory.last != detected) {
+          _chordHistory.add(detected);
+          if (_chordHistory.length > 20) {
+            _chordHistory.removeAt(0);
+          }
+        }
+      }
+      _recognizedChord = detected;
+    } else {
+      _recognizedChord = ChordEntity.none;
+    }
+  }
+
+  /// Limpia la progresión armónica registrada en el historial.
+  void clearChordHistory() {
+    _chordHistory.clear();
+    notifyListeners();
   }
 
   void _updateExpectedNoteForTick(int tick) {

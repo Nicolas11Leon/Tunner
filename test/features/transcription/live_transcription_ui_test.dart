@@ -90,6 +90,13 @@ void main() {
     }
 
     testWidgets('Toggles live transcription state and displays feedback', (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(1400, 900);
+      addTearDown(() {
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPhysicalSize();
+      });
+
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.pump();
 
