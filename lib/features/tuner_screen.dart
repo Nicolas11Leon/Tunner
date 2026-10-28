@@ -18,6 +18,7 @@ import 'acoustic_lab/presentation/harmonic_spectrogram_modal.dart';
 import 'exercise_generator/presentation/exercise_generator_modal.dart';
 import 'persistence/domain/app_user_settings_entity.dart';
 import 'drone/presentation/harmonic_drone_modal.dart';
+import 'chord_analyzer/presentation/chord_analyzer_modal.dart';
 import '../core/theme/tunner_theme.dart';
 
 class TunerScreen extends StatelessWidget {
@@ -678,6 +679,52 @@ class TunerScreen extends StatelessWidget {
                 ),
               ),
             ),
+            // Chip de Reconocimiento de Acordes en Modo Esencial
+            GestureDetector(
+              key: const Key('essential_chord_modal_btn'),
+              onTap: () => ChordAnalyzerModal.show(context, viewModel),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: viewModel.isChordRecognitionActive
+                      ? palette.secondaryAccent.withValues(alpha: 0.2)
+                      : palette.cardBackground,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: viewModel.isChordRecognitionActive
+                        ? palette.secondaryAccent
+                        : palette.staffLinesColor.withValues(alpha: 0.3),
+                    width: viewModel.isChordRecognitionActive ? 1.4 : 1.0,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.hub_outlined,
+                      size: 13,
+                      color: viewModel.isChordRecognitionActive
+                          ? palette.secondaryAccent
+                          : palette.textMutedColor,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      viewModel.isChordRecognitionActive && viewModel.recognizedChord.isRecognized
+                          ? 'Acorde: ${viewModel.recognizedChord.symbol}'
+                          : 'Acordes',
+                      style: TextStyle(
+                        color: viewModel.isChordRecognitionActive
+                            ? palette.secondaryAccent
+                            : palette.textColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             IconButton(
               key: const Key('toggle_pro_mode_btn'),
               icon: Icon(Icons.dashboard_customize_outlined, color: palette.secondaryAccent),
@@ -813,6 +860,52 @@ class TunerScreen extends StatelessWidget {
                           : 'Dron',
                       style: TextStyle(
                         color: viewModel.isDronePlaying ? palette.primaryAccent : palette.textColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Chip de Reconocimiento de Acordes en Modo Pro
+            GestureDetector(
+              key: const Key('pro_chord_modal_btn'),
+              onTap: () => ChordAnalyzerModal.show(context, viewModel),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: viewModel.isChordRecognitionActive
+                      ? palette.secondaryAccent.withValues(alpha: 0.2)
+                      : palette.cardBackground,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: viewModel.isChordRecognitionActive
+                        ? palette.secondaryAccent
+                        : palette.staffLinesColor.withValues(alpha: 0.3),
+                    width: viewModel.isChordRecognitionActive ? 1.4 : 1.0,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.hub_outlined,
+                      size: 13,
+                      color: viewModel.isChordRecognitionActive
+                          ? palette.secondaryAccent
+                          : palette.textMutedColor,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      viewModel.isChordRecognitionActive && viewModel.recognizedChord.isRecognized
+                          ? 'Acorde: ${viewModel.recognizedChord.symbol}'
+                          : 'Acordes',
+                      style: TextStyle(
+                        color: viewModel.isChordRecognitionActive
+                            ? palette.secondaryAccent
+                            : palette.textColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
