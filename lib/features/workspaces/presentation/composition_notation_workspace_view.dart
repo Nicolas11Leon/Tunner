@@ -5,6 +5,7 @@ import '../../sheet_music/presentation/real_sheet_music_painter.dart';
 import '../../song_library/presentation/song_decomposer_modal.dart';
 import '../../score_editor/presentation/score_editor_modal.dart';
 import '../../metronome/presentation/tap_tempo_modal.dart';
+import '../../audio_synthesizer/presentation/audio_midi_export_modal.dart';
 
 /// Vista especializada para el Modo 2: Composición & Partituras.
 /// Enfocada en el lienzo del pentagrama tipográfico SMuFL, transcripción de audio,
@@ -281,6 +282,20 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
                   ),
                   side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
                   onPressed: onOpenMixerModal,
+                ),
+                const SizedBox(width: 8),
+                ActionChip(
+                  key: const Key('export_stems_midi_btn'),
+                  avatar: Icon(Icons.album_outlined, size: 16, color: palette.secondaryAccent),
+                  label: const Text('Exportar Stems & MIDI'),
+                  backgroundColor: palette.cardBackground,
+                  labelStyle: TextStyle(
+                    color: palette.textColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+                  onPressed: () => AudioMidiExportModal.show(context, viewModel),
                 ),
                 const SizedBox(width: 8),
                 IconButton(
