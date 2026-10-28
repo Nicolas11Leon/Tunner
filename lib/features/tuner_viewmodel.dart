@@ -59,6 +59,9 @@ import 'pedagogy_report/domain/pedagogical_report_pdf_generator.dart';
 import 'pedagogy_profiles/domain/learner_profile_entity.dart';
 import 'pedagogy_profiles/domain/adaptive_scaffolding_engine.dart';
 import 'workspaces/domain/workspace_type.dart';
+import 'audio_synthesizer/domain/stem_export_entity.dart';
+import 'audio_synthesizer/domain/stem_audio_synthesizer.dart';
+import 'audio_synthesizer/data/stem_export_persistence_service.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -178,6 +181,12 @@ class TunerViewModel extends ChangeNotifier {
   PedagogicalDiagnosticResult? _lastPedagogicalDiagnostic;
   WorkspaceType _activeWorkspace = WorkspaceType.learning;
 
+  // Motor de Exportación de Stems y MIDI
+  final StemAudioSynthesizer _stemSynthesizer;
+  final StemExportPersistenceService _exportPersistenceService;
+  ExportBundleResult? _lastExportBundle;
+  bool _isExportingStems = false;
+
   // Inyección de dependencias en el constructor
   TunerViewModel({
     IPitchDetectorService? pitchService,
@@ -190,6 +199,8 @@ class TunerViewModel extends ChangeNotifier {
     IScoreParserService? scoreImporterService,
     IAudioSynthesizerService? audioSynthesizerService,
     AcousticEchoSuppressor? echoSuppressor,
+    StemAudioSynthesizer? stemSynthesizer,
+    StemExportPersistenceService? exportPersistenceService,
     Future<String> Function()? recordingPathProvider,
   })  : _pitchService = pitchService ?? PitchDetectorService(),
         _metronomeService = metronomeService ?? MetronomeService(),
@@ -202,6 +213,9 @@ class TunerViewModel extends ChangeNotifier {
         _scoreImporterService = scoreImporterService ?? const UniversalScoreImporterService(),
         _audioSynthesizer = audioSynthesizerService ?? AudioSynthesizerService(),
         _echoSuppressor = echoSuppressor ?? AcousticEchoSuppressor(),
+        _stemSynthesizer = stemSynthesizer ?? const StemAudioSynthesizer(),
+        _exportPersistenceService = exportPersistenceService ??
+            StemExportPersistenceService(documentsPathProvider: recordingPathProvider),
         _recordingPathProvider = recordingPathProvider {
     _activePackage = _curatedLibrary.first;
     _bpm = _activePackage.defaultBpm;
@@ -1734,6 +1748,39 @@ class TunerViewModel extends ChangeNotifier {
       stems: _activePackage.tracks,
     );
     notifyListeners();
+  }
+
+  // --- Métodos de Exportación de Stems y MIDI ---
+  ExportBundleResult? get lastExportBundle => _lastExportBundle;
+  bool get isExportingStems => _isExportingStems;
+
+  /// Ejecuta la síntesis de stems y archivo MIDI de la obra activa y guarda los archivos en disco.
+  Future<ExportBundleResult> exportStemsAndMidi({
+    StemExportConfig config = const StemExportConfig(),
+  }) async {
+    _isExportingStems = true;
+    notifyListeners();
+
+    try {
+      final bundle = _stemSynthesizer.exportStemsAndMidi(
+        score: _activePackage.score,
+        mixerConsole: _mixerConsole,
+        bpm: _bpm,
+        trackTitle: _activePackage.title,
+        config: config,
+        recordedTake: _activeRecording,
+      );
+
+      _lastExportBundle = bundle;
+      await _exportPersistenceService.saveExportBundle(
+        bundle,
+        customSubfolder: _activePackage.title.toLowerCase().replaceAll(' ', '_'),
+      );
+      return bundle;
+    } finally {
+      _isExportingStems = false;
+      notifyListeners();
+    }
   }
 
   @override
