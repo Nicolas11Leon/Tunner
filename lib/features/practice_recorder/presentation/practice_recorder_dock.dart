@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../tuner_viewmodel.dart';
 import 'practice_recording_player_modal.dart';
+import 'spectral_comparator_modal.dart';
 
 /// Barra de control y estado de grabación de práctica acústica (*Practice Recorder Dock*).
 /// Diseñada con estética de estudio profesional, animación de pulso carmesí y contador digital.
@@ -61,7 +62,7 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
         color: palette.cardBackground.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(16),
@@ -217,6 +218,19 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
                 "Escuchar",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               ),
+            ),
+          ],
+
+          // 5. Botón para abrir el comparador espectral multi-toma
+          if (!isRecording) ...[
+            const SizedBox(width: 8),
+            IconButton(
+              key: const Key('open_spectral_comparator_btn'),
+              tooltip: "Comparador Espectral de Tomas",
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              icon: Icon(Icons.compare_arrows, size: 20, color: palette.secondaryAccent),
+              onPressed: () => SpectralComparatorModal.show(context, vm),
             ),
           ],
         ],

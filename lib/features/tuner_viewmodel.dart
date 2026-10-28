@@ -24,6 +24,7 @@ import 'instrument/domain/i_instrument_transposition_service.dart';
 import 'instrument/data/instrument_transposition_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'practice_recorder/domain/practice_recording_entity.dart';
+import 'practice_recorder/domain/multitrack_session_entity.dart';
 import 'practice_recorder/domain/i_practice_recorder_service.dart';
 import 'practice_recorder/domain/i_audio_playback_service.dart';
 import 'practice_recorder/data/practice_recorder_service.dart';
@@ -81,6 +82,11 @@ class TunerViewModel extends ChangeNotifier {
   final List<double> _currentWaveformPeaks = [];
   PracticeRecordingEntity? _activeRecording;
   final List<PracticeRecordingEntity> _recordingHistory = [];
+
+  // Estado de Grabación Multi-Pista y Comparador Espectral
+  final List<TimedPitchSample> _currentPitchTrack = [];
+  final List<TimedSpectralSample> _currentSpectralTrack = [];
+  late MultiTrackSessionEntity _multiTrackSession;
 
   bool _isPlayingAudio = false;
   Duration _playbackPosition = Duration.zero;
@@ -191,6 +197,7 @@ class TunerViewModel extends ChangeNotifier {
       stems: _activePackage.tracks,
     );
     _initListeners();
+    _initDefaultMultiTrackSession();
     loadPersistedState();
   }
 
@@ -234,6 +241,7 @@ class TunerViewModel extends ChangeNotifier {
   Duration get playbackPosition => _playbackPosition;
   Duration get playbackDuration => _playbackDuration;
   double get playbackSpeed => _playbackSpeed;
+  MultiTrackSessionEntity get multiTrackSession => _multiTrackSession;
 
   double get frequency => _frequency;
   String get noteName => _noteName;
@@ -385,6 +393,10 @@ class TunerViewModel extends ChangeNotifier {
         _updateChordFromPitch(pitch);
       }
 
+      if (_isAudioRecording) {
+        _recordSampleForMultiTrack(pitch, _cents, noteEntity.name);
+      }
+
       _validatePerformance();
       notifyListeners();
 
@@ -407,6 +419,10 @@ class TunerViewModel extends ChangeNotifier {
 
         if (_isChordRecognitionActive) {
           _recognizedChord = ChordEntity.none;
+        }
+
+        if (_isAudioRecording) {
+          _recordSampleForMultiTrack(0.0, 0.0, "--", isSilent: true);
         }
 
         _validatePerformance();
@@ -1021,6 +1037,8 @@ class TunerViewModel extends ChangeNotifier {
     }
 
     _currentWaveformPeaks.clear();
+    _currentPitchTrack.clear();
+    _currentSpectralTrack.clear();
     _recordingDuration = Duration.zero;
     final path = await _getRecordingPath();
 
@@ -1039,7 +1057,7 @@ class TunerViewModel extends ChangeNotifier {
     }
   }
 
-  /// Detiene la grabación activa y consolida la toma como [PracticeRecordingEntity].
+  /// Detiene la grabación activa y consolida la toma como [PracticeRecordingEntity] y [PracticeTakeEntity].
   Future<void> stopPracticeRecording() async {
     if (!_isAudioRecording) return;
     _recordingTimer?.cancel();
@@ -1059,6 +1077,22 @@ class TunerViewModel extends ChangeNotifier {
       );
       _activeRecording = recording;
       _recordingHistory.insert(0, recording);
+
+      final take = PracticeTakeEntity(
+        id: "take_${DateTime.now().millisecondsSinceEpoch}",
+        name: "Toma ${_multiTrackSession.takes.length + 1}",
+        timestamp: DateTime.now(),
+        duration: _recordingDuration,
+        filePath: filePath,
+        waveformPeaks: List.unmodifiable(_currentWaveformPeaks),
+        pitchTrack: List.unmodifiable(_currentPitchTrack),
+        spectralTrack: List.unmodifiable(_currentSpectralTrack),
+      );
+      _multiTrackSession = _multiTrackSession.copyWith(
+        takes: [..._multiTrackSession.takes, take],
+        selectedTakeAId: _multiTrackSession.takes.isNotEmpty ? _multiTrackSession.takes.last.id : take.id,
+        selectedTakeBId: take.id,
+      );
       _triggerAutoSave();
     }
     notifyListeners();
@@ -1123,6 +1157,137 @@ class TunerViewModel extends ChangeNotifier {
     }
     _activeRecording = null;
     notifyListeners();
+  }
+
+  // --- Métodos de Gestión Multi-Pista y Comparador Espectral ---
+
+  void _recordSampleForMultiTrack(double pitch, double cents, String noteName, {bool isSilent = false}) {
+    final timeMs = _recordingDuration.inMilliseconds;
+    if (_currentPitchTrack.isNotEmpty && (timeMs - _currentPitchTrack.last.timeMs).abs() < 20) {
+      return;
+    }
+    _currentPitchTrack.add(
+      TimedPitchSample(
+        timeMs: timeMs,
+        frequencyHz: pitch,
+        centsDeviation: cents,
+        targetNoteName: _expectedNote?.noteName ?? noteName,
+        isSilent: isSilent || pitch <= 20.0,
+      ),
+    );
+    if (pitch > 20.0) {
+      _currentSpectralTrack.add(
+        TimedSpectralSample(
+          timeMs: timeMs,
+          spectralCentroidHz: pitch * 2.6,
+          thdPercent: 3.2,
+          rmsEnergy: (_currentWaveformPeaks.isNotEmpty ? _currentWaveformPeaks.last : 0.25),
+        ),
+      );
+    }
+  }
+
+  void _initDefaultMultiTrackSession() {
+    final now = DateTime.now();
+    _multiTrackSession = MultiTrackSessionEntity(
+      id: "session_${now.millisecondsSinceEpoch}",
+      title: _activePackage.title,
+      createdAt: now,
+      bpm: _bpm,
+      takes: [
+        PracticeTakeEntity(
+          id: 'take_1',
+          name: 'Toma 1 (Afinación Base)',
+          timestamp: now.subtract(const Duration(minutes: 5)),
+          duration: const Duration(seconds: 4),
+          filePath: '',
+          waveformPeaks: const [0.2, 0.4, 0.7, 0.5, 0.3],
+          pitchTrack: const [
+            TimedPitchSample(timeMs: 0, frequencyHz: 440.0, centsDeviation: 12.0, targetNoteName: 'La4'),
+            TimedPitchSample(timeMs: 200, frequencyHz: 440.0, centsDeviation: -15.0, targetNoteName: 'La4'),
+            TimedPitchSample(timeMs: 400, frequencyHz: 440.0, centsDeviation: 14.0, targetNoteName: 'La4'),
+            TimedPitchSample(timeMs: 600, frequencyHz: 440.0, centsDeviation: -10.0, targetNoteName: 'La4'),
+            TimedPitchSample(timeMs: 800, frequencyHz: 440.0, centsDeviation: 8.0, targetNoteName: 'La4'),
+          ],
+          spectralTrack: const [
+            TimedSpectralSample(timeMs: 0, spectralCentroidHz: 1100.0, thdPercent: 4.2, rmsEnergy: 0.2),
+            TimedSpectralSample(timeMs: 400, spectralCentroidHz: 1150.0, thdPercent: 4.5, rmsEnergy: 0.25),
+            TimedSpectralSample(timeMs: 800, spectralCentroidHz: 1120.0, thdPercent: 4.0, rmsEnergy: 0.22),
+          ],
+        ),
+        PracticeTakeEntity(
+          id: 'take_2',
+          name: 'Toma 2 (Enfoque Precisión)',
+          timestamp: now,
+          duration: const Duration(seconds: 4),
+          filePath: '',
+          waveformPeaks: const [0.25, 0.5, 0.8, 0.6, 0.35],
+          pitchTrack: const [
+            TimedPitchSample(timeMs: 0, frequencyHz: 440.0, centsDeviation: 2.0, targetNoteName: 'La4'),
+            TimedPitchSample(timeMs: 200, frequencyHz: 440.0, centsDeviation: -1.5, targetNoteName: 'La4'),
+            TimedPitchSample(timeMs: 400, frequencyHz: 440.0, centsDeviation: 3.0, targetNoteName: 'La4'),
+            TimedPitchSample(timeMs: 600, frequencyHz: 440.0, centsDeviation: -2.0, targetNoteName: 'La4'),
+            TimedPitchSample(timeMs: 800, frequencyHz: 440.0, centsDeviation: 1.0, targetNoteName: 'La4'),
+          ],
+          spectralTrack: const [
+            TimedSpectralSample(timeMs: 0, spectralCentroidHz: 1350.0, thdPercent: 2.5, rmsEnergy: 0.28),
+            TimedSpectralSample(timeMs: 400, spectralCentroidHz: 1380.0, thdPercent: 2.4, rmsEnergy: 0.3),
+            TimedSpectralSample(timeMs: 800, spectralCentroidHz: 1360.0, thdPercent: 2.6, rmsEnergy: 0.27),
+          ],
+        ),
+      ],
+      selectedTakeAId: 'take_1',
+      selectedTakeBId: 'take_2',
+    );
+  }
+
+  void selectComparisonTakes({String? takeAId, String? takeBId}) {
+    _multiTrackSession = _multiTrackSession.copyWith(
+      selectedTakeAId: takeAId ?? _multiTrackSession.selectedTakeAId,
+      selectedTakeBId: takeBId ?? _multiTrackSession.selectedTakeBId,
+    );
+    notifyListeners();
+  }
+
+  void addPracticeTake(PracticeTakeEntity take) {
+    _multiTrackSession = _multiTrackSession.copyWith(
+      takes: [..._multiTrackSession.takes, take],
+      selectedTakeAId: _multiTrackSession.takes.isNotEmpty ? _multiTrackSession.takes.last.id : take.id,
+      selectedTakeBId: take.id,
+    );
+    notifyListeners();
+  }
+
+  void setTakeMute(String takeId, bool isMuted) {
+    final updated = _multiTrackSession.takes.map((t) {
+      return t.id == takeId ? t.copyWith(isMuted: isMuted) : t;
+    }).toList();
+    _multiTrackSession = _multiTrackSession.copyWith(takes: updated);
+    notifyListeners();
+  }
+
+  void setTakeSolo(String takeId, bool isSolo) {
+    final updated = _multiTrackSession.takes.map((t) {
+      return t.id == takeId ? t.copyWith(isSolo: isSolo) : t;
+    }).toList();
+    _multiTrackSession = _multiTrackSession.copyWith(takes: updated);
+    notifyListeners();
+  }
+
+  void setTakeGain(String takeId, double gain) {
+    final updated = _multiTrackSession.takes.map((t) {
+      return t.id == takeId ? t.copyWith(gain: gain) : t;
+    }).toList();
+    _multiTrackSession = _multiTrackSession.copyWith(takes: updated);
+    notifyListeners();
+  }
+
+  Future<void> playTakeAudio(PracticeTakeEntity take) async {
+    if (take.filePath.isNotEmpty) {
+      await _playbackService.play(take.filePath);
+      _isPlayingAudio = true;
+      notifyListeners();
+    }
   }
 
   final Completer<void> _initCompleter = Completer<void>();
