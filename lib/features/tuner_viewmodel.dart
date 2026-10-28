@@ -43,6 +43,7 @@ import 'universal_importer/domain/canonical_abc_exporter.dart';
 import 'transcription/domain/live_transcription_engine.dart';
 import 'exercise_generator/domain/algorithmic_exercise_generator.dart';
 import 'tuner/domain/temperament_engine.dart';
+import 'tuner/domain/acoustic_echo_suppressor.dart';
 import 'drone/domain/harmonic_drone_config.dart';
 import 'drone/domain/harmonic_drone_synthesizer.dart';
 import 'chord_analyzer/domain/chord_entity.dart';
@@ -64,6 +65,7 @@ class TunerViewModel extends ChangeNotifier {
   final ILocalPersistenceService _persistenceService;
   final IScoreParserService _scoreImporterService;
   final IAudioSynthesizerService _audioSynthesizer;
+  final AcousticEchoSuppressor _echoSuppressor;
   final Future<String> Function()? _recordingPathProvider;
 
   StreamSubscription<double>? _amplitudeSubscription;
@@ -166,6 +168,7 @@ class TunerViewModel extends ChangeNotifier {
     ILocalPersistenceService? persistenceService,
     IScoreParserService? scoreImporterService,
     IAudioSynthesizerService? audioSynthesizerService,
+    AcousticEchoSuppressor? echoSuppressor,
     Future<String> Function()? recordingPathProvider,
   })  : _pitchService = pitchService ?? PitchDetectorService(),
         _metronomeService = metronomeService ?? MetronomeService(),
@@ -177,6 +180,7 @@ class TunerViewModel extends ChangeNotifier {
             JsonLocalPersistenceService(documentsPathProvider: recordingPathProvider),
         _scoreImporterService = scoreImporterService ?? const UniversalScoreImporterService(),
         _audioSynthesizer = audioSynthesizerService ?? AudioSynthesizerService(),
+        _echoSuppressor = echoSuppressor ?? AcousticEchoSuppressor(),
         _recordingPathProvider = recordingPathProvider {
     _activePackage = _curatedLibrary.first;
     _bpm = _activePackage.defaultBpm;
@@ -244,6 +248,7 @@ class TunerViewModel extends ChangeNotifier {
   List<double> get activeChromaVector => _activeChromaVector;
   List<ChordEntity> get chordHistory => List.unmodifiable(_chordHistory);
   TapTempoResult? get lastTapTempoResult => _lastTapTempoResult;
+  AcousticEchoSuppressor get echoSuppressor => _echoSuppressor;
 
   /// Modifica el temperamento histórico activo (ej. Werckmeister III, Mesotónico, Justo).
   void setTemperament(String temperamentId) {
@@ -333,6 +338,10 @@ class TunerViewModel extends ChangeNotifier {
 
   void _initListeners() {
     _pitchService.onPitchDetected = (pitch) {
+      if (_echoSuppressor.shouldSuppressPitch(pitch)) {
+        return;
+      }
+
       _silenceTimer?.cancel();
       _frequency = pitch;
       final noteEntity = NoteEntity.fromFrequency(pitch, a4Ref: _referencePitch);
@@ -402,6 +411,7 @@ class TunerViewModel extends ChangeNotifier {
         if (subTick % 4 == 0) {
           final metroGain = _mixerConsole.getEffectiveGain(_mixerConsole.metronomeTrack.id);
           if (metroGain > 0.001) {
+            _echoSuppressor.notifyClickEmitted();
             _audioSynthesizer.playMetronomeClick(
               isDownbeat: _countInBeat == 1,
               volume: metroGain,
@@ -461,6 +471,7 @@ class TunerViewModel extends ChangeNotifier {
         if (subTick % 4 == 0) {
           final metroGain = _mixerConsole.getEffectiveGain(_mixerConsole.metronomeTrack.id);
           if (metroGain > 0.001) {
+            _echoSuppressor.notifyClickEmitted();
             _audioSynthesizer.playMetronomeClick(
               isDownbeat: subTick == 0,
               volume: metroGain,

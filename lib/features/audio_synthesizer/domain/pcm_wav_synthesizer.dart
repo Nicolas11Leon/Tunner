@@ -75,27 +75,41 @@ class PcmWavSynthesizer {
     return header.buffer.asUint8List();
   }
 
-  /// Sintetiza un clic percusivo de metrónomo tipo bloque de madera (Woodblock).
+  /// Sintetiza un clic percusivo de metrónomo tipo bloque de madera (Woodblock) atonal.
   ///
-  /// * [isDownbeat]: Si es true, genera el pulso 1 con acento orquestal ($2200\text{ Hz}$, $25\text{ ms}$).
-  /// * Si es false, genera los pulsos secundarios ($1400\text{ Hz}$, $18\text{ ms}$).
+  /// Emplea un barrido exponencial descendente de frecuencia (FM Chirp) combinado
+  /// con componentes inarmónicos de proporción áurea y decaimiento ultrarrápido.
+  /// Esta estructura física dispersa la función de correlación (NSDF) a claridad cero,
+  /// garantizando que detectores de tono basados en autocorrelación (MPM / YIN)
+  /// rechacen el clic como percusión no tonal (`pitched = false`).
+  ///
+  /// * [isDownbeat]: Si es true, genera el pulso 1 acentuado (3800 Hz inicial, 25 ms).
+  /// * Si es false, genera los pulsos secundarios (2800 Hz inicial, 18 ms).
   static Uint8List generateMetronomeClickWav({
     required bool isDownbeat,
     int sampleRate = defaultSampleRate,
   }) {
-    final double frequency = isDownbeat ? 2200.0 : 1400.0;
     final double durationMs = isDownbeat ? 25.0 : 18.0;
-    final double decayTau = isDownbeat ? 0.0055 : 0.0035;
-
     final int totalSamples = (sampleRate * (durationMs / 1000.0)).round();
     final pcmBytes = ByteData(totalSamples * 2);
 
-    const double maxAmplitude = 30000.0; // Amplitud máxima en rango 16-bit signed (-32768..32767)
+    final double fStart = isDownbeat ? 3800.0 : 2800.0;
+    final double tauChirp = isDownbeat ? 0.0012 : 0.0010;
+    final double tauDecay = isDownbeat ? 0.0015 : 0.0012;
 
     for (int i = 0; i < totalSamples; i++) {
       final double t = i / sampleRate;
-      final double envelope = math.exp(-t / decayTau);
-      final double sampleValue = maxAmplitude * envelope * math.sin(2.0 * math.pi * frequency * t);
+      final double env = math.exp(-t / tauDecay);
+      final double phase = 2.0 * math.pi * fStart * tauChirp * (1.0 - math.exp(-t / tauChirp));
+
+      // Combinación de dos componentes inarmónicos (razón áurea 1.618 y número e 2.718)
+      // para anular cualquier periodicidad armónica constante en la ventana de autocorrelación
+      final double s1 = math.sin(phase);
+      final double s2 = math.sin(phase * 1.618);
+      final double s3 = math.sin(phase * 2.718);
+      final double signal = (s1 + 0.6 * s2 + 0.4 * s3) / 2.0;
+
+      final double sampleValue = 28000.0 * env * signal;
       final int sampleClamped = sampleValue.clamp(-32768.0, 32767.0).round();
       pcmBytes.setInt16(i * 2, sampleClamped, Endian.little);
     }
