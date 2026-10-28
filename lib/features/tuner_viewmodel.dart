@@ -39,6 +39,7 @@ import 'audio_synthesizer/data/audio_synthesizer_service.dart';
 import 'score_editor/domain/score_editor_domain.dart';
 import 'universal_importer/domain/canonical_musicxml_exporter.dart';
 import 'universal_importer/domain/canonical_midi_exporter.dart';
+import 'universal_importer/domain/canonical_abc_exporter.dart';
 import 'transcription/domain/live_transcription_engine.dart';
 import 'exercise_generator/domain/algorithmic_exercise_generator.dart';
 import 'tuner/domain/temperament_engine.dart';
@@ -136,6 +137,7 @@ class TunerViewModel extends ChangeNotifier {
   final ScoreUndoRedoHistory _scoreHistory = ScoreUndoRedoHistory();
   final CanonicalMusicXmlExporter _musicXmlExporter = const CanonicalMusicXmlExporter();
   final CanonicalMidiExporter _midiExporter = const CanonicalMidiExporter();
+  final CanonicalAbcExporter _abcExporter = const CanonicalAbcExporter();
   final LiveTranscriptionEngine _transcriptionEngine = LiveTranscriptionEngine();
   bool _isLiveTranscriptionActive = false;
   final AlgorithmicExerciseGenerator _exerciseGenerator = const AlgorithmicExerciseGenerator();
@@ -1295,6 +1297,27 @@ class TunerViewModel extends ChangeNotifier {
   /// Exporta la partitura activa al estándar binario Standard MIDI File (SMF Tipo 0).
   Uint8List exportActiveScoreToMidi() {
     return _midiExporter.exportToMidi(_activePackage);
+  }
+
+  /// Exporta la partitura activa al estándar de texto plano ABC Notation.
+  String exportActiveScoreToAbc() {
+    return _abcExporter.exportToAbc(_activePackage);
+  }
+
+  /// Transcribe un archivo de audio (.wav) directamente a la partitura activa.
+  Future<ParsedScoreResult?> transcribeAudioFileToScore(Uint8List audioBytes, String fileName) async {
+    try {
+      final result = await _scoreImporterService.parseScoreData(
+        bytes: audioBytes,
+        fileName: fileName,
+      );
+      addSongPackage(result.package);
+      notifyListeners();
+      return result;
+    } catch (e) {
+      debugPrint("Error al transcribir audio a partitura: $e");
+      return null;
+    }
   }
 
   /// Activa o detiene la transcripción acústica de notas del micrófono a la partitura en tiempo real.
