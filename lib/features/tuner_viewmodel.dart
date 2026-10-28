@@ -42,6 +42,8 @@ import 'universal_importer/domain/canonical_midi_exporter.dart';
 import 'transcription/domain/live_transcription_engine.dart';
 import 'exercise_generator/domain/algorithmic_exercise_generator.dart';
 import 'tuner/domain/temperament_engine.dart';
+import 'drone/domain/harmonic_drone_config.dart';
+import 'drone/domain/harmonic_drone_synthesizer.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -135,6 +137,8 @@ class TunerViewModel extends ChangeNotifier {
   final TemperamentEngine _temperamentEngine = const TemperamentEngine();
   MusicalTemperament _selectedTemperament = TemperamentEngine.allTemperaments.first;
   int _temperamentRootKey = 0;
+  final HarmonicDroneSynthesizer _droneSynthesizer = const HarmonicDroneSynthesizer();
+  HarmonicDroneConfig _droneConfig = const HarmonicDroneConfig();
 
   // Inyección de dependencias en el constructor
   TunerViewModel({
@@ -218,6 +222,8 @@ class TunerViewModel extends ChangeNotifier {
   int get temperamentRootKey => _temperamentRootKey;
   List<MusicalTemperament> get availableTemperaments => TemperamentEngine.allTemperaments;
   TemperamentEngine get temperamentEngine => _temperamentEngine;
+  HarmonicDroneConfig get droneConfig => _droneConfig;
+  bool get isDronePlaying => _audioSynthesizer.isDroneLoopPlaying;
 
   /// Modifica el temperamento histórico activo (ej. Werckmeister III, Mesotónico, Justo).
   void setTemperament(String temperamentId) {
@@ -226,6 +232,9 @@ class TunerViewModel extends ChangeNotifier {
       _selectedTemperament = target;
       if (_frequency > 0) {
         _recalculatePitchForActiveTemperament();
+      }
+      if (_audioSynthesizer.isDroneLoopPlaying) {
+        _refreshDronePlayback();
       }
       notifyListeners();
       _triggerAutoSave();
@@ -239,6 +248,9 @@ class TunerViewModel extends ChangeNotifier {
       _temperamentRootKey = normalized;
       if (_frequency > 0) {
         _recalculatePitchForActiveTemperament();
+      }
+      if (_audioSynthesizer.isDroneLoopPlaying) {
+        _refreshDronePlayback();
       }
       notifyListeners();
       _triggerAutoSave();
@@ -478,6 +490,9 @@ class TunerViewModel extends ChangeNotifier {
       if (_audioSynthesizer.isDiapasonPlaying) {
         _audioSynthesizer.startDiapasonTone(_referencePitch);
       }
+      if (_audioSynthesizer.isDroneLoopPlaying) {
+        _refreshDronePlayback();
+      }
       _validatePerformance();
       notifyListeners();
       _triggerAutoSave();
@@ -503,6 +518,43 @@ class TunerViewModel extends ChangeNotifier {
       await _audioSynthesizer.stopDiapasonTone();
       notifyListeners();
     }
+  }
+
+  /// Actualiza la configuración acústica del dron pedal (nota, octava, armónicos, timbre, volumen).
+  Future<void> setDroneConfig(HarmonicDroneConfig config) async {
+    _droneConfig = config;
+    if (_audioSynthesizer.isDroneLoopPlaying) {
+      await _refreshDronePlayback();
+    }
+    notifyListeners();
+  }
+
+  /// Alterna (inicia / detiene) la emisión del bucle continuo del dron armónico.
+  Future<void> toggleDrone() async {
+    if (_audioSynthesizer.isDroneLoopPlaying) {
+      await _audioSynthesizer.stopDroneLoop();
+    } else {
+      await _refreshDronePlayback();
+    }
+    notifyListeners();
+  }
+
+  /// Detiene la reproducción del dron armónico si está activo.
+  Future<void> stopDrone() async {
+    if (_audioSynthesizer.isDroneLoopPlaying) {
+      await _audioSynthesizer.stopDroneLoop();
+      notifyListeners();
+    }
+  }
+
+  Future<void> _refreshDronePlayback() async {
+    final buffer = _droneSynthesizer.generateDroneWavBuffer(
+      config: _droneConfig,
+      a4Ref: _referencePitch,
+      temperament: _selectedTemperament,
+      temperamentRootKey: _temperamentRootKey,
+    );
+    await _audioSynthesizer.startDroneLoop(buffer, volume: _droneConfig.volume);
   }
 
   void _updateExpectedNoteForTick(int tick) {

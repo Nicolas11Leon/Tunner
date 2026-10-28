@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 /// Contrato de dominio abstracto para el sintetizador de audio procedimental.
 /// Pure Dart: Cero dependencias de Flutter UI.
 abstract class IAudioSynthesizerService {
@@ -29,6 +31,15 @@ abstract class IAudioSynthesizerService {
     required Duration duration,
     double volume = 0.8,
   });
+
+  /// Inicia la reproducción en bucle continuo del buffer WAV sintetizado para el estudio de dron.
+  Future<void> startDroneLoop(Uint8List wavBytes, {double volume = 0.7});
+
+  /// Detiene la reproducción del dron continuo.
+  Future<void> stopDroneLoop();
+
+  /// Indica si actualmente el dron pedal está reproduciéndose en bucle.
+  bool get isDroneLoopPlaying;
 
   /// Libera recursos de audio nativos.
   void dispose();
