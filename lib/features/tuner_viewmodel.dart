@@ -67,6 +67,9 @@ import 'audio_synthesizer/data/stem_export_persistence_service.dart';
 import 'guided_lessons/domain/guided_lesson_entity.dart';
 import 'guided_lessons/domain/curated_guided_lessons.dart';
 import 'guided_lessons/domain/guided_lesson_evaluator.dart';
+import 'vocal_autotune/domain/autotune_config_entity.dart';
+import 'vocal_autotune/domain/scale_quantizer.dart';
+import 'vocal_autotune/domain/vocal_autotune_processor.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -198,6 +201,10 @@ class TunerViewModel extends ChangeNotifier {
   final GuidedLessonEvaluator _guidedLessonEvaluator;
   DateTime? _lastLessonFrameTime;
 
+  // Motor de Vocal AutoTune en Tiempo Real y Post-Producción
+  final VocalAutoTuneProcessor _autoTuneProcessor;
+  ScaleQuantizationResult _lastAutoTuneResult = ScaleQuantizationResult.unvoiced(0.0);
+
   // Inyección de dependencias en el constructor
   TunerViewModel({
     IPitchDetectorService? pitchService,
@@ -214,6 +221,7 @@ class TunerViewModel extends ChangeNotifier {
     StemExportPersistenceService? exportPersistenceService,
     PolyphonicMultiToneDetector? multiToneDetector,
     GuidedLessonEvaluator? guidedLessonEvaluator,
+    VocalAutoTuneProcessor? autoTuneProcessor,
     Future<String> Function()? recordingPathProvider,
   })  : _pitchService = pitchService ?? PitchDetectorService(),
         _metronomeService = metronomeService ?? MetronomeService(),
@@ -231,6 +239,7 @@ class TunerViewModel extends ChangeNotifier {
             StemExportPersistenceService(documentsPathProvider: recordingPathProvider),
         _multiToneDetector = multiToneDetector ?? PolyphonicMultiToneDetector(),
         _guidedLessonEvaluator = guidedLessonEvaluator ?? GuidedLessonEvaluator(),
+        _autoTuneProcessor = autoTuneProcessor ?? VocalAutoTuneProcessor(),
         _recordingPathProvider = recordingPathProvider {
     _activePackage = _curatedLibrary.first;
     _bpm = _activePackage.defaultBpm;
@@ -502,6 +511,13 @@ class TunerViewModel extends ChangeNotifier {
         );
       }
 
+      if (_autoTuneProcessor.config.isEnabled && pitch > 20.0) {
+        _lastAutoTuneResult = _autoTuneProcessor.evaluatePitchFrame(
+          detectedPitchHz: pitch,
+          deltaSeconds: 0.05,
+        );
+      }
+
       _validatePerformance();
       notifyListeners();
 
@@ -510,6 +526,9 @@ class TunerViewModel extends ChangeNotifier {
         _noteName = "--";
         _cents = 0.0;
         _lastLessonFrameTime = null;
+        if (_autoTuneProcessor.config.isEnabled) {
+          _lastAutoTuneResult = ScaleQuantizationResult.unvoiced(0.0);
+        }
 
         if (_isLiveTranscriptionActive) {
           final updatedPkg = _transcriptionEngine.processPitchFrame(
@@ -1858,6 +1877,44 @@ class TunerViewModel extends ChangeNotifier {
     _lastLessonFrameTime = null;
     _guidedLessonEvaluator.jumpToStep(stepIndex);
     notifyListeners();
+  }
+
+  // --- Getters y Métodos de Vocal AutoTune ---
+  VocalAutoTuneProcessor get autoTuneProcessor => _autoTuneProcessor;
+  AutoTuneConfigEntity get autoTuneConfig => _autoTuneProcessor.config;
+  bool get isAutoTuneActive => _autoTuneProcessor.config.isEnabled;
+  ScaleQuantizationResult get lastAutoTuneResult => _lastAutoTuneResult;
+
+  /// Alterna el estado activo de corrección vocal en tiempo real.
+  void toggleAutoTune() {
+    final newConfig = _autoTuneProcessor.config.copyWith(
+      isEnabled: !_autoTuneProcessor.config.isEnabled,
+    );
+    _autoTuneProcessor.updateConfig(newConfig);
+    notifyListeners();
+    _triggerAutoSave();
+  }
+
+  /// Actualiza la configuración de afinación vocal (escala, tónica, retune speed, mezcla).
+  void updateAutoTuneConfig(AutoTuneConfigEntity config) {
+    _autoTuneProcessor.updateConfig(config);
+    notifyListeners();
+    _triggerAutoSave();
+  }
+
+  /// Aplica AutoTune en post-producción a una toma grabada en la consola multitrack.
+  PracticeTakeEntity? applyAutoTuneToRecordingTake(String takeId) {
+    final takeIndex = _multiTrackSession.takes.indexWhere((t) => t.id == takeId);
+    if (takeIndex == -1) return null;
+
+    final originalTake = _multiTrackSession.takes[takeIndex];
+    final tunedTake = _autoTuneProcessor.processPracticeTake(take: originalTake);
+
+    final updatedTakes = List<PracticeTakeEntity>.from(_multiTrackSession.takes)..add(tunedTake);
+    _multiTrackSession = _multiTrackSession.copyWith(takes: updatedTakes);
+    notifyListeners();
+    _triggerAutoSave();
+    return tunedTake;
   }
 
   @override
