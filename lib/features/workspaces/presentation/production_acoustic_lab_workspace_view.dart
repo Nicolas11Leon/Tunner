@@ -7,6 +7,8 @@ import '../../tuner/domain/temperament_engine.dart';
 import '../../acoustic_lab/presentation/harmonic_spectrogram_modal.dart';
 import '../../chord_analyzer/presentation/chord_analyzer_modal.dart';
 import '../../practice_recorder/presentation/spectral_comparator_modal.dart';
+import '../../vocal_autotune/presentation/vocal_autotune_modal.dart';
+import '../../vocal_autotune/domain/autotune_config_entity.dart';
 
 /// Vista especializada para el Modo 3: Laboratorio Acústico & Producción de Audio.
 /// Enfocada en ingenieros de sonido, acústica física, calibración microtonal,
@@ -367,6 +369,88 @@ class ProductionAcousticLabWorkspaceView extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+
+          // Tarjeta de Vocal AutoTune & Corrección Tonal
+          InkWell(
+            key: const Key('lab_vocal_autotune_card'),
+            onTap: () => VocalAutoTuneModal.show(context, viewModel),
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: viewModel.isAutoTuneActive
+                    ? palette.secondaryAccent.withValues(alpha: 0.12)
+                    : palette.cardBackground,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: viewModel.isAutoTuneActive
+                      ? palette.secondaryAccent.withValues(alpha: 0.5)
+                      : palette.staffLinesColor.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: palette.secondaryAccent.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.graphic_eq, color: palette.secondaryAccent, size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              "VOCAL AUTOTUNE & DSP",
+                              style: TextStyle(
+                                color: palette.textColor,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: viewModel.isAutoTuneActive
+                                    ? palette.secondaryAccent
+                                    : palette.staffLinesColor.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                viewModel.isAutoTuneActive ? "ACTIVO" : "OFF",
+                                style: TextStyle(
+                                  color: viewModel.isAutoTuneActive ? Colors.black : palette.textMutedColor,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          viewModel.isAutoTuneActive
+                              ? "${viewModel.autoTuneConfig.rootNoteDisplayName} • ${viewModel.autoTuneConfig.scaleType.displayName} • ${viewModel.autoTuneConfig.retuneSpeedMs.toStringAsFixed(0)}ms"
+                              : "Corrección en vivo sobre micrófono y afinación de tomas multitrack",
+                          style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: palette.textMutedColor, size: 20),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 16),
         ],

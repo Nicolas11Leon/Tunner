@@ -10,6 +10,7 @@ import '../../metronome/presentation/tap_tempo_modal.dart';
 import '../../practice_recorder/presentation/practice_recorder_dock.dart';
 import '../../practice_recorder/presentation/spectral_comparator_modal.dart';
 import '../../guided_lessons/presentation/guided_lessons_modal.dart';
+import '../../vocal_autotune/presentation/vocal_autotune_modal.dart';
 
 /// Vista especializada para el Modo 1: Práctica & Aprendizaje.
 /// Enfocada 100% en el instrumentista/estudiante: afinador estroboscópico,
@@ -460,6 +461,28 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                         : palette.staffLinesColor.withValues(alpha: 0.3),
                   ),
                   onPressed: () => GuidedLessonsModal.show(context, viewModel),
+                ),
+                const SizedBox(width: 8),
+                ActionChip(
+                  key: const Key('open_vocal_autotune_chip'),
+                  avatar: Icon(Icons.graphic_eq, size: 15, color: palette.secondaryAccent),
+                  label: Text(
+                    viewModel.isAutoTuneActive ? 'AutoTune: ON' : 'Vocal AutoTune',
+                  ),
+                  backgroundColor: viewModel.isAutoTuneActive
+                      ? palette.secondaryAccent.withValues(alpha: 0.2)
+                      : palette.cardBackground,
+                  labelStyle: TextStyle(
+                    color: viewModel.isAutoTuneActive ? palette.secondaryAccent : palette.textColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                  side: BorderSide(
+                    color: viewModel.isAutoTuneActive
+                        ? palette.secondaryAccent
+                        : palette.staffLinesColor.withValues(alpha: 0.3),
+                  ),
+                  onPressed: () => VocalAutoTuneModal.show(context, viewModel),
                 ),
                 const SizedBox(width: 8),
                 ActionChip(
