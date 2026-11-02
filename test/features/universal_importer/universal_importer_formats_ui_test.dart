@@ -15,7 +15,7 @@ import 'package:tunner/features/tuner/domain/i_pitch_detector_service.dart';
 import 'package:tunner/features/tuner_viewmodel.dart';
 import 'package:tunner/features/universal_importer/presentation/score_import_tab_view.dart';
 
-class _FakePitchService implements IPitchDetectorService {
+class _FakePitchService extends IPitchDetectorService {
   @override
   Function(double pitchHz)? onPitchDetected;
 

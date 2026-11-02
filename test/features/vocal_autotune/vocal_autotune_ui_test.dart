@@ -11,7 +11,7 @@ import 'package:tunner/features/vocal_autotune/presentation/vocal_autotune_modal
 import 'package:tunner/features/workspaces/presentation/production_acoustic_lab_workspace_view.dart';
 import 'package:tunner/features/workspaces/presentation/learning_practice_workspace_view.dart';
 
-class _FakePitchService implements IPitchDetectorService {
+class _FakePitchService extends IPitchDetectorService {
   @override
   Function(double pitchHz)? onPitchDetected;
   @override

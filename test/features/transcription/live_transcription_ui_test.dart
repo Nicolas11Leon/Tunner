@@ -8,7 +8,7 @@ import 'package:tunner/features/metronome/domain/i_metronome_service.dart';
 import 'package:tunner/features/practice_recorder/domain/i_practice_recorder_service.dart';
 import 'package:tunner/features/practice_recorder/domain/i_audio_playback_service.dart';
 
-class _MockPitchService implements IPitchDetectorService {
+class _MockPitchService extends IPitchDetectorService {
   @override
   Function(double)? onPitchDetected;
   bool isRecording = false;

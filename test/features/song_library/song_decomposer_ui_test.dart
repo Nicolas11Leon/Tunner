@@ -5,7 +5,7 @@ import 'package:tunner/features/song_library/presentation/song_decomposer_modal.
 import 'package:tunner/features/tuner/domain/i_pitch_detector_service.dart';
 import 'package:tunner/features/tuner_viewmodel.dart';
 
-class FakePitchService implements IPitchDetectorService {
+class FakePitchService extends IPitchDetectorService {
   @override
   Function(double pitchHz)? onPitchDetected;
 

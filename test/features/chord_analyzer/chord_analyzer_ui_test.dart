@@ -18,7 +18,7 @@ import 'package:tunner/features/practice_recorder/data/audio_playback_service.da
 import 'package:tunner/features/persistence/data/json_local_persistence_service.dart';
 import 'package:tunner/features/audio_synthesizer/data/memory_audio_synthesizer_service.dart';
 
-class _FakePitchService implements IPitchDetectorService {
+class _FakePitchService extends IPitchDetectorService {
   @override
   Function(double pitchHz)? onPitchDetected;
 

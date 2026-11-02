@@ -23,6 +23,7 @@ import 'workspaces/presentation/learning_practice_workspace_view.dart';
 import 'workspaces/presentation/composition_notation_workspace_view.dart';
 import 'workspaces/presentation/production_acoustic_lab_workspace_view.dart';
 import 'audio_synthesizer/presentation/instrument_soundfont_selector_modal.dart';
+import 'tuner/presentation/microphone_calibration_modal.dart';
 import '../core/theme/tunner_theme.dart';
 
 class TunerScreen extends StatelessWidget {
@@ -628,6 +629,12 @@ class TunerScreen extends StatelessWidget {
                 },
               ),
             ),
+            IconButton(
+              key: const Key('open_mic_calibration_btn_essential'),
+              icon: Icon(Icons.mic_external_on_outlined, color: palette.secondaryAccent),
+              tooltip: "Calibración y Adaptación de Micrófono",
+              onPressed: () => MicrophoneCalibrationModal.show(context, viewModel),
+            ),
             // Chip de Temperamento Histórico en Modo Esencial
             GestureDetector(
               key: const Key('essential_temperament_selector_chip'),
@@ -965,6 +972,12 @@ class TunerScreen extends StatelessWidget {
                   viewModel.selectSoundFontPatch(patch);
                 },
               ),
+            ),
+            IconButton(
+              key: const Key('open_mic_calibration_btn_pro'),
+              icon: Icon(Icons.mic_external_on_outlined, color: palette.secondaryAccent),
+              tooltip: "Calibración y Adaptación de Micrófono",
+              onPressed: () => MicrophoneCalibrationModal.show(context, viewModel),
             ),
             if (viewModel.lastReport != null)
               IconButton(

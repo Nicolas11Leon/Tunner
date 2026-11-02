@@ -10,7 +10,7 @@ import 'package:tunner/features/practice_recorder/domain/i_audio_playback_servic
 import 'package:tunner/features/persistence/domain/i_local_persistence_service.dart';
 import 'package:tunner/features/persistence/domain/app_user_settings_entity.dart';
 
-class _FakePitchService implements IPitchDetectorService {
+class _FakePitchService extends IPitchDetectorService {
   @override
   Function(double)? onPitchDetected;
   @override

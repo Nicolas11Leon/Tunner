@@ -11,7 +11,7 @@ import 'package:tunner/features/guided_lessons/domain/curated_guided_lessons.dar
 import 'package:tunner/features/guided_lessons/presentation/guided_lessons_modal.dart';
 import 'package:tunner/features/workspaces/presentation/learning_practice_workspace_view.dart';
 
-class _FakePitchService implements IPitchDetectorService {
+class _FakePitchService extends IPitchDetectorService {
   @override
   Function(double pitchHz)? onPitchDetected;
   @override

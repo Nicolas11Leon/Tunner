@@ -8,7 +8,7 @@ import 'package:tunner/features/metronome/domain/i_metronome_service.dart';
 import 'package:tunner/features/tuner/presentation/temperament_selector_modal.dart';
 import 'package:tunner/features/persistence/domain/app_user_settings_entity.dart';
 
-class _FakePitchService implements IPitchDetectorService {
+class _FakePitchService extends IPitchDetectorService {
   @override
   Function(double pitchHz)? onPitchDetected;
 

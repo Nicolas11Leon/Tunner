@@ -47,6 +47,8 @@ import 'transcription/domain/live_transcription_engine.dart';
 import 'exercise_generator/domain/algorithmic_exercise_generator.dart';
 import 'tuner/domain/temperament_engine.dart';
 import 'tuner/domain/acoustic_echo_suppressor.dart';
+import 'tuner/domain/microphone_calibration_models.dart';
+import 'tuner/domain/signal_conditioning_filter.dart';
 import 'drone/domain/harmonic_drone_config.dart';
 import 'drone/domain/harmonic_drone_synthesizer.dart';
 import 'chord_analyzer/domain/chord_entity.dart';
@@ -210,6 +212,13 @@ class TunerViewModel extends ChangeNotifier {
   // Motor de Síntesis SoundFont SF2 y Timbres Acústicos
   final SoundFontSynthesizerService _soundFontSynthesizer;
 
+  // Calibración y Adaptación Acústica del Micrófono (UC-41)
+  MicrophoneCalibrationProfile _micProfile = const MicrophoneCalibrationProfile();
+  double _currentMicRmsLevel = 0.0;
+  bool _isCalibratingNoiseFloor = false;
+  List<String> _availableAudioDevices = [];
+  NoiseProfileReport? _lastNoiseReport;
+
   // Inyección de dependencias en el constructor
   TunerViewModel({
     IPitchDetectorService? pitchService,
@@ -306,6 +315,115 @@ class TunerViewModel extends ChangeNotifier {
     notifyListeners();
     _triggerAutoSave();
   }
+  // Getters de Calibración de Micrófono
+  MicrophoneCalibrationProfile get micProfile => _micProfile;
+  double get currentMicRmsLevel => _currentMicRmsLevel;
+  bool get isCalibratingNoiseFloor => _isCalibratingNoiseFloor;
+  List<String> get availableAudioDevices => List.unmodifiable(_availableAudioDevices);
+  NoiseProfileReport? get lastNoiseReport => _lastNoiseReport;
+
+  /// Actualiza la ganancia de entrada digital del micrófono.
+  void setMicrophoneGain(double gain) {
+    _micProfile = _micProfile.copyWith(digitalGain: gain.clamp(0.2, 5.0));
+    _pitchService.updateCalibrationProfile(_micProfile);
+    notifyListeners();
+    _triggerAutoSave();
+  }
+
+  /// Actualiza el umbral de corte del Noise Gate.
+  void setNoiseGateThreshold(double threshold) {
+    _micProfile = _micProfile.copyWith(noiseGateThreshold: threshold.clamp(0.001, 0.100));
+    _pitchService.updateCalibrationProfile(_micProfile);
+    notifyListeners();
+    _triggerAutoSave();
+  }
+
+  /// Activa o desactiva el filtro eliminador de offset DC (DC-Blocker).
+  void toggleDcBlocker(bool enabled) {
+    _micProfile = _micProfile.copyWith(enableDcBlocker: enabled);
+    _pitchService.updateCalibrationProfile(_micProfile);
+    notifyListeners();
+    _triggerAutoSave();
+  }
+
+  /// Actualiza la lista de dispositivos físicos de captura disponibles.
+  Future<void> refreshAudioDevices() async {
+    _availableAudioDevices = await _pitchService.listInputDevices();
+    notifyListeners();
+  }
+
+  /// Selecciona el dispositivo físico de entrada.
+  Future<void> selectAudioDevice(String deviceId) async {
+    await _pitchService.setInputDevice(deviceId);
+    _micProfile = _micProfile.copyWith(deviceId: deviceId);
+    notifyListeners();
+    _triggerAutoSave();
+  }
+
+  /// Inicia el proceso de perfilado del piso de ruido ambiental (1.5 segundos).
+  Future<void> calibrateAmbientNoiseFloor() async {
+    if (_isCalibratingNoiseFloor) return;
+    _isCalibratingNoiseFloor = true;
+    notifyListeners();
+
+    final capturedRmsSamples = <double>[];
+    final listener = (double rms) {
+      capturedRmsSamples.add(rms);
+    };
+
+    final prevRmsCallback = _pitchService.onRmsLevelChanged;
+    _pitchService.onRmsLevelChanged = (rms) {
+      listener(rms);
+      prevRmsCallback?.call(rms);
+    };
+
+    // Asegurar que el micrófono esté capturando
+    final wasRecording = _isRecording;
+    if (!wasRecording) {
+      await _pitchService.startRecording();
+    }
+
+    await Future.delayed(const Duration(milliseconds: 1600));
+
+    // Analizar muestras recolectadas
+    double sumRms = 0.0;
+    double maxRms = 0.0;
+    for (final rms in capturedRmsSamples) {
+      sumRms += rms;
+      if (rms > maxRms) maxRms = rms;
+    }
+
+    final meanRms = capturedRmsSamples.isNotEmpty
+        ? (sumRms / capturedRmsSamples.length)
+        : 0.002;
+
+    final recommendedGate = (meanRms * 1.8).clamp(0.003, 0.080);
+
+    _lastNoiseReport = NoiseProfileReport(
+      meanRms: meanRms,
+      peakRms: maxRms,
+      recommendedNoiseGate: recommendedGate,
+      detectedDcOffset: 0.0,
+      totalFramesAnalyzed: capturedRmsSamples.length,
+    );
+
+    _micProfile = _micProfile.copyWith(
+      noiseGateThreshold: recommendedGate,
+      measuredNoiseFloorRms: meanRms,
+    );
+
+    _pitchService.updateCalibrationProfile(_micProfile);
+
+    if (!wasRecording) {
+      await _pitchService.stopRecording();
+    }
+
+    _pitchService.onRmsLevelChanged = prevRmsCallback;
+    _isCalibratingNoiseFloor = false;
+    notifyListeners();
+    _triggerAutoSave();
+  }
+
   MixerConsoleEntity get mixerConsole => _mixerConsole;
   List<SongPackage> get curatedLibrary => _curatedLibrary;
   SongPackage get activePackage => _activePackage;
@@ -462,6 +580,11 @@ class TunerViewModel extends ChangeNotifier {
       _activePackage.score.measures[_currentMeasureIndex].timeSignature;
 
   void _initListeners() {
+    _pitchService.onRmsLevelChanged = (rms) {
+      _currentMicRmsLevel = rms;
+      notifyListeners();
+    };
+
     _pitchService.onPitchDetected = (pitch) {
       if (_echoSuppressor.shouldSuppressPitch(pitch)) {
         return;
@@ -1540,6 +1663,9 @@ class TunerViewModel extends ChangeNotifier {
         _activeRecording = _recordingHistory.first;
       }
 
+      _micProfile = settings.micCalibrationProfile;
+      _pitchService.updateCalibrationProfile(_micProfile);
+
       notifyListeners();
     } catch (_) {
       // Ignorar fallas de carga silenciosamente
@@ -1570,6 +1696,7 @@ class TunerViewModel extends ChangeNotifier {
         recordingHistory: _recordingHistory,
         learnerProfile: _learnerProfile,
         activeWorkspace: _activeWorkspace,
+        micCalibrationProfile: _micProfile,
       );
       await _persistenceService.saveSettings(settings);
     } catch (_) {

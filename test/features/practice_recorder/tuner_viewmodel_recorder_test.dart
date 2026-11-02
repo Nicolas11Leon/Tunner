@@ -7,7 +7,7 @@ import 'package:tunner/features/instrument/data/instrument_transposition_service
 import 'package:tunner/features/persistence/data/memory_persistence_service.dart';
 import 'mock_recorder_services.dart';
 
-class MockPitchService implements IPitchDetectorService {
+class MockPitchService extends IPitchDetectorService {
   @override
   Function(double p1)? onPitchDetected;
   @override

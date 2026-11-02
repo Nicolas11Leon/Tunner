@@ -11,7 +11,7 @@ import 'package:tunner/features/tuner/domain/acoustic_echo_suppressor.dart';
 import 'package:tunner/features/tuner/domain/i_pitch_detector_service.dart';
 import 'package:tunner/features/tuner_viewmodel.dart';
 
-class _MockPitchService implements IPitchDetectorService {
+class _MockPitchService extends IPitchDetectorService {
   @override
   Function(double)? onPitchDetected;
 

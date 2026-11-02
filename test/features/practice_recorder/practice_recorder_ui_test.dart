@@ -10,7 +10,7 @@ import 'package:tunner/features/practice_evaluator/data/practice_evaluator_servi
 import 'package:tunner/features/instrument/data/instrument_transposition_service.dart';
 import 'mock_recorder_services.dart';
 
-class MockPitchService implements IPitchDetectorService {
+class MockPitchService extends IPitchDetectorService {
   @override
   Function(double p1)? onPitchDetected;
   @override
