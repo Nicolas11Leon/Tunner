@@ -58,6 +58,8 @@ import 'metronome/domain/tap_tempo_engine.dart';
 import 'metronome/domain/tap_tempo_result.dart';
 import 'pedagogy_report/domain/pedagogical_report_models.dart';
 import 'pedagogy_report/domain/pedagogical_report_pdf_generator.dart';
+import 'audio_synthesizer/data/soundfont_synthesizer_service.dart';
+import 'audio_synthesizer/domain/sf2/sf2_models.dart';
 import 'pedagogy_profiles/domain/learner_profile_entity.dart';
 import 'pedagogy_profiles/domain/adaptive_scaffolding_engine.dart';
 import 'workspaces/domain/workspace_type.dart';
@@ -205,6 +207,9 @@ class TunerViewModel extends ChangeNotifier {
   final VocalAutoTuneProcessor _autoTuneProcessor;
   ScaleQuantizationResult _lastAutoTuneResult = ScaleQuantizationResult.unvoiced(0.0);
 
+  // Motor de Síntesis SoundFont SF2 y Timbres Acústicos
+  final SoundFontSynthesizerService _soundFontSynthesizer;
+
   // Inyección de dependencias en el constructor
   TunerViewModel({
     IPitchDetectorService? pitchService,
@@ -222,6 +227,7 @@ class TunerViewModel extends ChangeNotifier {
     PolyphonicMultiToneDetector? multiToneDetector,
     GuidedLessonEvaluator? guidedLessonEvaluator,
     VocalAutoTuneProcessor? autoTuneProcessor,
+    SoundFontSynthesizerService? soundFontSynthesizer,
     Future<String> Function()? recordingPathProvider,
   })  : _pitchService = pitchService ?? PitchDetectorService(),
         _metronomeService = metronomeService ?? MetronomeService(),
@@ -240,6 +246,7 @@ class TunerViewModel extends ChangeNotifier {
         _multiToneDetector = multiToneDetector ?? PolyphonicMultiToneDetector(),
         _guidedLessonEvaluator = guidedLessonEvaluator ?? GuidedLessonEvaluator(),
         _autoTuneProcessor = autoTuneProcessor ?? VocalAutoTuneProcessor(),
+        _soundFontSynthesizer = soundFontSynthesizer ?? SoundFontSynthesizerService(),
         _recordingPathProvider = recordingPathProvider {
     _activePackage = _curatedLibrary.first;
     _bpm = _activePackage.defaultBpm;
@@ -259,6 +266,28 @@ class TunerViewModel extends ChangeNotifier {
   List<TunnerThemePalette> get customPalettes => List.unmodifiable(_customPalettes);
   AppDisplayMode get displayMode => _displayMode;
   bool get isEssentialMode => _displayMode == AppDisplayMode.essential;
+  SoundFontSynthesizerService get soundFontSynthesizer => _soundFontSynthesizer;
+  int get activeSoundFontPatch => _soundFontSynthesizer.activePatch;
+  List<Sf2Preset> get availableSoundFontPresets => _soundFontSynthesizer.availablePresets;
+
+  /// Selecciona el instrumento acústico SoundFont activo.
+  void selectSoundFontPatch(int patch) {
+    _soundFontSynthesizer.selectPatch(patch);
+    notifyListeners();
+  }
+
+  /// Sintetiza y reproduce una nota con el timbre SoundFont activo.
+  Uint8List synthesizeSoundFontNote({
+    required int midiPitch,
+    double durationSeconds = 1.0,
+    int velocity = 100,
+  }) {
+    return _soundFontSynthesizer.synthesizeNoteWav(
+      midiPitch: midiPitch,
+      durationSeconds: durationSeconds,
+      velocity: velocity,
+    );
+  }
 
   /// Cambia el modo de visualización de interfaz (Esencial vs. Conservatorio Pro).
   void setDisplayMode(AppDisplayMode mode) {

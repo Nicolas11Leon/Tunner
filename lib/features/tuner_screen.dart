@@ -22,6 +22,7 @@ import 'workspaces/presentation/workspace_switch_bar.dart';
 import 'workspaces/presentation/learning_practice_workspace_view.dart';
 import 'workspaces/presentation/composition_notation_workspace_view.dart';
 import 'workspaces/presentation/production_acoustic_lab_workspace_view.dart';
+import 'audio_synthesizer/presentation/instrument_soundfont_selector_modal.dart';
 import '../core/theme/tunner_theme.dart';
 
 class TunerScreen extends StatelessWidget {
@@ -615,6 +616,18 @@ class TunerScreen extends StatelessWidget {
               tooltip: "Seleccionar Instrumento (${viewModel.activeInstrument.name})",
               onPressed: () => _showInstrumentModal(context, viewModel),
             ),
+            IconButton(
+              key: const Key('open_soundfont_modal_btn_essential'),
+              icon: Icon(Icons.library_music_outlined, color: palette.primaryAccent),
+              tooltip: "Timbres Acústicos SoundFont SF2",
+              onPressed: () => InstrumentSoundFontSelectorModal.show(
+                context,
+                synthService: viewModel.soundFontSynthesizer,
+                onInstrumentSelected: (patch, name) {
+                  viewModel.selectSoundFontPatch(patch);
+                },
+              ),
+            ),
             // Chip de Temperamento Histórico en Modo Esencial
             GestureDetector(
               key: const Key('essential_temperament_selector_chip'),
@@ -940,6 +953,18 @@ class TunerScreen extends StatelessWidget {
               icon: Icon(Icons.piano, color: palette.secondaryAccent),
               tooltip: "Seleccionar Instrumento (${viewModel.activeInstrument.name})",
               onPressed: () => _showInstrumentModal(context, viewModel),
+            ),
+            IconButton(
+              key: const Key('open_soundfont_modal_btn_pro'),
+              icon: Icon(Icons.library_music_outlined, color: palette.primaryAccent),
+              tooltip: "Timbres Acústicos SoundFont SF2",
+              onPressed: () => InstrumentSoundFontSelectorModal.show(
+                context,
+                synthService: viewModel.soundFontSynthesizer,
+                onInstrumentSelected: (patch, name) {
+                  viewModel.selectSoundFontPatch(patch);
+                },
+              ),
             ),
             if (viewModel.lastReport != null)
               IconButton(
