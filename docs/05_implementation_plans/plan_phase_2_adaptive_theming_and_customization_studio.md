@@ -7,7 +7,7 @@
 - **ID del Plan:** `PLAN-FASE2-THEMING-CUSTOMIZATION-2026-001`
 - **Título de la Implementación:** `Implementación del Motor de Estéticas Adaptables, tokens semánticos y Custom Theme Studio`
 - **Fase del Proyecto:** `Fase 2`
-- **Estado:** `Aprobado`
+- **Estado:** `Completado`
 - **ADR Relacionado:** [ADR-0007](docs/04_adrs/0007_adaptive_theme_engine_and_user_customization_model.md)
 - **Documento Funcional Base:** [UC-11](docs/02_use_cases/11_uc_adaptive_aesthetic_theming_and_user_customization.md)
 
@@ -45,30 +45,30 @@ Expandir el sistema de tematización visual de Tunner de un enum estático restr
 ## 3. Plan Paso a Paso de Ejecución (Step-by-Step Roadmap)
 
 ### Paso 1: Capa de Dominio (Modelos de Tema y Serialización)
-- [ ] Actualizar `TunnerThemePalette` con propiedades dinámicas, factories para los 7 presets, método `createCustom()`, `toJson()` y `fromJson()`.
-- [ ] Mantener retrocompatibilidad 100% con `TunnerThemeMode` y `fromMode()`.
-- [ ] Añadir helpers semánticos de contraste (`surfaceBorderColor`, `surfaceHighlightColor`, `onPrimaryColor`, etc.).
-- [ ] Escribir pruebas unitarias exhaustivas en `test/core/theme/tunner_theme_test.dart`.
+- [x] Actualizar `TunnerThemePalette` con propiedades dinámicas, factories para los 7 presets, método `createCustom()`, `toJson()` y `fromJson()`.
+- [x] Mantener retrocompatibilidad 100% con `TunnerThemeMode` y `fromMode()`.
+- [x] Añadir helpers semánticos de contraste (`surfaceBorderColor`, `surfaceHighlightColor`, `onPrimaryColor`, etc.).
+- [x] Escribir pruebas unitarias exhaustivas en `test/core/theme/tunner_theme_test.dart`.
 
 ### Paso 2: Capa de Gestión de Estado (TunerViewModel)
-- [ ] Integrar lista reactiva de paletas disponibles (`availablePalettes`) y métodos `setPalette`, `addCustomPalette`, `updateCustomPalette`, `deleteCustomPalette`, `importPaletteFromJson`.
-- [ ] Mantener `setThemeMode()` como delegado para no romper llamadas existentes.
+- [x] Integrar lista reactiva de paletas disponibles (`availablePalettes`) y métodos `setPalette`, `addCustomPalette`, `updateCustomPalette`, `deleteCustomPalette`, `importPaletteFromJson`.
+- [x] Mantener `setThemeMode()` como delegado para no romper llamadas existentes.
 
 ### Paso 3: Corrección de Contraste y Tokens en Componentes Gráficos
-- [ ] Reemplazar colores estáticos en `StrobeTunerWidget` con tokens de `TunnerThemePalette`.
-- [ ] Asegurar contraste en `RealSheetMusicPainter` (círculo del puntero en vivo, líneas de pentagrama, números de compás).
-- [ ] Verificar sincronización de la barra del sistema operativo (`SystemChrome.setSystemUIOverlayStyle`) en `main.dart` para soportar temas claros y oscuros.
+- [x] Reemplazar colores estáticos en `StrobeTunerWidget` con tokens de `TunnerThemePalette`.
+- [x] Asegurar contraste en `RealSheetMusicPainter` (círculo del puntero en vivo, líneas de pentagrama, números de compás).
+- [x] Verificar sincronización de la barra del sistema operativo (`SystemChrome.setSystemUIOverlayStyle`) en `main.dart` para soportar temas claros y oscuros.
 
 ### Paso 4: Capa de Presentación (Theme Customization Studio UI)
-- [ ] Crear diálogo/modal interactivo `ThemeCustomizationModal` con previsualización de swatches de color, selector de métricas y acceso al editor de temas.
-- [ ] Crear `ThemeEditorDialog` para que los usuarios creen y personalicen sus propias estéticas interactivamente (nombre, base, acento primario y previsualización en vivo).
-- [ ] Permitir exportar e importar temas en JSON mediante un diálogo simple.
-- [ ] Integrar el modal en `TunerScreen`.
+- [x] Crear diálogo/modal interactivo `ThemeCustomizationModal` con previsualización de swatches de color, selector de métricas y acceso al editor de temas.
+- [x] Crear `ThemeEditorDialog` para que los usuarios creen y personalicen sus propias estéticas interactivamente (nombre, base, acento primario y previsualización en vivo).
+- [x] Permitir exportar e importar temas en JSON mediante un diálogo simple.
+- [x] Integrar el modal en `TunerScreen`.
 
 ### Paso 5: Verificación, Pruebas y Limpieza
-- [ ] Ejecutar `flutter analyze` y asegurar cero advertencias de linter.
-- [ ] Ejecutar `flutter test` y asegurar que el 100% de las pruebas pasen.
-- [ ] Documentar el resultado en el informe de auditoría.
+- [x] Ejecutar `flutter analyze` y asegurar cero advertencias de linter.
+- [x] Ejecutar `flutter test` y asegurar que el 100% de las pruebas pasen.
+- [x] Documentar el resultado en el informe de auditoría.
 
 ---
 
@@ -81,8 +81,8 @@ Expandir el sistema de tematización visual de Tunner de un enum estático restr
 
 ## 5. Criterios de Aceptación (Definition of Done)
 
-- [ ] Las 7 estéticas curadas están disponibles y renderizan con contraste y ergonomía visual impecable.
-- [ ] Los usuarios pueden crear un tema personalizado seleccionando su base y acentos, guardarlo y usarlo inmediatamente.
-- [ ] Los temas personalizados se pueden exportar e importar en formato JSON.
-- [ ] Cero advertencias en `flutter analyze`.
-- [ ] Suite completa de pruebas pasando con éxito en `flutter test`.
+- [x] Las 7 estéticas curadas están disponibles y renderizan con contraste y ergonomía visual impecable.
+- [x] Los usuarios pueden crear un tema personalizado seleccionando su base y acentos, guardarlo y usarlo inmediatamente.
+- [x] Los temas personalizados se pueden exportar e importar en formato JSON.
+- [x] Cero advertencias en `flutter analyze`.
+- [x] Suite completa de pruebas pasando con éxito en `flutter test`.

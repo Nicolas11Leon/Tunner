@@ -7,7 +7,7 @@
 - **ID del Plan:** `PLAN-ARCH-REFACTOR-FEATURE-FIRST-2026-011`
 - **Título de la Implementación:** `Saneamiento Estructural a Monolito Modular Feature-First con Clean Architecture Estricta`
 - **Fase del Proyecto:** `Fase 2 / Fase 3 / Fase 4 (Consolidación Arquitectónica)`
-- **Estado:** `Aprobado`
+- **Estado:** `Completado`
 - **ADR Relacionado:** `docs/04_adrs/0004_modular_monolith_feature_first_clean_architecture.md`
 - **Documento Funcional Base:** `AGENTS.md` (Reglas Cardinales de Clean Architecture)
 
@@ -35,46 +35,46 @@ Reestructurar la base de código de **Tunner** desde la disposición plana anter
 ## 2. Plan Paso a Paso de Ejecución (Step-by-Step Roadmap)
 
 ### Paso 1: Módulo Core (`lib/core/`)
-- [ ] Mover el sistema de temas y paletas a `lib/core/theme/tunner_theme.dart`.
+- [x] Mover el sistema de temas y paletas a `lib/core/theme/tunner_theme.dart`.
 
 ### Paso 2: Feature Tuner (`lib/features/tuner/`)
-- [ ] `domain/`: `note_entity.dart` e interfaz abstracta `i_pitch_detector_service.dart`.
-- [ ] `data/`: `pitch_detector_service.dart` implementando `IPitchDetectorService`.
-- [ ] `presentation/`: `strobe_tuner_widget.dart`.
-- [ ] Tests en `test/features/tuner/`.
+- [x] `domain/`: `note_entity.dart` e interfaz abstracta `i_pitch_detector_service.dart`.
+- [x] `data/`: `pitch_detector_service.dart` implementando `IPitchDetectorService`.
+- [x] `presentation/`: `strobe_tuner_widget.dart`.
+- [x] Tests en `test/features/tuner/`.
 
 ### Paso 3: Feature Metronome (`lib/features/metronome/`)
-- [ ] `domain/`: `tempo_entity.dart` e interfaz abstracta `i_metronome_service.dart`.
-- [ ] `data/`: `metronome_service.dart` implementando `IMetronomeService`.
-- [ ] Tests en `test/features/metronome/`.
+- [x] `domain/`: `tempo_entity.dart` e interfaz abstracta `i_metronome_service.dart`.
+- [x] `data/`: `metronome_service.dart` implementando `IMetronomeService`.
+- [x] Tests en `test/features/metronome/`.
 
 ### Paso 4: Feature Sheet Music (`lib/features/sheet_music/`)
-- [ ] `domain/`: `score_tree.dart` (`HierarchicalScore`, `MeasureEntity`, `HierarchicalNote`, `TimeSignature`).
-- [ ] `presentation/`: extracción limpia de `real_sheet_music_painter.dart`.
-- [ ] Tests en `test/features/sheet_music/`.
+- [x] `domain/`: `score_tree.dart` (`HierarchicalScore`, `MeasureEntity`, `HierarchicalNote`, `TimeSignature`).
+- [x] `presentation/`: extracción limpia de `real_sheet_music_painter.dart`.
+- [x] Tests en `test/features/sheet_music/`.
 
 ### Paso 5: Feature Mixer & Tone Synthesis (`lib/features/mixer/`)
-- [ ] `domain/`: `mixer_track_entity.dart` (`AudioTrack`, `MixerConsoleEntity`).
-- [ ] `data/`: `tone_generator_service.dart` (síntesis senoidal pura y clics PCM).
-- [ ] Tests en `test/features/mixer/`.
+- [x] `domain/`: `mixer_track_entity.dart` (`AudioTrack`, `MixerConsoleEntity`).
+- [x] `data/`: `tone_generator_service.dart` (síntesis senoidal pura y clics PCM).
+- [x] Tests en `test/features/mixer/`.
 
 ### Paso 6: Feature Song Library & Decomposer (`lib/features/song_library/`)
-- [ ] `domain/`: `song_package_entity.dart`.
-- [ ] `data/`: `song_decomposer_service.dart` (biblioteca curada y descompositor de canciones).
-- [ ] Tests en `test/features/song_library/`.
+- [x] `domain/`: `song_package_entity.dart`.
+- [x] `data/`: `song_decomposer_service.dart` (biblioteca curada y descompositor de canciones).
+- [x] Tests en `test/features/song_library/`.
 
 ### Paso 7: Orquestación, Inyección de Dependencias y UI Principal
-- [ ] Actualizar `TunerViewModel` para recibir `IPitchDetectorService` e `IMetronomeService` por inyector de dependencias (constructor con valores por defecto o factories).
-- [ ] Limpiar `tuner_screen.dart` para consumir los componentes modulares.
-- [ ] Eliminar archivos obsoletos en las carpetas raíz (`lib/data`, `lib/domain`, `lib/presentation/widgets/`).
-- [ ] Ejecutar `flutter analyze` y `flutter test`.
+- [x] Actualizar `TunerViewModel` para recibir `IPitchDetectorService` e `IMetronomeService` por inyector de dependencias (constructor con valores por defecto o factories).
+- [x] Limpiar `tuner_screen.dart` para consumir los componentes modulares.
+- [x] Eliminar archivos obsoletos en las carpetas raíz (`lib/data`, `lib/domain`, `lib/presentation/widgets/`).
+- [x] Ejecutar `flutter analyze` y `flutter test`.
 
 ---
 
 ## 3. Criterios de Aceptación (Definition of Done)
 
-- [ ] Cero dependencias directas entre capas sin interfaces de dominio.
-- [ ] Cada feature vive en su Bounded Context autónomo.
-- [ ] `HierarchicalScore` es la única fuente de verdad para partituras.
-- [ ] 0 advertencias de `flutter analyze`.
-- [ ] 100% de tests unitarios pasando.
+- [x] Cero dependencias directas entre capas sin interfaces de dominio.
+- [x] Cada feature vive en su Bounded Context autónomo.
+- [x] `HierarchicalScore` es la única fuente de verdad para partituras.
+- [x] 0 advertencias de `flutter analyze`.
+- [x] 100% de tests unitarios pasando.

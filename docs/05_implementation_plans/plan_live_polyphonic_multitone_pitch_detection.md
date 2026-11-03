@@ -76,8 +76,8 @@ Evolucionar el motor de análisis polifónico para descomponer en tiempo real la
 
 ## 5. Criterios de Aceptación (Definition of Done)
 
-- [ ] Código adherido estrictamente a las reglas de [AGENTS.md](AGENTS.md).
-- [ ] Cero emojis en código, commits y comentarios.
-- [ ] 100% Clean Architecture (capa de dominio en Pure Dart).
-- [ ] Pruebas unitarias y de integración pasando al 100%.
-- [ ] Documentación técnica, caso de uso 37 y ADR 0033 redactados.
+- [x] Código adherido estrictamente a las reglas de [AGENTS.md](AGENTS.md).
+- [x] Cero emojis en código, commits y comentarios.
+- [x] 100% Clean Architecture (capa de dominio en Pure Dart).
+- [x] Pruebas unitarias y de integración pasando al 100%.
+- [x] Documentación técnica, caso de uso 37 y ADR 0033 redactados.

@@ -79,8 +79,8 @@ Diseñar e implementar el subsistema integral de exportación de stems de audio 
 
 ## 5. Criterios de Aceptación (Definition of Done)
 
-- [ ] Código adherido estrictamente a las reglas de [AGENTS.md](AGENTS.md).
-- [ ] Cero emojis en código, commits y comentarios.
-- [ ] 100% Clean Architecture (capa de dominio en Pure Dart sin dependencias de UI).
-- [ ] Pruebas unitarias y de integración pasando al 100%.
-- [ ] Documentación técnica, caso de uso 36 y ADR 0032 redactados.
+- [x] Código adherido estrictamente a las reglas de [AGENTS.md](AGENTS.md).
+- [x] Cero emojis en código, commits y comentarios.
+- [x] 100% Clean Architecture (capa de dominio en Pure Dart sin dependencias de UI).
+- [x] Pruebas unitarias y de integración pasando al 100%.
+- [x] Documentación técnica, caso de uso 36 y ADR 0032 redactados.

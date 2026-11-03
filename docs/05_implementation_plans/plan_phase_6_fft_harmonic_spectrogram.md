@@ -9,7 +9,7 @@ Este documento define el plan para implementar el laboratorio acústico de armó
 - **ID del Plan:** `PLAN-FASE6-HARMONICS-2026-002`
 - **Título:** Laboratorio de Armónicos, Centroide Espectral y Calidad Tímbrica
 - **Fase del Proyecto:** Fase 6 (Vanguardia Open Source)
-- **Estado:** `Aprobado`
+- **Estado:** `Completado`
 - **ADR Relacionado:** [ADR-0016](../04_adrs/0016_fft_harmonic_spectrogram.md)
 - **Documento Funcional Base:** [DOC-ACOUSTIC-LAB-2026-001](../01_product_vision/doc_fft_harmonic_spectrogram.md)
 
@@ -32,14 +32,14 @@ Proveer a los músicos un visualizador y analizador en vivo de los primeros 8 ar
 ## 2. Plan Paso a Paso de Ejecución
 
 ### Paso 1: Capa de Dominio (Dart Puro)
-- [ ] Implementar `HarmonicBarEntity`, `TimbreAnalysisResult` y `HarmonicSeriesAnalyzer`.
-- [ ] Crear pruebas unitarias en `test/features/acoustic_lab/harmonic_series_analyzer_test.dart`.
+- [x] Implementar `HarmonicBarEntity`, `TimbreAnalysisResult` y `HarmonicSeriesAnalyzer`.
+- [x] Crear pruebas unitarias en `test/features/acoustic_lab/harmonic_series_analyzer_test.dart`.
 
 ### Paso 2: Capa de Presentación
-- [ ] Implementar `HarmonicSpectrogramModal` con diseño estético de conservatorio.
-- [ ] Integrar botón de acceso en `TunerScreen`.
-- [ ] Crear pruebas de widget en `test/features/acoustic_lab/harmonic_spectrogram_ui_test.dart`.
+- [x] Implementar `HarmonicSpectrogramModal` con diseño estético de conservatorio.
+- [x] Integrar botón de acceso en `TunerScreen`.
+- [x] Crear pruebas de widget en `test/features/acoustic_lab/harmonic_spectrogram_ui_test.dart`.
 
 ### Paso 3: Verificación
-- [ ] `flutter analyze` (0 issues).
-- [ ] `flutter test` (100% pasando).
+- [x] `flutter analyze` (0 issues).
+- [x] `flutter test` (100% pasando).

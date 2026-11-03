@@ -9,7 +9,7 @@ Este documento define el plan estructurado de ingeniería para la implementació
 - **ID del Plan:** `PLAN-FASE5-SCORE-EDITOR-2026-001`
 - **Título de la Implementación:** Editor Interactivo de Partituras SMuFL y Exportador Canónico Bidireccional (MusicXML y MIDI)
 - **Fase del Proyecto:** Fase 5 (Vanguardia Acústica y Aprendizaje Musical)
-- **Estado:** Aprobado
+- **Estado:** `Completado`
 - **ADR Relacionado:** [docs/04_adrs/0014_interactive_score_editor_and_canonical_musicxml_midi_exporter.md](../04_adrs/0014_interactive_score_editor_and_canonical_musicxml_midi_exporter.md)
 - **Documento Funcional Base:** [docs/01_product_vision/doc_interactive_score_editor_and_musicxml_midi_exporter.md](../01_product_vision/doc_interactive_score_editor_and_musicxml_midi_exporter.md)
 
@@ -37,36 +37,36 @@ Proveer a Tunner de un editor de partituras interactivo con soporte de historial
 
 ### Paso 1: Capa de Dominio (Pure Dart)
 - [x] Documentación técnica, Caso de Uso y ADR redactados.
-- [ ] Implementar `CanonicalMusicXmlExporter`:
+- [x] Implementar `CanonicalMusicXmlExporter`:
   - Mapeo de notas a Step (A-G), Octave (0-8), Alter (-1, 0, 1).
   - Mapeo de duraciones a `<type>` (whole, half, quarter, eighth, 16th) y `<duration>`.
   - Generación de estructura partwise conforme al estándar W3C.
-- [ ] Implementar `CanonicalMidiExporter`:
+- [x] Implementar `CanonicalMidiExporter`:
   - Codificación VLQ (Variable Length Quantity).
   - Generación de chunk `MThd` y chunk `MTrk`.
   - Pares NoteOn y NoteOff con cálculo de delta-times.
-- [ ] Implementar `ScoreEditorOperations` e historial Undo/Redo en Pure Dart.
-- [ ] Pruebas unitarias en `test/features/universal_importer/canonical_musicxml_exporter_test.dart` y `test/features/universal_importer/canonical_midi_exporter_test.dart`.
+- [x] Implementar `ScoreEditorOperations` e historial Undo/Redo en Pure Dart.
+- [x] Pruebas unitarias en `test/features/universal_importer/canonical_musicxml_exporter_test.dart` y `test/features/universal_importer/canonical_midi_exporter_test.dart`.
 
 ### Paso 2: Integración en TunerViewModel
-- [ ] Conectar historial de edición con `activePackage`.
-- [ ] Implementar `insertNoteInActiveScore(...)`, `deleteNoteInActiveScore(...)`, `undoScoreEdit()`, `redoScoreEdit()`.
-- [ ] Disparar `_audioSynthesizer.playNoteTone` en cada inserción para feedback acústico.
-- [ ] Exponer `exportActiveScoreToMusicXml()` y `exportActiveScoreToMidi()`.
+- [x] Conectar historial de edición con `activePackage`.
+- [x] Implementar `insertNoteInActiveScore(...)`, `deleteNoteInActiveScore(...)`, `undoScoreEdit()`, `redoScoreEdit()`.
+- [x] Disparar `_audioSynthesizer.playNoteTone` en cada inserción para feedback acústico.
+- [x] Exponer `exportActiveScoreToMusicXml()` y `exportActiveScoreToMidi()`.
 
 ### Paso 3: Capa de Presentación (UI)
-- [ ] Crear `ScoreEditorModal` con:
+- [x] Crear `ScoreEditorModal` con:
   - Selector de compás activo.
   - Selector de figura rítmica (Redonda, Blanca, Negra, Corchea, Semicorchea, Silencio).
   - Selector de nota cromática con alteraciones ($\sharp$, $\flat$, $\natural$).
   - Botones de Deshacer, Rehacer y Guardar/Exportar.
-- [ ] Añadir botón de acceso al editor en la barra de herramientas o vista de partitura.
+- [x] Añadir botón de acceso al editor en la barra de herramientas o vista de partitura.
 
 ### Paso 4: Pruebas, Verificación y Limpieza
-- [ ] Pruebas de integración del ViewModel.
-- [ ] Pruebas de widgets de `ScoreEditorModal`.
-- [ ] `flutter analyze` (0 errores).
-- [ ] `flutter test` (100% pass).
+- [x] Pruebas de integración del ViewModel.
+- [x] Pruebas de widgets de `ScoreEditorModal`.
+- [x] `flutter analyze` (0 errores).
+- [x] `flutter test` (100% pass).
 
 ---
 

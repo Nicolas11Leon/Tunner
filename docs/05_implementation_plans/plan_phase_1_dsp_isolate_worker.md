@@ -41,27 +41,27 @@ Trasladar la carga computacional pesada del procesamiento de señales digitales 
 ## 3. Plan Paso a Paso de Ejecución (Step-by-Step Roadmap)
 
 ### Paso 1: Capa de Dominio (Modelos Matemáticos y Entidades Puras)
-- [ ] Verificar que no existan dependencias circulares entre el Isolate de audio y la UI. Los mensajes transferidos a través del puerto deben ser tipos de datos primitivos (`Uint8List`, `List<int>`, `double`).
+- [x] Verificar que no existan dependencias circulares entre el Isolate de audio y la UI. Los mensajes transferidos a través del puerto deben ser tipos de datos primitivos (`Uint8List`, `List<int>`, `double`).
 
 ### Paso 2: Capa de Infraestructura / Datos (Implementación del Worker Isolate)
-- [ ] Definir la función estática de punto de entrada del Isolate: `_dspWorkerEntrypoint(SendPort toMainPort)`.
-- [ ] Establecer el protocolo de comunicación por mensajes:
+- [x] Definir la función estática de punto de entrada del Isolate: `_dspWorkerEntrypoint(SendPort toMainPort)`.
+- [x] Establecer el protocolo de comunicación por mensajes:
   - Inicialización: El worker crea un `ReceivePort` y envía su `SendPort` al hilo principal.
   - Flujo de datos: El hilo principal captura el paquete PCM del micrófono y lo envía al worker: `workerSendPort.send(data)`.
   - Procesamiento en el worker:
     1. Cálculo de energía RMS: Si la energía es inferior al umbral, descarta el buffer y retorna `0.0`.
     2. Ejecución de `pitchDetector.getPitchFromIntBuffer(data)`.
     3. Si detecta tono dentro del espectro ($27.5\text{ a }4186.0\text{ Hz}$), envía el valor al hilo principal: `toMainPort.send(pitch)`.
-- [ ] Implementar la destrucción segura del Isolate en `stopRecording()`.
+- [x] Implementar la destrucción segura del Isolate en `stopRecording()`.
 
 ### Paso 3: Capa de Presentación (Verificación de Rendimiento UI)
-- [ ] Verificar que `TunerViewModel` recibe los eventos de tono idénticos sin necesidad de alterar su lógica de negocio.
-- [ ] Comprobar que la rotación estroboscópica y el movimiento del playhead se mantienen completamente fluidos.
+- [x] Verificar que `TunerViewModel` recibe los eventos de tono idénticos sin necesidad de alterar su lógica de negocio.
+- [x] Comprobar que la rotación estroboscópica y el movimiento del playhead se mantienen completamente fluidos.
 
 ### Paso 4: Pruebas, Verificación y Limpieza
-- [ ] Ejecutar `flutter analyze` (0 errores).
-- [ ] Ejecutar `flutter test` (100% pruebas pasando).
-- [ ] Commit y sincronización con GitHub en la rama `main`.
+- [x] Ejecutar `flutter analyze` (0 errores).
+- [x] Ejecutar `flutter test` (100% pruebas pasando).
+- [x] Commit y sincronización con GitHub en la rama `main`.
 
 ---
 
@@ -74,8 +74,8 @@ Trasladar la carga computacional pesada del procesamiento de señales digitales 
 
 ## 5. Criterios de Aceptación (Definition of Done)
 
-- [ ] Cero llamadas al algoritmo de pitch en el hilo principal de Flutter.
-- [ ] Detección acústica instantánea y reactiva ante solos rápidos.
-- [ ] Destrucción y liberación completa de memoria del Isolate al detener el micrófono.
-- [ ] Suite de pruebas pasando sin fallos.
-- [ ] Sincronizado en `main`.
+- [x] Cero llamadas al algoritmo de pitch en el hilo principal de Flutter.
+- [x] Detección acústica instantánea y reactiva ante solos rápidos.
+- [x] Destrucción y liberación completa de memoria del Isolate al detener el micrófono.
+- [x] Suite de pruebas pasando sin fallos.
+- [x] Sincronizado en `main`.

@@ -9,7 +9,7 @@ Este documento define el plan estructurado de ingeniería para la implementació
 - **ID del Plan:** `PLAN-FASE5-MPM-2026-001`
 - **Título de la Implementación:** Motor Matemático McLeod Pitch Method (MPM) con NSDF e Interpolación Parabólica en Pure Dart
 - **Fase del Proyecto:** Fase 5 (Vanguardia Acústica y Aprendizaje Musical)
-- **Estado:** Aprobado
+- **Estado:** `Completado`
 - **ADR Relacionado:** [docs/04_adrs/0012_mcleod_pitch_method_pitch_detection.md](../04_adrs/0012_mcleod_pitch_method_pitch_detection.md)
 - **Documento Funcional Base:** [docs/01_product_vision/doc_mcleod_pitch_method_pitch_detection.md](../01_product_vision/doc_mcleod_pitch_method_pitch_detection.md)
 
@@ -37,24 +37,24 @@ Reemplazar la dependencia de librerías externas de detección de tono por una i
 
 ### Paso 1: Capa de Dominio (Pure Dart MPM)
 - [x] Redacción de documentación técnica, caso de uso y ADR.
-- [ ] Creación de `lib/features/tuner/domain/mcleod_pitch_method.dart`.
-- [ ] Implementación de:
+- [x] Creación de `lib/features/tuner/domain/mcleod_pitch_method.dart`.
+- [x] Implementación de:
   - `convertPcm16BytesToFloats(Uint8List bytes)`
   - `calculateRms(Float64List samples)`
   - `computeNsdf(Float64List samples, int maxLag)`
   - `findKeyPeak(Float64List nsdf, double kThreshold)`
   - `parabolicInterpolation(Float64List nsdf, int peakIndex)`
   - `estimatePitch(Float64List samples, {int sampleRate = 44100})`
-- [ ] Creación de suite de pruebas unitarias `test/features/tuner/mcleod_pitch_method_test.dart`.
+- [x] Creación de suite de pruebas unitarias `test/features/tuner/mcleod_pitch_method_test.dart`.
 
 ### Paso 2: Capa de Infraestructura / Datos (Integración en Isolate Worker)
-- [ ] Actualización de `PitchDetectorService` en `lib/features/tuner/data/pitch_detector_service.dart`.
-- [ ] Sustitución del wrapper previo por `McleodPitchMethod` en `_dspWorkerEntryPoint`.
-- [ ] Verificación de buffering y umbrales acústicos.
+- [x] Actualización de `PitchDetectorService` en `lib/features/tuner/data/pitch_detector_service.dart`.
+- [x] Sustitución del wrapper previo por `McleodPitchMethod` en `_dspWorkerEntryPoint`.
+- [x] Verificación de buffering y umbrales acústicos.
 
 ### Paso 3: Verificación y Análisis Estático
-- [ ] Ejecución de `flutter analyze` (0 issues).
-- [ ] Ejecución de toda la suite de pruebas unitarias de Flutter (100% de éxito).
+- [x] Ejecución de `flutter analyze` (0 issues).
+- [x] Ejecución de toda la suite de pruebas unitarias de Flutter (100% de éxito).
 
 ---
 

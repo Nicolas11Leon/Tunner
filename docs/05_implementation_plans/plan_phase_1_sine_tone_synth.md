@@ -46,23 +46,23 @@ Dotar a la plataforma de una capacidad de salida auditiva inmediata para entrena
 ## 3. Plan Paso a Paso de Ejecución (Step-by-Step Roadmap)
 
 ### Paso 1: Capa de Dominio (Modelos Matemáticos y Pure Dart)
-- [ ] Incorporar en `NoteEntity` la función matemática `frequencyForNoteName(String noteName, {int octave, double a4Ref})`.
-- [ ] Agregar pruebas unitarias en `test/domain/note_entity_test.dart` para verificar la conversión bidireccional entre nombres y frecuencias.
+- [x] Incorporar en `NoteEntity` la función matemática `frequencyForNoteName(String noteName, {int octave, double a4Ref})`.
+- [x] Agregar pruebas unitarias en `test/domain/note_entity_test.dart` para verificar la conversión bidireccional entre nombres y frecuencias.
 
 ### Paso 2: Capa de Infraestructura / Datos (Servicio de Síntesis PCM)
-- [ ] Crear `lib/data/tone_generator_service.dart`:
+- [x] Crear `lib/data/tone_generator_service.dart`:
   - Ensamblador de encabezado canónico WAV RIFF en memoria.
   - Generador de muestras senoidales de 16 bits con rampa lineal de envolvente de 441 muestras ($10\text{ ms}$) al inicio y al final.
   - Gestión del ciclo de vida del buffer para evitar consumo residual de memoria.
 
 ### Paso 3: Capa de Presentación (ViewModel & UI)
-- [ ] En `TunerViewModel`: Añadir métodos `playReferenceTone()` y `stopReferenceTone()`.
-- [ ] En `TunerScreen`: Agregar botón de reproducción del tono de referencia junto al afinador estroboscópico.
+- [x] En `TunerViewModel`: Añadir métodos `playReferenceTone()` y `stopReferenceTone()`.
+- [x] En `TunerScreen`: Agregar botón de reproducción del tono de referencia junto al afinador estroboscópico.
 
 ### Paso 4: Pruebas, Verificación y Limpieza
-- [ ] Ejecutar `flutter analyze` (0 errores).
-- [ ] Ejecutar `flutter test` (100% pasando).
-- [ ] Commit y sincronización con GitHub en la rama `main`.
+- [x] Ejecutar `flutter analyze` (0 errores).
+- [x] Ejecutar `flutter test` (100% pasando).
+- [x] Commit y sincronización con GitHub en la rama `main`.
 
 ---
 
@@ -75,7 +75,7 @@ Dotar a la plataforma de una capacidad de salida auditiva inmediata para entrena
 
 ## 5. Criterios de Aceptación (Definition of Done)
 
-- [ ] Síntesis matemática sin artefactos ni chasquidos (*pops/clicks*).
-- [ ] Latencia de generación de buffer $< 5\text{ ms}$.
-- [ ] Pruebas unitarias de frecuencia y síntesis pasando.
-- [ ] Documentación y plan sincronizados en `main`.
+- [x] Síntesis matemática sin artefactos ni chasquidos (*pops/clicks*).
+- [x] Latencia de generación de buffer $< 5\text{ ms}$.
+- [x] Pruebas unitarias de frecuencia y síntesis pasando.
+- [x] Documentación y plan sincronizados en `main`.

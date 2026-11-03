@@ -7,7 +7,7 @@
 - **ID del Plan:** `PLAN-FASE1-AUDIO-ENGINE-2026-001`
 - **Título de la Implementación:** `Optimización No Bloqueante del Reloj de Audio y Expansión Universal de Detección de Frecuencias`
 - **Fase del Proyecto:** `Fase 1`
-- **Estado:** `Aprobado`
+- **Estado:** `Completado`
 - **ADR Relacionado:** `docs/04_adrs/0001_in_process_isolate_clock_and_dsp_pipeline.md`
 - **Documento Funcional Base:** `docs/02_use_cases/01_uc_acoustic_pitch_detection.md` y `docs/02_use_cases/02_uc_high_res_audio_clock.md`
 
@@ -46,25 +46,25 @@ Resolver la deuda técnica crítica de rendimiento en el metrónomo eliminando e
 ## 3. Plan Paso a Paso de Ejecución (Step-by-Step Roadmap)
 
 ### Paso 1: Capa de Dominio (Modelos Matemáticos y Pure Dart)
-- [ ] Documentar y afinar `NoteEntity.fromFrequency(double freq)` para manejar correctamente cualquier frecuencia entre 20 Hz y 5000 Hz sin artefactos de división ni notas fantasma.
-- [ ] Crear la suite de pruebas unitarias en `test/domain/note_entity_test.dart` verificando frecuencias estándar ($A_4 = 440.0\text{ Hz} \rightarrow \text{La4}, 0\text{ cents}$, $C_4 = 261.63\text{ Hz}$, $E_2 = 82.41\text{ Hz}$, etc.).
+- [x] Documentar y afinar `NoteEntity.fromFrequency(double freq)` para manejar correctamente cualquier frecuencia entre 20 Hz y 5000 Hz sin artefactos de división ni notas fantasma.
+- [x] Crear la suite de pruebas unitarias en `test/domain/note_entity_test.dart` verificando frecuencias estándar ($A_4 = 440.0\text{ Hz} \rightarrow \text{La4}, 0\text{ cents}$, $C_4 = 261.63\text{ Hz}$, $E_2 = 82.41\text{ Hz}$, etc.).
 
 ### Paso 2: Capa de Infraestructura / Datos (Servicios de Audio y Reloj)
-- [ ] **Reloj de Audio:** Refactorizar `MetronomeService` para que el `Isolate` use temporización no bloqueante que rinda ciclos al SO, asegurando consumo casi nulo de batería.
-- [ ] **Procesador de Tono:** Refactorizar `PitchDetectorService` calculando el valor cuadrático medio (RMS) del buffer PCM16:
+- [x] **Reloj de Audio:** Refactorizar `MetronomeService` para que el `Isolate` use temporización no bloqueante que rinda ciclos al SO, asegurando consumo casi nulo de batería.
+- [x] **Procesador de Tono:** Refactorizar `PitchDetectorService` calculando el valor cuadrático medio (RMS) del buffer PCM16:
   $$\text{RMS} = \sqrt{\frac{1}{N}\sum_{i=1}^{N} x_i^2}$$
   Descartar buffers con $\text{RMS} < \text{umbral}$ para que el afinador no salte con el susurro del aire.
-- [ ] Ampliar el rango permitido de frecuencias a $27.5\text{ Hz} \le f \le 4186\text{ Hz}$.
+- [x] Ampliar el rango permitido de frecuencias a $27.5\text{ Hz} \le f \le 4186\text{ Hz}$.
 
 ### Paso 3: Capa de Presentación (ViewModel y Feedback Visual)
-- [ ] Conectar los nuevos rangos y el control optimizado del metrónomo en `TunerViewModel`.
-- [ ] Validar que la interfaz responde fluidamente sin caídas de cuadros (*frame drops*).
+- [x] Conectar los nuevos rangos y el control optimizado del metrónomo en `TunerViewModel`.
+- [x] Validar que la interfaz responde fluidamente sin caídas de cuadros (*frame drops*).
 
 ### Paso 4: Pruebas, Verificación y Limpieza
-- [ ] Ejecutar `flutter analyze` y asegurar 0 errores de linter.
-- [ ] Ejecutar `flutter test` garantizando 100% de tests pasando.
-- [ ] Redactar el ADR `0001_in_process_isolate_clock_and_dsp_pipeline.md`.
-- [ ] Commit y sincronización con GitHub.
+- [x] Ejecutar `flutter analyze` y asegurar 0 errores de linter.
+- [x] Ejecutar `flutter test` garantizando 100% de tests pasando.
+- [x] Redactar el ADR `0001_in_process_isolate_clock_and_dsp_pipeline.md`.
+- [x] Commit y sincronización con GitHub.
 
 ---
 
@@ -77,8 +77,8 @@ Resolver la deuda técnica crítica de rendimiento en el metrónomo eliminando e
 
 ## 5. Criterios de Aceptación (Definition of Done)
 
-- [ ] Cero busy-waiting loops verificados en código.
-- [ ] Soporte probado para el registro vocal grave y agudo.
-- [ ] Pruebas unitarias de dominio pasando con éxito.
-- [ ] ADR documentado en `docs/04_adrs/`.
-- [ ] Sincronizado en la rama `main` de GitHub.
+- [x] Cero busy-waiting loops verificados en código.
+- [x] Soporte probado para el registro vocal grave y agudo.
+- [x] Pruebas unitarias de dominio pasando con éxito.
+- [x] ADR documentado en `docs/04_adrs/`.
+- [x] Sincronizado en la rama `main` de GitHub.

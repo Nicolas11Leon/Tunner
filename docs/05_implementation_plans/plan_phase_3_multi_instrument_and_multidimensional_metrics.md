@@ -7,7 +7,7 @@
 - **ID del Plan:** `PLAN-FASE3-MULTI-INSTRUMENT-2026-012`
 - **Título de la Implementación:** `Transposición Multi-Instrumento y Analítica Multidimensional de Interpretación`
 - **Fase del Proyecto:** `Fase 3 & Fase 4`
-- **Estado:** `Aprobado`
+- **Estado:** `Completado`
 - **ADR Relacionado:** `docs/04_adrs/0006_multi_instrument_transposition_and_multidimensional_analytics.md`
 - **Documento Funcional Base:** `docs/02_use_cases/10_uc_multi_instrument_transposition_and_multidimensional_metrics.md`
 
@@ -42,29 +42,29 @@ Incorporar a **Tunner** el catálogo y motor de transposición para instrumentos
 ## 2. Plan Paso a Paso de Ejecución
 
 ### Paso 1: Capa de Dominio de Instrumento (Modelos y Transposición)
-- [ ] Crear `InstrumentKey` y `InstrumentProfileEntity`.
-- [ ] Definir `IInstrumentTranspositionService` y su implementación matemática en `InstrumentTranspositionService`.
-- [ ] Escribir tests unitarios de transposición para Bb, Eb, F y C.
+- [x] Crear `InstrumentKey` y `InstrumentProfileEntity`.
+- [x] Definir `IInstrumentTranspositionService` y su implementación matemática en `InstrumentTranspositionService`.
+- [x] Escribir tests unitarios de transposición para Bb, Eb, F y C.
 
 ### Paso 2: Ampliación Multidimensional del Evaluador de Práctica
-- [ ] Agregar métricas de sostenimiento (*sustain ratio*) y tendencia rítmica (*rushing/dragging*).
-- [ ] Actualizar `IPracticeEvaluatorService` y `PracticeEvaluatorService`.
-- [ ] Escribir tests unitarios multidimensionales.
+- [x] Agregar métricas de sostenimiento (*sustain ratio*) y tendencia rítmica (*rushing/dragging*).
+- [x] Actualizar `IPracticeEvaluatorService` y `PracticeEvaluatorService`.
+- [x] Escribir tests unitarios multidimensionales.
 
 ### Paso 3: Integración en ViewModel y UI
-- [ ] Conectar `activeInstrumentProfile` en `TunerViewModel`.
-- [ ] Añadir modal o selector de instrumento en `TunerScreen`.
-- [ ] Enriquecer `PracticeReportModal` con los nuevos medidores y advertencias de tempo.
+- [x] Conectar `activeInstrumentProfile` en `TunerViewModel`.
+- [x] Añadir modal o selector de instrumento en `TunerScreen`.
+- [x] Enriquecer `PracticeReportModal` con los nuevos medidores y advertencias de tempo.
 
 ### Paso 4: Pruebas, Verificación y Limpieza
-- [ ] Ejecutar `flutter analyze` (0 lints).
-- [ ] Ejecutar `flutter test` (100% pruebas pasando).
-- [ ] Commit y sincronización remota en `main`.
+- [x] Ejecutar `flutter analyze` (0 lints).
+- [x] Ejecutar `flutter test` (100% pruebas pasando).
+- [x] Commit y sincronización remota en `main`.
 
 ---
 
 ## 3. Criterios de Aceptación (Definition of Done)
-- [ ] Toda nota escrita para Bb, Eb o F se transporta con exactitud matemática a su frecuencia física.
-- [ ] El reporte de práctica muestra desglose de Afinación, Tempo (con alerta de Rushing o Dragging) y Sostenimiento.
-- [ ] 100% de la suite de pruebas unitarias pasando.
-- [ ] Cero dependencias parásitas en la capa de dominio.
+- [x] Toda nota escrita para Bb, Eb o F se transporta con exactitud matemática a su frecuencia física.
+- [x] El reporte de práctica muestra desglose de Afinación, Tempo (con alerta de Rushing o Dragging) y Sostenimiento.
+- [x] 100% de la suite de pruebas unitarias pasando.
+- [x] Cero dependencias parásitas en la capa de dominio.

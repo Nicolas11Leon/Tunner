@@ -16,7 +16,7 @@ Este plan define las tareas secuenciales para implementar el soporte completo de
 ## 2. Tareas por Capa Arquitectónica
 
 ### Capa 1: Dominio Puro (Pure Dart)
-- [ ] Crear `lib/features/tuner/domain/temperament_engine.dart`:
+- [x] Crear `lib/features/tuner/domain/temperament_engine.dart`:
   - Modelo `MusicalTemperament` con ID, nombre descriptivo, autor/año y lista de 12 offsets en cents.
   - Clase `TemperamentEngine` con presets matemáticos:
     - `equal` (12-EDO)
@@ -28,21 +28,21 @@ Este plan define las tareas secuenciales para implementar el soporte completo de
     - `vallotti`
     - `youngII`
   - Métodos: `getOffsetInCents(noteIndex, rootIndex)`, `getTargetFrequency(noteIndex, octave, a4Ref, temperament, rootIndex)`, `calculateCentsDeviation(detectedHz, targetHz)`.
-- [ ] Crear suite de pruebas de dominio: `test/features/tuner/temperament_engine_test.dart`.
+- [x] Crear suite de pruebas de dominio: `test/features/tuner/temperament_engine_test.dart`.
 
 ### Capa 2: Persistencia & Aplicación
-- [ ] Actualizar `AppUserSettingsEntity` en `lib/features/persistence/domain/app_user_settings_entity.dart`:
+- [x] Actualizar `AppUserSettingsEntity` en `lib/features/persistence/domain/app_user_settings_entity.dart`:
   - Campos: `selectedTemperamentId` (default: `'equal'`) y `temperamentRootKey` (default: `0` / Do).
   - Métodos `copyWith`, `toMap` y `fromMap`.
-- [ ] Actualizar `TunerViewModel`:
+- [x] Actualizar `TunerViewModel`:
   - Getters `selectedTemperament`, `temperamentRootKey`, `availableTemperaments`.
   - Métodos `setTemperament(String id)`, `setTemperamentRoot(int rootKey)`.
   - Actualizar `_pitchService.onPitchDetected` para computar `_cents` contra la frecuencia objetivo del temperamento histórico activo.
 
 ### Capa 3: Presentación (Flutter UI)
-- [ ] Crear `TemperamentSelectorModal` en `lib/features/tuner/presentation/temperament_selector_modal.dart`.
-- [ ] Añadir chip interactivo de temperamento en AppBar de `TunerScreen`.
-- [ ] Crear pruebas de widget: `test/features/tuner/temperament_selector_ui_test.dart`.
+- [x] Crear `TemperamentSelectorModal` en `lib/features/tuner/presentation/temperament_selector_modal.dart`.
+- [x] Añadir chip interactivo de temperamento en AppBar de `TunerScreen`.
+- [x] Crear pruebas de widget: `test/features/tuner/temperament_selector_ui_test.dart`.
 
 ---
 

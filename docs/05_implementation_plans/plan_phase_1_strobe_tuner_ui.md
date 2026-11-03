@@ -41,23 +41,23 @@ Atender los dos requisitos no negociables de calidad de estudio:
 ## 3. Plan Paso a Paso de Ejecución (Step-by-Step Roadmap)
 
 ### Paso 1: Capa de Dominio (Modelos Matemáticos y Pure Dart)
-- [ ] Incorporar en `NoteEntity` métodos auxiliares para cálculo de frecuencia teórica de referencia $f_0$ y factor de escala estroboscópico.
+- [x] Incorporar en `NoteEntity` métodos auxiliares para cálculo de frecuencia teórica de referencia $f_0$ y factor de escala estroboscópico.
 
 ### Paso 2: Capa de Infraestructura / Datos (Optimización de Flujo y Latencia)
-- [ ] En `PitchDetectorService`: Optimizar la velocidad de paso del buffer sin intermediarios redundantes.
-- [ ] En `TunerViewModel`: Eliminar el `Timer(Duration(milliseconds: 250))` que introducía latencia artificial de un cuarto de segundo. Reducirlo a $50\text{ ms}$ dinámico con reactividad instantánea para solos rápidos.
+- [x] En `PitchDetectorService`: Optimizar la velocidad de paso del buffer sin intermediarios redundantes.
+- [x] En `TunerViewModel`: Eliminar el `Timer(Duration(milliseconds: 250))` que introducía latencia artificial de un cuarto de segundo. Reducirlo a $50\text{ ms}$ dinámico con reactividad instantánea para solos rápidos.
 
 ### Paso 3: Capa de Presentación (Widget Estroboscópico & UI)
-- [ ] Crear `lib/presentation/widgets/strobe_tuner_widget.dart`:
+- [x] Crear `lib/presentation/widgets/strobe_tuner_widget.dart`:
   - `AnimationController` continuo desacoplado del stream de audio para rotación a 60/120 FPS sin parpadeos.
   - Bandas cilíndricas/radiales con efecto estroboscópico de contraste alto.
   - Lectura digital de frecuencia exacta ($Hz$), nota musical ($Do_4$, $La_4$) y cents ($\pm 50.0$).
-- [ ] Integrar el nuevo widget en `lib/presentation/tuner_screen.dart`.
+- [x] Integrar el nuevo widget en `lib/presentation/tuner_screen.dart`.
 
 ### Paso 4: Pruebas, Verificación y Limpieza
-- [ ] Ejecutar `flutter analyze` (0 errores).
-- [ ] Ejecutar `flutter test` (100% pruebas pasando).
-- [ ] Commit y sincronización con GitHub.
+- [x] Ejecutar `flutter analyze` (0 errores).
+- [x] Ejecutar `flutter test` (100% pruebas pasando).
+- [x] Commit y sincronización con GitHub.
 
 ---
 
@@ -70,7 +70,7 @@ Atender los dos requisitos no negociables de calidad de estudio:
 
 ## 5. Criterios de Aceptación (Definition of Done)
 
-- [ ] Las notas sucesivas en pasajes rápidos de violín/guitarra se actualizan sin retraso acumulado.
-- [ ] El estroboscopio virtual rota según los cents y se detiene en afinación precisa.
-- [ ] Cero errores de linter y tests pasando.
-- [ ] Sincronizado en `main`.
+- [x] Las notas sucesivas en pasajes rápidos de violín/guitarra se actualizan sin retraso acumulado.
+- [x] El estroboscopio virtual rota según los cents y se detiene en afinación precisa.
+- [x] Cero errores de linter y tests pasando.
+- [x] Sincronizado en `main`.
