@@ -95,3 +95,27 @@ sequenceDiagram
   - El offset de transposición es 0. El afinador muestra la nota directamente sin etiqueta dual.
 - **A2: Instrumento de clave de Fa en partitura de clave de Sol:**
   - El usuario puede conmutar manualmente la clave de visualización si desea leer en clave de Sol o transponer la octava.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Partitura con pentagrama visible en pantalla.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Abrir el menú de transposición y claves del pentagrama.
+2. Cambiar la clave de **Clave de Sol en 2ª** a **Clave de Fa en 4ª**.
+3. Observar la reubicación de las cabezas de nota sobre las líneas del pentagrama.
+4. Cambiar a **Clave de Do en 3ª** (viola) y **Clave de Do en 4ª** (trombón/fagot).
+5. Aplicar una transposición de intervalo (+2 semitonos / un tono arriba).
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Redibujado visual inmediato de las notas en la posición correcta de la nueva clave.
+- [ ] La reproducción sonora sigue sonando en la altura tonal real de concierto.
+- [ ] La armadura de clave se actualiza coherentemente según el círculo de quintas.
+- [ ] Ausencia de superposiciones o choques visuales entre notas y armadura.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Clave Evaluada | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de claves y transposición* |

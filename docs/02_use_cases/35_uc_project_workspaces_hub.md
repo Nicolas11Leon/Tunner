@@ -86,3 +86,27 @@ sequenceDiagram
 ### 4.4 Flujos Alternativos y Excepciones
 - **Cambio de Modo durante Audio Activo:** Si el metrónomo o el afinador están activos al cambiar a *Componer*, el proceso continúa en segundo plano sin cortes acústicos ni desbordamiento de memoria.
 - **Fallo de Persistencia Local:** Si la escritura en disco falla por falta de espacio, el estado en memoria se mantiene y el usuario continúa trabajando normalmente.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Pantalla del Hub de Espacios de Trabajo (Workspaces) abierta.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Presionar **Crear Nuevo Espacio de Trabajo** e ingresar el nombre "Audición Barroca".
+2. Configurar la afinación de referencia de ese espacio en $415.0\text{ Hz}$ (Afinación Barroca).
+3. Asignar dos partituras y registrar una toma de grabación de prueba.
+4. Cambiar al espacio de trabajo "Banda Sinfónica" (calibrado en $442.0\text{ Hz}$).
+5. Comprobar que los ajustes, afinación y archivos queden estrictamente aislados entre espacios.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Aislamiento completo de estados, preferencias de afinación y grabaciones entre workspaces.
+- [ ] Creación, renombrado, duplicación y eliminación limpia de espacios de trabajo.
+- [ ] Carga inmediata de los recursos al cambiar de un workspace a otro.
+- [ ] Diálogo de confirmación preventivo antes de eliminar un espacio con datos.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Workspace Creado | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones del hub de workspaces* |

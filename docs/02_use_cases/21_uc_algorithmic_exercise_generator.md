@@ -80,3 +80,27 @@ sequenceDiagram
 4. Selecciona la figura rítmica deseada (Negras, Corcheas o Semicorcheas).
 5. Pulsa el botón "Generar y Practicar".
 6. El sistema crea la partitura en milisegundos y la despliega en el atril de Tunner.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Módulo del Generador Algorítmico de Ejercicios abierto.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Seleccionar un nivel pedagógico (Principiante / Intermedio / Avanzado).
+2. Escoger una categoría de ejercicio: Escalas diatónicas, Arpegios, Saltos interválicos, Patrones rítmicos.
+3. Pulsar el botón **Generar Ejercicio**.
+4. Inspeccionar la partitura generada y pulsar **Reproducir**.
+5. Pulsar **Regenerar** varias veces consecutivas para evaluar la variabilidad algorítmica.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Los ejercicios generados respetan estrictamente la tonalidad y tesitura configuradas.
+- [ ] Ausencia de compases matemáticamente incompletos o errores de coherencia rítmica.
+- [ ] Progresión pedagógica real: dificultad acorde al nivel seleccionado.
+- [ ] Generación instantánea ($< 500\text{ ms}$) sin bloqueos de pantalla.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Nivel y Tipo de Ejercicio | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones del generador de ejercicios* |

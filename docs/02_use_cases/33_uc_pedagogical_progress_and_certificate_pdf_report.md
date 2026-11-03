@@ -118,3 +118,28 @@ sequenceDiagram
 ### Flujo de Error E1: Error de I/O en la persistencia del archivo
 - Si el almacenamiento del dispositivo está bloqueado o sin espacio:
   - El sistema captura la excepción, presenta un diálogo de error no destructivo y mantiene los bytes en memoria permitiendo un reintento.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Sesión de práctica completada con métricas registradas.
+- Modal de Reporte Pedagógico accesible desde el menú superior.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Pulsar el chip de **Reporte Pedagógico** en la barra superior.
+2. Ingresar el nombre del estudiante (ej. "Nicolás León") y notas de observación.
+3. Activar el switch de **Emitir Diploma de Honor / Certificado**.
+4. Presionar el botón **Exportar Reporte a PDF**.
+5. Abrir el documento resultante en el visor de PDF.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Visualización clara de los KPIs de sesión: tiempo de práctica, precisión de afinación y consistencia rítmica.
+- [ ] El Diploma de Honor incluye orlas doradas, sellos vectoriales y tipografía formal de mérito musical.
+- [ ] El mensaje flotante (SnackBar) notifica la generación exitosa con el tamaño en KB del PDF.
+- [ ] El documento es apto para imprimir o compartir directamente con tutores o conservatorios.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Estudiante | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones del reporte pedagógico y diploma* |

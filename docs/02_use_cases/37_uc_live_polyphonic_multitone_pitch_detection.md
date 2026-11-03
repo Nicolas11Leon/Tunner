@@ -92,3 +92,28 @@ sequenceDiagram
 ### 4.4 Flujos Alternativos y de Error
 - **Monofonía Detectada:** Si el usuario toca una sola nota, el resultado contiene exactamente 1 voz con 100% de salience.
 - **Ruido Percusivo / Golpes:** Si la señal carece de periodicidad tonal, el analizador reporta 0 voces y confianza cero.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Micrófono activo en modo de detección polifónica multitono.
+- Instrumento polifónico (guitarra, piano) o dos instrumentos monofónicos sonando juntos.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Tocar una nota individual ($A_4$) y verificar su detección.
+2. Añadir simultáneamente una segunda nota formando un intervalo armónico (ej. quinta justa $A_4 - E_5$).
+3. Observar la pantalla: comprobar si aparecen múltiples indicadores de afinación independientes.
+4. Desafinar levemente una de las dos notas y comprobar qué indicador refleja la desviación.
+5. Tocar un acorde de 3 notas simultáneas ($C_4 - E_4 - G_4$).
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Identificación simultánea y visualización separada de cada frecuencia fundamental presente.
+- [ ] Indicador individual de cents de desviación para cada voz del intervalo.
+- [ ] Ausencia de frecuencias espurias provocadas por productos de intermodulación.
+- [ ] Rendimiento a 60 FPS sin retraso temporal en el análisis de espectro polifónico.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Intervalo o Acorde | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de detección polifónica* |

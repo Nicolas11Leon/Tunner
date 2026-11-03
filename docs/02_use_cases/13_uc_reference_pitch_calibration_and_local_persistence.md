@@ -101,3 +101,28 @@ sequenceDiagram
 ### 4.4 Flujos Alternativos y de Error
 - **FA-1 (Archivo de configuración inexistente o corrupto):** Si es la primera vez que se ejecuta la app o si el JSON estuviera corrupto, `JsonLocalPersistenceService` captura la excepción sin lanzar error y genera un estado por defecto canónico ($A_4 = 440.0$, tema Obsidian Studio, flauta traversa).
 - **FA-2 (Frecuencia fuera de rango):** Si el usuario ingresa un valor menor a $415.0\text{ Hz}$ o mayor a $466.0\text{ Hz}$, el sistema lo restringe estrictamente (*clamping*) dentro del rango acústico seguro.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Generador de tonos externo capaz de generar $432.0\text{ Hz}$, $440.0\text{ Hz}$ y $442.0\text{ Hz}$.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Abrir el modal de Calibración de Afinación de Concierto ($A_4$).
+2. Pulsar el preset de $432\text{ Hz}$ (Afinación Verdi).
+3. Emitir un tono de $432\text{ Hz}$ al micrófono: verificar que el afinador indique exactamente $0.0\text{ cents}$ en $A_4$.
+4. Probar los botones de incremento y decremento fino ($\pm 0.1\text{ Hz}$ y $\pm 1.0\text{ Hz}$).
+5. Establecer la referencia en $442\text{ Hz}$ (Afinación orquestal europea).
+6. Cerrar completamente la app y reiniciar para validar persistencia en disco.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Actualización inmediata de todas las frecuencias de la escala musical en la memoria del afinador.
+- [ ] Con $A_4 = 432\text{ Hz}$, un tono de 440 Hz marca aproximadamente $+31.8\text{ cents}$ (comportamiento matemáticamente exacto).
+- [ ] El valor de calibración persiste de forma transparente entre sesiones del usuario.
+- [ ] El chip en la interfaz principal refleja el valor activo (ej. `A4 = 442 Hz`).
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Frecuencia Calibrada | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de calibración A4* |

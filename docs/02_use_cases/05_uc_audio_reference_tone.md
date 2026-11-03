@@ -123,3 +123,28 @@ sequenceDiagram
 - **Latencia de inicio de reproducción:** $\le 15\text{ ms}$ tras la pulsación en pantalla.
 - **Distorsión Armónica Total (THD):** Prácticamente $0\%$ en tonos senoidales.
 - **Cero Dependencias de Red:** Síntesis 100% matemática calculada en memoria en el procesador local.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Altavoces del dispositivo o auriculares estéreo conectados.
+- Selector de Tono de Referencia / Diapasón abierto.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Seleccionar la nota $A_4$ (440 Hz) y presionar Reproducir Tono.
+2. Alternar entre las formas de onda / timbres disponibles: Senoidal pura, Clarinete, Cello, Flauta.
+3. Deslizar la octava hacia $A_2$ (110 Hz) y hacia $A_5$ (880 Hz).
+4. Ajustar el volumen del tono de referencia.
+5. Detener el tono y reanudarlo rápidamente varias veces consecutivas.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Sonido nítido sin chasquidos (*clicks/pops*) al pulsar play o stop gracias al fundido ADSR.
+- [ ] Riqueza armónica auténtica al seleccionar timbres de instrumentos reales.
+- [ ] Ausencia de saturación o distorsión digital a máximo volumen.
+- [ ] Exactitud matemática en la frecuencia generada, verificable con un segundo afinador.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Transductor / Audífonos | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de calidad de tono* |

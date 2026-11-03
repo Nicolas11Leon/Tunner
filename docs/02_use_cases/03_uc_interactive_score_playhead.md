@@ -131,3 +131,28 @@ sequenceDiagram
 - **Fluidez visual:** La posición del cursor debe interpolarse a 60/120 FPS sin dar saltos bruscos (*jank* o *stuttering*).
 - **Consumo de memoria:** Los registros del compás (`_measureHistory`) se gestionan en mapas fijos de tamaño $N$ ($N = 16$), sin acumulación infinita de objetos en el Garbage Collector.
 - **Feedback instantáneo:** La latencia visual acumulada entre la emisión del sonido y la coloración de la nota no debe exceder los $10\text{ ms}$.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Pantalla de partitura o lección interactiva abierta.
+- Partitura con al menos 4 compases cargada en memoria.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Iniciar la reproducción sonora de la partitura a $100\text{ BPM}$.
+2. Seguir visualmente la barra vertical (playhead) a lo largo del pentagrama.
+3. Observar la transición y salto de compás al final del sistema.
+4. Presionar pausa a mitad de un compás y luego reanudar.
+5. Tocar manualmente una nota sobre la partitura para verificar si el cursor salta a esa posición.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] El cursor se alinea exactamente sobre la cabeza de la nota en el momento auditivo del pulso.
+- [ ] El salto de renglón o compás ocurre de forma suave sin saltos de fotogramas (*jank*).
+- [ ] La pausa congela la posición del cursor de manera determinista y la reanudación es inmediata.
+- [ ] El resaltado de la nota activa ofrece alto contraste respecto al fondo de la partitura.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Partitura Probada | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de desplazamiento de cursor* |

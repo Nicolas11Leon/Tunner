@@ -118,3 +118,28 @@ sequenceDiagram
 ## 8. Postcondiciones
 1. La señal vocal procesada refleja la afinación cuantizada hacia la escala seleccionada con la inercia temporal establecida.
 2. En post-producción, la toma grabada procesada queda almacenada en el estado local inmutable disponible para mezcla y exportación de stems.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Auriculares conectados (con cable preferentemente para evaluar latencia mínima) y micrófono activo.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Abrir la pantalla del procesador de afinación vocal (Autotune).
+2. Seleccionar la escala musical objetivo (ej. Do Mayor).
+3. Ajustar el potenciómetro de **Velocidad de Corrección (Speed)** a nivel medio (corrección natural).
+4. Cantar una melodía por el micrófono y escuchar el retorno corregido por los auriculares en tiempo real.
+5. Cambiar la velocidad de corrección a cero (efecto de afinación robótica instantánea / hard-tune).
+6. Evaluar la perilla de **Preservación de Formantes**.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Latencia de ida y vuelta imperceptible ($< 15\text{ ms}$) evitando el efecto de eco molesto al cantar.
+- [ ] Corrección suave y musical al semitono de la escala elegida en modo natural.
+- [ ] Efecto hard-tune marcado e instantáneo en modo rápido sin clics de fase en las transiciones de nota.
+- [ ] Mantenimiento del timbre vocal auténtico sin deformaciones indeseadas (*chipmunk effect*).
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Escala y Velocidad | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de autotune vocal* |

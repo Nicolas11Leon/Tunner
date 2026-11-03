@@ -107,3 +107,27 @@ sequenceDiagram
 ### 4.4 Flujos Alternativos y de Error
 - **FA-1 (Formato no reconocido o archivo dañado):** Si los bytes no corresponden a un XML válido ni a un archivo con cabecera `MThd`, el sistema notifica con un mensaje explicativo y no altera la partitura actual.
 - **FA-2 (Compases con figuras irregulares):** Si un compás tiene menos o más notas de las esperadas por el compás, el cuantizador completa los ticks vacíos con silencios o trunca los excedentes para mantener el pulso exacto sin romper la reproducción.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Al menos un archivo `.musicxml` o `.xml` y un archivo `.mid` estándar almacenados localmente.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Abrir el diálogo de importación universal desde el menú principal.
+2. Seleccionar el archivo MusicXML local.
+3. Verificar la lectura de título, compositor, armadura de clave, compás y notas.
+4. Repetir la prueba con el archivo MIDI estándar tipo 0 o tipo 1.
+5. Intentar cargar un archivo corrupto o con extensión errónea para validar el manejo de excepciones.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Conversión limpia y sin pérdida de notas, silencios y ligaduras al lienzo de partitura.
+- [ ] Detección correcta de cambios de compás o armadura si existen en la obra.
+- [ ] Mensaje de error informativo y amigable al intentar cargar un archivo no válido.
+- [ ] Tiempo de procesamiento menor a 2 segundos para obras de longitud media.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Archivo Probado | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de importación MusicXML/MIDI* |

@@ -85,3 +85,27 @@ sequenceDiagram
 ### 3.4 Flujos Alternativos y Excepciones
 - **Pulsación Aislada:** Si el usuario realiza una sola pulsación y se detiene, el tempo actual no se altera y tras 2500 ms el estado vuelve a reposo.
 - **Pulsaciones Fuera de Rango:** Si la velocidad pulsada es menor a 30 BPM o mayor a 300 BPM, el resultado se trunca al rango válido $[30, 300]$ BPM.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Pantalla de metrónomo abierta con el botón interactivo de **Tap Tempo** visible.
+- Canción externa sonando de fondo o pulso mental de referencia (ej. $100\text{ BPM}$).
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Tocar el botón de Tap Tempo 4 veces consecutivas con cadencia regular a $100\text{ BPM}$.
+2. Observar la lectura numérica del tempo en la pantalla.
+3. Dejar transcurrir más de 2.5 segundos sin pulsar la pantalla (tiempo de reinicio de ventana).
+4. Volver a pulsar rápidamente a $160\text{ BPM}$ para validar el reinicio del acumulador de taps.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Estimación precisa del tempo medio con un error inferior a $\pm 1.0\text{ BPM}$ tras 4 toques regulares.
+- [ ] El metrónomo actualiza su reloj de audio inmediatamente sin desfasar el pulso en curso.
+- [ ] Reinicio automático e inteligente de la cuenta tras la pausa de inactividad.
+- [ ] Animación visual táctil inmediata en cada pulsación del botón.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Tempo Pulsado | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de tap tempo* |

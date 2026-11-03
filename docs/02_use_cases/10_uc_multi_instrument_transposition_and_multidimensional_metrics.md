@@ -108,3 +108,27 @@ sequenceDiagram
 ## 6. Criterios de Calidad y No Negociables
 - **Transposición Exacta:** Cálculo semitonal conforme a afinación temperada universal ($A_4 = 440\text{ Hz}$).
 - **Cero Latencia Agregada:** El cálculo de transposición y métricas de sostenimiento se ejecuta en tiempo $O(1)$ sin asignaciones de memoria pesadas.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Instrumento transpositor disponible (ej. Clarinete o Trompeta en $B\flat$, Saxo Alto en $E\flat$, Corno en $F$) o tabla de transposición.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Abrir el afinador y acceder al selector de instrumento.
+2. Seleccionar **Trompeta en $B\flat$** (transposición: suena un tono más bajo de lo escrito).
+3. Tocar una nota $C_4$ en la trompeta (suena $B\flat_3 pprox 233.08\text{ Hz}$).
+4. Observar el indicador de afinación: debe mostrar nota escrita $C_4$ y nota sonando de concierto $B\flat_3$.
+5. Cambiar a **Saxo Alto en $E\flat$** y repetir el procedimiento tocando $A_4$ escrito (suena $C_4$).
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Cálculo exacto del intervalo de transposición para instrumentos en $B\flat, E\flat, F, G, D$.
+- [ ] Claridad visual entre la nota leída por el músico y la nota acústica real de concierto.
+- [ ] La aguja y el cálculo de cents reflejan la afinación correcta del instrumento transpositor sin desfase.
+- [ ] El cambio de instrumento actualiza la tesitura pedagógica recomendada en pantalla.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Instrumento Transpositor | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de transposición* |

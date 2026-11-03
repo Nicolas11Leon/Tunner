@@ -120,3 +120,32 @@ sequenceDiagram
 - **Latencia de respuesta:** Menor a $10\text{ ms}$.
 - **Consumo de CPU:** El análisis de pitch no debe ejecutarse en el hilo principal de la UI si supera el 5% de tiempo de cuadro.
 - **Rango Dinámico:** Detección comprobada en graves ($E_2$ de guitarra, $C_2$ de cello) y agudos ($C_6$ de soprano/flauta).
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Dispositivo físico con micrófono funcional (interno o periférico USB/jack).
+- Entorno acústico con nivel de ruido moderado o silencioso.
+- Instrumento acústico (guitarra, flauta, violín) o generador de tonos en un segundo dispositivo.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Abrir **Tunner** en la pantalla principal del afinador.
+2. Comprobar que el indicador del micrófono muestre estado de captura activo.
+3. Emitir una nota $A_4$ (440.0 Hz) durante al menos 3 segundos.
+4. Observar la aguja analógica, el nombre de nota, la octava y el indicador numérico de cents.
+5. Variar la afinación ligeramente hacia arriba y hacia abajo para comprobar el desplazamiento continuo de la aguja.
+6. Probar en extremos de tesitura: nota grave ($E_2 pprox 82.4\text{ Hz}$) y nota aguda ($C_6 pprox 1046.5\text{ Hz}$).
+7. Detener la emisión y comprobar que la aplicación mantenga la última nota o pase a estado de espera sin oscilaciones parásitas.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Detección instantánea de la nota fundamental ($A_4$) con latencia visual imperceptible ($< 10\text{ ms}$).
+- [ ] La aguja se posiciona en el centro exacto ($0\text{ cents}$) al recibir 440 Hz con concert pitch a 440 Hz.
+- [ ] Movimiento analógico de la aguja a 60/120 FPS sin congelamientos ni saltos bruscos.
+- [ ] Detección comprobada en graves ($E_2$) y agudos ($C_6$) sin pérdida de tono.
+- [ ] Inmunidad comprobada frente a ruidos leves de respiración gracias al Noise Gate.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Setup Acústico | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones tras la primera prueba de campo* |

@@ -69,3 +69,27 @@ sequenceDiagram
 ### 3.3 Postcondiciones
 * La interfaz se reconfigura en el mismo frame a 60 FPS sin recargar el estado del motor de afinación.
 * El modo seleccionado se almacena de forma persistente y atómica en `tunner_settings.json`.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Pantalla principal del afinador abierta.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Observar la pantalla en **Modo Esencial** (aguja principal, letra de nota de gran tamaño, centrado en simplicidad).
+2. Tocar el interruptor o botón de cambio a **Modo Pro**.
+3. Observar la aparición de los paneles avanzados: medidor de armónicos, visualizador FFT, transposición y cents exactos.
+4. Volver a cambiar a Modo Esencial.
+5. Probar la afinación de una nota en ambos modos.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Transición fluida e instantánea entre ambos modos sin pérdida de estado acústico ni reinicio de captura.
+- [ ] Modo Esencial limpio, intuitivo y libre de sobrecarga cognitiva para estudiantes novatos.
+- [ ] Modo Pro brinda acceso exhaustivo a todos los parámetros técnicos sin congestión gráfica.
+- [ ] El modo elegido se guarda y restaura de forma persistente.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Modo Evaluado | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones del modo dual* |

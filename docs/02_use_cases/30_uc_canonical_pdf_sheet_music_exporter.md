@@ -94,3 +94,27 @@ sequenceDiagram
   - El sistema genera un PDF con un sistema de pentagrama vacío conteniendo un silencio de redonda de 4 tiempos por defecto.
 - **A2: Partitura de múltiples páginas:**
   - Si el número de compases excede la altura de una página A4, el exportador añade dinámicamente nuevas páginas en el árbol `/Pages`, redistribuyendo los sistemas de forma continua.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Partitura abierta en pantalla lista para exportación.
+- Lector de PDF externo instalado en el dispositivo o visor del sistema.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Presionar el botón **Exportar Partitura a PDF**.
+2. Configurar metadatos: Título, Compositor, Tonalidad, Formato de hoja (A4 / Carta).
+3. Confirmar la exportación y abrir el archivo generado en el visor PDF.
+4. Realizar zoom al 400% sobre las notas y líneas del pentagrama.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Renderizado vectorial puro: nitidez infinita sin pixelado en ningún nivel de zoom.
+- [ ] Tipografía musical SMuFL perfectamente alineada con los estándares editoriales profesionales.
+- [ ] Inclusión de márgenes apropiados para encuadernación e impresión física.
+- [ ] Tamaño del archivo PDF optimizado y ligero ($< 1\text{ MB}$ para partituras típicas).
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Formato Hoja | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de exportación PDF* |

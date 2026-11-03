@@ -120,3 +120,29 @@ sequenceDiagram
 - **Consumo de CPU:** $\le 1\%$ en reposo y ejecución (eliminación estricta de busy-waiting).
 - **Precisión Temporal (Jitter):** Desviación acumulada menor a $2\text{ ms}$ tras 10 minutos de reproducción continua.
 - **Sincronización:** El cursor visual de la partitura y el pulso auditivo deben mantener coherencia sensorial perfecta.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Auriculares o altavoces con volumen audible cómodo.
+- Cronómetro externo o reloj de referencia de alta precisión disponible para contrastar.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Abrir la pantalla de Metrónomo en **Tunner**.
+2. Configurar el tempo en $60\text{ BPM}$ (1 pulso por segundo exacto) en compás de 4/4.
+3. Iniciar el metrónomo simultáneamente con el cronómetro de referencia.
+4. Escuchar y observar el pulso durante 3 minutos ininterrumpidos.
+5. Modificar el tempo en caliente deslizándolo a $120\text{ BPM}$ y posteriormente a $240\text{ BPM}$.
+6. Minimizar brevemente la aplicación y reabrirla para comprobar la respuesta ante eventos de ciclo de vida.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] A 60 BPM, el golpe del clic coincide con el paso de cada segundo del cronómetro sin desfase acumulado.
+- [ ] Cero tirones de audio o clics entrecortados durante el cambio dinámico de tempo con el slider.
+- [ ] El consumo térmico y de batería se mantiene mínimo (ausencia de busy-waiting en Isolate).
+- [ ] El primer pulso del compás tiene un acento tímbrico diferenciable de los tiempos débiles.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Auriculares / Altavoz | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones del reloj de metrónomo* |

@@ -107,3 +107,27 @@ sequenceDiagram
 ### Flujo de Error E1: Error de persistencia en disco
 - Si el archivo de configuración no puede escribirse en almacenamiento:
   - El sistema aplica el perfil en memoria RAM durante la sesión activa y emite un registro de depuración no intrusivo sin bloquear la práctica.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Selector de Perfil Pedagógico visible en los ajustes o en el afinador.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Seleccionar el perfil **Principiante** (tolerancia amplia $\pm 15\text{ cents}$, interfaz simplificada).
+2. Tocar una nota con desafinación moderada (+10 cents): observar si se califica en zona verde.
+3. Cambiar el perfil a **Virtuoso / Profesional** (tolerancia estricta $\pm 3\text{ cents}$).
+4. Tocar la misma nota (+10 cents) y verificar que se indique como desafinada (+cents en ámbar/rojo).
+5. Observar las ayudas visuales (scaffolding) activadas en principiante vs. desactivadas en profesional.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] La zona verde de afinación del medidor se ensancha o reduce según el perfil activo.
+- [ ] La retroalimentación pedagógica se ajusta a la exigencia del nivel seleccionado.
+- [ ] Persistencia del perfil asignado para el usuario activo.
+- [ ] Estímulo pedagógico positivo adaptado a cada etapa de aprendizaje.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Perfil Evaluado | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de perfiles pedagógicos* |

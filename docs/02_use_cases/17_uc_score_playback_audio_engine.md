@@ -105,3 +105,26 @@ sequenceDiagram
 ### 4.3 Flujo Alternativo 2: Pista Melódica Silenciada (Modo Acompañamiento / Minus One)
 - **Condición:** El usuario activa *Mute* en la pista "voice" para tocar su propio instrumento sin la melodía grabada.
 - **Acción:** `getEffectiveGain('voice')` retorna `0.0`. La síntesis se omite y solo suenan el metrónomo y acompañamiento.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Partitura con melodía y acordes polifónicos abierta.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Iniciar la reproducción auditiva de la partitura.
+2. Observar la sincronía entre el sonido de cada nota y la posición del cursor de reproducción.
+3. Modificar el tempo al doble de velocidad ($2\times$) durante la reproducción.
+4. Pausar y reanudar repetidamente en distintos puntos de la partitura.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Polifonía limpia: todos los tonos de un acorde suenan simultáneamente sin retrasos intermitentes.
+- [ ] Las duraciones de redondas, blancas, negras y corcheas se respetan con rigor métrico.
+- [ ] Detención instantánea sin notas colgadas (*stuck notes*) al pulsar pausa.
+- [ ] Transición fluida en cambios dinámicos de tempo.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Tempo Probado | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones del motor de reproducción* |

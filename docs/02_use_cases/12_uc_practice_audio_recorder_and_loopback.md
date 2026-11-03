@@ -110,3 +110,28 @@ sequenceDiagram
   Si el permiso fue revocado en ajustes, el sistema captura la excepción, desactiva el estado de grabación y muestra un snackbar informativo invitando a conceder el permiso en la configuración del dispositivo.
 - **A3: Grabación durante el Modo de Práctica Evaluada:**  
   Si el usuario activa la grabación durante una sesión de evaluación, al presionar "Finalizar Práctica", el reporte de práctica (`PracticeReportModal`) integra automáticamente el reproductor de la toma para una correlación visual-auditiva instantánea de los errores reportados.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Micrófono con permisos concedidos en el sistema operativo.
+- Auriculares para la prueba de reproducción loopback.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Presionar el botón de **Grabar** en la barra de herramientas del afinador.
+2. Interpretar un fragmento musical de 15 segundos con dinámicas variadas (pianissimo a fortissimo).
+3. Presionar el botón de **Detener Grabación**.
+4. Presionar el botón de **Reproducir (Loopback)** para escuchar la toma recién registrada.
+5. Probar pausar, reanudar y reiniciar la reproducción.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Indicador visual distintivo (LED rojo pulsante o temporizador en marcha) durante la grabación.
+- [ ] Audio reproducido con fidelidad acústica sin cortes, silencios ni saturación.
+- [ ] La reproducción se detiene automáticamente al llegar al final de la pista.
+- [ ] Opción de eliminar la toma actual o guardarla para análisis posterior.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Duración Toma | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de grabación y loopback* |

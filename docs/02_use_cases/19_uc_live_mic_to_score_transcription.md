@@ -107,3 +107,28 @@ sequenceDiagram
 * **FA-1 (Cambio de compás por capacidad):** Si una nota excede los 16 ticks del compás actual en $4/4$, el motor genera automáticamente un nuevo compás e inserta la nota en el siguiente compás.
 * **FA-2 (Ruido o aire sin tono):** Si la claridad de la señal es inferior a $0.85$, el frame es descartado y no se crea ninguna nota espuria.
 * **FE-1 (Corte repentino del micrófono):** El motor finaliza la última nota pendiente y detiene la sesión de transcripción de forma segura sin corromper la memoria.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Micrófono activo en modo transcripción acústica en vivo.
+- Instrumento melódico o voz con articulación definida.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Iniciar la sesión de transcripción automática.
+2. Tocar a tempo moderado una escala diatónica (ej. Do Mayor: $C_4, D_4, E_4, F_4, G_4, A_4, B_4, C_5$) como negras.
+3. Realizar una pausa de silencio de 2 compases.
+4. Tocar un intervalo con salto amplio (ej. $C_4$ a $G_4$).
+5. Finalizar la captura y revisar la partitura transcrita resultante.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Cada nota tocada se plasma en el pentagrama con la altura tonal correcta.
+- [ ] Cuantización rítmica adecuada: notas negras identificadas sin fragmentación excesiva en fusas o silencios espurios.
+- [ ] El silencio es transcrito correctamente como silencios de compás.
+- [ ] Rendimiento en tiempo real sin acumulación de latencia a lo largo de la sesión.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Escala / Frase Tocada | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de transcripción en vivo* |

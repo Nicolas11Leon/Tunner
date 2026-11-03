@@ -108,3 +108,28 @@ sequenceDiagram
 ### 5.2 Flujos Alternativos y Excepciones
 - **A1: Nota fuera del rango nativo del sample:** El motor transpone mediante interpolación matemática sin distorsionar el timbre dentro de un rango de $\pm 2$ octavas.
 - **E1: Banco SF2 corrupto o incompleto:** El sistema realiza *fallback* transparente al sintetizador aditivo de armónicos (`StemAudioSynthesizer`), garantizando que la reproducción nunca falle.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Teclado virtual o partitura interactiva activa con motor SoundFont habilitado.
+- Altavoces o auriculares estéreo conectados.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Seleccionar el banco acústico SoundFont SF2.
+2. Elegir el instrumento **Piano de Cola Acústico**.
+3. Tocar notas staccato y notas con sustain largo mediante el teclado táctil en pantalla.
+4. Cambiar el instrumento a **Flauta Traversa** y posteriormente a **Sección de Cuerdas**.
+5. Evaluar la respuesta en graves profundos y en agudos extremos.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Reproducción fiel de las muestras PCM muestreadas del instrumento real.
+- [ ] Envolvente ADSR natural: decaimiento suave y liberación limpia sin chasquidos al soltar la tecla.
+- [ ] Interpolación de tono limpia al transponer muestras a lo largo del registro.
+- [ ] Polifonía sin caídas de voces ni clics de saturación en el mezclador de audio.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Instrumento Evaluado | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de síntesis SoundFont* |

@@ -122,3 +122,29 @@ El afinador estroboscópico virtual emula los discos mecánicos originales de lo
 - **Resolución visual:** Capacidad de discernir diferencias de $\pm 0.1\text{ cents}$.
 - **Consumo de UI:** El cálculo de la fase $\theta$ en el `CustomPainter` debe tomar menos de $1.0\text{ ms}$ por fotograma para asegurar 120 FPS sólidos en pantallas ProMotion / AMOLED.
 - **Sin Dependencias Nativas:** 100% dibujado en canvas vectorial de Flutter.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Dispositivo en orientación vertical u horizontal con pantalla de tasa de refresco a 60 Hz o 120 Hz.
+- Generador de tonos de precisión o instrumento afinable conectado al micrófono.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Seleccionar la vista de Afinador Estroboscópico en la pantalla de afinación.
+2. Emitir una nota $A_4$ a $440.0\text{ Hz}$ exactos.
+3. Observar el disco o bandas estroboscópicas virtuales.
+4. Variar el tono de entrada a $441.5\text{ Hz}$ (+6 cents) y luego a $438.5\text{ Hz}$ (-6 cents).
+5. Evaluar la dirección y velocidad de rotación del patrón visual.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] El patrón estroboscópico se detiene completamente (*fase estática*) cuando la nota está en $0.0\text{ cents}$.
+- [ ] Rota visiblemente hacia la derecha cuando el tono es sostenido / alto (+cents).
+- [ ] Rota visiblemente hacia la izquierda cuando el tono es bemol / bajo (-cents).
+- [ ] La velocidad de giro es proporcional al error en cents (mayor desviación = giro más rápido).
+- [ ] Tasa de refresco fluida sin efecto tearing en pantallas OLED/LCD de alta tasa.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Frecuencia de Refresco | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de fluidez estroboscópica* |

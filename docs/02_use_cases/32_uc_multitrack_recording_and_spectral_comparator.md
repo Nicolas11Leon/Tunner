@@ -107,3 +107,27 @@ sequenceDiagram
   - El comparador ofrece contrastar la Toma 1 contra la "Pista Guía / Afinación Ideal" (curva de 0 cents derivada de la partitura original).
 - **FE-01: Error de lectura del archivo de audio:**
   - Si el archivo WAV local no se encuentra disponible, se mantiene la visualización espectral y de tono basada en los metadatos en memoria y se notifica al usuario que la reproducción auditiva está deshabilitada para esa toma.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Grabación de práctica realizada previamente y pista de referencia maestra disponible.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Abrir la pantalla del **Comparador Espectral y Multipista**.
+2. Cargar la toma del usuario y la toma maestra de referencia.
+3. Presionar **Reproducir Comparación**.
+4. Observar las dos curvas de entonación superpuestas (Curva Maestra vs. Curva del Alumno).
+5. Hacer zoom en un pasaje específico donde existan desviaciones.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Superposición clara con códigos de color diferenciados para ambas curvas de tono.
+- [ ] Identificación visual inmediata de notas adelantadas, atrasadas o con desafinación en cents.
+- [ ] Reproducción sincronizada con control de balance estéreo entre ambas tomas.
+- [ ] Métrica numérica de similitud acústica global calculada correctamente.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Fragmento Comparado | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones del comparador espectral* |

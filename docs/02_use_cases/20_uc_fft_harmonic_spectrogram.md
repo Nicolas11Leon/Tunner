@@ -81,3 +81,27 @@ sequenceDiagram
 4. Las barras vectoriales se animan en vivo reflejando las amplitudes relativas de la fundamental y los armónicos $2f_0, 3f_0, \dots, 8f_0$.
 5. Se muestra el Centroide Espectral (brillo en Hz) y el THD (porcentaje de sobretonos).
 6. El usuario ajusta su embocadura o pulsación y observa el cambio en el color del timbre.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Laboratorio Acústico / Pantalla de Espectrograma Armónico abierta.
+- Micrófono capturando señal acústica.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Emitir una nota sostenida pura (onda senoidal o silbido suave).
+2. Tocar posteriormente un instrumento con gran contenido armónico (cuerda frotada, guitarra o trompeta).
+3. Cantar vocales abiertas (/a/) y cerradas (/u/) manteniendo la misma nota.
+4. Ajustar la escala de visualización (lineal vs. logarítmica) y la sensibilidad de ganancia.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] En tono puro, se observa una sola línea horizontal brillante correspondiente a $f_0$.
+- [ ] En instrumento acústico, se visualizan claramente los armónicos múltiplos enteros ($2f_0, 3f_0, 4f_0, \dots$).
+- [ ] Cascada espectrográfica (*waterfall*) fluyendo a 60 FPS sin tirones visuales.
+- [ ] La paleta de colores refleja con fidelidad las variaciones de intensidad en dBFS.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Fuente Sonora | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones del espectrograma armónico* |

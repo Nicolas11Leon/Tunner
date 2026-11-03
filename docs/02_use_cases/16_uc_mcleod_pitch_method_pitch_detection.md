@@ -107,3 +107,27 @@ sequenceDiagram
 - **Condición:** El usuario percute un objeto o emite un ruido sin tono tonal claro.
 - **Acción:** El pico máximo de la NSDF $M$ es inferior a $0.30$.
 - **Resultado:** Se reporta `pitched: false`; el afinador descarta el dato y mantiene la estabilidad visual.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Micrófono activo en entorno acústico estándar.
+- Instrumento con timbre complejo (violín, guitarra con distorsión leve, clarinete o voz humana).
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Emitir una nota sostenida con vibrato amplio (variación de $\pm 20\text{ cents}$).
+2. Tocar notas rápidas ligadas en escala cromática.
+3. Cantar vocales con timbre brillante en registro medio ($F_3$ a $F_4$).
+4. Observar la estabilidad del cálculo frente a armónicos de energía superior a la fundamental.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Ausencia total de saltos de octava (*octave jump errors*) hacia el segundo o tercer armónico.
+- [ ] La estimación de frecuencia sigue el vibrato musical con suavidad continua sin saltos escalonados.
+- [ ] El corte por compuerta de ruido (Noise Gate) silencia la detección al dejar de emitir sonido.
+- [ ] Precisión comprobada en sub-cents frente a generador sinusoidal.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Instrumento Probado | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de MPM Pitch Detection* |

@@ -80,3 +80,28 @@ sequenceDiagram
 ### 3.4 Flujos Alternativos y Excepciones
 - **Silencio o Ruido Blanco:** Si la energía RMS del búfer es inferior al umbral de la puerta de ruido, o la máxima similitud es inferior a 0.50, el clasificador retorna `ChordEntity.none` sin falsos positivos.
 - **Acorde Desconocido / Clúster Disidente:** Si se tocan notas disonantes que no corresponden a tríadas o cuatriadas canónicas, se visualizan las notas en el radar sin asignar un nombre forzado de acorde.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Micrófono activo en modo de reconocimiento polifónico de acordes.
+- Piano, teclado o guitarra polifónica disponible.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Tocar un acorde tríada de Do Mayor ($C_4 - E_4 - G_4$) de forma clara.
+2. Observar la pantalla del analizador de acordes.
+3. Tocar un acorde menor (ej. La menor: $A_3 - C_4 - E_4$).
+4. Tocar un acorde con séptima (ej. Sol dominante 7: $G_3 - B_3 - D_4 - F_4$).
+5. Tocar una inversión de acorde (ej. Do Mayor con bajo en Mi: $C/E$).
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Reconocimiento exacto del cifrado del acorde (ej. "C Maj", "Am", "G7", "C/E").
+- [ ] Desglose visual simultáneo de las notas detectadas que integran la armonía.
+- [ ] Latencia de reconocimiento menor a $50\text{ ms}$ desde el ataque de las cuerdas/teclas.
+- [ ] Discriminación adecuada frente a notas fantasma causadas por resonancia de la caja acústica.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Acordes Evaluados | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de acordes polifónicos* |

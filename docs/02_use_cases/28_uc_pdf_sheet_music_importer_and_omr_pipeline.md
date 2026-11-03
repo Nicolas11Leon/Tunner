@@ -81,3 +81,27 @@ sequenceDiagram
 ### 4.3 Flujos de Error
 - **PDF protegido con contraseña o dañado:** El sistema captura el error y emite una `FormatException` amigable en la interfaz.
 - **PDF sin gráficos vectoriales reconocibles:** Informa al usuario que el documento no contiene vectores musicales legibles.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Documento PDF con una partitura musical legible (un pentagrama simple o lección melódica).
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Abrir el Importador de PDF Musical (Pipeline OMR).
+2. Seleccionar el archivo PDF desde el gestor de archivos.
+3. Observar la visualización previa de la página del PDF.
+4. Ejecutar el análisis OMR de detección de pentagramas y notas.
+5. Verificar la partitura interactiva renderizada en el motor nativo de Tunner.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Detección correcta de las líneas de los pentagramas en la página escaneada.
+- [ ] Reconocimiento de cabezas de nota, plicas y claves principales.
+- [ ] Mensajes claros en caso de escaneos de baja resolución o iluminación deficiente.
+- [ ] La partitura convertida permite reproducción y seguimiento de cursor de lectura.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Documento PDF | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de importación PDF/OMR* |

@@ -130,3 +130,26 @@ sequenceDiagram
 - **Fluidez Visual:** 60/120 FPS sin reconstrucciones innecesarias de la lógica de audio o reinicios del reloj.
 - **Independencia Arquitectónica:** La capa de dominio de temas es completamente agnóstica a plugins externos o servicios remotos (100% offline).
 - **Legibilidad Óptica:** Contraste mínimo de 4.5:1 entre las líneas del pentagrama/símbolos musicales y el fondo del lienzo en todas las paletas.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Pantalla de ajustes de apariencia o selector de temas accesible desde el afinador.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Abrir la paleta de personalización visual.
+2. Alternar secuencialmente entre todos los temas disponibles: Oscuro Profesional, Marfil Clásico, Alto Contraste, Neón Ámbar.
+3. Modificar el color de acento primario (Esmeralda, Cian, Oro, Rubí).
+4. Forzar el cierre de la aplicación desde el administrador de tareas del sistema operativo y reabrirla.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Cambio instantáneo de colores en toda la aplicación sin parpadeos blancos ni artefactos visuales.
+- [ ] Contraste tipográfico que cumple con la accesibilidad WCAG AA en notas, agujas y pentagramas.
+- [ ] El tema seleccionado y el color de acento se restauran de manera idéntica al reabrir la aplicación.
+- [ ] Las animaciones y custom painters respetan la paleta cromática activa.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Tema Probado | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de apariencia y temas* |

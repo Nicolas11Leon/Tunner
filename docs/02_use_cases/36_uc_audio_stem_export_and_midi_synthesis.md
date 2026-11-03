@@ -98,3 +98,27 @@ sequenceDiagram
 - **Partitura Vacía:** Si la partitura no contiene compases con notas válidas, el sistema genera únicamente el clic de metrónomo y notifica que la pista melódica carece de eventos.
 - **Canales Silenciados (Muted):** Si un canal está silenciado en el mezclador, el Master Mixdown excluye su señal, pero el stem individual puede generarse si el usuario lo marca explícitamente.
 - **Saturación Digital (Clipping):** Cuando la suma de múltiples pistas supera 0 dBFS (32767 en int16), se aplica compresión suave con tangente hiperbólica (`tanh`) para evitar distorsión armónica por recorte abrupto.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Proyecto con partitura y pistas de práctica listo en el sistema.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Abrir el menú **Exportación Avanzada de Audio y MIDI**.
+2. Seleccionar la opción de exportar **Archivo MIDI Estándar (.mid)**.
+3. Seleccionar la opción de exportar **Stems WAV Separados** (Pista Guía, Acompañamiento, Clic).
+4. Verificar los archivos descargados o almacenados en la carpeta del proyecto.
+5. Importar el archivo MIDI y los stems en un software externo (DAW o reproductor multimedia) para comprobar coherencia.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] El archivo MIDI contiene las notas, duraciones, canales y mensajes de cambio de tempo exactos.
+- [ ] Los stems de audio exportados coinciden al milisegundo en su punto de inicio (fase alineada).
+- [ ] Ningún archivo exportado presenta ruidos, cortes bruscos o silencios truncados.
+- [ ] La interfaz muestra una barra de progreso que no congela la aplicación durante el renderizado.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Tipo de Exportación | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de exportación stem/MIDI* |

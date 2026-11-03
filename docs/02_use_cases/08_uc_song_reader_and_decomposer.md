@@ -99,3 +99,26 @@ sequenceDiagram
 - **Soporte bilingüe de notación:** Acepta tanto nomenclatura latina (Do, Re, Mi, Fa, Sol, La, Si) como anglosajona (C, D, E, F, G, A, B).
 - **Integración con mezclador:** Cada capa descompuesta (Lead, Armonía, Bajo, Ritmo) cuenta con control individual de volumen, mute y solo.
 - **Pruebas automatizadas:** Cobertura unitaria para parseo, normalización y widget tests para todas las interacciones de UI.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Biblioteca de temas musicales con al menos una canción importada o predefinida.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Seleccionar una canción desde la lista de repertorio.
+2. Comprobar el desglose estructural en pantalla: compases totales, tonalidad, tempo y secciones (Intro, Tema A, Tema B, Outro).
+3. Seleccionar un rango de 4 compases y presionar **Bucle (Loop)**.
+4. Cambiar la velocidad de reproducción al 75% para practicar lento.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Carga instantánea de los metadatos y de la partitura de la canción.
+- [ ] El bucle cíclico se reinicia en el tiempo exacto sin desfasajes ni silencios entre iteraciones.
+- [ ] La reproducción lenta mantiene la altura tonal original sin artefactos metálicos.
+- [ ] Navegación táctil ágil entre secciones de la canción.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Canción Evaluada | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones del lector de canciones* |

@@ -100,3 +100,27 @@ sequenceDiagram
 ### 4.4 Flujos Alternativos y de Error
 - **Desviación de Afinación:** Si el estudiante desafina durante el sostenimiento, el temporizador de sostenimiento se pausa o retrocede suavemente según el perfil pedagógico, y se muestra una sugerencia correctiva.
 - **Nota Incorrecta Emitida:** Si el estudiante toca una nota diferente a la solicitada, la barra no avanza y se indica la nota que está sonando en comparación con la nota esperada.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Módulo de Lecciones Guiadas abierto con micrófono activo.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Seleccionar la **Lección 1: Emisión y Estabilidad de Tono**.
+2. Leer la indicación en pantalla: "Sostén la nota $G_4$ afinada durante 3 segundos continuos".
+3. Tocar la nota $G_4$ en el instrumento manteniendo la afinación estable dentro del margen de tolerancia.
+4. Observar la barra de progreso temporal llenándose mientras la nota se sostiene.
+5. Comprobar la transición automática al siguiente paso pedagógico al cumplir el objetivo.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Detección interactiva del cumplimiento del objetivo en tiempo real sin requerir pulsar la pantalla.
+- [ ] Reinicio inmediato del temporizador si la nota se desafina o se interrumpe la emisión antes de tiempo.
+- [ ] Animación de felicitación y desbloqueo del siguiente paso al superar el reto.
+- [ ] Indicaciones claras de postura, embocadura o digitación en pantalla.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Lección Evaluada | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de lecciones guiadas* |

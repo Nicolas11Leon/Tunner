@@ -123,3 +123,27 @@ sequenceDiagram
 - **Determinismo Matemático:** Evaluación de cents exacta con tolerancia configurable.
 - **Rendimiento:** Evaluación ejecutada en hilo puro Dart sin bloquear la animación a 60/120 FPS.
 - **Privacidad Absoluta:** Todas las métricas se analizan y almacenan en memoria local del dispositivo.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Micrófono activo en modo de evaluación pedagógica.
+- Partitura de ejercicio con notas y ritmos determinados.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Iniciar la sesión de evaluación con conteo previo (Count-In).
+2. Tocar las notas siguiendo el cursor: ejecutar algunas notas con afinación exacta y cometer errores deliberados de afinación (tocar notas 30 cents altas) y de ritmo (retrasarse un tiempo).
+3. Concluir la sesión y abrir la pantalla de resumen analítico.
+4. Inspeccionar la puntuación general, el desglose de afinación (Cents Error) y la precisión rítmica (Timing Deviation).
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Retroalimentación visual inmediata durante la ejecución: verde para notas acertadas, rojo/ámbar para errores.
+- [ ] Puntuación global coherente con los aciertos y fallos reales del músico.
+- [ ] Gráfico de dispersión o histograma de desviación de afinación comprensible y estético.
+- [ ] El reporte pedagógico formula recomendaciones prácticas específicas de mejora.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Instrumento | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de evaluación pedagógica* |

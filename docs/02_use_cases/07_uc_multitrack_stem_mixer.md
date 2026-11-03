@@ -94,3 +94,28 @@ sequenceDiagram
 - **Cero latencia añadida por mezcla:** La mezcla en bloque PCM no debe introducir un retardo mayor a $2\text{ ms}$.
 - **Consumo de memoria determinista:** No se crean arrays nuevos en cada bloque de audio; se utilizan buffers prealojados en memoria local.
 - **Offline First estricto:** La separación y reproducción de pistas se procesa 100% en el dispositivo sin enviar paquetes de red a la nube.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Proyecto cargado con pistas de audio multipista (Metrónomo, Instrumento Principal, Acompañamiento).
+- Auriculares o monitor estéreo conectado.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Iniciar la reproducción simultánea de todas las pistas.
+2. Pulsar el botón **Mute** en la pista de acompañamiento y luego reactivarla.
+3. Pulsar el botón **Solo** en la pista del instrumento principal.
+4. Ajustar el deslizador de volumen de la pista de metrónomo desde 0% hasta 100%.
+5. Realizar paneo estéreo (L / R) si el fader lo soporta.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] El muteo y la reproducción en solo responden de inmediato sin cortes de fase ni ruidos.
+- [ ] Sincronía estricta de tiempo (zero-drift) entre todas las pistas durante reproducciones largas.
+- [ ] Respuesta lineal y suave en los faders de ganancia sin saturación del bus maestro.
+- [ ] Interfaz del mezclador táctil y reactiva sin caídas de cuadros.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Número de Pistas | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones del mezclador de stems* |

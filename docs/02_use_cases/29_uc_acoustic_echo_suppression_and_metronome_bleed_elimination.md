@@ -86,3 +86,27 @@ sequenceDiagram
   Si el músico está tocando $La_4$ ($440\text{ Hz}$) de forma continua antes del clic, el supresor reconoce la nota previa y permite que el tono de $440\text{ Hz}$ continúe sin interrupciones ni tartamudeos visuales.
 - **Uso con Auriculares:**  
   Cuando no hay sangrado acústico por altavoces, el filtro actúa con transparencia total y cero penalización de latencia ($< 0.1\text{ ms}$).
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Dispositivo utilizando su altavoz integrado a volumen medio-alto (sin auriculares).
+- Micrófono integrado del dispositivo activo para el afinador.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Abrir la pantalla del afinador y poner en marcha el metrónomo sonando por el altavoz a $120\text{ BPM}$.
+2. Permanecer en completo silencio durante 10 segundos: observar si el afinador detecta alguna nota producida por el golpe del clic.
+3. Comenzar a tocar una nota sostenida (ej. $A_4$ en flauta o guitarra) mientras el clic del metrónomo sigue sonando fuerte.
+4. Tocar notas staccato que coincidan exactamente en el mismo instante del clic del metrónomo.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] En silencio, el clic del metrónomo es completamente suprimido (cero notas fantasma provocadas por el sangrado acústico).
+- [ ] Las notas musicales reales del usuario se detectan con sub-cent precisión incluso cuando el clic suena en simultáneo.
+- [ ] La ventana de silenciamiento temporal (*blanking window*) de 28 ms es inaudible e invisible para la afinación musical.
+- [ ] Cero retraso o degradación en la aguja de afinación.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Nivel de Volumen | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de supresión de clic* |

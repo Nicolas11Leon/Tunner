@@ -101,3 +101,31 @@ donde $R = 1 - \frac{2\pi \cdot f_c}{f_s}$, con $f_c = 15\text{ Hz}$ y $f_s = 44
 ### 5.2 Determinación Automática del Noise Gate
 $$\text{NoiseGate}_{\text{RMS}} = \max\left(0.003, \quad \overline{\text{RMS}}_{\text{ambient}} \times 1.8\right)$$
 Previene falsas detecciones por ruido de piso de micrófonos de baja calidad o ventiladores de computadoras.
+
+---
+## 6. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 6.1 Precondiciones y Preparación del Entorno
+- Dispositivo físico (smartphone, tablet o PC) con micrófono interno o micrófono externo USB/Bluetooth.
+- Entorno de prueba: habitación silenciosa o con ruido ambiente típico de estudio/hogar.
+
+### 6.2 Procedimiento de Ejecución Paso a Paso
+1. En la pantalla principal de afinación, pulsar el ícono de **Calibración de Micrófono** en la barra superior.
+2. Observar el **Medidor de Nivel VU en tiempo real**: debe oscilar reflejando el ruido de fondo en dBFS.
+3. Presionar el botón **Calibrar Ruido de Sala** y permanecer en absoluto silencio durante la cuenta regresiva de 1.5 segundos.
+4. Verificar que al concluir, el umbral de silencio (Noise Gate) se actualice automáticamente al nivel sugerido ($1.8\times$ el piso de ruido promedio).
+5. Deslizar la barra de **Ganancia Digital** desde $1.0\times$ hasta $3.0\times$ y observar el aumento de sensibilidad en el medidor VU.
+6. Alternar el interruptor del **Filtro DC-Blocker** y comprobar que no existan desplazamientos permanentes de la señal.
+7. Conectar o desconectar un micrófono externo y comprobar que el selector de dispositivos lo reconozca.
+
+### 6.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] El medidor VU reacciona con fluidez instantánea a la voz y a los silencios.
+- [ ] La barra de progreso de calibración de ruido avanza durante 1.5s y fija un umbral que previene notas fantasma en reposo.
+- [ ] La ganancia digital amplifica instrumentos suaves sin distorsión abrupta gracias al limitador suave (*soft-clipper*).
+- [ ] El filtro DC-Blocker estabiliza el nivel de reposo en cero dBFS en tarjetas de audio analógicas.
+- [ ] El perfil de calibración persiste al cerrar el modal y al reiniciar la aplicación.
+
+### 6.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Micrófono Utilizado | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de calibración de micrófono* |

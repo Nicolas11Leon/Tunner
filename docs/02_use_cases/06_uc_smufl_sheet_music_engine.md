@@ -120,3 +120,26 @@ sequenceDiagram
 - **Adherencia Estándar:** Compatibilidad con la especificación SMuFL v1.4.
 - **Rendimiento Gráfico:** Tiempo de pintura de pentagrama inferior a $2\text{ ms}$ en hardware acelerado por GPU (Impeller).
 - **Cero Dependencia de Red:** Fuentes y glifos embebidos 100% como assets locales en el binario.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Visor de partitura abierto en pantalla de alta densidad de píxeles (HiDPI o Retina).
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Abrir una partitura con variedad de elementos musicales (claves, alteraciones, corchetes, silencios y ligaduras).
+2. Hacer zoom in y zoom out sobre el lienzo con gestos de pellizco.
+3. Inspeccionar las cabezas de las notas negras, blancas y redondas sobre líneas y espacios.
+4. Observar la orientación de las plicas (hacia arriba para notas inferiores, hacia abajo para superiores).
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Glifos musicales vectoriales (SMuFL) completamente nítidos a cualquier escala sin pixelación.
+- [ ] Plicas y líneas del pentagrama dibujadas con grosor uniforme y sin solapamientos irregulares.
+- [ ] Alteraciones (sostenidos, bemoles, becuadros) centradas verticalmente respecto a su cabeza de nota.
+- [ ] Renderizado sin parpadeos (*anti-aliasing* suave en el Canvas de Flutter).
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Densidad de Pantalla | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de tipografía SMuFL* |

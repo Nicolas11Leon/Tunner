@@ -83,3 +83,28 @@ sequenceDiagram
 
 ### 3.4 Flujos Alternativos y Excepciones
 - **Cambio de Parametros en Vivo:** Si el usuario modifica la frecuencia o el timbre mientras el dron esta sonando, el buffer se regenera en caliente y se actualiza suavemente sin necesidad de detener y reiniciar manualmente.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Altavoces o auriculares estéreo conectados.
+- Módulo del Estudio de Drones Armónicos abierto.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Seleccionar la nota tónica base del drone (ej. $D_3$).
+2. Presionar el botón de inicio del drone.
+3. Activar los armónicos complementarios mediante sus interruptores: 5ª Justa ($A_3$), Octava ($D_4$) y 3ª Mayor Justa ($F\sharp_4$).
+4. Ajustar el fader de textura / calidez tímbrica.
+5. Tocar notas de una escala sobre el drone con un instrumento acústico para evaluar la resonancia por simpatía.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Sonido continuo y envolvente sin cortes, clics ni interrupciones de bucle (*seamless sustain*).
+- [ ] Control de volumen independiente por cada armónico sin saturación en el bus de salida.
+- [ ] Los armónicos respetan las proporciones justas de afinación acústica (relaciones de enteros).
+- [ ] Detención suave con desvanecimiento (*fade-out*) natural al apagar el drone.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Tónica y Armónicos | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones del estudio de drones* |

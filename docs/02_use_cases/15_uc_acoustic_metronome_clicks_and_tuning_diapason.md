@@ -98,3 +98,26 @@ sequenceDiagram
 ### 3.4 Postcondiciones
 1. Cero uso de bucles bloqueantes (busy-waiting) y nulo impacto en la tasa de refresco a 60/120 FPS del pentagrama.
 2. Los buffers se generan en memoria volátil sin persistir archivos innecesarios en disco.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Auriculares o altavoz a volumen medio.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Iniciar el metrónomo acústico en compás de 4/4 a $100\text{ BPM}$.
+2. Cambiar secuencialmente el banco de sonidos de clic: Bloque de madera (*woodblock*), Clave digital, Clic mecánico tradicional.
+3. Activar simultáneamente el diapasón de afinación en $A_4$ (440 Hz) mientras el metrónomo sigue sonando.
+4. Ajustar el volumen individual de ambos generadores de audio.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Diferenciación acústica clara entre el primer pulso del compás y los pulsos secundarios.
+- [ ] Convivencia sonora limpia entre el clic del metrónomo y el tono del diapasón sin saturación del mezclador.
+- [ ] Ausencia de distorsión o clics indeseados al cambiar el banco de sonidos en caliente.
+- [ ] Respuesta inmediata de inicio y detención al pulsar los controles táctiles.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Banco de Sonido | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de clics y diapasón* |

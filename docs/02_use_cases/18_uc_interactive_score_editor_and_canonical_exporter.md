@@ -107,3 +107,27 @@ sequenceDiagram
 ### 4.3 Flujo Alternativo 2: Exportación Canónica MusicXML / MIDI
 - **Acción:** El usuario selecciona "Exportar MusicXML" o "Exportar MIDI".
 - **Resultado:** Los serializadores puros de dominio generan el archivo correspondiente con estructura canónica internacional.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Pantalla del Editor de Partituras interactivo abierta.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Tocar una línea o espacio del pentagrama para insertar una nota musical.
+2. Cambiar el valor rítmico de la nota insertada (negra a corchea).
+3. Añadir una alteración accidental (sostenido $\sharp$).
+4. Insertar un silencio en el siguiente tiempo del compás.
+5. Pulsar el botón **Exportar** y verificar la generación del archivo resultante.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Inserción táctil precisa guiada por cursor o resaltado de línea/espacio del pentagrama.
+- [ ] Reajuste automático del espaciado del compás y cálculo matemático de tiempos restantes.
+- [ ] Posibilidad de deshacer (Undo) y rehacer (Redo) la última acción de edición.
+- [ ] Archivo exportado conforme a las especificaciones estándar de notación.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Acciones de Edición | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones del editor de partituras* |

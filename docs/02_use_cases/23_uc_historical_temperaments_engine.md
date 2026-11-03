@@ -82,3 +82,28 @@ sequenceDiagram
 
 ### 3.3 Postcondiciones
 - El temperamento seleccionado y la tónica se guardan automáticamente en el almacenamiento local atómico offline.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Modal o menú de selección de temperamento histórico accesible.
+- Instrumento con capacidad microtonal (cuerda frotada, sintetizador) o generador de tonos.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Seleccionar **Temperamento Igual (12-EDO)**: tocar intervalo de tercera mayor ($C_4$ a $E_4$).
+2. Cambiar al **Temperamento Mesotónico de 1/4 de Coma** con tónica en $C$.
+3. Tocar la misma tercera mayor ($C_4$ a $E_4$) y prestar atención a la ausencia de batimientos acústicos.
+4. Seleccionar **Temperamento Pitagórico** y verificar el brillo de las quintas puras.
+5. Observar la aguja del afinador: debe mostrar la desviación exacta en cents respecto a 12-TET para cada temperamento.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] En Mesotónico de 1/4 de coma, la tercera mayor ($C$-$E$) suena completamente pura ($0\text{ batimientos}$).
+- [ ] La aguja del afinador y el display indican la desviación microtonal histórica correcta.
+- [ ] La selección de la nota tónica (Root Note) recalcula atómicamente las 12 notas de la escala.
+- [ ] El nombre del temperamento activo se muestra claramente en el chip de estado de la pantalla.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Temperamento Evaluado | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de afinación histórica* |

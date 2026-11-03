@@ -92,3 +92,27 @@ sequenceDiagram
 ### 4.3 Flujos Alternativos y Excepciones
 - **Archivo corrupto o vacío:** El importador arroja una excepción controlada `FormatException` indicando el motivo sin provocar cierres inesperados.
 - **Audio en silencio total:** La transcripción detecta un nivel RMS por debajo del umbral de ruido y genera una partitura de silencios o notifica al usuario.
+
+---
+## 8. Guía de Pruebas Manuales y Bitácora de Validación
+
+### 8.1 Precondiciones y Preparación del Entorno
+- Archivo de audio monofónico grabado en formato WAV o MP3 almacenado en el dispositivo.
+
+### 8.2 Procedimiento de Ejecución Paso a Paso
+1. Seleccionar la opción **Importar Audio para Transcripción**.
+2. Elegir el archivo de audio local.
+3. Configurar los parámetros de cuantización y compás (ej. 4/4, subdivisión mínima en semicorcheas).
+4. Iniciar el procesamiento y observar la barra de progreso.
+5. Revisar la partitura generada y presionar reproducir para cotejar con el audio.
+
+### 8.3 Checklist de Validación Sensorial (Resultado Esperado)
+- [ ] Segmentación temporal correcta: detección de inicios de nota (*onsets*) precisa.
+- [ ] Las alturas tonales transcritas coinciden con la melodía cantada o tocada.
+- [ ] Ausencia de notas extremadamente cortas parásitas en transitorios de ataque.
+- [ ] Posibilidad de editar manualmente la partitura resultante tras la importación.
+
+### 8.4 Registro de Bitácora de Ejecución de Campo
+| Fecha | Tester / Músico | Dispositivo / SO | Archivo de Audio | Resultado | Observaciones / Aspectos por Pulir |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| *Pendiente* | - | - | - | [ ] Pendiente | *Registrar observaciones de transcripción desde archivo* |
