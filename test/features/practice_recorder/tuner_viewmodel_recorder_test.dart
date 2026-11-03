@@ -9,8 +9,6 @@ import 'mock_recorder_services.dart';
 
 class MockPitchService extends IPitchDetectorService {
   @override
-  Function(double p1)? onPitchDetected;
-  @override
   Future<void> startRecording() async {}
   @override
   Future<void> stopRecording() async {}

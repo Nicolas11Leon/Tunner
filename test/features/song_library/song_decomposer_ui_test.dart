@@ -7,9 +7,6 @@ import 'package:tunner/features/tuner_viewmodel.dart';
 
 class FakePitchService extends IPitchDetectorService {
   @override
-  Function(double pitchHz)? onPitchDetected;
-
-  @override
   Future<void> startRecording() async {}
 
   @override

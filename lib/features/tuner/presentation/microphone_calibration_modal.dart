@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../tuner_viewmodel.dart';
-import '../../../core/theme/tunner_theme.dart';
 
 /// Modal interactivo para la calibración acústica, perfilado de piso de ruido
 /// y adaptación del hardware de micrófono en tiempo real (UC-41).

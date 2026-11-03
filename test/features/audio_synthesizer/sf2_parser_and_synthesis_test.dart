@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tunner/features/audio_synthesizer/domain/sf2/sf2_models.dart';
 import 'package:tunner/features/audio_synthesizer/domain/sf2/sf2_parser.dart';
 import 'package:tunner/features/audio_synthesizer/domain/sf2/sf2_wavetable_oscillator.dart';
 import 'package:tunner/features/audio_synthesizer/domain/sf2/tunner_acoustic_soundfont_bank.dart';

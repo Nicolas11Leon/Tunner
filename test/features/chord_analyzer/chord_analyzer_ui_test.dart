@@ -20,9 +20,6 @@ import 'package:tunner/features/audio_synthesizer/data/memory_audio_synthesizer_
 
 class _FakePitchService extends IPitchDetectorService {
   @override
-  Function(double pitchHz)? onPitchDetected;
-
-  @override
   Future<void> startRecording() async {}
 
   @override

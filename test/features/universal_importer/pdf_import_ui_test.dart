@@ -15,9 +15,6 @@ import 'package:tunner/features/universal_importer/presentation/score_import_tab
 
 class _FakePitchService extends IPitchDetectorService {
   @override
-  Function(double pitchHz)? onPitchDetected;
-
-  @override
   Future<void> startRecording() async {}
 
   @override

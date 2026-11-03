@@ -9,9 +9,6 @@ import 'package:tunner/features/persistence/domain/app_user_settings_entity.dart
 
 class _FakePitchService extends IPitchDetectorService {
   @override
-  Function(double pitchHz)? onPitchDetected;
-
-  @override
   Future<void> startRecording() async {}
 
   @override

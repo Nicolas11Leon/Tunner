@@ -48,7 +48,6 @@ import 'exercise_generator/domain/algorithmic_exercise_generator.dart';
 import 'tuner/domain/temperament_engine.dart';
 import 'tuner/domain/acoustic_echo_suppressor.dart';
 import 'tuner/domain/microphone_calibration_models.dart';
-import 'tuner/domain/signal_conditioning_filter.dart';
 import 'drone/domain/harmonic_drone_config.dart';
 import 'drone/domain/harmonic_drone_synthesizer.dart';
 import 'chord_analyzer/domain/chord_entity.dart';
@@ -367,9 +366,9 @@ class TunerViewModel extends ChangeNotifier {
     notifyListeners();
 
     final capturedRmsSamples = <double>[];
-    final listener = (double rms) {
+    void listener(double rms) {
       capturedRmsSamples.add(rms);
-    };
+    }
 
     final prevRmsCallback = _pitchService.onRmsLevelChanged;
     _pitchService.onRmsLevelChanged = (rms) {

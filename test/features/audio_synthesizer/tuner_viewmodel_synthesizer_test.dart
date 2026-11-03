@@ -11,8 +11,6 @@ import 'package:tunner/features/universal_importer/data/universal_score_importer
 
 class _MockPitchService extends IPitchDetectorService {
   @override
-  Function(double)? onPitchDetected;
-  @override
   Future<void> startRecording() async {}
   @override
   Future<void> stopRecording() async {}

@@ -8,9 +8,6 @@ import 'package:tunner/features/metronome/domain/i_metronome_service.dart';
 
 class FakePitchDetectorService extends IPitchDetectorService {
   @override
-  Function(double pitchHz)? onPitchDetected;
-
-  @override
   Future<void> startRecording() async {}
 
   @override

@@ -10,8 +10,6 @@ import 'package:tunner/features/practice_recorder/domain/i_audio_playback_servic
 
 class _MockPitchService extends IPitchDetectorService {
   @override
-  Function(double)? onPitchDetected;
-  @override
   Future<void> startRecording() async {}
   @override
   Future<void> stopRecording() async {}

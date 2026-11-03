@@ -149,7 +149,7 @@ class _InstrumentSoundFontSelectorModalState
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: presets.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final preset = presets[index];
               final isSelected = preset.patch == _selectedPatch;

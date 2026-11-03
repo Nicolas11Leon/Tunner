@@ -13,9 +13,6 @@ import 'package:tunner/features/tuner_viewmodel.dart';
 
 class _MockPitchService extends IPitchDetectorService {
   @override
-  Function(double)? onPitchDetected;
-
-  @override
   Future<void> startRecording() async {}
 
   @override

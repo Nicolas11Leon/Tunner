@@ -9,8 +9,6 @@ import 'package:tunner/features/practice_recorder/domain/i_practice_recorder_ser
 import 'package:tunner/features/practice_recorder/domain/i_audio_playback_service.dart';
 
 class _MockPitchService extends IPitchDetectorService {
-  @override
-  Function(double)? onPitchDetected;
   bool isRecording = false;
   @override
   Future<void> startRecording() async => isRecording = true;

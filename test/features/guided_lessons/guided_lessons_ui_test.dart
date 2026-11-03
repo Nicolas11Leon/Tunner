@@ -13,8 +13,6 @@ import 'package:tunner/features/workspaces/presentation/learning_practice_worksp
 
 class _FakePitchService extends IPitchDetectorService {
   @override
-  Function(double pitchHz)? onPitchDetected;
-  @override
   Future<void> startRecording() async {}
   @override
   Future<void> stopRecording() async {}
