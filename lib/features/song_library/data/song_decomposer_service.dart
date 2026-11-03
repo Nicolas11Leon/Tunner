@@ -1,5 +1,7 @@
 import '../../mixer/domain/mixer_track_entity.dart';
 import '../../sheet_music/domain/score_tree.dart';
+import '../../instrument/domain/instrument_profile_entity.dart';
+import '../../guided_lessons/domain/instrument_pedagogy_adapter_engine.dart';
 import '../domain/song_package_entity.dart';
 
 /// Plantilla preconfigurada para el descompositor musical.
@@ -75,7 +77,7 @@ class SongDecomposerService {
         difficulty: SongDifficulty.intermediate,
         defaultBpm: 126,
         tracks: const [
-          AudioTrack(id: "melody", title: "Melodía de Flauta / Voz", instrumentIcon: "music_note", volume: 0.9),
+          AudioTrack(id: "melody", title: "Melodía Principal / Solista", instrumentIcon: "music_note", volume: 0.9),
           AudioTrack(id: "left_hand", title: "Piano Mano Izquierda", instrumentIcon: "piano", volume: 0.8),
           AudioTrack(id: "strings_pad", title: "Cuerdas de Acompañamiento", instrumentIcon: "piano", volume: 0.65),
         ],
@@ -197,6 +199,33 @@ class SongDecomposerService {
         bpm: 108,
         timeSignature: TimeSignature.commonTime44,
         melodyNotation: "Fa4:4 Fa4:2 Sol4:2 Fa4:4 Do5:4 | Fa4:4 Fa4:2 Sol4:2 Fa4:4 Do5:4 | Sib4:4 La4:4 Sol4:4 Fa4:4 | Do5:8 Fa4:8",
+      ),
+      SongDecompositionTemplate(
+        title: "Riff Pentatónico y Blues (Guitarra & Bajo)",
+        composer: "Tradicional Blues / Rock",
+        genre: MusicGenre.contemporary,
+        difficulty: SongDifficulty.beginner,
+        bpm: 110,
+        timeSignature: TimeSignature.commonTime44,
+        melodyNotation: "Mi3:4 Sol3:4 La3:4 Si3:4 | Re4:4 Si3:4 La3:4 Sol3:4 | Mi3:8 Mi3:8",
+      ),
+      SongDecompositionTemplate(
+        title: "Fanfarria Clásica (Trompeta & Metales)",
+        composer: "Tema Heroico de Conservatorio",
+        genre: MusicGenre.classical,
+        difficulty: SongDifficulty.intermediate,
+        bpm: 120,
+        timeSignature: TimeSignature.commonTime44,
+        melodyNotation: "Do4:4 Mi4:4 Sol4:4 Do5:4 | Sol4:4 Mi4:4 Do4:8 | Do4:4 Sol4:4 Do5:8",
+      ),
+      SongDecompositionTemplate(
+        title: "Elegía Grave en Clave de Fa (Cello & Trombón)",
+        composer: "Lírica Instrumental",
+        genre: MusicGenre.romantic,
+        difficulty: SongDifficulty.intermediate,
+        bpm: 76,
+        timeSignature: TimeSignature.commonTime44,
+        melodyNotation: "Do3:4 Re3:4 Mi3:4 Fa3:4 | Sol3:6 Fa3:2 Mi3:4 Re3:4 | Do3:8 Sol2:8",
       ),
     ];
   }
@@ -438,6 +467,81 @@ class SongDecomposerService {
         baseBpm: bpm,
         measures: measures,
       ),
+    );
+  }
+
+  /// Adapta un paquete de canción y su partitura a cualquier instrumento musical,
+  /// reubicando las notas en la tesitura cómoda del instrumento y renombrando
+  /// las pistas melódicas solistas.
+  static SongPackage adaptSongPackageToInstrument(
+    SongPackage package,
+    InstrumentProfileEntity instrument,
+  ) {
+    // 1. Adaptar títulos de pistas solistas
+    final adaptedTracks = package.tracks.map((track) {
+      if (track.id == 'melody' || track.id == 'violins' || track.id == 'lead_vocal' || track.id == 'lead_stem') {
+        return AudioTrack(
+          id: track.id,
+          title: "Melodía de ${instrument.name}",
+          instrumentIcon: track.instrumentIcon,
+          volume: track.volume,
+        );
+      }
+      return track;
+    }).toList();
+
+    // 2. Adaptar la partitura a la tesitura del instrumento
+    final adaptedScore = adaptScoreToInstrument(package.score, instrument);
+
+    return SongPackage(
+      id: "${package.id}_${instrument.id}",
+      title: package.title,
+      composer: package.composer,
+      genre: package.genre,
+      difficulty: package.difficulty,
+      defaultBpm: package.defaultBpm,
+      tracks: adaptedTracks,
+      score: adaptedScore,
+    );
+  }
+
+  /// Adapta una partitura jerárquica a la tesitura natural de un instrumento.
+  static HierarchicalScore adaptScoreToInstrument(
+    HierarchicalScore score,
+    InstrumentProfileEntity instrument,
+  ) {
+    const adapter = InstrumentPedagogyAdapterEngine();
+
+    final adaptedMeasures = score.measures.map((measure) {
+      final adaptedNotes = measure.notes.map((note) {
+        if (note.isRest || note.noteName.isEmpty) {
+          return note;
+        }
+
+        final parsedMidi = adapter.noteNameToMidi(note.noteName);
+        if (parsedMidi == null) return note;
+
+        final shiftedMidi = adapter.shiftMidiToInstrumentRange(parsedMidi, instrument);
+        final shiftedNoteName = adapter.midiToNoteName(shiftedMidi);
+
+        return HierarchicalNote.note(
+          startTick: note.startTick,
+          durationTicks: note.durationTicks,
+          noteName: shiftedNoteName,
+        );
+      }).toList();
+
+      return MeasureEntity(
+        index: measure.index,
+        timeSignature: measure.timeSignature,
+        notes: adaptedNotes,
+      );
+    }).toList();
+
+    return HierarchicalScore(
+      title: "${score.title} (${instrument.name})",
+      baseBpm: score.baseBpm,
+      measures: adaptedMeasures,
     );
   }
 }

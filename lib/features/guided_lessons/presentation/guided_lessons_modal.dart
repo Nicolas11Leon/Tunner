@@ -106,6 +106,37 @@ class GuidedLessonsModal extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: palette.secondaryAccent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: palette.secondaryAccent.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        viewModel.activeInstrument.clef.symbol,
+                        style: TextStyle(
+                          color: palette.secondaryAccent,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        viewModel.activeInstrument.name,
+                        style: TextStyle(
+                          color: palette.secondaryAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 IconButton(
                   key: const Key('close_guided_lessons_btn'),
                   icon: Icon(Icons.close, color: palette.textColor),
@@ -240,7 +271,9 @@ class _ActiveLessonPracticeView extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        'Objetivo: ${step.targetNoteName}',
+                        step.writtenNoteName != null
+                            ? 'Escrito: ${step.writtenNoteName} (Suena: ${step.targetNoteName})'
+                            : 'Objetivo: ${step.targetNoteName}',
                         style: TextStyle(
                           color: palette.primaryAccent,
                           fontWeight: FontWeight.bold,
@@ -261,7 +294,7 @@ class _ActiveLessonPracticeView extends StatelessWidget {
 
                 // Nota Gigante
                 Text(
-                  step.targetNoteName,
+                  step.writtenNoteName ?? step.targetNoteName,
                   style: TextStyle(
                     color: inTune ? palette.correctPitchColor : palette.textColor,
                     fontSize: 52,
@@ -269,6 +302,17 @@ class _ActiveLessonPracticeView extends StatelessWidget {
                     letterSpacing: -1.0,
                   ),
                 ),
+                if (step.writtenNoteName != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Tono Real de Concierto: ${step.targetNoteName}',
+                    style: TextStyle(
+                      color: palette.secondaryAccent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 4),
 
                 // Desviación en tiempo real
@@ -497,12 +541,41 @@ class _LessonCatalogListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lessons = viewModel.availableGuidedLessons;
+    final activeInstrument = viewModel.activeInstrument;
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      itemCount: lessons.length,
+      itemCount: lessons.length + 1,
       itemBuilder: (context, index) {
-        final lesson = lessons[index];
+        if (index == 0) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: palette.secondaryAccent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: palette.secondaryAccent.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.tune, size: 20, color: palette.secondaryAccent),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Lecciones adaptadas automáticamente a ${activeInstrument.name} (Tesitura: ${activeInstrument.family.displayName}, ${activeInstrument.key.displayName}).',
+                    style: TextStyle(
+                      color: palette.textColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final lesson = lessons[index - 1];
         final difficultyLabel = _difficultyLabel(lesson.difficulty);
         final difficultyColor = _difficultyColor(lesson.difficulty, palette);
 

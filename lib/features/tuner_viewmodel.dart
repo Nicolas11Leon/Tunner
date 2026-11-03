@@ -72,6 +72,7 @@ import 'audio_synthesizer/data/stem_export_persistence_service.dart';
 import 'guided_lessons/domain/guided_lesson_entity.dart';
 import 'guided_lessons/domain/curated_guided_lessons.dart';
 import 'guided_lessons/domain/guided_lesson_evaluator.dart';
+import 'guided_lessons/domain/instrument_pedagogy_adapter_engine.dart';
 import 'vocal_autotune/domain/autotune_config_entity.dart';
 import 'vocal_autotune/domain/scale_quantizer.dart';
 import 'vocal_autotune/domain/vocal_autotune_processor.dart';
@@ -823,6 +824,18 @@ class TunerViewModel extends ChangeNotifier {
     _activeInstrument = instrument;
     _syncInstrumentAcousticFilter();
     _validatePerformance();
+
+    // Si hay una lección guiada activa, readaptarla a la tesitura del nuevo instrumento
+    if (hasActiveGuidedLesson && _guidedLessonEvaluator.activeProgress != null) {
+      final currentLesson = _guidedLessonEvaluator.activeProgress!.lesson;
+      final original = CuratedGuidedLessons.all.firstWhere(
+        (l) => currentLesson.id.startsWith(l.id),
+        orElse: () => currentLesson,
+      );
+      final adapted = _pedagogyAdapter.adaptLesson(original, _activeInstrument);
+      _guidedLessonEvaluator.startLesson(adapted, customToleranceCents: centsTolerance);
+    }
+
     notifyListeners();
     _triggerAutoSave();
   }
@@ -2140,9 +2153,12 @@ class TunerViewModel extends ChangeNotifier {
   }
 
   // --- Métodos de Lecciones Guiadas Interactivas ---
+  final InstrumentPedagogyAdapterEngine _pedagogyAdapter = const InstrumentPedagogyAdapterEngine();
+
   GuidedLessonProgressEntity? get activeLessonProgress => _guidedLessonEvaluator.activeProgress;
   bool get hasActiveGuidedLesson => _guidedLessonEvaluator.hasActiveLesson;
-  List<GuidedLessonEntity> get availableGuidedLessons => CuratedGuidedLessons.all;
+  List<GuidedLessonEntity> get availableGuidedLessons =>
+      _pedagogyAdapter.adaptLessons(CuratedGuidedLessons.all, _activeInstrument);
 
   /// Inicia una nueva sesión de práctica guiada para la lección seleccionada.
   void startGuidedLesson(GuidedLessonEntity lesson) {
@@ -2166,6 +2182,11 @@ class TunerViewModel extends ChangeNotifier {
     _lastLessonFrameTime = null;
     _guidedLessonEvaluator.jumpToStep(stepIndex);
     notifyListeners();
+  }
+
+  /// Adapta cualquier paquete de canción a la tesitura ergonómica del instrumento activo.
+  SongPackage adaptSongPackageToActiveInstrument(SongPackage package) {
+    return SongDecomposerService.adaptSongPackageToInstrument(package, _activeInstrument);
   }
 
   // --- Getters y Métodos de Vocal AutoTune ---

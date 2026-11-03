@@ -33,6 +33,7 @@ class GuidedLessonStepEntity {
   final double targetDurationSeconds;
   final double toleranceCents;
   final String feedbackTip;
+  final String? writtenNoteName;
 
   const GuidedLessonStepEntity({
     required this.stepIndex,
@@ -42,6 +43,7 @@ class GuidedLessonStepEntity {
     required this.targetDurationSeconds,
     this.toleranceCents = 10.0,
     required this.feedbackTip,
+    this.writtenNoteName,
   });
 
   GuidedLessonStepEntity copyWith({
@@ -52,6 +54,7 @@ class GuidedLessonStepEntity {
     double? targetDurationSeconds,
     double? toleranceCents,
     String? feedbackTip,
+    String? writtenNoteName,
   }) {
     return GuidedLessonStepEntity(
       stepIndex: stepIndex ?? this.stepIndex,
@@ -61,6 +64,7 @@ class GuidedLessonStepEntity {
       targetDurationSeconds: targetDurationSeconds ?? this.targetDurationSeconds,
       toleranceCents: toleranceCents ?? this.toleranceCents,
       feedbackTip: feedbackTip ?? this.feedbackTip,
+      writtenNoteName: writtenNoteName ?? this.writtenNoteName,
     );
   }
 }
