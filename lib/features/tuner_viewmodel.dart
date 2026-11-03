@@ -49,6 +49,7 @@ import 'tuner/domain/temperament_engine.dart';
 import 'tuner/domain/acoustic_echo_suppressor.dart';
 import 'tuner/domain/microphone_calibration_models.dart';
 import 'tuner/domain/instrument_acoustic_filter.dart';
+import 'tuner/domain/acoustic_rigor_profile.dart';
 import 'drone/domain/harmonic_drone_config.dart';
 import 'drone/domain/harmonic_drone_synthesizer.dart';
 import 'chord_analyzer/domain/chord_entity.dart';
@@ -222,6 +223,9 @@ class TunerViewModel extends ChangeNotifier {
   // Aislamiento Acústico de Instrumento y Rechazo de Voz (UC-43)
   bool _isInstrumentIsolationActive = true;
 
+  // Presets de Rigurosidad Acústica y Controles de Micrófono (UC-44)
+  AcousticRigorProfile _acousticRigorProfile = const AcousticRigorProfile();
+
   // Inyección de dependencias en el constructor
   TunerViewModel({
     IPitchDetectorService? pitchService,
@@ -273,6 +277,7 @@ class TunerViewModel extends ChangeNotifier {
   }
 
   // --- Getters del Estado ---
+  AcousticRigorProfile get acousticRigorProfile => _acousticRigorProfile;
   bool get isInstrumentIsolationActive => _isInstrumentIsolationActive;
   TunnerThemeMode get themeMode => _themeMode;
   TunnerThemePalette get currentPalette => _currentPalette;
@@ -825,24 +830,105 @@ class TunerViewModel extends ChangeNotifier {
   /// Alterna el modo de aislamiento acústico por tesitura instrumental y rechazo de habla/ruidos.
   void toggleInstrumentIsolation() {
     _isInstrumentIsolationActive = !_isInstrumentIsolationActive;
+    _acousticRigorProfile = _acousticRigorProfile.copyWith(
+      enableInstrumentIsolation: _isInstrumentIsolationActive,
+    );
     _syncInstrumentAcousticFilter();
     notifyListeners();
+    _triggerAutoSave();
   }
 
   /// Establece el modo de aislamiento acústico por tesitura instrumental.
   void setInstrumentIsolation(bool active) {
     if (_isInstrumentIsolationActive != active) {
       _isInstrumentIsolationActive = active;
+      _acousticRigorProfile = _acousticRigorProfile.copyWith(
+        enableInstrumentIsolation: active,
+      );
       _syncInstrumentAcousticFilter();
       notifyListeners();
+      _triggerAutoSave();
     }
+  }
+
+  /// Selecciona un preset acústico de contexto (Fácil, Ensayo, Grabación, Escenario, Conservatorio).
+  void setAcousticRigorPreset(AcousticRigorPreset preset) {
+    final baseGate = _micProfile.measuredNoiseFloorRms > 0.0001
+        ? _micProfile.measuredNoiseFloorRms * 2.2
+        : _micProfile.noiseGateThreshold;
+    _acousticRigorProfile = AcousticRigorProfile.fromPreset(
+      preset,
+      isAdvancedMode: _acousticRigorProfile.isAdvancedMode,
+      baseNoiseGate: baseGate,
+      baseGain: _micProfile.digitalGain,
+    );
+    _micProfile = _micProfile.copyWith(
+      noiseGateThreshold: _acousticRigorProfile.noiseGateThreshold,
+      digitalGain: _acousticRigorProfile.digitalGain,
+      enableDcBlocker: _acousticRigorProfile.enableDcBlocker,
+    );
+    _isInstrumentIsolationActive = _acousticRigorProfile.enableInstrumentIsolation;
+    _pitchService.updateCalibrationProfile(_micProfile);
+    _syncInstrumentAcousticFilter();
+    notifyListeners();
+    _triggerAutoSave();
+  }
+
+  /// Permite ajustar parámetros granulares en modo avanzado (para ingenieros y productores).
+  void setAcousticRigorAdvancedParameters({
+    double? minClarity,
+    int? minConsecutiveFrames,
+    double? maxCentsDeviation,
+    double? noiseGateThreshold,
+    double? digitalGain,
+    bool? enableDcBlocker,
+    bool? enableInstrumentIsolation,
+  }) {
+    _acousticRigorProfile = _acousticRigorProfile.copyWith(
+      preset: AcousticRigorPreset.custom,
+      minClarity: minClarity,
+      minConsecutiveFrames: minConsecutiveFrames,
+      maxCentsDeviation: maxCentsDeviation,
+      noiseGateThreshold: noiseGateThreshold,
+      digitalGain: digitalGain,
+      enableDcBlocker: enableDcBlocker,
+      enableInstrumentIsolation: enableInstrumentIsolation,
+    );
+    _micProfile = _micProfile.copyWith(
+      noiseGateThreshold: _acousticRigorProfile.noiseGateThreshold,
+      digitalGain: _acousticRigorProfile.digitalGain,
+      enableDcBlocker: _acousticRigorProfile.enableDcBlocker,
+    );
+    if (enableInstrumentIsolation != null) {
+      _isInstrumentIsolationActive = enableInstrumentIsolation;
+    }
+    _pitchService.updateCalibrationProfile(_micProfile);
+    _syncInstrumentAcousticFilter();
+    notifyListeners();
+    _triggerAutoSave();
+  }
+
+  /// Conmuta entre la vista de presets sencillos y la vista avanzada en el modal de calibración.
+  void toggleAcousticRigorAdvancedView() {
+    _acousticRigorProfile = _acousticRigorProfile.copyWith(
+      isAdvancedMode: !_acousticRigorProfile.isAdvancedMode,
+    );
+    notifyListeners();
+    _triggerAutoSave();
   }
 
   /// Sincroniza la configuración de filtro acústico e histéresis temporal con el detector MPM.
   void _syncInstrumentAcousticFilter() {
-    if (!_isInstrumentIsolationActive || _activeInstrument.id == 'voice') {
+    final isolationActive = _isInstrumentIsolationActive && _acousticRigorProfile.enableInstrumentIsolation;
+    if (!isolationActive || _activeInstrument.id == 'voice') {
       _pitchService.setInstrumentAcousticFilter(
-        InstrumentAcousticFilterConfig.universal(enabled: _isInstrumentIsolationActive),
+        InstrumentAcousticFilterConfig.universal(
+          enabled: isolationActive,
+        ).copyWith(
+          minClarity: _acousticRigorProfile.minClarity,
+          minConsecutiveFrames: _acousticRigorProfile.minConsecutiveFrames,
+          maxCentsDeviation: _acousticRigorProfile.maxCentsDeviation,
+        ),
       );
     } else {
       _pitchService.setInstrumentAcousticFilter(
@@ -850,7 +936,10 @@ class TunerViewModel extends ChangeNotifier {
           minFrequencyHz: _activeInstrument.minFrequencyHz,
           maxFrequencyHz: _activeInstrument.maxFrequencyHz,
           enabled: true,
-          minClarity: 0.82,
+          minClarity: _acousticRigorProfile.minClarity,
+        ).copyWith(
+          minConsecutiveFrames: _acousticRigorProfile.minConsecutiveFrames,
+          maxCentsDeviation: _acousticRigorProfile.maxCentsDeviation,
         ),
       );
     }
@@ -1704,7 +1793,10 @@ class TunerViewModel extends ChangeNotifier {
       }
 
       _micProfile = settings.micCalibrationProfile;
+      _acousticRigorProfile = settings.acousticRigorProfile;
+      _isInstrumentIsolationActive = _acousticRigorProfile.enableInstrumentIsolation;
       _pitchService.updateCalibrationProfile(_micProfile);
+      _syncInstrumentAcousticFilter();
 
       notifyListeners();
     } catch (_) {
@@ -1737,6 +1829,7 @@ class TunerViewModel extends ChangeNotifier {
         learnerProfile: _learnerProfile,
         activeWorkspace: _activeWorkspace,
         micCalibrationProfile: _micProfile,
+        acousticRigorProfile: _acousticRigorProfile,
       );
       await _persistenceService.saveSettings(settings);
     } catch (_) {

@@ -5,6 +5,7 @@ import '../../practice_recorder/domain/practice_recording_entity.dart';
 import '../../pedagogy_profiles/domain/learner_profile_entity.dart';
 import '../../workspaces/domain/workspace_type.dart';
 import '../../tuner/domain/microphone_calibration_models.dart';
+import '../../tuner/domain/acoustic_rigor_profile.dart';
 
 /// Modo de experiencia de interfaz de usuario.
 enum AppDisplayMode {
@@ -32,6 +33,7 @@ class AppUserSettingsEntity {
   final LearnerProfileEntity learnerProfile;
   final WorkspaceType activeWorkspace;
   final MicrophoneCalibrationProfile micCalibrationProfile;
+  final AcousticRigorProfile acousticRigorProfile;
 
   const AppUserSettingsEntity({
     this.referencePitch = 440.0,
@@ -47,6 +49,7 @@ class AppUserSettingsEntity {
     this.recordingHistory = const [],
     this.activeWorkspace = WorkspaceType.learning,
     this.micCalibrationProfile = const MicrophoneCalibrationProfile(),
+    this.acousticRigorProfile = const AcousticRigorProfile(),
     this.learnerProfile = const LearnerProfileEntity(
       type: LearnerProfileType.adultDeliberate,
       title: 'Modo Adulto (Práctica Deliberada)',
@@ -77,6 +80,7 @@ class AppUserSettingsEntity {
     LearnerProfileEntity? learnerProfile,
     WorkspaceType? activeWorkspace,
     MicrophoneCalibrationProfile? micCalibrationProfile,
+    AcousticRigorProfile? acousticRigorProfile,
   }) {
     return AppUserSettingsEntity(
       referencePitch: referencePitch ?? this.referencePitch,
@@ -93,6 +97,7 @@ class AppUserSettingsEntity {
       learnerProfile: learnerProfile ?? this.learnerProfile,
       activeWorkspace: activeWorkspace ?? this.activeWorkspace,
       micCalibrationProfile: micCalibrationProfile ?? this.micCalibrationProfile,
+      acousticRigorProfile: acousticRigorProfile ?? this.acousticRigorProfile,
     );
   }
 
@@ -114,6 +119,7 @@ class AppUserSettingsEntity {
       'learnerProfile': learnerProfile.toJson(),
       'activeWorkspace': activeWorkspace.serializedKey,
       'micCalibrationProfile': micCalibrationProfile.toJson(),
+      'acousticRigorProfile': acousticRigorProfile.toJson(),
     };
   }
 
@@ -146,6 +152,11 @@ class AppUserSettingsEntity {
         ? MicrophoneCalibrationProfile.fromJson(rawMicProfile)
         : const MicrophoneCalibrationProfile();
 
+    final rawRigorProfile = map['acousticRigorProfile'] as Map<String, dynamic>?;
+    final acousticRigorProfile = rawRigorProfile != null
+        ? AcousticRigorProfile.fromJson(rawRigorProfile)
+        : const AcousticRigorProfile();
+
     return AppUserSettingsEntity(
       referencePitch: (map['referencePitch'] as num?)?.toDouble() ?? 440.0,
       selectedThemeId: map['selectedThemeId'] as String? ?? 'obsidian_studio',
@@ -164,6 +175,7 @@ class AppUserSettingsEntity {
       learnerProfile: learnerProfile,
       activeWorkspace: activeWorkspace,
       micCalibrationProfile: micCalibrationProfile,
+      acousticRigorProfile: acousticRigorProfile,
     );
   }
 
