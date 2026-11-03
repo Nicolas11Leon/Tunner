@@ -650,6 +650,41 @@ class TunerScreen extends StatelessWidget {
               tooltip: "Calibración y Adaptación de Micrófono",
               onPressed: () => MicrophoneCalibrationModal.show(context, viewModel),
             ),
+            GestureDetector(
+              key: const Key('essential_rigor_preset_chip'),
+              onTap: () => MicrophoneCalibrationModal.show(context, viewModel),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: palette.cardBackground,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: palette.secondaryAccent.withValues(alpha: 0.4),
+                    width: 1.0,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      viewModel.acousticRigorProfile.preset.icon,
+                      size: 13,
+                      color: palette.secondaryAccent,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      viewModel.acousticRigorProfile.preset.displayName.split(' ').first,
+                      style: TextStyle(
+                        color: palette.secondaryAccent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             // Chip de Temperamento Histórico en Modo Esencial
             GestureDetector(
               key: const Key('essential_temperament_selector_chip'),
@@ -1008,6 +1043,41 @@ class TunerScreen extends StatelessWidget {
               icon: Icon(Icons.mic_external_on_outlined, color: palette.secondaryAccent),
               tooltip: "Calibración y Adaptación de Micrófono",
               onPressed: () => MicrophoneCalibrationModal.show(context, viewModel),
+            ),
+            GestureDetector(
+              key: const Key('pro_rigor_preset_chip'),
+              onTap: () => MicrophoneCalibrationModal.show(context, viewModel),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: palette.cardBackground,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: palette.secondaryAccent.withValues(alpha: 0.4),
+                    width: 1.0,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      viewModel.acousticRigorProfile.preset.icon,
+                      size: 13,
+                      color: palette.secondaryAccent,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      viewModel.acousticRigorProfile.preset.displayName.split(' ').first,
+                      style: TextStyle(
+                        color: palette.secondaryAccent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             if (viewModel.lastReport != null)
               IconButton(

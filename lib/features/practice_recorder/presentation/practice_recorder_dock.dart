@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../tuner_viewmodel.dart';
+import '../../tuner/presentation/microphone_calibration_modal.dart';
 import 'practice_recording_player_modal.dart';
 import 'spectral_comparator_modal.dart';
 
@@ -231,6 +232,15 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
               constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
               icon: Icon(Icons.compare_arrows, size: 20, color: palette.secondaryAccent),
               onPressed: () => SpectralComparatorModal.show(context, vm),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              key: const Key('recorder_dock_mic_calibration_btn'),
+              tooltip: "Calibración de Micrófono & Rigurosidad (${vm.acousticRigorProfile.preset.displayName})",
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              icon: Icon(Icons.mic_external_on_outlined, size: 20, color: palette.primaryAccent),
+              onPressed: () => MicrophoneCalibrationModal.show(context, vm),
             ),
           ],
         ],

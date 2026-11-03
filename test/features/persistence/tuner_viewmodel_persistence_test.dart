@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tunner/core/theme/tunner_theme.dart';
 import 'package:tunner/features/instrument/domain/instrument_profile_entity.dart';
 import 'package:tunner/features/persistence/data/json_local_persistence_service.dart';
+import 'package:tunner/features/tuner/domain/acoustic_rigor_profile.dart';
 import 'package:tunner/features/tuner_viewmodel.dart';
 import 'package:tunner/features/tuner/domain/i_pitch_detector_service.dart';
 import 'package:tunner/features/metronome/domain/i_metronome_service.dart';
@@ -136,10 +137,11 @@ void main() {
 
       await vm1.isInitialized;
 
-      // Modificar afinación de concierto, instrumento y tema
+      // Modificar afinación de concierto, instrumento, tema y preset acústico
       vm1.setReferencePitch(442.0);
       vm1.setInstrumentProfile(InstrumentProfileEntity.bbTrumpet);
       vm1.setPalette(TunnerThemePalette.nordicFrost);
+      vm1.setAcousticRigorPreset(AcousticRigorPreset.studioRecording);
 
       // Guardar y sincronizar con el disco atómicamente
       await vm1.savePersistedState();
@@ -159,6 +161,8 @@ void main() {
       expect(vm2.referencePitch, equals(442.0));
       expect(vm2.activeInstrument.id, equals('bb_trumpet'));
       expect(vm2.currentPalette.id, equals(TunnerThemePalette.nordicFrost.id));
+      expect(vm2.acousticRigorProfile.preset, equals(AcousticRigorPreset.studioRecording));
+      expect(vm2.acousticRigorProfile.minClarity, equals(0.86));
 
       vm1.dispose();
       vm2.dispose();
