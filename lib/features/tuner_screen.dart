@@ -618,6 +618,21 @@ class TunerScreen extends StatelessWidget {
               onPressed: () => _showInstrumentModal(context, viewModel),
             ),
             IconButton(
+              key: const Key('toggle_instrument_isolation_btn_essential'),
+              icon: Icon(
+                viewModel.isInstrumentIsolationActive
+                    ? Icons.verified_user
+                    : Icons.verified_user_outlined,
+                color: viewModel.isInstrumentIsolationActive
+                    ? palette.primaryAccent
+                    : palette.textMutedColor,
+              ),
+              tooltip: viewModel.isInstrumentIsolationActive
+                  ? "Aislamiento Acústico Activo (${viewModel.activeInstrument.name}: filtra ruidos y voz)"
+                  : "Aislamiento Acústico Desactivado (modo abierto)",
+              onPressed: () => viewModel.toggleInstrumentIsolation(),
+            ),
+            IconButton(
               key: const Key('open_soundfont_modal_btn_essential'),
               icon: Icon(Icons.library_music_outlined, color: palette.primaryAccent),
               tooltip: "Timbres Acústicos SoundFont SF2",
@@ -960,6 +975,21 @@ class TunerScreen extends StatelessWidget {
               icon: Icon(Icons.piano, color: palette.secondaryAccent),
               tooltip: "Seleccionar Instrumento (${viewModel.activeInstrument.name})",
               onPressed: () => _showInstrumentModal(context, viewModel),
+            ),
+            IconButton(
+              key: const Key('toggle_instrument_isolation_btn_pro'),
+              icon: Icon(
+                viewModel.isInstrumentIsolationActive
+                    ? Icons.verified_user
+                    : Icons.verified_user_outlined,
+                color: viewModel.isInstrumentIsolationActive
+                    ? palette.primaryAccent
+                    : palette.textMutedColor,
+              ),
+              tooltip: viewModel.isInstrumentIsolationActive
+                  ? "Aislamiento Acústico Activo (${viewModel.activeInstrument.name}: filtra ruidos y voz)"
+                  : "Aislamiento Acústico Desactivado (modo abierto)",
+              onPressed: () => viewModel.toggleInstrumentIsolation(),
             ),
             IconButton(
               key: const Key('open_soundfont_modal_btn_pro'),

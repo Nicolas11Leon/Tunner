@@ -1,4 +1,5 @@
 import 'microphone_calibration_models.dart';
+import 'instrument_acoustic_filter.dart';
 
 /// Contrato de dominio abstracto para el servicio de captura y detección acústica de tono.
 /// Permite desacoplar totalmente la lógica de negocio de los plugins nativos (Record, PitchDetector)
@@ -18,6 +19,9 @@ abstract class IPitchDetectorService {
 
   /// Actualiza los parámetros de calibración de ganancia, filtro DC y umbral de silencio en tiempo real.
   void updateCalibrationProfile(MicrophoneCalibrationProfile profile) {}
+
+  /// Configura el filtro de aislamiento acústico por instrumento y rechazo de voz hablada.
+  void setInstrumentAcousticFilter(InstrumentAcousticFilterConfig filterConfig) {}
 
   /// Obtiene la lista de nombres/IDs de dispositivos de captura de audio disponibles.
   Future<List<String>> listInputDevices() async => const [];

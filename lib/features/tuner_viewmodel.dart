@@ -48,6 +48,7 @@ import 'exercise_generator/domain/algorithmic_exercise_generator.dart';
 import 'tuner/domain/temperament_engine.dart';
 import 'tuner/domain/acoustic_echo_suppressor.dart';
 import 'tuner/domain/microphone_calibration_models.dart';
+import 'tuner/domain/instrument_acoustic_filter.dart';
 import 'drone/domain/harmonic_drone_config.dart';
 import 'drone/domain/harmonic_drone_synthesizer.dart';
 import 'chord_analyzer/domain/chord_entity.dart';
@@ -218,6 +219,9 @@ class TunerViewModel extends ChangeNotifier {
   List<String> _availableAudioDevices = [];
   NoiseProfileReport? _lastNoiseReport;
 
+  // Aislamiento Acústico de Instrumento y Rechazo de Voz (UC-43)
+  bool _isInstrumentIsolationActive = true;
+
   // Inyección de dependencias en el constructor
   TunerViewModel({
     IPitchDetectorService? pitchService,
@@ -263,11 +267,13 @@ class TunerViewModel extends ChangeNotifier {
       stems: _activePackage.tracks,
     );
     _initListeners();
+    _syncInstrumentAcousticFilter();
     _initDefaultMultiTrackSession();
     loadPersistedState();
   }
 
   // --- Getters del Estado ---
+  bool get isInstrumentIsolationActive => _isInstrumentIsolationActive;
   TunnerThemeMode get themeMode => _themeMode;
   TunnerThemePalette get currentPalette => _currentPalette;
   List<TunnerThemePalette> get availablePalettes => [...TunnerThemePalette.allPresets, ..._customPalettes];
@@ -810,9 +816,44 @@ class TunerViewModel extends ChangeNotifier {
 
   void setInstrumentProfile(InstrumentProfileEntity instrument) {
     _activeInstrument = instrument;
+    _syncInstrumentAcousticFilter();
     _validatePerformance();
     notifyListeners();
     _triggerAutoSave();
+  }
+
+  /// Alterna el modo de aislamiento acústico por tesitura instrumental y rechazo de habla/ruidos.
+  void toggleInstrumentIsolation() {
+    _isInstrumentIsolationActive = !_isInstrumentIsolationActive;
+    _syncInstrumentAcousticFilter();
+    notifyListeners();
+  }
+
+  /// Establece el modo de aislamiento acústico por tesitura instrumental.
+  void setInstrumentIsolation(bool active) {
+    if (_isInstrumentIsolationActive != active) {
+      _isInstrumentIsolationActive = active;
+      _syncInstrumentAcousticFilter();
+      notifyListeners();
+    }
+  }
+
+  /// Sincroniza la configuración de filtro acústico e histéresis temporal con el detector MPM.
+  void _syncInstrumentAcousticFilter() {
+    if (!_isInstrumentIsolationActive || _activeInstrument.id == 'voice') {
+      _pitchService.setInstrumentAcousticFilter(
+        InstrumentAcousticFilterConfig.universal(enabled: _isInstrumentIsolationActive),
+      );
+    } else {
+      _pitchService.setInstrumentAcousticFilter(
+        InstrumentAcousticFilterConfig.forInstrument(
+          minFrequencyHz: _activeInstrument.minFrequencyHz,
+          maxFrequencyHz: _activeInstrument.maxFrequencyHz,
+          enabled: true,
+          minClarity: 0.82,
+        ),
+      );
+    }
   }
 
   /// Calibra la afinación de concierto del tono A4 (rango 415.0 Hz a 466.0 Hz).

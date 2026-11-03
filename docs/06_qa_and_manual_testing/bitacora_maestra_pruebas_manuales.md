@@ -6,7 +6,7 @@ Este documento es el centro neurálgico de aseguramiento de calidad manual y seg
 
 ## 1. Resumen Ejecutivo del Estado de Pruebas Manuales
 
-- **Total de Casos de Uso Documentados:** 42 Casos de Uso (UC-01 al UC-42).
+- **Total de Casos de Uso Documentados:** 43 Casos de Uso (UC-01 al UC-43).
 - **Cobertura de Pruebas Automatizadas:** 389 tests unitarios pasando al 100%.
 - **Metodología de Campo:** [Metodología de Pruebas Manuales](00_manual_testing_methodology.md).
 - **Convenciones de Estado:** `[ ] Pendiente`, `[x] Aprobado en Dispositivo`, `[!] Con Observaciones`, `[-] Bloqueado`.
@@ -59,6 +59,7 @@ Este documento es el centro neurálgico de aseguramiento de calidad manual y seg
 | **UC-40** | [Síntesis SoundFont SF2](../02_use_cases/40_uc_soundfont_sf2_instrument_synthesis.md) | SoundFonts & Wavetable | [Ver Sección Manual](../02_use_cases/40_uc_soundfont_sf2_instrument_synthesis.md#8-guía-de-pruebas-manuales-y-bitácora-de-validación) | `[ ] Pendiente` |
 | **UC-41** | [Calibración y Adaptación de Micrófono](../02_use_cases/41_uc_microphone_calibration_and_adaptation.md) | Hardware Mic & Ruido | [Ver Sección Manual](../02_use_cases/41_uc_microphone_calibration_and_adaptation.md#6-guía-de-pruebas-manuales-y-bitácora-de-validación) | `[ ] Pendiente` |
 | **UC-42** | [Síntesis Guitarras y Bajo](../02_use_cases/42_uc_soundfont_modern_guitars_and_bass_synthesis.md) | Guitarras & Bajo SF2 | [Ver Sección Manual](../02_use_cases/42_uc_soundfont_modern_guitars_and_bass_synthesis.md#6-guía-de-pruebas-manuales-y-bitácora-de-validación) | `[ ] Pendiente` |
+| **UC-43** | [Aislamiento Acústico y Rechazo de Voz](../02_use_cases/43_uc_instrument_acoustic_isolation_and_speech_rejection.md) | DSP & Rechazo Habla | [Ver Sección Manual](../02_use_cases/43_uc_instrument_acoustic_isolation_and_speech_rejection.md#6-guía-de-pruebas-manuales-y-bitácora-de-validación) | `[ ] Pendiente` |
 
 ---
 
