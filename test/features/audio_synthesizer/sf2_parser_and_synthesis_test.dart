@@ -68,19 +68,24 @@ void main() {
       final bank = TunnerAcousticSoundFontBank.buildAcousticEssentialsBank();
 
       expect(bank.soundFontName, equals('Tunner Acoustic Essentials'));
-      expect(bank.presets.length, equals(5));
-      expect(bank.sampleHeaders.length, equals(5));
+      expect(bank.presets.length, equals(8));
+      expect(bank.sampleHeaders.length, equals(8));
       expect(bank.sampleData.isNotEmpty, isTrue);
 
       final presetNames = bank.presets.map((p) => p.name).toList();
-      expect(presetNames, contains('Grand Piano'));
-      expect(presetNames, contains('Concert Flute'));
-      expect(presetNames, contains('Violin'));
-      expect(presetNames, contains('Cello'));
-      expect(presetNames, contains('Classical Guitar'));
+      expect(presetNames, containsAll([
+        'Grand Piano',
+        'Concert Flute',
+        'Violin',
+        'Cello',
+        'Classical Guitar',
+        'Steel String Guitar',
+        'Electric Guitar Clean',
+        'Electric Bass (Finger)',
+      ]));
 
       final patches = bank.presets.map((p) => p.patch).toList();
-      expect(patches, containsAll([0, 73, 40, 42, 24]));
+      expect(patches, containsAll([0, 73, 40, 42, 24, 25, 27, 33]));
     });
 
     test('findPreset locates requested patch and falls back gracefully', () {
@@ -88,6 +93,14 @@ void main() {
       final flute = bank.findPreset(73);
       expect(flute, isNotNull);
       expect(flute!.name, equals('Concert Flute'));
+
+      final steelGuitar = bank.findPreset(25);
+      expect(steelGuitar, isNotNull);
+      expect(steelGuitar!.name, equals('Steel String Guitar'));
+
+      final electricBass = bank.findPreset(33);
+      expect(electricBass, isNotNull);
+      expect(electricBass!.name, equals('Electric Bass (Finger)'));
 
       final nonExistent = bank.findPreset(999);
       expect(nonExistent, isNotNull); // Fallback al primer preset disponible
@@ -126,7 +139,7 @@ void main() {
     test('synthesizes notes across multiple acoustic presets seamlessly', () {
       final service = SoundFontSynthesizerService();
 
-      for (final patch in [0, 73, 40, 42, 24]) {
+      for (final patch in [0, 73, 40, 42, 24, 25, 27, 33]) {
         service.selectPatch(patch);
         expect(service.activePatch, equals(patch));
 
@@ -139,6 +152,25 @@ void main() {
         expect(wav.isNotEmpty, isTrue);
         expect(wav.length, greaterThan(1000));
       }
+    });
+
+    test('synthesizes contemporary guitar and electric bass tones accurately', () {
+      final service = SoundFontSynthesizerService();
+
+      // Steel String Guitar (Patch 25)
+      service.selectPatch(25);
+      final steelWav = service.synthesizeNoteWav(midiPitch: 64, durationSeconds: 0.3); // E4
+      expect(steelWav.length, greaterThan(1500));
+
+      // Electric Guitar Clean (Patch 27)
+      service.selectPatch(27);
+      final electricWav = service.synthesizeNoteWav(midiPitch: 57, durationSeconds: 0.3); // A3
+      expect(electricWav.length, greaterThan(1500));
+
+      // Electric Bass Finger (Patch 33) en registro sub-grave
+      service.selectPatch(33);
+      final bassWav = service.synthesizeNoteWav(midiPitch: 40, durationSeconds: 0.4); // E2
+      expect(bassWav.length, greaterThan(2000));
     });
 
     test('Sf2Parser throws informative error on truncated or invalid data', () {

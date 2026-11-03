@@ -59,7 +59,13 @@ class _InstrumentSoundFontSelectorModalState
       case 42:
         return Icons.music_note;
       case 24:
-        return Icons.straighten;
+        return Icons.music_note_outlined;
+      case 25:
+        return Icons.album;
+      case 27:
+        return Icons.electric_bolt;
+      case 33:
+        return Icons.speaker;
       default:
         return Icons.graphic_eq;
     }
@@ -200,16 +206,49 @@ class _InstrumentSoundFontSelectorModalState
           ),
           const SizedBox(height: 10),
 
-          // Mini teclado de prueba C4, E4, G4, A4, C5
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildPitchButton(name: 'Do4', midi: 60),
-              _buildPitchButton(name: 'Mi4', midi: 64),
-              _buildPitchButton(name: 'Sol4', midi: 67),
-              _buildPitchButton(name: 'La4', midi: 69),
-              _buildPitchButton(name: 'Do5', midi: 72),
-            ],
+          // Mini teclado contextual de prueba
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: _selectedPatch == 33
+                  ? [
+                      _buildPitchButton(name: 'Mi2 (4ª Cuerda)', midi: 40),
+                      const SizedBox(width: 8),
+                      _buildPitchButton(name: 'La2 (3ª Cuerda)', midi: 45),
+                      const SizedBox(width: 8),
+                      _buildPitchButton(name: 'Re3 (2ª Cuerda)', midi: 50),
+                      const SizedBox(width: 8),
+                      _buildPitchButton(name: 'Sol3 (1ª Cuerda)', midi: 55),
+                      const SizedBox(width: 8),
+                      _buildPitchButton(name: 'Do4', midi: 60),
+                    ]
+                  : (_selectedPatch == 24 || _selectedPatch == 25 || _selectedPatch == 27)
+                      ? [
+                          _buildPitchButton(name: 'Mi2 (6ª)', midi: 40),
+                          const SizedBox(width: 6),
+                          _buildPitchButton(name: 'La2 (5ª)', midi: 45),
+                          const SizedBox(width: 6),
+                          _buildPitchButton(name: 'Re3 (4ª)', midi: 50),
+                          const SizedBox(width: 6),
+                          _buildPitchButton(name: 'Sol3 (3ª)', midi: 55),
+                          const SizedBox(width: 6),
+                          _buildPitchButton(name: 'Si3 (2ª)', midi: 59),
+                          const SizedBox(width: 6),
+                          _buildPitchButton(name: 'Mi4 (1ª)', midi: 64),
+                        ]
+                      : [
+                          _buildPitchButton(name: 'Do4', midi: 60),
+                          const SizedBox(width: 8),
+                          _buildPitchButton(name: 'Mi4', midi: 64),
+                          const SizedBox(width: 8),
+                          _buildPitchButton(name: 'Sol4', midi: 67),
+                          const SizedBox(width: 8),
+                          _buildPitchButton(name: 'La4', midi: 69),
+                          const SizedBox(width: 8),
+                          _buildPitchButton(name: 'Do5', midi: 72),
+                        ],
+            ),
           ),
 
           const SizedBox(height: 16),

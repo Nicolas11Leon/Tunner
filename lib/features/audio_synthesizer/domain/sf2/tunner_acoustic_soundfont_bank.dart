@@ -226,6 +226,77 @@ class TunnerAcousticSoundFontBank {
       },
     );
 
+    // 6. Steel String Guitar (Patch 25): E3 (52), brillo armónico de cuerda metálica y ataque de púa
+    addInstrumentSample(
+      instrumentName: 'Steel String Guitar',
+      patch: 25,
+      rootPitch: 52,
+      durationSeconds: 1.6,
+      envelope: const Sf2EnvelopeParams(
+        attackSeconds: 0.006,
+        holdSeconds: 0.015,
+        decaySeconds: 1.000,
+        sustainLevel: 0.18,
+        releaseSeconds: 0.120,
+      ),
+      waveGenerator: (phase, t) {
+        final h1 = 0.60 * math.sin(phase);
+        final h2 = 0.45 * math.sin(2.0 * phase);
+        final h3 = 0.30 * math.sin(3.0 * phase);
+        final h4 = 0.18 * math.sin(4.0 * phase);
+        final h5 = 0.10 * math.sin(5.0 * phase);
+        return (h1 + h2 + h3 + h4 + h5) * 0.70;
+      },
+    );
+
+    // 7. Electric Guitar Clean (Patch 27): E3 (52), pastilla magnética, sustain cálido y saturación suave tanh
+    addInstrumentSample(
+      instrumentName: 'Electric Guitar Clean',
+      patch: 27,
+      rootPitch: 52,
+      durationSeconds: 1.8,
+      envelope: const Sf2EnvelopeParams(
+        attackSeconds: 0.005,
+        holdSeconds: 0.040,
+        decaySeconds: 1.400,
+        sustainLevel: 0.40,
+        releaseSeconds: 0.150,
+      ),
+      waveGenerator: (phase, t) {
+        final rawSignal = 0.75 * math.sin(phase) +
+            0.35 * math.sin(2.0 * phase) +
+            0.20 * math.sin(3.0 * phase) +
+            0.08 * math.sin(4.0 * phase);
+        // Emulación de compresión valvular analógica con tangente hiperbólica
+        final drive = 1.2 * rawSignal;
+        final exp2 = math.exp(2.0 * drive);
+        final tanh = (exp2 - 1.0) / (exp2 + 1.0);
+        return tanh * 0.85;
+      },
+    );
+
+    // 8. Electric Bass Finger (Patch 33): E2 (40), fundamental profunda, segundo armónico cálido y punch
+    addInstrumentSample(
+      instrumentName: 'Electric Bass (Finger)',
+      patch: 33,
+      rootPitch: 40,
+      durationSeconds: 1.8,
+      envelope: const Sf2EnvelopeParams(
+        attackSeconds: 0.008,
+        holdSeconds: 0.030,
+        decaySeconds: 1.500,
+        sustainLevel: 0.35,
+        releaseSeconds: 0.110,
+      ),
+      waveGenerator: (phase, t) {
+        final h1 = 0.85 * math.sin(phase);
+        final h2 = 0.40 * math.sin(2.0 * phase);
+        final h3 = 0.15 * math.sin(3.0 * phase);
+        final h4 = 0.05 * math.sin(4.0 * phase);
+        return (h1 + h2 + h3 + h4) * 0.75;
+      },
+    );
+
     final allBytes = sampleDataBuilder.takeBytes();
     final sampleData = Int16List.view(allBytes.buffer);
 
