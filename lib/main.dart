@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'features/tuner_screen.dart';
+import 'features/navigation/presentation/main_app_shell.dart';
 import 'features/tuner_viewmodel.dart';
 
 void main() {
@@ -51,7 +51,7 @@ class TunnerApp extends StatelessWidget {
           surface: palette.cardBackground,
         ),
       ),
-      home: const TunerScreen(),
+      home: const MainAppShell(),
     );
   }
 }

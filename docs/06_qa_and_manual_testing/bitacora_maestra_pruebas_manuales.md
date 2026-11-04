@@ -62,6 +62,7 @@ Este documento es el centro neurálgico de aseguramiento de calidad manual y seg
 | **UC-43** | [Aislamiento Acústico y Rechazo de Voz](../02_use_cases/43_uc_instrument_acoustic_isolation_and_speech_rejection.md) | DSP & Rechazo Habla | [Ver Sección Manual](../02_use_cases/43_uc_instrument_acoustic_isolation_and_speech_rejection.md#6-guía-de-pruebas-manuales-y-bitácora-de-validación) | `[ ] Pendiente` |
 | **UC-44** | [Presets de Rigurosidad Acústica y Controles Avanzados](../02_use_cases/44_uc_acoustic_rigor_presets_and_advanced_mic_controls.md) | Presets & Mic Pro | [Ver Sección Manual](../02_use_cases/44_uc_acoustic_rigor_presets_and_advanced_mic_controls.md#6-runbook-de-pruebas-manuales-bitácora-de-qa) | `[ ] Pendiente` |
 | **UC-45** | [Adaptación Universal de Lecciones y Repertorio](../02_use_cases/45_uc_multi_instrument_lesson_and_repertoire_adaptation.md) | Pedagogía Multi-Instrumento | [Ver Sección Manual](../02_use_cases/45_uc_multi_instrument_lesson_and_repertoire_adaptation.md#6-runbook-de-pruebas-manuales-qa-checklist) | `[ ] Pendiente` |
+| **UC-46** | [Dashboard Principal y Buscador Universal](../02_use_cases/46_uc_main_dashboard_navigation_and_tool_search.md) | Navegación & Spotlight Hub | [Ver Sección Manual](../02_use_cases/46_uc_main_dashboard_navigation_and_tool_search.md#6-runbook-de-pruebas-manuales-qa-checklist) | `[ ] Pendiente` |
 
 ---
 
