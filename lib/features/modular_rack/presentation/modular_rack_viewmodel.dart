@@ -5,6 +5,7 @@ import '../domain/module_connection.dart';
 import '../domain/signal_bus.dart';
 import '../domain/rack_module_entity.dart';
 import '../../instrument/domain/universal_instrument_definition.dart';
+import '../../instrument/domain/instrument_customization_profile.dart';
 
 /// ViewModel principal del Rack de Estudio Modular y la Consola Multitarea.
 /// Gobierna el ciclo de vida de los módulos, las conexiones en el SignalBus,
@@ -19,6 +20,18 @@ class ModularRackViewModel extends ChangeNotifier {
   /// Instrumento musical actualmente seleccionado para la sesión.
   UniversalInstrumentDefinition _activeInstrument = UniversalInstrumentDefinition.classicalGuitar;
   UniversalInstrumentDefinition get activeInstrument => _activeInstrument;
+
+  /// Perfil completo de personalización física, tímbrica y microtonal.
+  late InstrumentCustomizationProfile _activeCustomization =
+      InstrumentCustomizationProfile.defaultFor(_activeInstrument);
+  InstrumentCustomizationProfile get customization => _activeCustomization;
+
+  /// Actualiza la personalización del instrumento.
+  void updateCustomization(InstrumentCustomizationProfile profile) {
+    _activeCustomization = profile;
+    _activeInstrument = profile.instrument;
+    notifyListeners();
+  }
 
   /// Estado de transporte global (Consola Multitarea)
   bool _isSessionRunning = false;
@@ -55,6 +68,7 @@ class ModularRackViewModel extends ChangeNotifier {
   /// Cambia el instrumento universal activo y actualiza perfiles tímbricos/visuales.
   void selectInstrument(UniversalInstrumentDefinition instrument) {
     _activeInstrument = instrument;
+    _activeCustomization = InstrumentCustomizationProfile.defaultFor(instrument);
     notifyListeners();
   }
 

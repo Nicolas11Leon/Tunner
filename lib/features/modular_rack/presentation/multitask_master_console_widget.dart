@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'modular_rack_viewmodel.dart';
 import 'connection_matrix_modal.dart';
 import 'universal_instrument_search_modal.dart';
+import '../../instrument/presentation/instrument_customization_modal.dart';
+import '../../instrument/presentation/universal_master_keyboard_widget.dart';
 
 /// Consola Central Multitarea de Coordinación y Control Maestro.
 /// Muestra transporte global sincronizado (Play, Rec, Stop), estado de sincronía,
@@ -47,37 +49,68 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
               Row(
                 children: [
                   // Badge interactivo de instrumento con su estética
-                  InkWell(
-                    onTap: () => UniversalInstrumentSearchModal.show(context, viewModel),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: instrument.visualProfile.surfaceColor,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: primaryColor.withValues(alpha: 0.6)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(instrument.visualProfile.smuflGlyph, style: const TextStyle(fontSize: 16)),
-                          const SizedBox(width: 6),
-                          Text(
-                            instrument.displayName,
-                            style: TextStyle(
-                              color: primaryColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                  Flexible(
+                    child: InkWell(
+                      onTap: () => UniversalInstrumentSearchModal.show(context, viewModel),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: instrument.visualProfile.surfaceColor,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: primaryColor.withValues(alpha: 0.6)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(instrument.visualProfile.smuflGlyph, style: const TextStyle(fontSize: 16)),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                instrument.displayName,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: primaryColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(Icons.arrow_drop_down, color: primaryColor, size: 16),
-                        ],
+                            const SizedBox(width: 4),
+                            Icon(Icons.arrow_drop_down, color: primaryColor, size: 16),
+                          ],
+                        ),
                       ),
                     ),
                   ),
 
-                  const Spacer(),
+                  const SizedBox(width: 4),
+
+                  // Botón Teclado Emulador de Estrofas
+                  IconButton(
+                    icon: const Icon(Icons.piano, color: Color(0xFF38BDF8), size: 22),
+                    tooltip: 'Teclado Maestro & Reproductor de Estrofas',
+                    onPressed: () {
+                      UniversalMasterKeyboardWidget.show(
+                        context,
+                        customization: viewModel.customization,
+                        onUpdated: viewModel.updateCustomization,
+                      );
+                    },
+                  ),
+
+                  // Botón Personalización Acústica y Desafinación
+                  IconButton(
+                    icon: Icon(Icons.tune, color: primaryColor, size: 22),
+                    tooltip: 'Personalizar Tono, Timbre & Desafinación',
+                    onPressed: () {
+                      InstrumentCustomizationModal.show(
+                        context,
+                        currentProfile: viewModel.customization,
+                        onUpdated: viewModel.updateCustomization,
+                      );
+                    },
+                  ),
 
                   // Botón de Matriz de Canales / IDs de Conexión
                   InkWell(
