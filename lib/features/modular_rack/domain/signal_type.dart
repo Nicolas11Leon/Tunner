@@ -16,7 +16,13 @@ enum SignalType {
   temporalClock('temporal_clock', 'Reloj Maestro / Sincronía Temporal'),
 
   /// Comandos de control de transporte (Play, Pause, Stop, Record).
-  transportControl('transport_control', 'Control de Transporte Global');
+  transportControl('transport_control', 'Control de Transporte Global'),
+
+  /// Parámetros de afinación maestra ($A_4$, temperamentos históricos y microdesafinación).
+  tuningCalibration('tuning_calibration', 'Calibración de Afinación y Temperamento'),
+
+  /// Distribución de magnitudes espectrales FFT para análisis acústico simultáneo.
+  spectralData('spectral_data', 'Espectro de Magnitudes FFT');
 
   final String code;
   final String displayName;
