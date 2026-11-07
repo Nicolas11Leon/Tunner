@@ -260,17 +260,17 @@ class HomeDashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
 
-              // Tarjeta 3: Estudio de Grabación & Práctica
+              // Tarjeta 3: Rack de Estudio Modular & Consola Multitarea
               _DashboardActionCard(
                 key: const Key('card_action_recorder'),
-                title: 'Estudio de Grabación & Práctica',
-                subtitle: 'Registra tomas de audio, compara espectrogramas FFT y evalúa tu estabilidad.',
-                badge: 'WAV & Análisis FFT',
+                title: 'Rack Modular & Consola Multitarea',
+                subtitle: 'Arrastra módulos, enruta señales por ID, afina y graba con la Consola Central.',
+                badge: 'Modular Drag & Drop',
                 badgeColor: palette.secondaryAccent,
-                icon: Icons.fiber_manual_record,
+                icon: Icons.dashboard_customize,
                 accentColor: palette.secondaryAccent,
                 palette: palette,
-                actionLabel: 'Ir al Estudio',
+                actionLabel: 'Abrir Rack de Estudio',
                 onTap: () => onNavigateToTab(3),
               ),
               const SizedBox(height: 12),

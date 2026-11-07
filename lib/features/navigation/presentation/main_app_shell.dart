@@ -4,7 +4,7 @@ import '../../tuner_viewmodel.dart';
 import 'home_dashboard_screen.dart';
 import '../../tuner_screen.dart';
 import '../../workspaces/presentation/learning_practice_workspace_view.dart';
-import '../../workspaces/presentation/production_acoustic_lab_workspace_view.dart';
+import '../../modular_rack/presentation/modular_studio_rack_view.dart';
 import '../../workspaces/presentation/composition_notation_workspace_view.dart';
 import '../../instrument/presentation/instrument_selector_modal.dart';
 
@@ -70,12 +70,8 @@ class _MainAppShellState extends State<MainAppShell> {
             onOpenInstrumentModal: () => _openInstrumentSelector(viewModel),
           ),
 
-          // 3: Estudio de Grabación & Laboratorio Acústico
-          ProductionAcousticLabWorkspaceView(
-            viewModel: viewModel,
-            palette: palette,
-            onOpenMixerModal: () {},
-          ),
+          // 3: Rack de Estudio Modular & Consola Multitarea
+          const ModularStudioRackView(),
 
           // 4: Biblioteca de Canciones & Partituras
           CompositionNotationWorkspaceView(
