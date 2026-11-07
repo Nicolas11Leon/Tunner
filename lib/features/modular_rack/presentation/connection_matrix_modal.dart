@@ -268,6 +268,10 @@ class _ConnectionMatrixModalState extends State<ConnectionMatrixModal> {
         return const Icon(Icons.access_time, color: Color(0xFF10B981), size: 18);
       case SignalType.transportControl:
         return const Icon(Icons.play_circle, color: Color(0xFFEC4899), size: 18);
+      case SignalType.tuningCalibration:
+        return const Icon(Icons.tune, color: Color(0xFF06B6D4), size: 18);
+      case SignalType.spectralData:
+        return const Icon(Icons.analytics, color: Color(0xFF8B5CF6), size: 18);
     }
   }
 }
