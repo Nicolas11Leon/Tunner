@@ -3,6 +3,8 @@ import '../domain/rack_module_entity.dart';
 import '../domain/port_id.dart';
 import 'modular_rack_viewmodel.dart';
 import '../../instrument/presentation/instrument_emulation_surface_widget.dart';
+import '../../navigation/presentation/contextual_help_sheet.dart';
+import '../../../core/theme/tunner_theme.dart';
 
 /// Tarjeta contenedora de una unidad de módulo montada en el Rack de Estudio.
 /// Soporta reordenamiento por arrastre, colapso compacto, apagado y puertos In/Out.
@@ -80,6 +82,16 @@ class RackUnitCard extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.1,
                     ),
+                  ),
+                ),
+
+                // Insignia de ayuda contextual (?)
+                Padding(
+                  padding: const EdgeInsets.only(left: 6, right: 6),
+                  child: ContextualHelpBadge(
+                    toolId: module.moduleType.code,
+                    palette: TunnerThemePalette.obsidianStudio,
+                    size: 18,
                   ),
                 ),
 

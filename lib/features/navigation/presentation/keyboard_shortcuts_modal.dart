@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/tunner_theme.dart';
 
-/// Modal informativo con el mapa de atajos de teclado y gestos rápidos.
+/// Modal informativo con el mapa completo de atajos de teclado y gestos rápidos estilo Photoshop.
 class KeyboardShortcutsCheatSheetModal extends StatelessWidget {
   final TunnerThemePalette palette;
 
@@ -25,7 +25,7 @@ class KeyboardShortcutsCheatSheetModal extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 580, maxHeight: 600),
+        constraints: const BoxConstraints(maxWidth: 640, maxHeight: 660),
         child: Material(
           color: Colors.transparent,
           child: Container(
@@ -59,7 +59,7 @@ class KeyboardShortcutsCheatSheetModal extends StatelessWidget {
                         Icon(Icons.keyboard, color: palette.primaryAccent, size: 24),
                         const SizedBox(width: 10),
                         Text(
-                          'Atajos de Teclado y Gestos Rápidos',
+                          'Matriz de Atajos de Grado Profesional',
                           style: TextStyle(
                             color: palette.textColor,
                             fontSize: 17,
@@ -76,7 +76,7 @@ class KeyboardShortcutsCheatSheetModal extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Optimizado para práctica musical continua con manos libres, teclados Bluetooth y pedales.',
+                  'Atajos directos de una tecla inspirados en suites profesionales (Photoshop, Ableton, Logic).',
                   style: TextStyle(
                     color: palette.textMutedColor,
                     fontSize: 12.5,
@@ -86,29 +86,39 @@ class KeyboardShortcutsCheatSheetModal extends StatelessWidget {
                 Divider(height: 1, color: palette.staffLinesColor.withValues(alpha: 0.2)),
                 const SizedBox(height: 16),
 
-                // Lista de Atajos
+                // Lista de Atajos por Categorías
                 Expanded(
                   child: ListView(
                     children: [
-                      _buildSection('Transporte y Grabación', [
-                        _buildRow('Espacio (Space)', 'Play / Pause maestro (Metrónomo y Playhead)'),
-                        _buildRow('R', 'Grabar Toma de Audio / Detener Grabación'),
-                        _buildRow('T', 'Tap Tempo inmediato al ritmo de la música'),
+                      _buildSection('Herramientas Directas (Single-Key)', [
+                        _buildRow('A / T', 'Afinador Estroboscópico de Alta Precisión (±0.1 cents)'),
+                        _buildRow('M', 'Alternar Metrónomo Determinista en Isolate'),
+                        _buildRow('S', 'Pentagrama Interactivo SMuFL & Transcripción en Vivo'),
+                        _buildRow('L', 'Tutor de Lecciones & Rushing/Dragging'),
+                        _buildRow('0', 'Silencio Total / Panic Mute (detener todo el sonido)'),
                       ]),
                       const SizedBox(height: 16),
-                      _buildSection('Herramientas Rápidas', [
-                        _buildRow('A', 'Salto directo al Afinador Estroboscópico'),
-                        _buildRow('M', 'Silencio general / Mute rápido'),
-                        _buildRow('Cmd / Ctrl + K', 'Abrir Command Palette (Buscador Spotlight)'),
-                        _buildRow('?', 'Abrir esta guía de atajos de teclado'),
+                      _buildSection('Transporte, Tempo y Grabación', [
+                        _buildRow('Espacio (Space)', 'Play / Pause maestro de transporte'),
+                        _buildRow('R', 'Grabar Toma de Práctica / Detener Grabación'),
+                        _buildRow('B / T', 'Tap Tempo interactivo con el pulso musical'),
+                        _buildRow('] / [', 'Incrementar / Disminuir tempo en ±1 BPM'),
+                        _buildRow('Shift + ] / [', 'Aumentar / Reducir tempo en ±5 BPM'),
                       ]),
                       const SizedBox(height: 16),
-                      _buildSection('Navegación de Pestañas', [
-                        _buildRow('1', 'Pestaña Inicio (Dashboard y Búsqueda)'),
-                        _buildRow('2', 'Pestaña Afinador y Metrónomo'),
-                        _buildRow('3', 'Pestaña Tutor Interactivo y Ejercicios'),
-                        _buildRow('4', 'Pestaña Rack Modular de Estudio'),
-                        _buildRow('5', 'Pestaña Partituras y Canciones'),
+                      _buildSection('Afinación, Tono y Calibración', [
+                        _buildRow('Alt + ↑ / ↓', 'Calibrar tono de concierto A4 (±1 Hz)'),
+                        _buildRow('Cmd / Ctrl + I', 'Abrir Selector Universal de Instrumentos (60+)'),
+                        _buildRow('Cmd / Ctrl + K', 'Command Palette Spotlight (Buscador Global)'),
+                        _buildRow('?', 'Abrir este mapa completo de atajos'),
+                      ]),
+                      const SizedBox(height: 16),
+                      _buildSection('Navegación Inmediata de Pestañas', [
+                        _buildRow('1', 'Pestaña 1: Inicio y Dashboard General'),
+                        _buildRow('2', 'Pestaña 2: Afinador y Metrónomo'),
+                        _buildRow('3', 'Pestaña 3: Tutor de Aprendizaje'),
+                        _buildRow('4', 'Pestaña 4: Rack de Estudio Modular'),
+                        _buildRow('5', 'Pestaña 5: Canciones y Partituras'),
                       ]),
                     ],
                   ),

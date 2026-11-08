@@ -203,7 +203,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byType(KeyboardShortcutsCheatSheetModal), findsOneWidget);
-      expect(find.text('Atajos de Teclado y Gestos Rápidos'), findsOneWidget);
+      expect(find.text('Matriz de Atajos de Grado Profesional'), findsOneWidget);
     });
   });
 }

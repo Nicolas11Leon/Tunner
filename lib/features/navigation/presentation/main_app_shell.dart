@@ -12,7 +12,7 @@ import 'pro_command_palette_modal.dart';
 import 'keyboard_shortcuts_modal.dart';
 import 'quick_action_dock_widget.dart';
 
-/// Intenciones para el sistema de atajos de teclado de Flutter.
+/// Intenciones para el sistema de atajos de teclado de grado Photoshop.
 class TogglePlayIntent extends Intent {
   const TogglePlayIntent();
 }
@@ -29,12 +29,56 @@ class FocusTunerIntent extends Intent {
   const FocusTunerIntent();
 }
 
+class FocusMetronomeIntent extends Intent {
+  const FocusMetronomeIntent();
+}
+
+class FocusScoreIntent extends Intent {
+  const FocusScoreIntent();
+}
+
+class FocusLessonsIntent extends Intent {
+  const FocusLessonsIntent();
+}
+
+class FocusStudioIntent extends Intent {
+  const FocusStudioIntent();
+}
+
+class IncrementBpmIntent extends Intent {
+  final int step;
+  const IncrementBpmIntent(this.step);
+}
+
+class DecrementBpmIntent extends Intent {
+  final int step;
+  const DecrementBpmIntent(this.step);
+}
+
+class CalibrateReferencePitchIntent extends Intent {
+  final double deltaHz;
+  const CalibrateReferencePitchIntent(this.deltaHz);
+}
+
+class PanicMuteIntent extends Intent {
+  const PanicMuteIntent();
+}
+
 class OpenCommandPaletteIntent extends Intent {
   const OpenCommandPaletteIntent();
 }
 
 class OpenShortcutsGuideIntent extends Intent {
   const OpenShortcutsGuideIntent();
+}
+
+class OpenInstrumentSelectorIntent extends Intent {
+  const OpenInstrumentSelectorIntent();
+}
+
+class ShowContextualHelpIntent extends Intent {
+  final String toolId;
+  const ShowContextualHelpIntent(this.toolId);
 }
 
 class SwitchTabIntent extends Intent {
@@ -45,7 +89,7 @@ class SwitchTabIntent extends Intent {
 /// Contenedor principal de navegación de Tunner (MainAppShell).
 /// Gestiona la transición limpia entre el Dashboard de Inicio, el Afinador,
 /// el Tutor de Aprendizaje, el Estudio de Grabación y la Biblioteca de Canciones,
-/// integrando el Quick Action Dock y el despachador de atajos globales de hardware.
+/// integrando el Quick Action Dock y el despachador de atajos globales estilo Photoshop.
 class MainAppShell extends StatefulWidget {
   final int initialIndex;
 
@@ -87,7 +131,7 @@ class _MainAppShellState extends State<MainAppShell> {
         subtitle: 'Alternar pulso rítmico a ${viewModel.bpm.round()} BPM',
         icon: Icons.access_time,
         category: 'Transporte',
-        shortcutLabel: 'Espacio',
+        shortcutLabel: 'M / Espacio',
         onSelect: () => viewModel.toggleMetronome(),
       ),
       CommandItem(
@@ -111,8 +155,26 @@ class _MainAppShellState extends State<MainAppShell> {
         subtitle: 'Pulsar tempo al compás de la música',
         icon: Icons.touch_app,
         category: 'Metrónomo',
-        shortcutLabel: 'T',
+        shortcutLabel: 'B / T',
         onSelect: () => viewModel.recordTapTempo(),
+      ),
+      CommandItem(
+        id: 'bpm_plus',
+        title: 'Aumentar Tempo (+1 BPM)',
+        subtitle: 'Acelerar metrónomo un paso',
+        icon: Icons.arrow_upward,
+        category: 'Metrónomo',
+        shortcutLabel: ']',
+        onSelect: () => viewModel.incrementBpm(1),
+      ),
+      CommandItem(
+        id: 'bpm_minus',
+        title: 'Disminuir Tempo (-1 BPM)',
+        subtitle: 'Desacelerar metrónomo un paso',
+        icon: Icons.arrow_downward,
+        category: 'Metrónomo',
+        shortcutLabel: '[',
+        onSelect: () => viewModel.decrementBpm(1),
       ),
       CommandItem(
         id: 'tab_tuner',
@@ -129,7 +191,7 @@ class _MainAppShellState extends State<MainAppShell> {
         subtitle: 'Ejercicios interactivos con evaluación rushing/dragging',
         icon: Icons.school,
         category: 'Navegación',
-        shortcutLabel: '3',
+        shortcutLabel: 'L / 3',
         onSelect: () => _navigateToTab(2),
       ),
       CommandItem(
@@ -147,7 +209,7 @@ class _MainAppShellState extends State<MainAppShell> {
         subtitle: 'Gestor y reproductor de partituras SMuFL',
         icon: Icons.menu_book,
         category: 'Navegación',
-        shortcutLabel: '5',
+        shortcutLabel: 'S / 5',
         onSelect: () => _navigateToTab(4),
       ),
       CommandItem(
@@ -156,7 +218,20 @@ class _MainAppShellState extends State<MainAppShell> {
         subtitle: 'Seleccionar entre más de 60 instrumentos orquestales y contemporáneos',
         icon: Icons.piano,
         category: 'Instrumento',
+        shortcutLabel: 'Cmd+I',
         onSelect: () => _openInstrumentSelector(viewModel),
+      ),
+      CommandItem(
+        id: 'panic_mute',
+        title: 'Silencio Total (Panic Mute)',
+        subtitle: 'Detener de inmediato todos los sintetizadores y sonidos',
+        icon: Icons.volume_off,
+        category: 'Audio',
+        shortcutLabel: '0',
+        onSelect: () {
+          if (viewModel.isMetronomeActive) viewModel.toggleMetronome();
+          if (viewModel.isRecording) viewModel.stopPracticeRecording();
+        },
       ),
     ];
 
@@ -181,13 +256,37 @@ class _MainAppShellState extends State<MainAppShell> {
 
     return Shortcuts(
       shortcuts: <ShortcutActivator, Intent>{
+        // Transporte y Grabación
         const SingleActivator(LogicalKeyboardKey.space): const TogglePlayIntent(),
         const SingleActivator(LogicalKeyboardKey.keyR): const ToggleRecordIntent(),
         const SingleActivator(LogicalKeyboardKey.keyT): const TapTempoIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyB): const TapTempoIntent(),
+
+        // Incremento y decremento fino de tempo
+        const SingleActivator(LogicalKeyboardKey.bracketRight): const IncrementBpmIntent(1),
+        const SingleActivator(LogicalKeyboardKey.bracketLeft): const DecrementBpmIntent(1),
+        const SingleActivator(LogicalKeyboardKey.bracketRight, shift: true): const IncrementBpmIntent(5),
+        const SingleActivator(LogicalKeyboardKey.bracketLeft, shift: true): const DecrementBpmIntent(5),
+
+        // Herramientas directas (Single Key Select)
         const SingleActivator(LogicalKeyboardKey.keyA): const FocusTunerIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyM): const FocusMetronomeIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyS): const FocusScoreIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyL): const FocusLessonsIntent(),
+        const SingleActivator(LogicalKeyboardKey.digit0): const PanicMuteIntent(),
+
+        // Calibración de Hz
+        const SingleActivator(LogicalKeyboardKey.arrowUp, alt: true): const CalibrateReferencePitchIntent(1.0),
+        const SingleActivator(LogicalKeyboardKey.arrowDown, alt: true): const CalibrateReferencePitchIntent(-1.0),
+
+        // Modales de sistema
         const SingleActivator(LogicalKeyboardKey.keyK, control: true): const OpenCommandPaletteIntent(),
         const SingleActivator(LogicalKeyboardKey.keyK, meta: true): const OpenCommandPaletteIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyI, control: true): const OpenInstrumentSelectorIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyI, meta: true): const OpenInstrumentSelectorIntent(),
         const SingleActivator(LogicalKeyboardKey.slash, shift: true): const OpenShortcutsGuideIntent(),
+
+        // Pestañas directas
         const SingleActivator(LogicalKeyboardKey.digit1): const SwitchTabIntent(0),
         const SingleActivator(LogicalKeyboardKey.digit2): const SwitchTabIntent(1),
         const SingleActivator(LogicalKeyboardKey.digit3): const SwitchTabIntent(2),
@@ -212,8 +311,36 @@ class _MainAppShellState extends State<MainAppShell> {
           TapTempoIntent: CallbackAction<TapTempoIntent>(
             onInvoke: (_) => viewModel.recordTapTempo(),
           ),
+          IncrementBpmIntent: CallbackAction<IncrementBpmIntent>(
+            onInvoke: (intent) => viewModel.incrementBpm(intent.step),
+          ),
+          DecrementBpmIntent: CallbackAction<DecrementBpmIntent>(
+            onInvoke: (intent) => viewModel.decrementBpm(intent.step),
+          ),
+          CalibrateReferencePitchIntent: CallbackAction<CalibrateReferencePitchIntent>(
+            onInvoke: (intent) => viewModel.setReferencePitch(viewModel.referencePitch + intent.deltaHz),
+          ),
+          PanicMuteIntent: CallbackAction<PanicMuteIntent>(
+            onInvoke: (_) {
+              if (viewModel.isMetronomeActive) viewModel.toggleMetronome();
+              if (viewModel.isRecording) viewModel.stopPracticeRecording();
+              return null;
+            },
+          ),
           FocusTunerIntent: CallbackAction<FocusTunerIntent>(
             onInvoke: (_) => _navigateToTab(1),
+          ),
+          FocusMetronomeIntent: CallbackAction<FocusMetronomeIntent>(
+            onInvoke: (_) => viewModel.toggleMetronome(),
+          ),
+          FocusScoreIntent: CallbackAction<FocusScoreIntent>(
+            onInvoke: (_) => _navigateToTab(4),
+          ),
+          FocusLessonsIntent: CallbackAction<FocusLessonsIntent>(
+            onInvoke: (_) => _navigateToTab(2),
+          ),
+          OpenInstrumentSelectorIntent: CallbackAction<OpenInstrumentSelectorIntent>(
+            onInvoke: (_) => _openInstrumentSelector(viewModel),
           ),
           OpenCommandPaletteIntent: CallbackAction<OpenCommandPaletteIntent>(
             onInvoke: (_) => _openCommandPalette(viewModel),
