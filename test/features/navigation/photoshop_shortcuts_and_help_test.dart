@@ -195,8 +195,8 @@ void main() {
 
       expect(find.byType(KeyboardShortcutsCheatSheetModal), findsOneWidget);
       expect(find.text('Matriz de Atajos de Grado Profesional'), findsOneWidget);
-      expect(find.text('HERRAMIENTAS DIRECTAS (SINGLE-KEY)'), findsOneWidget);
-      expect(find.text('TRANSPORTE, TEMPO Y GRABACIÓN'), findsOneWidget);
+      expect(find.text('HERRAMIENTAS PRIMARIAS (SINGLE-KEY TOOL FOCUS)'), findsOneWidget);
+      expect(find.text('TRANSPORTE Y NAVEGACIÓN DE LÍNEA DE TIEMPO (DAW)'), findsOneWidget);
     });
   });
 }
