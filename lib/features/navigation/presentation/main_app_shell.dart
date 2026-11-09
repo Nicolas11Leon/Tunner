@@ -13,6 +13,7 @@ import 'keyboard_shortcuts_modal.dart';
 import 'quick_action_dock_widget.dart';
 import '../../ear_training/presentation/blind_ear_trainer_modal.dart';
 import '../../chord_analyzer/presentation/chord_analyzer_modal.dart';
+import '../../guided_lessons/presentation/task_quick_jump_modal.dart';
 
 /// Intenciones para el sistema de atajos de teclado de grado profesional y memoria muscular (DAWs).
 class TogglePlayIntent extends Intent {
@@ -96,6 +97,10 @@ class OpenEarTrainerIntent extends Intent {
 
 class OpenChordAnalyzerIntent extends Intent {
   const OpenChordAnalyzerIntent();
+}
+
+class JumpToTaskIntent extends Intent {
+  const JumpToTaskIntent();
 }
 
 class SwitchTabIntent extends Intent {
@@ -293,6 +298,18 @@ class _MainAppShellState extends State<MainAppShell> {
         onSelect: () => ChordAnalyzerModal.show(context, viewModel),
       ),
       CommandItem(
+        id: 'jump_to_task',
+        title: 'Salto Rápido a Tarea (TTC)',
+        subtitle: 'Buscar y saltar al instante a cualquier ejercicio por código o palabra',
+        icon: Icons.flash_on,
+        category: 'Navegación',
+        shortcutLabel: 'J',
+        onSelect: () => TaskQuickJumpModal.show(
+          context: context,
+          palette: viewModel.currentPalette,
+        ),
+      ),
+      CommandItem(
         id: 'panic_mute',
         title: 'Silencio Total (Panic Mute)',
         subtitle: 'Detener de inmediato todos los sintetizadores y sonidos',
@@ -367,6 +384,9 @@ class _MainAppShellState extends State<MainAppShell> {
         const SingleActivator(LogicalKeyboardKey.slash, shift: true): const OpenShortcutsGuideIntent(),
         const SingleActivator(LogicalKeyboardKey.keyE, shift: true): const OpenEarTrainerIntent(),
         const SingleActivator(LogicalKeyboardKey.keyC, shift: true): const OpenChordAnalyzerIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyJ): const JumpToTaskIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyJ, control: true): const JumpToTaskIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyJ, meta: true): const JumpToTaskIntent(),
 
         // Pestañas directas
         const SingleActivator(LogicalKeyboardKey.digit1): const SwitchTabIntent(0),
@@ -451,6 +471,12 @@ class _MainAppShellState extends State<MainAppShell> {
           ),
           OpenChordAnalyzerIntent: CallbackAction<OpenChordAnalyzerIntent>(
             onInvoke: (_) => ChordAnalyzerModal.show(context, viewModel),
+          ),
+          JumpToTaskIntent: CallbackAction<JumpToTaskIntent>(
+            onInvoke: (_) => TaskQuickJumpModal.show(
+              context: context,
+              palette: viewModel.currentPalette,
+            ),
           ),
           SwitchTabIntent: CallbackAction<SwitchTabIntent>(
             onInvoke: (intent) => _navigateToTab(intent.tabIndex),

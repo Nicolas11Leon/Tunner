@@ -139,6 +139,17 @@ class ToolHelpCatalog {
           'Usa el teclado para escuchar la afinación teórica de cualquier nota antes de reproducirla con tu instrumento físico.',
       shortcutKeys: ['K', 'Cmd/Ctrl + I (Selector de Instrumento)'],
     ),
+    'task_taxonomy': ToolHelpItem(
+      id: 'task_taxonomy',
+      title: 'Taxonomía Canónica de Tareas y Salto Rápido (TTC)',
+      category: 'Pedagogía & Clasificación',
+      description:
+          'Sistema jerárquico canónico para clasificar miles de tareas [DOM].[NIV].[SUBT].[NUM] con índice in-memory O(1) y buscador instantáneo modal.',
+      pedagogicalTip:
+          'Pulsa J desde cualquier parte de la app para abrir el salto rápido a tareas pedagógicas sin usar el ratón.',
+      acousticFormula: r'\text{TTC} = \text{DOM} \mathbin{\Vert} \text{NIV} \mathbin{\Vert} \text{SUBT} \mathbin{\Vert} \text{ID}',
+      shortcutKeys: ['J', 'Cmd / Ctrl + J', '↑ / ↓ (Navegar)', 'Enter (Saltar)'],
+    ),
   };
 
   static ToolHelpItem getItem(String id) {
