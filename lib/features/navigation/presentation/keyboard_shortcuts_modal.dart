@@ -115,6 +115,7 @@ class KeyboardShortcutsCheatSheetModal extends StatelessWidget {
                         _buildRow('Alt + ↑ / ↓', 'Calibrar tono de concierto A4 (±1 Hz)'),
                         _buildRow('Cmd / Ctrl + I', 'Abrir Selector Universal de Instrumentos (60+)'),
                         _buildRow('Cmd / Ctrl + K (o F)', 'Command Palette Spotlight (Buscador Global)'),
+                        _buildRow('J (o Cmd / Ctrl + J)', 'Salto Rápido a Tareas Pedagógicas (TTC)'),
                         _buildRow('?', 'Abrir este mapa completo de atajos'),
                       ]),
                       const SizedBox(height: 16),
