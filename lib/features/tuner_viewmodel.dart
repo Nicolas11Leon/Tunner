@@ -1002,6 +1002,25 @@ class TunerViewModel extends ChangeNotifier {
     }
   }
 
+  /// Sintetiza y reproduce una frecuencia acústica de referencia (Hz) con duración y envolvente.
+  Future<void> playSyntheticTone(
+    double frequencyHz, {
+    Duration duration = const Duration(milliseconds: 600),
+  }) async {
+    await _audioSynthesizer.playNoteTone(frequency: frequencyHz, duration: duration);
+  }
+
+  /// Inicia la emisión de un tono continuo de diapasón a la frecuencia especificada en [frequencyHz].
+  Future<void> startReferencePitchTone(double frequencyHz) async {
+    await _audioSynthesizer.startDiapasonTone(frequencyHz);
+    notifyListeners();
+  }
+
+  /// Detiene la emisión de tonos sintéticos o diapasón.
+  Future<void> stopReferenceTone() async {
+    await stopDiapasonTone();
+  }
+
   /// Actualiza la configuración acústica del dron pedal (nota, octava, armónicos, timbre, volumen).
   Future<void> setDroneConfig(HarmonicDroneConfig config) async {
     _droneConfig = config;

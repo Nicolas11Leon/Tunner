@@ -28,7 +28,10 @@ enum RackModuleType {
   chordAnalyzer('chord_analyzer', 'Analizador Polifónico de Acordes', '🎹'),
 
   /// Tutor de lecciones guiadas y evaluación de rushing/dragging.
-  guidedLessons('guided_lessons', 'Tutor & Lecciones Interactivas', '🎓');
+  guidedLessons('guided_lessons', 'Tutor & Lecciones Interactivas', '🎓'),
+
+  /// Entrenador auditivo de intervalos a ciegas.
+  earTrainer('ear_trainer', 'Entrenador Auditivo a Ciegas', '👂');
 
   final String code;
   final String displayName;
@@ -223,6 +226,23 @@ class RackModuleEntity {
           id: 'lesson_clock_out',
           displayName: 'Tempo de la Lección',
           signalType: SignalType.temporalClock,
+          direction: PortDirection.output,
+          ownerModuleId: id,
+        ));
+        break;
+
+      case RackModuleType.earTrainer:
+        inputs.add(PortId(
+          id: 'pitch_in',
+          displayName: 'Entrada de Canto / Afinación',
+          signalType: SignalType.pitchEvents,
+          direction: PortDirection.input,
+          ownerModuleId: id,
+        ));
+        outputs.add(PortId(
+          id: 'audio_out',
+          displayName: 'Tono de Referencia / Intervalo',
+          signalType: SignalType.audioPcm,
           direction: PortDirection.output,
           ownerModuleId: id,
         ));

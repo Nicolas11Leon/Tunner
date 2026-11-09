@@ -11,6 +11,8 @@ import '../../instrument/presentation/instrument_selector_modal.dart';
 import 'pro_command_palette_modal.dart';
 import 'keyboard_shortcuts_modal.dart';
 import 'quick_action_dock_widget.dart';
+import '../../ear_training/presentation/blind_ear_trainer_modal.dart';
+import '../../chord_analyzer/presentation/chord_analyzer_modal.dart';
 
 /// Intenciones para el sistema de atajos de teclado de grado profesional y memoria muscular (DAWs).
 class TogglePlayIntent extends Intent {
@@ -86,6 +88,14 @@ class OpenShortcutsGuideIntent extends Intent {
 
 class OpenInstrumentSelectorIntent extends Intent {
   const OpenInstrumentSelectorIntent();
+}
+
+class OpenEarTrainerIntent extends Intent {
+  const OpenEarTrainerIntent();
+}
+
+class OpenChordAnalyzerIntent extends Intent {
+  const OpenChordAnalyzerIntent();
 }
 
 class SwitchTabIntent extends Intent {
@@ -265,6 +275,24 @@ class _MainAppShellState extends State<MainAppShell> {
         onSelect: () => _openInstrumentSelector(viewModel),
       ),
       CommandItem(
+        id: 'open_ear_trainer',
+        title: 'Entrenador Auditivo a Ciegas (Intervalos)',
+        subtitle: 'Práctica de discriminación auditiva y afinación sin apoyo visual',
+        icon: Icons.hearing,
+        category: 'Entrenamiento',
+        shortcutLabel: 'Shift+E',
+        onSelect: () => BlindEarTrainerModal.show(context, viewModel),
+      ),
+      CommandItem(
+        id: 'open_chord_analyzer',
+        title: 'Visualizador Polifónico de Acordes y Armónicos',
+        subtitle: 'Descomposición de acordes en tiempo real y serie armónica H1-H8',
+        icon: Icons.piano,
+        category: 'Armonía',
+        shortcutLabel: 'Shift+C',
+        onSelect: () => ChordAnalyzerModal.show(context, viewModel),
+      ),
+      CommandItem(
         id: 'panic_mute',
         title: 'Silencio Total (Panic Mute)',
         subtitle: 'Detener de inmediato todos los sintetizadores y sonidos',
@@ -337,6 +365,8 @@ class _MainAppShellState extends State<MainAppShell> {
         const SingleActivator(LogicalKeyboardKey.keyI, control: true): const OpenInstrumentSelectorIntent(),
         const SingleActivator(LogicalKeyboardKey.keyI, meta: true): const OpenInstrumentSelectorIntent(),
         const SingleActivator(LogicalKeyboardKey.slash, shift: true): const OpenShortcutsGuideIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyE, shift: true): const OpenEarTrainerIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyC, shift: true): const OpenChordAnalyzerIntent(),
 
         // Pestañas directas
         const SingleActivator(LogicalKeyboardKey.digit1): const SwitchTabIntent(0),
@@ -415,6 +445,12 @@ class _MainAppShellState extends State<MainAppShell> {
           ),
           OpenShortcutsGuideIntent: CallbackAction<OpenShortcutsGuideIntent>(
             onInvoke: (_) => _openShortcutsGuide(viewModel),
+          ),
+          OpenEarTrainerIntent: CallbackAction<OpenEarTrainerIntent>(
+            onInvoke: (_) => BlindEarTrainerModal.show(context, viewModel),
+          ),
+          OpenChordAnalyzerIntent: CallbackAction<OpenChordAnalyzerIntent>(
+            onInvoke: (_) => ChordAnalyzerModal.show(context, viewModel),
           ),
           SwitchTabIntent: CallbackAction<SwitchTabIntent>(
             onInvoke: (intent) => _navigateToTab(intent.tabIndex),

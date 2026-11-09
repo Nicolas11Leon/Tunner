@@ -248,6 +248,8 @@ class RackUnitCard extends StatelessWidget {
         return _buildChordAnalyzerContent();
       case RackModuleType.guidedLessons:
         return _buildGuidedLessonsContent();
+      case RackModuleType.earTrainer:
+        return _buildEarTrainerContent();
     }
   }
 
@@ -448,6 +450,18 @@ class RackUnitCard extends StatelessWidget {
       children: [
         Text('LECCIÓN 04: ESCALA MAYOR DIATÓNICA', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
         Text('PRECISIÓN: 98% (GRADO S)', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  Widget _buildEarTrainerContent() {
+    return const Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text('ENTRENAMIENTO A CIEGAS: MODO AUDITIVO ACTIVO',
+            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+        Text('RACHA: 5 🔥 (GRADO S)',
+            style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
       ],
     );
   }
