@@ -12,9 +12,25 @@ import 'pro_command_palette_modal.dart';
 import 'keyboard_shortcuts_modal.dart';
 import 'quick_action_dock_widget.dart';
 
-/// Intenciones para el sistema de atajos de teclado de grado Photoshop.
+/// Intenciones para el sistema de atajos de teclado de grado profesional y memoria muscular (DAWs).
 class TogglePlayIntent extends Intent {
   const TogglePlayIntent();
+}
+
+class RewindToStartIntent extends Intent {
+  const RewindToStartIntent();
+}
+
+class ToggleCycleLoopIntent extends Intent {
+  const ToggleCycleLoopIntent();
+}
+
+class NudgeMeasureBackIntent extends Intent {
+  const NudgeMeasureBackIntent();
+}
+
+class NudgeMeasureForwardIntent extends Intent {
+  const NudgeMeasureForwardIntent();
 }
 
 class ToggleRecordIntent extends Intent {
@@ -39,10 +55,6 @@ class FocusScoreIntent extends Intent {
 
 class FocusLessonsIntent extends Intent {
   const FocusLessonsIntent();
-}
-
-class FocusStudioIntent extends Intent {
-  const FocusStudioIntent();
 }
 
 class IncrementBpmIntent extends Intent {
@@ -76,11 +88,6 @@ class OpenInstrumentSelectorIntent extends Intent {
   const OpenInstrumentSelectorIntent();
 }
 
-class ShowContextualHelpIntent extends Intent {
-  final String toolId;
-  const ShowContextualHelpIntent(this.toolId);
-}
-
 class SwitchTabIntent extends Intent {
   final int tabIndex;
   const SwitchTabIntent(this.tabIndex);
@@ -89,7 +96,7 @@ class SwitchTabIntent extends Intent {
 /// Contenedor principal de navegación de Tunner (MainAppShell).
 /// Gestiona la transición limpia entre el Dashboard de Inicio, el Afinador,
 /// el Tutor de Aprendizaje, el Estudio de Grabación y la Biblioteca de Canciones,
-/// integrando el Quick Action Dock y el despachador de atajos globales estilo Photoshop.
+/// integrando el Quick Action Dock y el despachador de atajos globales de memoria muscular.
 class MainAppShell extends StatefulWidget {
   final int initialIndex;
 
@@ -131,8 +138,44 @@ class _MainAppShellState extends State<MainAppShell> {
         subtitle: 'Alternar pulso rítmico a ${viewModel.bpm.round()} BPM',
         icon: Icons.access_time,
         category: 'Transporte',
-        shortcutLabel: 'M / Espacio',
+        shortcutLabel: 'Espacio / M',
         onSelect: () => viewModel.toggleMetronome(),
+      ),
+      CommandItem(
+        id: 'rewind_start',
+        title: 'Rebobinar al Inicio',
+        subtitle: 'Volver al compás 1 de la partitura',
+        icon: Icons.skip_previous,
+        category: 'Transporte',
+        shortcutLabel: 'Enter / Return',
+        onSelect: () => viewModel.resetSongState(),
+      ),
+      CommandItem(
+        id: 'toggle_loop',
+        title: 'Alternar Modo Bucle / Práctica',
+        subtitle: 'Repetición cíclica continua de la partitura',
+        icon: Icons.repeat,
+        category: 'Transporte',
+        shortcutLabel: 'C',
+        onSelect: () => viewModel.togglePracticeMode(),
+      ),
+      CommandItem(
+        id: 'nudge_prev',
+        title: 'Retroceder Compás (-1 Compás)',
+        subtitle: 'Desplazar el cursor al compás anterior',
+        icon: Icons.arrow_back,
+        category: 'Navegación',
+        shortcutLabel: ',',
+        onSelect: () => viewModel.previousMeasure(),
+      ),
+      CommandItem(
+        id: 'nudge_next',
+        title: 'Avanzar Compás (+1 Compás)',
+        subtitle: 'Desplazar el cursor al compás siguiente',
+        icon: Icons.arrow_forward,
+        category: 'Navegación',
+        shortcutLabel: '.',
+        onSelect: () => viewModel.nextMeasure(),
       ),
       CommandItem(
         id: 'toggle_record',
@@ -256,8 +299,15 @@ class _MainAppShellState extends State<MainAppShell> {
 
     return Shortcuts(
       shortcuts: <ShortcutActivator, Intent>{
-        // Transporte y Grabación
+        // Transporte Universal (Ableton / Logic / Pro Tools)
         const SingleActivator(LogicalKeyboardKey.space): const TogglePlayIntent(),
+        const SingleActivator(LogicalKeyboardKey.enter): const RewindToStartIntent(),
+        const SingleActivator(LogicalKeyboardKey.numpadEnter): const RewindToStartIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyC): const ToggleCycleLoopIntent(),
+        const SingleActivator(LogicalKeyboardKey.comma): const NudgeMeasureBackIntent(),
+        const SingleActivator(LogicalKeyboardKey.period): const NudgeMeasureForwardIntent(),
+
+        // Grabación y Tap Tempo
         const SingleActivator(LogicalKeyboardKey.keyR): const ToggleRecordIntent(),
         const SingleActivator(LogicalKeyboardKey.keyT): const TapTempoIntent(),
         const SingleActivator(LogicalKeyboardKey.keyB): const TapTempoIntent(),
@@ -279,9 +329,11 @@ class _MainAppShellState extends State<MainAppShell> {
         const SingleActivator(LogicalKeyboardKey.arrowUp, alt: true): const CalibrateReferencePitchIntent(1.0),
         const SingleActivator(LogicalKeyboardKey.arrowDown, alt: true): const CalibrateReferencePitchIntent(-1.0),
 
-        // Modales de sistema
+        // Modales de sistema y búsqueda global (Cmd+K y Cmd+F)
         const SingleActivator(LogicalKeyboardKey.keyK, control: true): const OpenCommandPaletteIntent(),
         const SingleActivator(LogicalKeyboardKey.keyK, meta: true): const OpenCommandPaletteIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyF, control: true): const OpenCommandPaletteIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyF, meta: true): const OpenCommandPaletteIntent(),
         const SingleActivator(LogicalKeyboardKey.keyI, control: true): const OpenInstrumentSelectorIntent(),
         const SingleActivator(LogicalKeyboardKey.keyI, meta: true): const OpenInstrumentSelectorIntent(),
         const SingleActivator(LogicalKeyboardKey.slash, shift: true): const OpenShortcutsGuideIntent(),
@@ -297,6 +349,22 @@ class _MainAppShellState extends State<MainAppShell> {
         actions: <Type, Action<Intent>>{
           TogglePlayIntent: CallbackAction<TogglePlayIntent>(
             onInvoke: (_) => viewModel.toggleMetronome(),
+          ),
+          RewindToStartIntent: CallbackAction<RewindToStartIntent>(
+            onInvoke: (_) {
+              viewModel.resetSongState();
+              viewModel.selectMeasure(0);
+              return null;
+            },
+          ),
+          ToggleCycleLoopIntent: CallbackAction<ToggleCycleLoopIntent>(
+            onInvoke: (_) => viewModel.togglePracticeMode(),
+          ),
+          NudgeMeasureBackIntent: CallbackAction<NudgeMeasureBackIntent>(
+            onInvoke: (_) => viewModel.previousMeasure(),
+          ),
+          NudgeMeasureForwardIntent: CallbackAction<NudgeMeasureForwardIntent>(
+            onInvoke: (_) => viewModel.nextMeasure(),
           ),
           ToggleRecordIntent: CallbackAction<ToggleRecordIntent>(
             onInvoke: (_) {
