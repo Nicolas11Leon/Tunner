@@ -211,6 +211,9 @@ class ModularRackViewModel extends ChangeNotifier {
       case RackModuleType.guidedLessons:
         accepted.addAll([SignalType.temporalClock, SignalType.pitchEvents]);
         break;
+      case RackModuleType.earTrainer:
+        accepted.addAll([SignalType.pitchEvents, SignalType.audioPcm, SignalType.tuningCalibration]);
+        break;
       case RackModuleType.metronome:
         accepted.add(SignalType.transportControl);
         break;

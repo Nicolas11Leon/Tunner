@@ -99,13 +99,25 @@ class ToolHelpCatalog {
     ),
     'chord_analyzer': ToolHelpItem(
       id: 'chord_analyzer',
-      title: 'Analizador Polifónico de Acordes',
+      title: 'Visualizador Polifónico de Acordes y Armónicos',
       category: 'Armonía & Análisis',
       description:
-          'Detecta notas simultáneas y calcula la fundamental, tercera, quinta y tensiones de acordes mayores, menores y con séptima.',
+          'Detecta notas simultáneas y calcula la fundamental, tercera, quinta y tensiones, así como la descomposición de la serie armónica H1 a H8.',
       pedagogicalTip:
-          'Toca arpegios o acordes completos para verificar la claridad armónica y la presencia de notas no deseadas.',
-      shortcutKeys: ['C'],
+          'Toca arpegios o acordes completos para verificar la afinación individual de cada cuerda y la coherencia de tensiones armónicas.',
+      acousticFormula: r'H_n = n \cdot f_0, \quad \text{cents} = 1200 \cdot \log_2(f / f_{\text{ref}})',
+      shortcutKeys: ['C', 'Alt + C'],
+    ),
+    'ear_trainer': ToolHelpItem(
+      id: 'ear_trainer',
+      title: 'Entrenador Auditivo de Intervalos a Ciegas',
+      category: 'Entrenamiento Auditivo',
+      description:
+          'Módulo de conservatorio para aislar el oído musical ("Modo a Ciegas") y reconocer intervalos ascendentes y descendentes con evaluación de cents.',
+      pedagogicalTip:
+          'Entrena el oído interno sin mirar la pantalla. Usa los atajos numéricos 1-4 para responder al instante y Espacio para repetir el sonido.',
+      acousticFormula: r'r_{\text{just}} = \frac{p}{q}, \quad r_{\text{equal}} = 2^{\frac{n}{12}}',
+      shortcutKeys: ['E', '1 - 4 (Opciones)', 'Espacio (Repetir)', 'Enter (Siguiente)'],
     ),
     'guided_lessons': ToolHelpItem(
       id: 'guided_lessons',

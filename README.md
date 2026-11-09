@@ -1,12 +1,12 @@
 # Tunner: Studio Pitch, Real-Time Acoustic Lab and Sheet Music Engine
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
-[![Tests: 445 Passing](https://img.shields.io/badge/Tests-445%20Passing-brightgreen.svg)]()
+[![Tests: 480 Passing](https://img.shields.io/badge/Tests-480%20Passing-brightgreen.svg)]()
 [![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
 [![Framework: Flutter](https://img.shields.io/badge/Framework-Flutter-02569B.svg)]()
 [![Platform: Linux | Android | iOS | macOS | Windows](https://img.shields.io/badge/Platform-Linux%20%7C%20Android%20%7C%20iOS%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
-> **Tunner** es una estación de trabajo acústica, de edición musical, síntesis procedural y pedagogía de código abierto de grado conservatorio. Diseñada para dotar al ecosistema libre del software musical más preciso y riguroso, combina en un único ejecutable local: afinación estroboscópica virtual de ultra precisión ($\pm 0.1\text{ cents}$), algoritmo McLeod Pitch Method (MPM con NSDF) resistente a saltos de octava, calibración de tono de concierto ($A_4$ ajustable de 415 a 466 Hz), motor vectorial de partituras SMuFL a 60/120 FPS, rack de estudio modular interactivo con manipulación drag-and-drop, consola central multitarea de transporte sincronizado, bus reactivo de señales por identificadores de puerto, taxonomía universal de instrumentos (Hornbostel-Sachs y General MIDI), motor de micro-desafinación acústica por tecla o cuerda, emulador universal de teclado y secuenciador de estrofas melódicas, motor de síntesis procedural en memoria con envolvente ADSR, consola mezcladora multicanal de stems, importador/exportador universal bidireccional (MusicXML 3.1 y MIDI SMF Formato 0), metrónomo determinista en Isolate, grabador de práctica de alta fidelidad con auto-escucha, analítica pedagógica 4D, persistencia atómica offline y personalización estética avanzada.
+> **Tunner** es una estación de trabajo acústica, de edición musical, síntesis procedural y pedagogía de código abierto de grado conservatorio. Diseñada para dotar al ecosistema libre del software musical más preciso y riguroso, combina en un único ejecutable local: afinación estroboscópica virtual de ultra precisión ($\pm 0.1\text{ cents}$), algoritmo McLeod Pitch Method (MPM con NSDF) resistente a saltos de octava, calibración de tono de concierto ($A_4$ ajustable de 415 a 466 Hz), visualizador polifónico en tiempo real con armónicos $H_1\dots H_8$, entrenador auditivo de intervalos a ciegas (*Blind Ear Pitch Trainer*), motor vectorial de partituras SMuFL a 60/120 FPS, rack de estudio modular interactivo con manipulación drag-and-drop, consola central multitarea de transporte sincronizado con atajos estándar de DAWs (Ableton, Logic, Pro Tools), bus reactivo de señales por identificadores de puerto, taxonomía universal de instrumentos (Hornbostel-Sachs y General MIDI), motor de micro-desafinación acústica por tecla o cuerda, emulador universal de teclado y secuenciador de estrofas melódicas, motor de síntesis procedural en memoria con envolvente ADSR, consola mezcladora multicanal de stems, importador/exportador universal bidireccional (MusicXML 3.1 y MIDI SMF Formato 0), metrónomo determinista en Isolate, grabador de práctica de alta fidelidad con auto-escucha, analítica pedagógica 4D, persistencia atómica offline y personalización estética avanzada.
 
 ---
 
@@ -177,17 +177,19 @@ tunner/
 │   │   ├── practice_evaluator/     # Analitica pedagogica 4D (rushing, dragging, entonacion)
 │   │   ├── universal_importer/     # Codecs bidireccionales MusicXML 3.1 y MIDI SMF Formato 0
 │   │   ├── acoustic_lab/           # Espectrograma de armonicos FFT y centroide timbrico
+│   │   ├── ear_training/           # Entrenador auditivo de intervalos a ciegas (Blind Mode)
+│   │   ├── chord_analyzer/         # Analizador polifónico y visualizador armónico H1-H8
 │   │   ├── exercise_generator/     # Generador procedural de escalas y arpegios
 │   │   ├── mixer/                  # Consola mezcladora multicanal de stems
 │   │   ├── song_library/           # Descompositor pedagogico y repertorio
 │   │   ├── vocal_autotune/         # Corrector de afinacion DSP vocal en tiempo real
 │   │   ├── persistence/            # Persistencia atomica offline (.tmp + rename seguro)
-│   │   ├── navigation/             # MainAppShell y Dashboard de navegacion universal
+│   │   ├── navigation/             # MainAppShell, Quick Action Dock y atajos DAW
 │   │   ├── tuner_viewmodel.dart    # Orquestador principal con Inversion de Dependencias
 │   │   └── tuner_screen.dart       # Pantalla tradicional unificada del laboratorio acustico
 │   └── main.dart                   # Punto de entrada de la aplicacion
-├── test/                           # 445 pruebas unitarias, de integracion y de widgets
-└── docs/                           # Casos de Uso (Mermaid), ADRs y Especificaciones Tecnicas
+├── test/                           # 480 pruebas unitarias, de integracion y de widgets
+└── docs/                           # 55 Casos de Uso, 49 ADRs, Manual 1.0 y Especificaciones
 ```
 
 ---
@@ -211,7 +213,7 @@ flutter pub get
 # 3. Analisis estatico de codigo (0 advertencias)
 flutter analyze
 
-# 4. Ejecucion de la suite completa de pruebas (445 pruebas passing)
+# 4. Ejecucion de la suite completa de pruebas (480 pruebas passing)
 flutter test
 ```
 

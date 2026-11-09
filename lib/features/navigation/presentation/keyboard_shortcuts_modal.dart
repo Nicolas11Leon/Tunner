@@ -106,6 +106,8 @@ class KeyboardShortcutsCheatSheetModal extends StatelessWidget {
                         _buildRow('M', 'Alternar Metrónomo Determinista en Isolate'),
                         _buildRow('S', 'Pentagrama Interactivo SMuFL & Transcripción en Vivo'),
                         _buildRow('L', 'Tutor de Lecciones & Rushing/Dragging'),
+                        _buildRow('Shift + E', 'Entrenador Auditivo a Ciegas (Intervalos de Oído)'),
+                        _buildRow('Shift + C', 'Visualizador Polifónico de Acordes & Armónicos H1-H8'),
                         _buildRow('0', 'Silencio Total / Panic Mute (detener todo el sonido)'),
                       ]),
                       const SizedBox(height: 16),

@@ -3,6 +3,7 @@ import '../../../core/theme/tunner_theme.dart';
 import '../../tuner_viewmodel.dart';
 import 'chord_radar_widget.dart';
 import 'multi_tone_voicing_widget.dart';
+import 'polyphonic_live_voicing_widget.dart';
 
 /// Modal interactivo para el Reconocimiento Polifónico de Acordes y Análisis Armónico.
 class ChordAnalyzerModal extends StatelessWidget {
@@ -82,6 +83,13 @@ class ChordAnalyzerModal extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+                // Botón para abrir el visualizador polifónico en vivo con armónicos H1-H8
+                IconButton(
+                  key: const Key('btn_open_live_harmonics_modal'),
+                  icon: Icon(Icons.equalizer, color: palette.primaryAccent),
+                  tooltip: 'Visualizador de Armónicos H1-H8',
+                  onPressed: () => PolyphonicLiveVoicingModal.show(context, viewModel),
                 ),
                 // Switch de activación
                 IconButton(
