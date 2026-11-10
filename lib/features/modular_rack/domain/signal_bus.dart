@@ -3,6 +3,7 @@ import 'atomic_signal_event.dart';
 import 'interoperable_module_node.dart';
 import 'module_connection.dart';
 import 'port_id.dart';
+import 'synergy_policy_engine.dart';
 
 /// Bus de señales en memoria local de Clean Architecture.
 /// Permite el despacho determinista de eventos de audio, pitch, notas y reloj
@@ -91,12 +92,17 @@ class SignalBus {
       return;
     }
 
-    // Validar compatibilidad de señales si es punto a punto
-    if (connection.destinationPort != null &&
-        connection.sourcePort.signalType != connection.destinationPort!.signalType) {
-      throw ArgumentError(
-        'Incompatibilidad de señal: No se puede conectar ${connection.sourcePort.signalType.displayName} con ${connection.destinationPort!.signalType.displayName}',
+    // Validar compatibilidad y políticas de sinergia si es punto a punto
+    if (connection.destinationPort != null) {
+      final validation = SynergyPolicyEngine.validateConnection(
+        sourcePort: connection.sourcePort,
+        destinationPort: connection.destinationPort!,
       );
+      if (!validation.isApproved) {
+        throw ArgumentError(
+          'Conexión rechazada por SynergyPolicyEngine: ${validation.rejectionReason}',
+        );
+      }
     }
 
     registerPort(connection.sourcePort);
