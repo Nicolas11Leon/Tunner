@@ -7,6 +7,8 @@ class TimedPitchSample {
   final double centsDeviation;
   final String targetNoteName;
   final bool isSilent;
+  final double? correctedPitchHz;
+  final bool isAutoTuned;
 
   const TimedPitchSample({
     required this.timeMs,
@@ -14,6 +16,8 @@ class TimedPitchSample {
     required this.centsDeviation,
     required this.targetNoteName,
     this.isSilent = false,
+    this.correctedPitchHz,
+    this.isAutoTuned = false,
   });
 
   Map<String, dynamic> toMap() => {
@@ -22,6 +26,8 @@ class TimedPitchSample {
     'centsDeviation': centsDeviation,
     'targetNoteName': targetNoteName,
     'isSilent': isSilent,
+    if (correctedPitchHz != null) 'correctedPitchHz': correctedPitchHz,
+    'isAutoTuned': isAutoTuned,
   };
 
   factory TimedPitchSample.fromMap(Map<String, dynamic> map) => TimedPitchSample(
@@ -30,6 +36,8 @@ class TimedPitchSample {
     centsDeviation: (map['centsDeviation'] as num?)?.toDouble() ?? 0.0,
     targetNoteName: map['targetNoteName'] as String? ?? '--',
     isSilent: map['isSilent'] as bool? ?? false,
+    correctedPitchHz: (map['correctedPitchHz'] as num?)?.toDouble(),
+    isAutoTuned: map['isAutoTuned'] as bool? ?? false,
   );
 }
 

@@ -76,6 +76,7 @@ import 'guided_lessons/domain/instrument_pedagogy_adapter_engine.dart';
 import 'vocal_autotune/domain/autotune_config_entity.dart';
 import 'vocal_autotune/domain/scale_quantizer.dart';
 import 'vocal_autotune/domain/vocal_autotune_processor.dart';
+import 'vocal_autotune/domain/vocal_score_converter.dart';
 import 'instrument/domain/smart_instrument_detector.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
@@ -211,6 +212,11 @@ class TunerViewModel extends ChangeNotifier {
   // Motor de Vocal AutoTune en Tiempo Real y Post-Producción
   final VocalAutoTuneProcessor _autoTuneProcessor;
   ScaleQuantizationResult _lastAutoTuneResult = ScaleQuantizationResult.unvoiced(0.0);
+
+  // Conversor Vocal a Pentagrama y Melodyne Mode (UC-60)
+  final VocalScoreConverter _vocalScoreConverter = const VocalScoreConverter();
+  SongPackage? _lastConvertedVocalPackage;
+  VocalScoreConversionResult? _lastVocalConversionResult;
 
   // Motor de Síntesis SoundFont SF2 y Timbres Acústicos
   final SoundFontSynthesizerService _soundFontSynthesizer;
@@ -451,6 +457,10 @@ class TunerViewModel extends ChangeNotifier {
   bool get isSmartInstrumentTuningActive => _isSmartInstrumentTuningActive;
   bool get autoSwitchInstrumentEnabled => _autoSwitchInstrumentEnabled;
   SmartInstrumentMatch? get lastDetectedMatch => _lastDetectedMatch;
+
+  // --- Vocal Suite & Melodyne Mode (UC-60) ---
+  SongPackage? get lastConvertedVocalPackage => _lastConvertedVocalPackage;
+  VocalScoreConversionResult? get lastVocalConversionResult => _lastVocalConversionResult;
 
   // --- Getters de Grabación & Auto-Escucha (Loopback) ---
   bool get isAudioRecording => _isAudioRecording;
@@ -1742,13 +1752,21 @@ class TunerViewModel extends ChangeNotifier {
     if (_currentPitchTrack.isNotEmpty && (timeMs - _currentPitchTrack.last.timeMs).abs() < 20) {
       return;
     }
+
+    final isAutoTuned = _autoTuneProcessor.config.isEnabled && _lastAutoTuneResult.targetFrequencyHz > 20.0;
+    final correctedPitch = isAutoTuned ? _lastAutoTuneResult.targetFrequencyHz : null;
+    final effectiveCents = isAutoTuned ? _lastAutoTuneResult.centsDeviation : cents;
+    final effectiveNoteName = isAutoTuned ? _lastAutoTuneResult.targetNoteName : noteName;
+
     _currentPitchTrack.add(
       TimedPitchSample(
         timeMs: timeMs,
         frequencyHz: pitch,
-        centsDeviation: cents,
-        targetNoteName: _expectedNote?.noteName ?? noteName,
+        centsDeviation: effectiveCents,
+        targetNoteName: _expectedNote?.noteName ?? effectiveNoteName,
         isSilent: isSilent || pitch <= 20.0,
+        correctedPitchHz: correctedPitch,
+        isAutoTuned: isAutoTuned,
       ),
     );
     if (pitch > 20.0) {
@@ -2334,6 +2352,79 @@ class TunerViewModel extends ChangeNotifier {
     notifyListeners();
     _triggerAutoSave();
     return tunedTake;
+  }
+
+  /// Convierte la toma de grabación activa a un SongPackage editable en el ScoreEditor (UC-60).
+  VocalScoreConversionResult? convertActiveRecordingToScorePackage({
+    String? takeId,
+    bool preferCorrectedPitch = true,
+    bool autoLoadAsActivePackage = true,
+  }) {
+    List<TimedPitchSample>? samples;
+    String title = 'Toma Vocal en Vivo';
+
+    if (takeId != null) {
+      final index = _multiTrackSession.takes.indexWhere((t) => t.id == takeId);
+      if (index != -1) {
+        final take = _multiTrackSession.takes[index];
+        samples = take.pitchTrack;
+        title = 'Toma Afinada: ${take.name}';
+      }
+    }
+
+    if (samples == null || samples.isEmpty) {
+      if (_currentPitchTrack.isNotEmpty) {
+        samples = List<TimedPitchSample>.from(_currentPitchTrack);
+      } else if (_multiTrackSession.takes.isNotEmpty) {
+        final lastTake = _multiTrackSession.takes.last;
+        samples = lastTake.pitchTrack;
+        title = 'Toma Afinada: ${lastTake.name}';
+      }
+    }
+
+    if (samples == null || samples.isEmpty) return null;
+
+    final result = _vocalScoreConverter.convertTrackToScore(
+      pitchTrack: samples,
+      title: title,
+      bpm: _bpm,
+      timeSignature: currentMeasureTimeSignature,
+      preferCorrectedPitch: preferCorrectedPitch,
+    );
+
+    _lastVocalConversionResult = result;
+    _lastConvertedVocalPackage = result.package;
+
+    if (autoLoadAsActivePackage) {
+      _scoreHistory.recordState(_activePackage);
+      _activePackage = result.package;
+      _currentMeasureIndex = 0;
+      _currentSubTick = -1;
+      _measureHistory.clear();
+    }
+
+    notifyListeners();
+    return result;
+  }
+
+  /// Cuantiza todas las notas de la partitura activa a la escala musical actual (Melodyne 1-Tap Snap).
+  void snapActiveScoreToScale({
+    int? rootKey,
+    VocalScaleType? scaleType,
+  }) {
+    final effectiveRoot = rootKey ?? _autoTuneProcessor.config.scaleRoot;
+    final effectiveScale = scaleType ?? _autoTuneProcessor.config.scaleType;
+
+    _scoreHistory.recordState(_activePackage);
+    final snapped = _vocalScoreConverter.snapToScale(
+      package: _activePackage,
+      rootKey: effectiveRoot,
+      scaleType: effectiveScale,
+    );
+
+    _activePackage = snapped;
+    notifyListeners();
+    _triggerAutoSave();
   }
 
   @override

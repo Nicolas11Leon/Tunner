@@ -276,18 +276,41 @@ class PracticeRecordingPlayerModal extends StatelessWidget {
                 ],
               ),
 
-              // Botón Listo / Guardar
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: palette.cardBackground,
-                  foregroundColor: palette.textColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.4)),
+              // Acciones Finales (Pentagrama & Guardar)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    key: const Key('convert_take_to_score_button'),
+                    icon: Icon(Icons.queue_music_rounded, color: palette.primaryAccent),
+                    tooltip: "Editar afinación en Pentagrama",
+                    onPressed: () {
+                      final result = vm.convertActiveRecordingToScorePackage();
+                      Navigator.of(context).pop();
+                      if (result != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Toma convertida a partitura (${result.totalNotes} notas detectadas).'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    },
                   ),
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text("Conservar"),
+                  const SizedBox(width: 4),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: palette.cardBackground,
+                      foregroundColor: palette.textColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.4)),
+                      ),
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text("Conservar"),
+                  ),
+                ],
               ),
             ],
           ),

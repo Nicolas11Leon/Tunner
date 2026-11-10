@@ -716,12 +716,67 @@ class VocalAutoTuneModal extends StatelessWidget {
                                     textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                                   ),
                                 ),
+                                const SizedBox(width: 6),
+                                ElevatedButton.icon(
+                                  key: Key('vocal_to_score_btn_${take.id}'),
+                                  onPressed: () {
+                                    final result = viewModel.convertActiveRecordingToScorePackage(
+                                      takeId: take.id,
+                                      preferCorrectedPitch: true,
+                                    );
+                                    Navigator.of(context).pop();
+                                    if (result != null) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Partitura creada desde ${take.name} (${result.totalNotes} notas).'),
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  icon: const Icon(Icons.queue_music, size: 14),
+                                  label: const Text('Pentagrama'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: palette.cardBackground,
+                                    foregroundColor: palette.primaryAccent,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                    side: BorderSide(color: palette.primaryAccent.withValues(alpha: 0.5)),
+                                  ),
+                                ),
                               ],
                             ),
                           );
                         }),
                       ],
                     ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    key: const Key('snap_active_score_to_scale_btn'),
+                    onPressed: () {
+                      viewModel.snapActiveScoreToScale();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Partitura alineada a la escala ${config.scaleType.displayName}.'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.tune, size: 16),
+                    label: Text(
+                      'Alinear Partitura a ${config.scaleType.displayName} (Melodyne Snap)',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: palette.primaryAccent,
+                      side: BorderSide(color: palette.primaryAccent.withValues(alpha: 0.6)),
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
