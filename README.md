@@ -3,19 +3,25 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Tests: 538 Passing](https://img.shields.io/badge/Tests-538%20Passing-brightgreen.svg)]()
 [![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
+[![Architecture: Clean Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-informational.svg)]()
+[![Privacy: 100% Offline--First](https://img.shields.io/badge/Privacy-100%25%20Offline--First-blueviolet.svg)]()
+[![Latency: Sub--10ms Target](https://img.shields.io/badge/Latency-Sub--10ms%20Target-orange.svg)]()
 [![Framework: Flutter](https://img.shields.io/badge/Framework-Flutter-02569B.svg)]()
 [![Platform: Linux | Android | iOS | macOS | Windows](https://img.shields.io/badge/Platform-Linux%20%7C%20Android%20%7C%20iOS%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
+[![Contributing: Welcome](https://img.shields.io/badge/Contributions-Welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-> **Tunner** es una estación de trabajo acústica, de edición musical, síntesis procedural y pedagogía de código abierto de grado conservatorio. Diseñada para dotar al ecosistema libre del software musical más preciso y riguroso, combina en un único ejecutable local: afinación estroboscópica virtual de ultra precisión ($\pm 0.1\text{ cents}$), algoritmo McLeod Pitch Method (MPM con NSDF) resistente a saltos de octava, calibración de tono de concierto ($A_4$ ajustable de 415 a 466 Hz), visualizador polifónico en tiempo real con armónicos $H_1\dots H_8$, afinador inteligente con reconocimiento de timbre y adaptación acústica de micrófonos, suite vocal con Auto-Tune en tiempo real, grabación multipista con metadata dual y edición microtonal en pentagrama (modo Melodyne), catálogo canónico de tareas de práctica (TTC) con navegación modal instantánea ($O(1)$) y conmutación rápida (`J`), entrenador auditivo de intervalos a ciegas (*Blind Ear Pitch Trainer*), motor vectorial de partituras SMuFL a 60/120 FPS, rack de estudio modular interactivo con manipulación drag-and-drop, consola central multitarea de transporte sincronizado con atajos estándar de DAWs (Ableton, Logic, Pro Tools), bus reactivo de señales por identificadores de puerto, taxonomía universal de instrumentos (Hornbostel-Sachs y General MIDI), motor de micro-desafinación acústica por tecla o cuerda, emulador universal de teclado y secuenciador de estrofas melódicas, motor de síntesis procedural en memoria con envolvente ADSR, consola mezcladora multicanal de stems, importador/exportador universal bidireccional (MusicXML 3.1 y MIDI SMF Formato 0), metrónomo determinista en Isolate, grabador de práctica de alta fidelidad con auto-escucha, analítica pedagógica 4D, persistencia atómica offline y personalización estética avanzada.
+> **Tunner** es una estación de trabajo acústica, de edición musical, síntesis procedural y pedagogía de código abierto de grado conservatorio. Diseñada para dotar al ecosistema libre del software musical más preciso, riguroso y transparente del mundo, combina en un único ejecutable local: afinación estroboscópica virtual de ultra precisión ($\pm 0.1\text{ cents}$), algoritmo McLeod Pitch Method (MPM con NSDF) resistente a saltos de octava, afinador inteligente con reconocimiento multivariado de instrumentos y adaptación acústica de micrófonos, suite vocal con Auto-Tune en tiempo real, grabación multipista con metadata dual y edición microtonal en pentagrama (modo Melodyne), catálogo canónico de tareas de práctica (TTC) con navegación modal instantánea ($O(1)$) y conmutación rápida (`J`), entrenador auditivo de intervalos a ciegas (*Blind Ear Pitch Trainer*), motor vectorial de partituras SMuFL a 60/120 FPS, sintetizador en memoria de tablas de ondas SoundFont SF2, rack de estudio modular interactivo con manipulación drag-and-drop, consola central de transporte sincronizado con atajos de DAWs profesionales, bus reactivo de señales por identificadores de puerto, taxonomía universal de instrumentos (Hornbostel-Sachs y General MIDI), motor de micro-desafinación acústica por tecla o cuerda, emulador universal de teclado y secuenciador de estrofas, consola mezcladora multicanal de stems, importador/exportador universal bidireccional (MusicXML 3.1 y MIDI SMF Formato 0), metrónomo determinista en Isolate, grabador de práctica de alta fidelidad con auto-escucha, analítica pedagógica 4D, persistencia atómica offline y personalización estética avanzada.
 
 ---
 
-## 1. Filosofia y Principios Arquitectonicos
+## 1. Filosofía y Principios Arquitectónicos
 
-Tunner se distribuye como un bien publico abierto bajo licencia **GNU AGPLv3**.
-* **100% Offline First:** Todo el procesamiento digital de señales (DSP), estimacion de tono, decodificacion y serializacion binaria, sintesis procedural, grabacion, almacenamiento atómico y renderizado vectorial se ejecuta localmente en el dispositivo. Cero telemetria invasiva, cero latencia de red y cero dependencia de servidores en la nube.
-* **Clean Architecture y Monolito Modular:** Separacion estricta entre Dominio (Dart puro sin dependencias de interfaces graficas), Datos/Infraestructura (codecs binarios, streams PCM, Isolates, persistencia local) y Presentacion (Flutter reactivo con ViewModels e Inversion de Dependencias).
-* **Disciplina de Audio y Hardware:** Ausencia absoluta de bucles de espera activa (*zero busy-waiting*). Los hilos secundarios e Isolates ceden tiempo de CPU al sistema operativo mediante temporizadores de alta resolucion. Latencia objetivo sub-10ms entre captura acustica y actualizacion visual.
+Tunner se distribuye como un bien público abierto bajo licencia **GNU AGPLv3** con una visión inquebrantable: **democratizar la educación musical de alto rendimiento y el software de audio profesional, eliminando barreras económicas, suscripciones forzosas y dependencia de servidores remotos.**
+
+* **100% Offline-First:** Todo el procesamiento digital de señales (DSP), estimación de tono, decodificación y serialización binaria, síntesis procedural y SoundFont SF2, grabación, almacenamiento atómico y renderizado vectorial se ejecuta localmente en el dispositivo. Cero telemetría invasiva, cero latencia de red y cero dependencia de la nube.
+* **Clean Architecture y Monolito Modular:** Separación estricta entre Dominio (Dart puro sin dependencias de interfaces gráficas ni plugins), Datos/Infraestructura (códecs binarios, streams PCM, Isolates, persistencia local) y Presentación (Flutter reactivo con ViewModels e Inversión de Dependencias).
+* **Disciplina de Audio y Hardware:** Ausencia absoluta de bucles de espera activa (*zero busy-waiting*). Los hilos secundarios e Isolates ceden tiempo de CPU al sistema operativo mediante temporizadores de alta resolución. Latencia objetivo sub-10ms entre captura acústica y actualización visual.
+* **Extensibilidad In-Process de Bajo Nivel:** La arquitectura modular monolítica prevé el uso de **`dart:ffi` con C, C++ o Rust** para cómputo DSP en bloque de bare-metal dentro del mismo binario local, rechazando microservicios sobre la red para preservar la latencia cero.
 
 ---
 
@@ -32,17 +38,17 @@ graph TD
     A["Tunner Studio Core"]:::core --> B["Laboratorio de Afinacion & Pitch"]:::tuner
     A --> C["Motor de Notacion SMuFL & Pentagrama"]:::sheet
     A --> D["Rack de Estudio Modular & Multitarea"]:::core
-    A --> E["Taxonomia Universal de Instrumentos"]:::audio
-    A --> F["Estudio de Grabacion & Auto-Escucha"]:::audio
+    A --> E["Taxonomia de Instrumentos & Sintesis SF2"]:::audio
+    A --> F["Estudio Vocal & Grabacion Multipista"]:::audio
     A --> G["Importador & Exportador Universal"]:::sheet
-    A --> H["Evaluacion Pedagogica 4D"]:::tuner
+    A --> H["Evaluacion Pedagogica 4D & TTC"]:::tuner
     A --> I["Consola Mezcladora de Stems"]:::audio
     A --> J["Persistencia Local Atomica Offline"]:::storage
 
     B --> B1["Afinador Estroboscopico Virtual (±0.1 Cents)"]:::tuner
-    B --> B2["Calibracion A4 (415 Hz Barroco - 466 Hz)"]:::tuner
+    B --> B2["Afinador Inteligente & Reconocimiento Timbrico"]:::tuner
     B --> B3["Estimador McLeod Pitch Method (NSDF)"]:::tuner
-    B --> B4["Temperamentos Historicos (8 Sistemas)"]:::tuner
+    B --> B4["Calibracion A4 (415-466 Hz) & 8 Temperamentos"]:::tuner
 
     C --> C1["Renderizado Vectorial SMuFL 60/120 FPS"]:::sheet
     C --> C2["Playhead en Tiempo Real por Sub-Ticks"]:::sheet
@@ -50,108 +56,139 @@ graph TD
     C --> C4["Editor de Partituras con Historial Memento"]:::sheet
 
     D --> D1["Lienzo Modular Reordenable Drag and Drop"]:::core
-    D --> D2["Consola Multitarea de Transporte Global"]:::core
+    D --> D2["Consola Multitarea de Transporte Sincronizado"]:::core
     D --> D3["Bus de Senales y Ruteo por IDs (Punto a Punto / Broadcast)"]:::core
 
     E --> E1["Clasificacion Hornbostel-Sachs & General MIDI"]:::audio
-    E --> E2["Sintesis Procedural con Envolvente ADSR"]:::audio
+    E --> E2["Sintetizador SoundFont SF2 & Procedural ADSR"]:::audio
     E --> E3["Desafinacion Microtonal por Tecla o Cuerda"]:::audio
-    E --> E4["Teclado Maestro Universal & Emulador de Estrofas"]:::audio
+    E --> E4["Teclado Maestro Universal & Secuenciador"]:::audio
 
-    F --> F1["Grabacion AAC / WAV de Alta Fidelidad"]:::audio
-    F --> F2["Visualizador de Onda Sonora Dinamica"]:::audio
-    F --> F3["Reproductor Loopback con Velocidad Variable"]:::audio
+    F --> F1["Suite Vocal con Auto-Tune en Tiempo Real"]:::audio
+    F --> F2["Grabacion Multipista con Metadata Dual de Tono"]:::audio
+    F --> F3["Edicion Microtonal en Pentagrama (Modo Melodyne)"]:::audio
 
     G --> G1["Parser & Exportador MusicXML 3.1 (W3C)"]:::sheet
     G --> G2["Parser & Serializador Binario MIDI SMF 0"]:::sheet
 
     H --> H1["Deteccion de Rushing vs Dragging"]:::tuner
-    H --> H2["Modo Smart Wait de Entonacion"]:::tuner
+    H --> H2["Catalogo de Tareas de Practica (TTC) & Salto 'J'"]:::tuner
     H --> H3["Reporte de Desempeno y Grados S, A, B, C, D"]:::tuner
 ```
 
 ---
 
-## 3. Especificacion Tecnica de Funcionalidades
+## 3. Especificación Técnica de Funcionalidades
 
-### 3.1 Afinador Estroboscopico Virtual de Ultra Alta Precision
+### 3.1 Afinador Estroboscópico Virtual de Ultra Alta Precisión
 * **Espectro Completo de Cobertura:** Soporta desde el sub-bajo $27.50\text{ Hz}$ ($A_0$) hasta el soprano extremo $4186.01\text{ Hz}$ ($C_8$).
-* **Fisica Estroboscopica Real:** Bandas cilindricas vectoriales cuya velocidad angular y direccion de rotacion son matematicamente proporcionales al error microtonal ($\pm 50.0\text{ cents}$).
-* **Bloqueo Optico de Conservatorio:** Indicador luminico de tolerancia cuando la desviacion entra en el rango milimetrico de $\pm 3.0\text{ cents}$.
-* **Filtrado RMS y Condicionamiento de Senal:** Algoritmo de supresion de ruido ambiental (Noise Gate) que descarta senales espurias y aisla la fundamental pura en instrumentos acusticos y electronicos.
+* **Física Estroboscópica Real:** Bandas cilíndricas vectoriales cuya velocidad angular y dirección de rotación son matemáticamente proporcionales al error microtonal ($\pm 50.0\text{ cents}$).
+* **Bloqueo Óptico de Conservatorio:** Indicador lumínico de tolerancia cuando la desviación entra en el rango milimétrico de $\pm 3.0\text{ cents}$.
+* **Filtrado RMS y Puerta de Ruido:** Supresión inteligente de ruido ambiental (*Noise Gate*) que aísla la fundamental pura en instrumentos acústicos y voces.
 
 ### 3.2 Estimador de Tono McLeod (McLeod Pitch Method - MPM)
-* **Funcion de Diferencia Cuadrada Normalizada (NSDF):** Resuelve los problemas de duplicacion de octava inherentes a la autocorrelacion estandar (ACF) y la transformada de Fourier de baja resolucion:
+* **Función de Diferencia Cuadrada Normalizada (NSDF):** Resuelve los problemas de duplicación de octava inherentes a la autocorrelación estándar:
   $$r_t(\tau) = \frac{2 \sum_{j=t}^{t+W-1} x_j x_{j+\tau}}{\sum_{j=t}^{t+W-1} (x_j^2 + x_{j+\tau}^2)}$$
-* **Seleccion de Pico con Umbral Dinamico:** Detecta el primer maximo relevante que supera el factor de claridad $k = 0.85 \cdot \text{maxPeak}$, garantizando fidelidad ante ataques rapidos y dinamicas complejas.
-* **Interpolacion Parabolica Sub-Muestral:** Correccion fraccional del lag $\delta$:
+* **Selección de Pico con Umbral Dinámico:** Detecta el primer máximo relevante que supera el factor de claridad $k = 0.85 \cdot \text{maxPeak}$, garantizando fidelidad ante ataques rápidos y timbres complejos.
+* **Interpolación Parabólica Sub-Muestral:** Corrección fraccional del lag $\delta$:
   $$\delta = \frac{\alpha - \gamma}{2(\alpha - 2\beta + \gamma)}$$
-  proporcionando resolucion centesimal sin sobrecargar el hilo de renderizado.
+  proporcionando resolución centesimal sin sobrecargar el hilo de renderizado.
 
-### 3.3 Calibracion de Concierto A4 y Temperamentos Historicos
-* **Calibracion Fina de Tono:** Selector de referencia continua de 415 a 466 Hz con presets historicos y modernos:
-  * 440 Hz: Estandar Internacional ISO 16.
-  * 442 Hz: Afinacion Sinfonica de Concierto Europea y Norteamericana.
-  * 444 Hz: Solistas de Brillo y Ensambles de Viento.
-  * 432 Hz: Afinacion Cientifica / Tono de Verdi.
-  * 415 Hz: Afinacion Barroca Historica (Bach, Handel, Telemann).
-* **Recalculo Exponencial Integral:**
+### 3.3 Afinador Inteligente con Reconocimiento Tímbrico Multivariado
+* **Clasificador Acústico Cuatridimensional:** Combina rango de frecuencias fundamentales ($35\%$), similitud coseno de armónicos $H_1\dots H_8$ ($35\%$), fracción de armónicos impares ($15\%$) y centroide espectral ($15\%$).
+* **Adaptación Automática de Filtros:** Ajusta en tiempo real los filtros de paso de banda del micrófono y selecciona el timbre SoundFont SF2 idéntico al instrumento identificado (Flauta, Clarinete, Guitarra, Violín, Trompeta, etc.).
+
+### 3.4 Suite Vocal, Auto-Tune en Tiempo Real y Modo Melodyne
+* **Corrección Tonal Instantánea:** Cuantiza la fundamental detectada hacia la escala musical seleccionada (Mayor, Menor, Pentatónica, Dórica, Maqam, etc.) con tiempo de retuning y tracking de formantes configurable.
+* **Grabación Multipista con Metadata Dual:** Registra de manera simultánea el tono natural emitido (`rawPitchHz`) y el tono procesado (`correctedPitchHz`).
+* **Edición de Afinación en Pentagrama:** Convierte tomas vocales en notas cuantizadas sobre el pentagrama vectorial SMuFL, permitiendo ajustes microtonales nota por nota o cuantización a escala con 1 toque (*Snap to Scale*).
+
+### 3.5 Calibración de Concierto A4 y 8 Temperamentos Históricos
+* **Calibración Fina de Tono:** Selector continuo de 415 a 466 Hz (440 Hz ISO 16, 442 Hz orquestal, 432 Hz Verdi, 415 Hz Barroco).
+* **Recálculo Exponencial Integral:**
   $$f(n) = f_{\text{ref}} \cdot 2^{\frac{n - 69}{12}}$$
-* **8 Sistemas de Temperamento de Conservatorio:** Temperamento Igual (12-EDO), Pitagorico, Entonacion Justa (5-Limit), Mesotonico de 1/4 de Coma, Werckmeister III, Kirnberger III, Vallotti y Young.
+* **8 Temperamentos de Conservatorio:** Temperamento Igual (12-EDO), Pitagórico, Entonación Justa (5-Limit), Mesotónico de 1/4 de Coma, Werckmeister III, Kirnberger III, Vallotti y Young.
 
-### 3.4 Rack de Estudio Modular Interactivo (Drag & Drop)
-* **Lienzo de Trabajo Configurable:** Cada funcionalidad reside en una unidad modular estandarizada (*RackUnitCard*). El usuario puede arrastrar, reordenar verticalmente, expandir para ajuste detallado o colapsar en vista compacta.
-* **Gestion de Unidades Activas:** Encendido y apagado selectivo de modulos en reposo para optimizar el consumo energetico de la bateria y liberar ciclos de procesamiento.
-* **Bandeja de Herramientas (Rack Library):** Drawer interactivo para agregar o retirar modulos al instante (Afinador Estroboscopico, Metronomo, Pentagrama, Grabador, Autotune, Dron Armonico, Espectrograma FFT, Analizador de Acordes, Lecciones Guiadas).
+### 3.6 Motor Vectorial de Partituras SMuFL y Transcripción en Vivo
+* **Pintor Vectorial SMuFL 60/120 FPS:** Renderizado de pentagramas, claves (Sol, Fa, Do), armaduras, figuras rítmicas, ligaduras y alteraciones bajo el estándar abierto Bravura.
+* **Transcripción en Vivo (Mic-to-Score):** Cuantización rítmica automática de audio captado a notas de partitura.
+* **Editor con Patrón Memento:** Deshacer/Rehacer ilimitado y de alto rendimiento basado en instantáneas inmutables.
 
-### 3.5 Consola Multitarea Central y Bus de Ruteo por IDs
-* **Transporte Maestro Sincronizado:** Control global de Play, Pause, Rec y Stop que coordina concurrentemente el metronomo, la grabacion y la transcripcion sin desfases temporales.
-* **Bus de Senales Desacoplado (SignalBus):** Enrutamiento reactivo en memoria local gobernado por identificadores inmutables de puerto (`PortId`):
-  * `audioPcm`: Flujo continuo de muestras de audio en coma flotante.
-  * `pitchEvents`: Despacho de eventos de tono (Hz, nota, cents, amplitud).
-  * `musicalNotes`: Transmision de estructuras de partitura.
-  * `temporalClock`: Pulsos y sub-ticks deterministas de metronomo.
-* **Topologia de Enlace:** Soporte para conexiones punto a punto exclusivas o difusion global (Broadcast) con desconexion en caliente (*hot-swapping*).
-
-### 3.6 Taxonomia Universal de Instrumentos Musicales
-* **Clasificacion Cientifica Hornbostel-Sachs (HS) y General MIDI:** Estructura jerarquica estandarizada `[HS.subfamilia.codigo]`:
-  * Aerofonos: Vientos maderas (flautas, oboes, clarinetes, fagotes, saxofones) y metales (trompetas, cornos, trombones, tubas).
-  * Cordofonos: Cuerdas frotadas (violin, viola, cello, contrabajo), cuerdas pulsadas (guitarra clasica, electrica, bajo, ukelele) y teclados de cuerda (piano de cola, clavecin).
-  * Idiofonos: Percusion afinada de laminas (marimba de concierto, vibrafono, glockenspiel).
-  * Membranofonos: Bateria acustica estandar (Canal 10 MIDI), timbales sinfonicos, congas y percusion latina.
-  * Electrofonos: Sintetizadores analogicos y bajos sintetizados.
-  * Voz Humana: Registros soprano, tenor, baritono y bajo con diagrama de formantes.
-
-### 3.7 Motor de Desafinacion Microtonal y Lutheria Virtual
-* **Desafinacion Individual por Cuerda o Tecla:** Ajuste micrometrico en cents ($\pm 100.0\text{ cents}$) por nota MIDI o cuerda:
-  $$f_{\text{final}} = f_{\text{ref}} \cdot 2^{\frac{n - 69}{12} + \frac{\Delta c_{\text{temperamento}} + \Delta c_{\text{custom}}}{1200}}$$
-* **Presets Acusticos Canonicos:**
-  * Curva de Railsback: Afinacion estirada de concierto que compensa la inharmonicidad fisica de cuerdas percutidas.
-  * Piano Honky-Tonk / Ragtime: Desafinacion alternada de $\pm 8\text{ cents}$ para emular unísonos batientes de epoca.
-  * Guitarra 12 Cuerdas: Batimento microtonal de cuerdas dobles ($\pm 5\text{ cents}$).
-  * Maqamat Orientales: Cuartos de tono precisos ($-50\text{ cents}$ en notas seleccionadas).
-
-### 3.8 Teclado Maestro Universal y Secuenciador de Estrofas
-* **Teclado Cromatico Polifonico:** Interfaz tactil con cambio rapido de octavas ($C_1 \dots C_8$), sensibilidad dinamica y sintesis continua.
-* **Reproductor de Estrofas Musicales:** Modulo que sintetiza y ejecuta secuencias melodicas y armonicas en cualquier instrumento emulado:
-  * Arpegio Mayor de Concierto.
-  * Motivo de Preludio en Do (J.S. Bach BWV 846).
-  * Melodia Pentatonica Andina.
-  * Linea de Bajo Funk Sincopada.
-  * Estrofa Maqam Bayati Microtonal.
-
-### 3.9 Motor Vectorial de Partituras SMuFL y Transcripcion en Vivo
-* **Pintor Vectorial SMuFL 60/120 FPS:** Renderizado de pentagramas, claves (Sol, Fa, Do), armaduras, figuras ritmicas, ligaduras y alteraciones sin caidas de cuadros.
-* **Transcripcion Acustica en Vivo (Mic-to-Score):** Cuantizacion ritmica automatica que traduce la interpretacion instrumental o vocal directamente a la partitura.
-* **Editor Interactivo con Patron Memento:** Pila de Deshacer (Undo) y Rehacer (Redo) de alto rendimiento basada en snapshots inmutables del arbol jerarquico.
-
-### 3.10 Codecs Universales MusicXML 3.1 y MIDI SMF Formato 0
-* **Importador / Exportador W3C MusicXML 3.1:** Compatibilidad total de intercambio con Finale, Sibelius, MuseScore y Dorico.
-* **Serializador Binario MIDI SMF Formato 0:** Lectura y escritura de bajo nivel de chunks `MThd` y `MTrk` con codificacion de enteros de longitud variable (VLQ) y meta-eventos de tempo para DAWs profesionales.
+### 3.7 Síntesis SoundFont SF2, Procedural ADSR y Luthería Virtual
+* **Sintetizador SoundFont 2.04:** Parser binario de chunks RIFF en memoria para reproducción de instrumentos de muestra PCM con loops y filtros de articulación.
+* **Síntesis Procedural ADSR:** Oscilador armónico con generador de envolvente de 4 etapas (Attack, Decay, Sustain, Release).
+* **Desafinación Microtonal Individual:** Ajuste micrométrico por tecla o cuerda con curvas de Railsback, guitarras de 12 cuerdas y cuartos de tono orientales.
 
 ---
 
-## 4. Arquitectura de Software y Estructura del Repositorio
+## 4. El Futuro de Tunner: Hoja de Ruta (Roadmap 2026-2027)
+
+El desarrollo de Tunner se estructura en fases secuenciales orientadas por metas rigurosas:
+
+```mermaid
+flowchart LR
+    Fase1["Fase 1: Motor & Acustica\n(Completada)"] --> Fase2["Fase 2: Suites Sinergeticas\n(En Progreso Activo)"]
+    Fase2 --> Fase3["Fase 3: Aceleracion Nativa FFI\n(Planificada)"]
+    Fase3 --> Fase4["Fase 4: Inteligencia Pedagogica\n(Planificada)"]
+```
+
+### 4.1 Fase 1: Motor Fundamental y Acústica de Precisión (Completada)
+* [x] Algoritmo McLeod Pitch Method (MPM) con NSDF e interpolación parabólica.
+* [x] Afinador estroboscópico virtual con visualización de armónicos $H_1\dots H_8$.
+* [x] 8 Temperamentos históricos y calibración continua de $A_4$ (415–466 Hz).
+* [x] Renderizador vectorial SMuFL y editor interactivo con patrón Memento.
+* [x] Importador/Exportador MusicXML 3.1 y serializador binario MIDI SMF 0.
+* [x] 538 pruebas automatizadas passing y 0 lints en análisis estático.
+
+### 4.2 Fase 2: Suites Sinergéticas y Multitarea Profesional (En Progreso Activo)
+* [x] **Afinador Inteligente:** Detección de timbre y adaptación de micrófono ([PR #15](https://github.com/Nicolas11Leon/Tunner/pull/15)).
+* [x] **Suite Vocal & Modo Melodyne:** Auto-Tune en tiempo real, grabación dual y edición en pentagrama ([PR #16](https://github.com/Nicolas11Leon/Tunner/pull/16)).
+* [x] **Catálogo Canónico TTC:** Taxonomía de tareas de práctica y salto rápido modal `J`.
+* [ ] **Descomponedor de Partituras & Ensamble "Minus-One":** Descomposición de partituras multitrack, silenciamiento del instrumento del usuario, síntesis del acompañamiento con SoundFont SF2 y evaluación simultánea de la interpretación en vivo.
+* [ ] **Transcripción Polifónica Mic-to-Score:** Separación espectral de acordes complejos captados por micrófono y transcripción polifónica directa a partitura.
+* [ ] **Tutor de Afinación Justa Dinámica:** Ajuste interactivo de afinación en tiempo real según el rol armónico de la nota en el acorde ejecutado por un ensamble.
+
+### 4.3 Fase 3: Aceleración FFI Nativa y Expansión de Sonidos (Planificada)
+* [ ] **Motor DSP Nativo (`tunner_dsp_engine`):** Procesamiento de audio por bloques en C++ o Rust enlazado vía `dart:ffi` para alcanzar latencias deterministas $\le 3\text{ ms}$.
+* [ ] **SoundFonts de Alta Definición y Formato SFZ:** Soporte de bancos orquestales multicapa con conmutación por velocidad (velocity switching) y *round-robin*.
+* [ ] **Arquitectura de Efectos de Audio Modulares:** Reverb convolutiva basada en respuestas de impulso (IR) locales y modelado acústico de recintos.
+
+### 4.4 Fase 4: Pedagogía Aumentada y Analítica Local Privada (Planificada)
+* [ ] **Currículum Adaptativo de Conservatorio:** Detección automática de debilidades de ejecución (ritmo, afinación, estabilidad y articulación) con generación de ejercicios de práctica personalizados.
+* [ ] **Modo Práctica a Ciegas Extendido:** Entrenamiento auditivo de micro-intervalos ($< 25\text{ cents}$) y reconocimiento instantáneo de timbres orquestales.
+
+---
+
+## 5. Cómo Colaborar en Tunner (Call for Contributors)
+
+¡Tunner es un proyecto impulsado por la comunidad para la comunidad! Creemos firmemente que la mejor tecnología musical nace de la intersección entre músicos, científicos de audio y artesanos del software.
+
+### ¿Quiénes pueden colaborar?
+| Perfil | Áreas de Impacto en Tunner |
+| :--- | :--- |
+| **Músicos y Educadores** | Diseñar ejercicios de estudio, afinar curvas de temperamentos históricos, validar instrumentos y proponer afinaciones alternativas. |
+| **Ingenieros de Audio y DSP** | Investigar algoritmos de detección de tono polifónico, optimizar filtros acústicos digitales y expandir la síntesis SoundFont/SFZ. |
+| **Desarrolladores Flutter y Dart** | Optimizar el rendimiento gráfico del lienzo SMuFL a 60/120 FPS, mejorar la interfaz y atajos DAW, y enriquecer el Rack Modular. |
+| **Desarrolladores C++ y Rust** | Colaborar en el futuro motor DSP nativo de ultra baja latencia con `dart:ffi` y optimizaciones SIMD. |
+| **Traductores y Diseñadores** | Traducir Tunner a más idiomas (i18n), diseñar temas accesibles de alto contraste y redactar guías de usuario. |
+
+### Cómo empezar en 4 pasos
+1. **Lee nuestra [Guía de Contribución](CONTRIBUTING.md)** y la constitución técnica del proyecto en [AGENTS.md](AGENTS.md).
+2. **Haz un Fork y Clona el repositorio:**
+   ```bash
+   git clone https://github.com/TU_USUARIO/Tunner.git
+   cd Tunner
+   flutter pub get
+   ```
+3. **Explora los "Good First Issues" sugeridos en [CONTRIBUTING.md](CONTRIBUTING.md)**:
+   * Nuevos temperamentos históricos (`lib/features/tuner/domain/temperaments.dart`).
+   * Ampliación de presets de instrumentos en `UniversalInstrumentCatalog`.
+   * Mejoras de accesibilidad y temas de color en `TunnerThemePalette`.
+4. **Envía tu Pull Request** asegurando que `flutter analyze` reporte 0 advertencias y `flutter test` pase al 100%.
+
+---
+
+## 6. Arquitectura de Software y Estructura del Repositorio
 
 El proyecto implementa la arquitectura **Monolito Modular Feature-First con Clean Architecture** ([ADR-0004](docs/04_adrs/0004_modular_monolith_feature_first_clean_architecture.md)):
 
@@ -162,46 +199,42 @@ tunner/
 │   │   └── theme/                  # Tokens semanticos de diseno y paletas de color
 │   ├── features/
 │   │   ├── modular_rack/           # Rack de estudio drag-and-drop, SignalBus y consola multitarea
-│   │   │   ├── domain/             # SignalType, PortId, ModuleConnection, SignalBus, RackModuleEntity
-│   │   │   └── presentation/       # ModularStudioRackView, MultitaskMasterConsoleWidget, RackUnitCard
-│   │   ├── instrument/             # Taxonomia universal HS, perfiles timbricos ADSR, lutheria microtonal
-│   │   │   ├── domain/             # UniversalInstrumentDefinition, PerNoteDetuningProfile, MusicalPhraseEntity
-│   │   │   ├── data/               # ProceduralInstrumentSynthesizer (sintesis aditiva y estrofas)
-│   │   │   └── presentation/       # Fretboard, Keybed, DrumPads y Teclado Maestro Universal
+│   │   ├── instrument/             # Taxonomia universal HS, SoundFont SF2, lutheria microtonal
 │   │   ├── tuner/                  # Estimador McLeod MPM (NSDF), temperamentos historicos y NoteEntity
 │   │   ├── metronome/              # Reloj determinista en Isolate, sub-ticks y Tap Tempo
 │   │   ├── sheet_music/            # Renderizador vectorial SMuFL y arbol jerarquico de partitura
 │   │   ├── score_editor/           # Editor interactivo, paleta ritmica y patron Memento
 │   │   ├── transcription/          # Transcripcion de microfono a partitura en tiempo real
-│   │   ├── practice_recorder/      # Grabador AAC/WAV, comparador espectral y auto-escucha
+│   │   ├── practice_recorder/      # Grabador multipista AAC/WAV, comparador espectral y auto-escucha
 │   │   ├── practice_evaluator/     # Analitica pedagogica 4D (rushing, dragging, entonacion)
 │   │   ├── universal_importer/     # Codecs bidireccionales MusicXML 3.1 y MIDI SMF Formato 0
 │   │   ├── acoustic_lab/           # Espectrograma de armonicos FFT y centroide timbrico
 │   │   ├── ear_training/           # Entrenador auditivo de intervalos a ciegas (Blind Mode)
-│   │   ├── chord_analyzer/         # Analizador polifónico y visualizador armónico H1-H8
+│   │   ├── chord_analyzer/         # Analizador polifonico y visualizador armonico H1-H8
 │   │   ├── exercise_generator/     # Generador procedural de escalas y arpegios
 │   │   ├── mixer/                  # Consola mezcladora multicanal de stems
 │   │   ├── song_library/           # Descompositor pedagogico y repertorio
-│   │   ├── vocal_autotune/         # Corrector de afinacion DSP vocal en tiempo real
+│   │   ├── vocal_autotune/         # Suite vocal: Auto-Tune en vivo y convertidor a pentagrama
 │   │   ├── persistence/            # Persistencia atomica offline (.tmp + rename seguro)
 │   │   ├── navigation/             # MainAppShell, Quick Action Dock y atajos DAW
 │   │   ├── tuner_viewmodel.dart    # Orquestador principal con Inversion de Dependencias
 │   │   └── tuner_screen.dart       # Pantalla tradicional unificada del laboratorio acustico
 │   └── main.dart                   # Punto de entrada de la aplicacion
 ├── test/                           # 538 pruebas unitarias, de integracion y de widgets
-└── docs/                           # 60 Casos de Uso, 54 ADRs, 58 Planes de Implementacion y Especificaciones
+├── docs/                           # 60 Casos de Uso, 54 ADRs, 62 Planes de Implementacion
+└── CONTRIBUTING.md                  # Guia detallada para colaboradores del proyecto
 ```
 
 ---
 
-## 5. Compilacion, Pruebas y Puesta en Marcha
+## 7. Compilación, Pruebas y Puesta en Marcha
 
 ### Requisitos Previos
 * **Flutter SDK:** Canal estable (`^3.11.5` o superior).
 * **Dart SDK:** (`^3.11.5` o superior).
-* Microfono habilitado en el sistema operativo.
+* Micrófono habilitado en el sistema operativo.
 
-### Instalacion y Verificacion
+### Instalación y Verificación
 ```bash
 # 1. Clonar el repositorio
 git clone https://github.com/Nicolas11Leon/Tunner.git
@@ -210,14 +243,14 @@ cd Tunner
 # 2. Descargar dependencias locales
 flutter pub get
 
-# 3. Analisis estatico de codigo (0 advertencias)
+# 3. Analisis estatico de codigo (0 advertencias garantizadas)
 flutter analyze
 
 # 4. Ejecucion de la suite completa de pruebas (538 pruebas passing)
 flutter test
 ```
 
-### Ejecucion en Plataformas Compatibles
+### Ejecución en Plataformas Compatibles
 ```bash
 # Linux Desktop (Nativo)
 flutter run -d linux
@@ -237,34 +270,34 @@ flutter run -d ios
 
 ---
 
-## 6. Licencia y Creditos
+## 8. Licencia y Créditos
 
-### 6.1 Licencia de Software Libre y Garantia Copyleft
-**Tunner** se distribuye como un bien publico abierto bajo los terminos de la **GNU Affero General Public License v3.0 (AGPLv3)**. Consultar el archivo [LICENSE](LICENSE) para la declaracion legal completa.
+### 8.1 Licencia de Software Libre y Garantía Copyleft
+**Tunner** se distribuye como un bien público abierto bajo los términos de la **GNU Affero General Public License v3.0 (AGPLv3)**. Consultar el archivo [LICENSE](LICENSE) para la declaración legal completa.
 
 Bajo los principios fundamentales de la licencia AGPLv3:
-* **Libertad de Uso y Ejecucion:** Cualquier musico, estudiante, docente, investigador o institucion educativa puede utilizar Tunner de forma totalmente libre y sin restricciones comerciales o academicas.
-* **Libertad de Inspeccion y Modificacion:** El codigo fuente es 100% abierto y transparente para ser auditado, adaptado, optimizado y evolucionado.
-* **Garantia Copyleft Fuerte:** Cualquier trabajo derivado, bifurcacion (*fork*) o servicio alojado en red debe distribuirse bajo la misma licencia AGPLv3, garantizando que las mejoras de ingenieria reviertan permanentemente a la comunidad musical.
-* **Compromiso Offline-First:** Tunner garantiza que el nucleo de procesamiento de senales, analisis espectral, afinacion y pedagogia funcionara siempre de manera local y autonoma, sin telemetria invasiva, muros de pago ni dependencia de servidores remotos.
+* **Libertad de Uso y Ejecución:** Cualquier músico, estudiante, docente, investigador o institución educativa puede utilizar Tunner de forma totalmente libre y sin restricciones comerciales o académicas.
+* **Libertad de Inspección y Modificación:** El código fuente es 100% abierto y transparente para ser auditado, adaptado, optimizado y evolucionado.
+* **Garantía Copyleft Fuerte:** Cualquier trabajo derivado, bifurcación (*fork*) o servicio alojado en red debe distribuirse bajo la misma licencia AGPLv3, garantizando que las mejoras de ingeniería reviertan permanentemente a la comunidad musical.
+* **Compromiso Offline-First:** Tunner garantiza que el núcleo de procesamiento de señales, análisis espectral, afinación y pedagogía funcionará siempre de manera local y autónoma, sin telemetría invasiva, muros de pago ni dependencia de servidores remotos.
 
-### 6.2 Autoria y Direccion de Arquitectura
-* **Autor Original y Arquitecto del Sistema:** **Nicolas Leon** ([@Nicolas11Leon](https://github.com/Nicolas11Leon)).
-* **Constitucion de Desarrollo:** Toda la arquitectura, el diseno de clases y la disciplina de latencia sub-10ms se rigen estrictamente bajo los mandatos no negociables de [AGENTS.md](AGENTS.md).
+### 8.2 Autoría y Dirección de Arquitectura
+* **Autor Original y Arquitecto del Sistema:** **Nicolás León** ([@Nicolas11Leon](https://github.com/Nicolas11Leon)).
+* **Constitución de Desarrollo:** Toda la arquitectura, el diseño de clases y la disciplina de latencia sub-10ms se rigen estrictamente bajo los mandatos no negociables de [AGENTS.md](AGENTS.md).
 
-### 6.3 Agradecimientos y Creditos Cientificos y Tecnologicos
-El desarrollo de Tunner se fundamenta en investigaciones acusticas seminales, estandares abiertos de la industria musical y tecnologias de sistemas de alto rendimiento:
+### 8.3 Agradecimientos y Créditos Científicos y Tecnológicos
+El desarrollo de Tunner se fundamenta en investigaciones acústicas seminales, estándares abiertos de la industria musical y tecnologías de sistemas de alto rendimiento:
 
-1. **Estimacion Fundamental de Tono (DSP & MPM):**
-   * **Philip McLeod & Geoff Wyvill** (Universidad de Otago, Nueva Zelanda, 2005) por la formulacion y publicacion del algoritmo *McLeod Pitch Method (MPM)* y la funcion de diferencia cuadrada normalizada (*Normalized Square Difference Function - NSDF*), nucleo del detector monofonico de alta precision de Tunner resistente a saltos de octava.
-2. **Tipografia Musical y Notacion Vectorial (SMuFL):**
-   * **W3C Music Notation Community Group** por la especificacion abierta **SMuFL** (*Standard Music Font Layout*) y a los disenadores de la fuente abierta *Bravura* (Steinberg Media Technologies), cuyos mapas glificos normalizados rigen el renderizado vectorial de cabezas de nota, plicas, silencios y armaduras en el lienzo a 60/120 FPS.
-3. **Sintesis Acustica por Tablas de Ondas (SoundFont SF2):**
-   * **Creative Technology Ltd. & E-mu Systems** por la especificacion tecnica abierta de **SoundFont 2.04**, estandar industrial implementado en el parser binario RIFF y sintetizador SF2 en memoria de Tunner para reproducir instrumentos acusticos de referencia con latencia determinista.
-4. **Organologia y Clasificacion Universal de Instrumentos:**
-   * **Erich Moritz von Hornbostel & Curt Sachs** (1914) por la clasificacion taxonomica Hornbostel-Sachs (aerofonos, cordofonos, idiofonos, membranofonos y electrofonos).
-   * **The MIDI Association (AMEI / MMA)** por las especificaciones de General MIDI Nivel 1 y 2, utilizadas para la asignacion canonica de patches, controladores continuos (CC) y transposicion orquestal.
-5. **Metodologia de Correccion Tonal y Edicion Visual:**
-   * A las tecnologias pioneras de **Antares Audio Technologies** (Auto-Tune) y **Celemony Software** (Melodyne), cuyas metodologias de cuantizacion a escalas modales y edicion grafica de notas sobre partitura inspiraron la Suite Vocal y el Melodyne Mode de Tunner.
-6. **Ecosistema de Ejecucion y Runtime:**
-   * Al equipo de ingenieria de **Google Flutter & Dart** por proveer un runtime multiplataforma reactivo de ultra baja latencia con soporte nativo de Isolates multihilo y compilacion AOT (Ahead-of-Time) hacia codigo de maquina nativo.
+1. **Estimación Fundamental de Tono (DSP & MPM):**
+   * **Philip McLeod & Geoff Wyvill** (Universidad de Otago, Nueva Zelanda, 2005) por la formulación y publicación del algoritmo *McLeod Pitch Method (MPM)* y la función de diferencia cuadrada normalizada (*Normalized Square Difference Function - NSDF*), núcleo del detector monofónico de alta precisión de Tunner resistente a saltos de octava.
+2. **Tipografía Musical y Notación Vectorial (SMuFL):**
+   * **W3C Music Notation Community Group** por la especificación abierta **SMuFL** (*Standard Music Font Layout*) y a los diseñadores de la fuente abierta *Bravura* (Steinberg Media Technologies), cuyos mapas glíficos normalizados rigen el renderizado vectorial de cabezas de nota, plicas, silencios y armaduras en el lienzo a 60/120 FPS.
+3. **Síntesis Acústica por Tablas de Ondas (SoundFont SF2):**
+   * **Creative Technology Ltd. & E-mu Systems** por la especificación técnica abierta de **SoundFont 2.04**, estándar industrial implementado en el parser binario RIFF y sintetizador SF2 en memoria de Tunner para reproducir instrumentos acústicos de referencia con latencia determinista.
+4. **Organología y Clasificación Universal de Instrumentos:**
+   * **Erich Moritz von Hornbostel & Curt Sachs** (1914) por la clasificación taxonómica Hornbostel-Sachs (aerófonos, cordófonos, idiófonos, membranófonos y electrófonos).
+   * **The MIDI Association (AMEI / MMA)** por las especificaciones de General MIDI Nivel 1 y 2, utilizadas para la asignación canónica de patches, controladores continuos (CC) y transposición orquestal.
+5. **Metodología de Corrección Tonal y Edición Visual:**
+   * A las tecnologías pioneras de **Antares Audio Technologies** (Auto-Tune) y **Celemony Software** (Melodyne), cuyas metodologías de cuantización a escalas modales y edición gráfica de notas sobre partitura inspiraron la Suite Vocal y el Melodyne Mode de Tunner.
+6. **Ecosistema de Ejecución y Runtime:**
+   * Al equipo de ingeniería de **Google Flutter & Dart** por proveer un runtime multiplataforma reactivo de ultra baja latencia con soporte nativo de Isolates multihilo y compilación AOT (Ahead-of-Time) hacia código de máquina nativo.
