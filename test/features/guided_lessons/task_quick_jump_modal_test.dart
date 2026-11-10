@@ -97,5 +97,28 @@ void main() {
       expect(selectedTask, isNotNull);
       expect(selectedTask!.code.formatted, startsWith('EAR.01'));
     });
+
+    testWidgets('Displays MultiToolSynergyBadge when multi-tool task is listed', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1000));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TaskQuickJumpModal(
+              palette: TunnerThemePalette.obsidianStudio,
+              catalogIndex: catalogIndex,
+            ),
+          ),
+        ),
+      );
+
+      final input = find.byKey(const Key('task_quick_jump_input'));
+      await tester.enterText(input, 'sinergia');
+      await tester.pumpAndSettle();
+
+      // Debe encontrar insignias de hiper-sinergia
+      expect(find.byKey(const Key('multi_tool_synergy_badge_4')), findsWidgets);
+      expect(find.textContaining('SINERGIA'), findsWidgets);
+    });
   });
 }

@@ -41,7 +41,7 @@ void main() {
 
       final keywordResults = index.searchByQuery('estroboscópico');
       expect(keywordResults.isNotEmpty, isTrue);
-      expect(keywordResults.first.code.domain, equals(TaskDomain.pitch));
+      expect(keywordResults.any((t) => t.code.domain == TaskDomain.pitch), isTrue);
     });
 
     test('Filters tasks by domain and level cleanly', () {
@@ -51,6 +51,28 @@ void main() {
         expect(t.code.domain, equals(TaskDomain.ear));
         expect(t.code.level, equals(TaskLevel.level1));
       }
+    });
+
+    test('Retrieves multi-tool joint tasks correctly with isMultiTool and requiredToolIds >= 3', () {
+      final multiTasks = index.getMultiToolJointTasks();
+
+      expect(multiTasks.length, greaterThanOrEqualTo(5));
+      for (final t in multiTasks) {
+        expect(t.isMultiTool, isTrue);
+        expect(t.requiredToolIds.length, greaterThanOrEqualTo(3));
+        expect(t.interconnectionLinks.isNotEmpty, isTrue);
+      }
+
+      // Probar búsqueda por palabra clave "sinergia"
+      final synergyTasks = index.searchByQuery('sinergia');
+      expect(synergyTasks.length, greaterThanOrEqualTo(5));
+      expect(synergyTasks.every((t) => t.isMultiTool), isTrue);
+
+      // Verificar la tarea canónica de Lectura en Vuelo
+      final flightReading = index.getByCodeString('SGT.02.MULT.005');
+      expect(flightReading, isNotNull);
+      expect(flightReading!.requiredToolIds, containsAll(['metronome', 'score_notation', 'strobe_tuner', 'guided_lessons']));
+      expect(flightReading.interconnectionLinks.length, equals(4));
     });
   });
 }

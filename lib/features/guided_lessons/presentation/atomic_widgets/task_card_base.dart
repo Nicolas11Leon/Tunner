@@ -123,6 +123,17 @@ abstract class TaskCardBase<T extends PedagogicalTaskEntity> extends StatelessWi
             const SizedBox(height: 8),
             // Cuerpo
             buildBody(context),
+            if (task.isMultiTool) ...[
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: MultiToolSynergyBadge(
+                  toolIds: task.requiredToolIds,
+                  palette: palette,
+                  compact: true,
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             // Pie
             buildFooter(context),

@@ -50,6 +50,19 @@ class TaskStep {
   });
 }
 
+/// Enlace declarativo de conexión entre puertos de herramientas en una tarea conjunta.
+class TaskInterconnectionLink {
+  final String sourcePortId;
+  final String destinationPortId;
+  final String? description;
+
+  const TaskInterconnectionLink({
+    required this.sourcePortId,
+    required this.destinationPortId,
+    this.description,
+  });
+}
+
 /// Contrato base inmutable para cualquier tarea pedagógica en Tunner.
 ///
 /// Aplica los principios de Segregación de Interfaces y Sustitución de Liskov:
@@ -65,6 +78,11 @@ abstract class PedagogicalTaskEntity implements Comparable<PedagogicalTaskEntity
   TaskCompletionStatus get status;
   TaskGrade get bestGrade;
   String? get targetInstrumentId;
+  List<String> get requiredToolIds;
+  List<TaskInterconnectionLink> get interconnectionLinks;
+
+  /// Indica si la tarea es una tarea conjunta que orquesta 3 o más herramientas en simultáneo.
+  bool get isMultiTool => requiredToolIds.length >= 3;
 
   bool get isCompleted =>
       status == TaskCompletionStatus.completed || status == TaskCompletionStatus.mastered;
@@ -95,6 +113,10 @@ class StandardPedagogicalTask extends PedagogicalTaskEntity {
   final TaskGrade bestGrade;
   @override
   final String? targetInstrumentId;
+  @override
+  final List<String> requiredToolIds;
+  @override
+  final List<TaskInterconnectionLink> interconnectionLinks;
 
   StandardPedagogicalTask({
     required this.code,
@@ -106,6 +128,8 @@ class StandardPedagogicalTask extends PedagogicalTaskEntity {
     this.status = TaskCompletionStatus.notStarted,
     this.bestGrade = TaskGrade.none,
     this.targetInstrumentId,
+    this.requiredToolIds = const [],
+    this.interconnectionLinks = const [],
   });
 
   StandardPedagogicalTask copyWith({
@@ -118,6 +142,8 @@ class StandardPedagogicalTask extends PedagogicalTaskEntity {
     TaskCompletionStatus? status,
     TaskGrade? bestGrade,
     String? targetInstrumentId,
+    List<String>? requiredToolIds,
+    List<TaskInterconnectionLink>? interconnectionLinks,
   }) {
     return StandardPedagogicalTask(
       code: code ?? this.code,
@@ -129,6 +155,8 @@ class StandardPedagogicalTask extends PedagogicalTaskEntity {
       status: status ?? this.status,
       bestGrade: bestGrade ?? this.bestGrade,
       targetInstrumentId: targetInstrumentId ?? this.targetInstrumentId,
+      requiredToolIds: requiredToolIds ?? this.requiredToolIds,
+      interconnectionLinks: interconnectionLinks ?? this.interconnectionLinks,
     );
   }
 

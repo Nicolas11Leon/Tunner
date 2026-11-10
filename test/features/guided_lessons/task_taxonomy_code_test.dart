@@ -58,5 +58,15 @@ void main() {
       expect(codeA, equals(codeB));
       expect(codeA.hashCode, equals(codeB.hashCode));
     });
+
+    test('Parses multiTool and synergy subtypes correctly', () {
+      final multiCode = TaskTaxonomyCode.parse('SGT.02.MULT.005');
+      expect(multiCode.subtype, equals(TaskSubtype.multiTool));
+      expect(multiCode.formatted, equals('SGT.02.MULT.005'));
+
+      final synergyCode = TaskTaxonomyCode.parse('HRM.04.SYNR.001');
+      expect(synergyCode.subtype, equals(TaskSubtype.synergy));
+      expect(synergyCode.formatted, equals('HRM.04.SYNR.001'));
+    });
   });
 }

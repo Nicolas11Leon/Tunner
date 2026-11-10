@@ -63,7 +63,9 @@ enum TaskSubtype {
   longTones('LONG', 'Notas Largas'),
   syncopation('SYNC', 'Síncopas'),
   arpeggios('ARPG', 'Arpegios'),
-  scales('SCAL', 'Escalas');
+  scales('SCAL', 'Escalas'),
+  multiTool('MULT', 'Multi-Herramienta'),
+  synergy('SYNR', 'Hiper-Sinergia');
 
   final String code;
   final String displayName;

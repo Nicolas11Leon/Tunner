@@ -152,6 +152,13 @@ class TaskCatalogIndex {
     return list;
   }
 
+  /// Obtiene únicamente las tareas conjuntas multi-herramienta (>= 3 herramientas).
+  List<PedagogicalTaskEntity> getMultiToolJointTasks() {
+    final list = _byCode.values.where((t) => t.isMultiTool).toList();
+    list.sort();
+    return list;
+  }
+
   Set<String> _tokenize(String text) {
     return text
         .toLowerCase()
@@ -342,6 +349,226 @@ class TaskCatalogIndex {
         searchTags: ['escala', 'tecnica', 'diatonica', 'bpm'],
         status: TaskCompletionStatus.completed,
         bestGrade: TaskGrade.b,
+      ),
+
+      // --- TAREAS CONJUNTAS MULTI-HERRAMIENTA (HIPER-SINERGIA >= 3 HERRAMIENTAS) ---
+      StandardPedagogicalTask(
+        code: const TaskTaxonomyCode(
+          domain: TaskDomain.sightReading,
+          level: TaskLevel.level2,
+          subtype: TaskSubtype.multiTool,
+          sequence: 5,
+        ),
+        title: 'Lectura en Vuelo con Control Estroboscópico en Vivo',
+        description:
+            'Sincronía cuádruple: el metrónomo avanza el playhead, el afinador colorea las notas en el pentagrama y el tutor evalúa rushing/dragging.',
+        estimatedDurationMinutes: 8,
+        searchTags: [
+          'sinergia',
+          'multitool',
+          'conjunta',
+          'metronomo',
+          'pentagrama',
+          'afinador',
+          'tutor',
+          'lectura',
+        ],
+        status: TaskCompletionStatus.inProgress,
+        bestGrade: TaskGrade.a,
+        requiredToolIds: const [
+          'metronome',
+          'score_notation',
+          'strobe_tuner',
+          'guided_lessons',
+        ],
+        interconnectionLinks: const [
+          TaskInterconnectionLink(
+            sourcePortId: 'metronome.clock_out',
+            destinationPortId: 'score_notation.clock_in',
+            description: 'Avance sincronizado del cursor de compás',
+          ),
+          TaskInterconnectionLink(
+            sourcePortId: 'strobe_tuner.pitch_out',
+            destinationPortId: 'score_notation.pitch_in',
+            description: 'Coloreado semántico en tiempo real',
+          ),
+          TaskInterconnectionLink(
+            sourcePortId: 'strobe_tuner.pitch_out',
+            destinationPortId: 'guided_lessons.pitch_in',
+            description: 'Evaluación de estabilidad de cents',
+          ),
+          TaskInterconnectionLink(
+            sourcePortId: 'metronome.clock_out',
+            destinationPortId: 'guided_lessons.clock_in',
+            description: 'Cálculo de latencia rushing/dragging',
+          ),
+        ],
+      ),
+      StandardPedagogicalTask(
+        code: const TaskTaxonomyCode(
+          domain: TaskDomain.ear,
+          level: TaskLevel.level3,
+          subtype: TaskSubtype.multiTool,
+          sequence: 2,
+        ),
+        title: 'Afinación por Batimento & Dron Armónico Justo',
+        description:
+            'Entrenamiento acústico puro: elimina el batimento ondulante contra el dron con soporte espectral FFT y afinador estroboscópico.',
+        estimatedDurationMinutes: 7,
+        searchTags: [
+          'sinergia',
+          'multitool',
+          'conjunta',
+          'dron',
+          'batimento',
+          'espectrograma',
+          'afinador',
+          'temperamentos',
+        ],
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
+        requiredToolIds: const [
+          'harmonic_drone',
+          'strobe_tuner',
+          'spectrogram',
+        ],
+        interconnectionLinks: const [
+          TaskInterconnectionLink(
+            sourcePortId: 'harmonic_drone.audio_out',
+            destinationPortId: 'spectrogram.audio_in',
+            description: 'Visualización de armónicos puros de referencia',
+          ),
+          TaskInterconnectionLink(
+            sourcePortId: 'strobe_tuner.pitch_out',
+            destinationPortId: 'spectrogram.marker_in',
+            description: 'Mapeo de cents sobre la curva FFT',
+          ),
+        ],
+      ),
+      StandardPedagogicalTask(
+        code: const TaskTaxonomyCode(
+          domain: TaskDomain.sightReading,
+          level: TaskLevel.level4,
+          subtype: TaskSubtype.multiTool,
+          sequence: 8,
+        ),
+        title: 'Dictado Musical Inverso y Auto-Transcripción',
+        description:
+            'Toca al compás del metrónomo, transcribe en vivo a partitura SMuFL y compara con el grabador de auto-escucha.',
+        estimatedDurationMinutes: 10,
+        searchTags: [
+          'sinergia',
+          'multitool',
+          'conjunta',
+          'dictado',
+          'transcriptor',
+          'grabador',
+          'metronomo',
+          'partitura',
+        ],
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
+        requiredToolIds: const [
+          'metronome',
+          'score_notation',
+          'practice_recorder',
+          'guided_lessons',
+        ],
+        interconnectionLinks: const [
+          TaskInterconnectionLink(
+            sourcePortId: 'metronome.clock_out',
+            destinationPortId: 'score_notation.clock_in',
+            description: 'Conteo previo y compases de cuantización',
+          ),
+          TaskInterconnectionLink(
+            sourcePortId: 'practice_recorder.buffer_out',
+            destinationPortId: 'score_notation.audio_transcribe_in',
+            description: 'Alimentación de audio a motor transcriptor',
+          ),
+        ],
+      ),
+      StandardPedagogicalTask(
+        code: const TaskTaxonomyCode(
+          domain: TaskDomain.technique,
+          level: TaskLevel.level3,
+          subtype: TaskSubtype.multiTool,
+          sequence: 4,
+        ),
+        title: 'Auto-Diagnóstico Tímbrico y Armónicos H1-H8',
+        description:
+            'Graba tu frase, descompone la serie armónica y analiza la estabilidad de formantes y pureza de acordes.',
+        estimatedDurationMinutes: 8,
+        searchTags: [
+          'sinergia',
+          'multitool',
+          'conjunta',
+          'grabador',
+          'acordes',
+          'espectrograma',
+          'timbre',
+          'armonicos',
+        ],
+        status: TaskCompletionStatus.completed,
+        bestGrade: TaskGrade.s,
+        requiredToolIds: const [
+          'practice_recorder',
+          'chord_analyzer',
+          'spectrogram',
+        ],
+        interconnectionLinks: const [
+          TaskInterconnectionLink(
+            sourcePortId: 'practice_recorder.audio_out',
+            destinationPortId: 'spectrogram.audio_in',
+            description: 'Análisis espectral FFT de la toma grabada',
+          ),
+          TaskInterconnectionLink(
+            sourcePortId: 'practice_recorder.audio_out',
+            destinationPortId: 'chord_analyzer.audio_in',
+            description: 'Detección polifónica de tensiones',
+          ),
+        ],
+      ),
+      StandardPedagogicalTask(
+        code: const TaskTaxonomyCode(
+          domain: TaskDomain.harmony,
+          level: TaskLevel.level4,
+          subtype: TaskSubtype.multiTool,
+          sequence: 7,
+        ),
+        title: 'Exploración Polifónica y Temperamentos Históricos',
+        description:
+            'Interpreta en teclado maestro con afinación mesotónica o Werckmeister, analizando consonancia en el rack modular.',
+        estimatedDurationMinutes: 12,
+        searchTags: [
+          'sinergia',
+          'multitool',
+          'conjunta',
+          'teclado',
+          'acordes',
+          'afinador',
+          'rack',
+          'temperamentos',
+        ],
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
+        requiredToolIds: const [
+          'master_keyboard',
+          'chord_analyzer',
+          'strobe_tuner',
+          'modular_rack',
+        ],
+        interconnectionLinks: const [
+          TaskInterconnectionLink(
+            sourcePortId: 'master_keyboard.audio_out',
+            destinationPortId: 'chord_analyzer.audio_in',
+            description: 'Alimentación de señal polifónica sintetizada',
+          ),
+          TaskInterconnectionLink(
+            sourcePortId: 'master_keyboard.audio_out',
+            destinationPortId: 'strobe_tuner.audio_in',
+            description: 'Medición de microtonalidad en temperamento histórico',
+          ),
+        ],
       ),
     ]);
   }
