@@ -307,6 +307,14 @@ class _TaskQuickJumpModalState extends State<TaskQuickJumpModal> {
                                           ],
                                         ),
                                       ),
+                                      if (task.isMultiTool) ...[
+                                        const SizedBox(width: 6),
+                                        MultiToolSynergyBadge(
+                                          toolIds: task.requiredToolIds,
+                                          palette: palette,
+                                          compact: true,
+                                        ),
+                                      ],
                                       const SizedBox(width: 8),
                                       TaskLevelPill(level: task.code.level, palette: palette),
                                       const SizedBox(width: 6),

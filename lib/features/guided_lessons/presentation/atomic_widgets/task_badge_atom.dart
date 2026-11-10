@@ -196,3 +196,94 @@ class TaskGradeStamp extends StatelessWidget {
     );
   }
 }
+
+/// Átomo visual que destaca tareas conjuntas multi-herramienta (>= 3 herramientas orquestadas).
+class MultiToolSynergyBadge extends StatelessWidget {
+  final List<String> toolIds;
+  final TunnerThemePalette palette;
+  final bool compact;
+
+  const MultiToolSynergyBadge({
+    super.key,
+    required this.toolIds,
+    required this.palette,
+    this.compact = false,
+  });
+
+  static IconData getToolIcon(String toolId) {
+    switch (toolId) {
+      case 'strobe_tuner':
+        return Icons.tune;
+      case 'metronome':
+        return Icons.access_time;
+      case 'score_notation':
+        return Icons.menu_book;
+      case 'practice_recorder':
+        return Icons.fiber_manual_record;
+      case 'vocal_autotune':
+        return Icons.auto_fix_high;
+      case 'harmonic_drone':
+        return Icons.graphic_eq;
+      case 'spectrogram':
+        return Icons.equalizer;
+      case 'chord_analyzer':
+      case 'master_keyboard':
+        return Icons.piano;
+      case 'guided_lessons':
+        return Icons.school;
+      case 'ear_trainer':
+        return Icons.hearing;
+      case 'modular_rack':
+        return Icons.view_comfortable;
+      default:
+        return Icons.widgets;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (toolIds.length < 3) return const SizedBox.shrink();
+
+    final accentColor = palette.secondaryAccent;
+
+    return Container(
+      key: Key('multi_tool_synergy_badge_${toolIds.length}'),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 8,
+        vertical: compact ? 2 : 4,
+      ),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: accentColor.withValues(alpha: 0.5), width: 1.0),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.hub, color: accentColor, size: compact ? 11 : 13),
+          const SizedBox(width: 4),
+          Text(
+            compact ? '${toolIds.length}X SINERGIA' : 'HIPER-SINERGIA (${toolIds.length} TOOLS)',
+            style: TextStyle(
+              color: accentColor,
+              fontSize: compact ? 9.0 : 10.0,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.6,
+            ),
+          ),
+          if (!compact) ...[
+            const SizedBox(width: 6),
+            ...toolIds.map((id) => Padding(
+                  padding: const EdgeInsets.only(left: 3),
+                  child: Icon(
+                    getToolIcon(id),
+                    size: 11,
+                    color: accentColor.withValues(alpha: 0.8),
+                  ),
+                )),
+          ],
+        ],
+      ),
+    );
+  }
+}
