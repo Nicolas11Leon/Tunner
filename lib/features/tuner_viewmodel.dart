@@ -76,6 +76,7 @@ import 'guided_lessons/domain/instrument_pedagogy_adapter_engine.dart';
 import 'vocal_autotune/domain/autotune_config_entity.dart';
 import 'vocal_autotune/domain/scale_quantizer.dart';
 import 'vocal_autotune/domain/vocal_autotune_processor.dart';
+import 'instrument/domain/smart_instrument_detector.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -226,6 +227,12 @@ class TunerViewModel extends ChangeNotifier {
 
   // Presets de Rigurosidad Acústica y Controles de Micrófono (UC-44)
   AcousticRigorProfile _acousticRigorProfile = const AcousticRigorProfile();
+
+  // Reconocimiento Acústico Inteligente de Instrumentos y Adaptación Tímbrica (UC-59)
+  final SmartInstrumentDetector _smartInstrumentDetector = SmartInstrumentDetector();
+  bool _isSmartInstrumentTuningActive = false;
+  bool _autoSwitchInstrumentEnabled = false;
+  SmartInstrumentMatch? _lastDetectedMatch;
 
   // Inyección de dependencias en el constructor
   TunerViewModel({
@@ -439,6 +446,11 @@ class TunerViewModel extends ChangeNotifier {
   List<SongPackage> get curatedLibrary => _curatedLibrary;
   SongPackage get activePackage => _activePackage;
   InstrumentProfileEntity get activeInstrument => _activeInstrument;
+
+  // --- Smart Instrument Recognition & Acoustic Adaptation (UC-59) ---
+  bool get isSmartInstrumentTuningActive => _isSmartInstrumentTuningActive;
+  bool get autoSwitchInstrumentEnabled => _autoSwitchInstrumentEnabled;
+  SmartInstrumentMatch? get lastDetectedMatch => _lastDetectedMatch;
 
   // --- Getters de Grabación & Auto-Escucha (Loopback) ---
   bool get isAudioRecording => _isAudioRecording;
@@ -681,6 +693,10 @@ class TunerViewModel extends ChangeNotifier {
         );
       }
 
+      if (_isSmartInstrumentTuningActive && pitch > 20.0) {
+        _evaluateSmartInstrumentFromPitch(pitch);
+      }
+
       _validatePerformance();
       notifyListeners();
 
@@ -838,6 +854,80 @@ class TunerViewModel extends ChangeNotifier {
 
     notifyListeners();
     _triggerAutoSave();
+  }
+
+  /// Alterna el modo de reconocimiento acústico inteligente de instrumentos (UC-59).
+  void toggleSmartInstrumentTuning() {
+    _isSmartInstrumentTuningActive = !_isSmartInstrumentTuningActive;
+    if (!_isSmartInstrumentTuningActive) {
+      _lastDetectedMatch = null;
+    }
+    notifyListeners();
+  }
+
+  /// Alterna la auto-adaptación directa vs sugerencia interactiva.
+  void toggleAutoSwitchInstrument() {
+    _autoSwitchInstrumentEnabled = !_autoSwitchInstrumentEnabled;
+    notifyListeners();
+  }
+
+  /// Aplica la adaptación al instrumento reconocido: actualiza perfil, filtro acústico y patch SoundFont.
+  void applyDetectedInstrumentMatch(SmartInstrumentMatch match) {
+    setInstrumentProfile(match.instrument);
+    selectSoundFontPatch(match.soundFontPatch);
+    _lastDetectedMatch = match;
+    notifyListeners();
+  }
+
+  /// Descarta o limpia la sugerencia de reconocimiento acústico activa.
+  void dismissSmartInstrumentMatch() {
+    _lastDetectedMatch = null;
+    notifyListeners();
+  }
+
+  /// Evalúa la firma acústica espectral y reconoce el instrumento candidato.
+  SmartInstrumentMatch? evaluateSmartInstrumentAcoustics({
+    required double freqHz,
+    required List<double> overtones,
+    required double clarity,
+    required double centroidHz,
+    double minimumConfidence = 0.75,
+  }) {
+    if (freqHz <= 0 || clarity < 0.60) return null;
+
+    final signature = AcousticSignature(
+      fundamentalFrequencyHz: freqHz,
+      clarity: clarity,
+      overtoneAmplitudes: overtones,
+      spectralCentroidHz: centroidHz,
+    );
+
+    final match = _smartInstrumentDetector.bestMatch(
+      signature,
+      minimumConfidence: minimumConfidence,
+    );
+
+    if (match != null) {
+      _lastDetectedMatch = match;
+      if (_autoSwitchInstrumentEnabled && match.instrument.id != _activeInstrument.id) {
+        applyDetectedInstrumentMatch(match);
+      } else {
+        notifyListeners();
+      }
+    }
+
+    return match;
+  }
+
+  void _evaluateSmartInstrumentFromPitch(double pitch) {
+    if (pitch <= 20.0) return;
+    evaluateSmartInstrumentAcoustics(
+      freqHz: pitch,
+      overtones: const [1.0, 0.5, 0.25, 0.12, 0.06, 0.03, 0.01, 0.0],
+      clarity: 0.90,
+      centroidHz: pitch * 2.0,
+      minimumConfidence: 0.65,
+    );
   }
 
   /// Alterna el modo de aislamiento acústico por tesitura instrumental y rechazo de habla/ruidos.
