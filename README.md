@@ -1,12 +1,12 @@
 # Tunner: Studio Pitch, Real-Time Acoustic Lab and Sheet Music Engine
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
-[![Tests: 480 Passing](https://img.shields.io/badge/Tests-480%20Passing-brightgreen.svg)]()
+[![Tests: 538 Passing](https://img.shields.io/badge/Tests-538%20Passing-brightgreen.svg)]()
 [![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
 [![Framework: Flutter](https://img.shields.io/badge/Framework-Flutter-02569B.svg)]()
 [![Platform: Linux | Android | iOS | macOS | Windows](https://img.shields.io/badge/Platform-Linux%20%7C%20Android%20%7C%20iOS%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
-> **Tunner** es una estación de trabajo acústica, de edición musical, síntesis procedural y pedagogía de código abierto de grado conservatorio. Diseñada para dotar al ecosistema libre del software musical más preciso y riguroso, combina en un único ejecutable local: afinación estroboscópica virtual de ultra precisión ($\pm 0.1\text{ cents}$), algoritmo McLeod Pitch Method (MPM con NSDF) resistente a saltos de octava, calibración de tono de concierto ($A_4$ ajustable de 415 a 466 Hz), visualizador polifónico en tiempo real con armónicos $H_1\dots H_8$, entrenador auditivo de intervalos a ciegas (*Blind Ear Pitch Trainer*), motor vectorial de partituras SMuFL a 60/120 FPS, rack de estudio modular interactivo con manipulación drag-and-drop, consola central multitarea de transporte sincronizado con atajos estándar de DAWs (Ableton, Logic, Pro Tools), bus reactivo de señales por identificadores de puerto, taxonomía universal de instrumentos (Hornbostel-Sachs y General MIDI), motor de micro-desafinación acústica por tecla o cuerda, emulador universal de teclado y secuenciador de estrofas melódicas, motor de síntesis procedural en memoria con envolvente ADSR, consola mezcladora multicanal de stems, importador/exportador universal bidireccional (MusicXML 3.1 y MIDI SMF Formato 0), metrónomo determinista en Isolate, grabador de práctica de alta fidelidad con auto-escucha, analítica pedagógica 4D, persistencia atómica offline y personalización estética avanzada.
+> **Tunner** es una estación de trabajo acústica, de edición musical, síntesis procedural y pedagogía de código abierto de grado conservatorio. Diseñada para dotar al ecosistema libre del software musical más preciso y riguroso, combina en un único ejecutable local: afinación estroboscópica virtual de ultra precisión ($\pm 0.1\text{ cents}$), algoritmo McLeod Pitch Method (MPM con NSDF) resistente a saltos de octava, calibración de tono de concierto ($A_4$ ajustable de 415 a 466 Hz), visualizador polifónico en tiempo real con armónicos $H_1\dots H_8$, afinador inteligente con reconocimiento de timbre y adaptación acústica de micrófonos, suite vocal con Auto-Tune en tiempo real, grabación multipista con metadata dual y edición microtonal en pentagrama (modo Melodyne), catálogo canónico de tareas de práctica (TTC) con navegación modal instantánea ($O(1)$) y conmutación rápida (`J`), entrenador auditivo de intervalos a ciegas (*Blind Ear Pitch Trainer*), motor vectorial de partituras SMuFL a 60/120 FPS, rack de estudio modular interactivo con manipulación drag-and-drop, consola central multitarea de transporte sincronizado con atajos estándar de DAWs (Ableton, Logic, Pro Tools), bus reactivo de señales por identificadores de puerto, taxonomía universal de instrumentos (Hornbostel-Sachs y General MIDI), motor de micro-desafinación acústica por tecla o cuerda, emulador universal de teclado y secuenciador de estrofas melódicas, motor de síntesis procedural en memoria con envolvente ADSR, consola mezcladora multicanal de stems, importador/exportador universal bidireccional (MusicXML 3.1 y MIDI SMF Formato 0), metrónomo determinista en Isolate, grabador de práctica de alta fidelidad con auto-escucha, analítica pedagógica 4D, persistencia atómica offline y personalización estética avanzada.
 
 ---
 
@@ -188,8 +188,8 @@ tunner/
 │   │   ├── tuner_viewmodel.dart    # Orquestador principal con Inversion de Dependencias
 │   │   └── tuner_screen.dart       # Pantalla tradicional unificada del laboratorio acustico
 │   └── main.dart                   # Punto de entrada de la aplicacion
-├── test/                           # 480 pruebas unitarias, de integracion y de widgets
-└── docs/                           # 55 Casos de Uso, 49 ADRs, Manual 1.0 y Especificaciones
+├── test/                           # 538 pruebas unitarias, de integracion y de widgets
+└── docs/                           # 60 Casos de Uso, 54 ADRs, 58 Planes de Implementacion y Especificaciones
 ```
 
 ---
@@ -213,7 +213,7 @@ flutter pub get
 # 3. Analisis estatico de codigo (0 advertencias)
 flutter analyze
 
-# 4. Ejecucion de la suite completa de pruebas (480 pruebas passing)
+# 4. Ejecucion de la suite completa de pruebas (538 pruebas passing)
 flutter test
 ```
 
@@ -239,6 +239,32 @@ flutter run -d ios
 
 ## 6. Licencia y Creditos
 
-* **Licencia:** Distribuido bajo los terminos de la licencia **GNU Affero General Public License v3.0 (AGPLv3)**. Consultar el archivo [LICENSE](LICENSE) para la declaracion legal completa.
-* **Autor y Arquitectura:** Creado y mantenido por **Nicolas Leon** ([@Nicolas11Leon](https://github.com/Nicolas11Leon)).
-* **Estandar de Ingenieria:** Construido bajo los principios no negociables de la constitucion de desarrollo de [AGENTS.md](AGENTS.md).
+### 6.1 Licencia de Software Libre y Garantia Copyleft
+**Tunner** se distribuye como un bien publico abierto bajo los terminos de la **GNU Affero General Public License v3.0 (AGPLv3)**. Consultar el archivo [LICENSE](LICENSE) para la declaracion legal completa.
+
+Bajo los principios fundamentales de la licencia AGPLv3:
+* **Libertad de Uso y Ejecucion:** Cualquier musico, estudiante, docente, investigador o institucion educativa puede utilizar Tunner de forma totalmente libre y sin restricciones comerciales o academicas.
+* **Libertad de Inspeccion y Modificacion:** El codigo fuente es 100% abierto y transparente para ser auditado, adaptado, optimizado y evolucionado.
+* **Garantia Copyleft Fuerte:** Cualquier trabajo derivado, bifurcacion (*fork*) o servicio alojado en red debe distribuirse bajo la misma licencia AGPLv3, garantizando que las mejoras de ingenieria reviertan permanentemente a la comunidad musical.
+* **Compromiso Offline-First:** Tunner garantiza que el nucleo de procesamiento de senales, analisis espectral, afinacion y pedagogia funcionara siempre de manera local y autonoma, sin telemetria invasiva, muros de pago ni dependencia de servidores remotos.
+
+### 6.2 Autoria y Direccion de Arquitectura
+* **Autor Original y Arquitecto del Sistema:** **Nicolas Leon** ([@Nicolas11Leon](https://github.com/Nicolas11Leon)).
+* **Constitucion de Desarrollo:** Toda la arquitectura, el diseno de clases y la disciplina de latencia sub-10ms se rigen estrictamente bajo los mandatos no negociables de [AGENTS.md](AGENTS.md).
+
+### 6.3 Agradecimientos y Creditos Cientificos y Tecnologicos
+El desarrollo de Tunner se fundamenta en investigaciones acusticas seminales, estandares abiertos de la industria musical y tecnologias de sistemas de alto rendimiento:
+
+1. **Estimacion Fundamental de Tono (DSP & MPM):**
+   * **Philip McLeod & Geoff Wyvill** (Universidad de Otago, Nueva Zelanda, 2005) por la formulacion y publicacion del algoritmo *McLeod Pitch Method (MPM)* y la funcion de diferencia cuadrada normalizada (*Normalized Square Difference Function - NSDF*), nucleo del detector monofonico de alta precision de Tunner resistente a saltos de octava.
+2. **Tipografia Musical y Notacion Vectorial (SMuFL):**
+   * **W3C Music Notation Community Group** por la especificacion abierta **SMuFL** (*Standard Music Font Layout*) y a los disenadores de la fuente abierta *Bravura* (Steinberg Media Technologies), cuyos mapas glificos normalizados rigen el renderizado vectorial de cabezas de nota, plicas, silencios y armaduras en el lienzo a 60/120 FPS.
+3. **Sintesis Acustica por Tablas de Ondas (SoundFont SF2):**
+   * **Creative Technology Ltd. & E-mu Systems** por la especificacion tecnica abierta de **SoundFont 2.04**, estandar industrial implementado en el parser binario RIFF y sintetizador SF2 en memoria de Tunner para reproducir instrumentos acusticos de referencia con latencia determinista.
+4. **Organologia y Clasificacion Universal de Instrumentos:**
+   * **Erich Moritz von Hornbostel & Curt Sachs** (1914) por la clasificacion taxonomica Hornbostel-Sachs (aerofonos, cordofonos, idiofonos, membranofonos y electrofonos).
+   * **The MIDI Association (AMEI / MMA)** por las especificaciones de General MIDI Nivel 1 y 2, utilizadas para la asignacion canonica de patches, controladores continuos (CC) y transposicion orquestal.
+5. **Metodologia de Correccion Tonal y Edicion Visual:**
+   * A las tecnologias pioneras de **Antares Audio Technologies** (Auto-Tune) y **Celemony Software** (Melodyne), cuyas metodologias de cuantizacion a escalas modales y edicion grafica de notas sobre partitura inspiraron la Suite Vocal y el Melodyne Mode de Tunner.
+6. **Ecosistema de Ejecucion y Runtime:**
+   * Al equipo de ingenieria de **Google Flutter & Dart** por proveer un runtime multiplataforma reactivo de ultra baja latencia con soporte nativo de Isolates multihilo y compilacion AOT (Ahead-of-Time) hacia codigo de maquina nativo.
