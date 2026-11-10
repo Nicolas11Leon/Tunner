@@ -24,6 +24,7 @@ import 'workspaces/presentation/composition_notation_workspace_view.dart';
 import 'workspaces/presentation/production_acoustic_lab_workspace_view.dart';
 import 'audio_synthesizer/presentation/instrument_soundfont_selector_modal.dart';
 import 'tuner/presentation/microphone_calibration_modal.dart';
+import 'instrument/presentation/widgets/smart_instrument_badge.dart';
 import '../core/theme/tunner_theme.dart';
 
 class TunerScreen extends StatelessWidget {
@@ -403,54 +404,169 @@ class TunerScreen extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        final palette = viewModel.currentPalette;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final palette = viewModel.currentPalette;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(Icons.piano, color: palette.secondaryAccent, size: 22),
-                      const SizedBox(width: 8),
-                      Text(
-                        "SELECTOR DE INSTRUMENTO",
-                        style: TextStyle(
-                          color: palette.secondaryAccent,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
-                        ),
+                      Row(
+                        children: [
+                          Icon(Icons.piano, color: palette.secondaryAccent, size: 22),
+                          const SizedBox(width: 8),
+                          Text(
+                            "SELECTOR DE INSTRUMENTO",
+                            style: TextStyle(
+                              color: palette.secondaryAccent,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: palette.textMutedColor, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
                   ),
-                  IconButton(
-                    icon: Icon(Icons.close, color: palette.textMutedColor, size: 20),
-                    onPressed: () => Navigator.pop(ctx),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Transposición armónica automática de partitura y afinador según la clave del instrumento",
+                    style: TextStyle(color: palette.textMutedColor, fontSize: 11),
                   ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                "Transposición armónica automática de partitura y afinador según la clave del instrumento",
-                style: TextStyle(color: palette.textMutedColor, fontSize: 11),
-              ),
-              const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: palette.scaffoldBackground,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: viewModel.isSmartInstrumentTuningActive
+                            ? palette.primaryAccent.withValues(alpha: 0.3)
+                            : Colors.white10,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.auto_awesome,
+                              size: 18,
+                              color: viewModel.isSmartInstrumentTuningActive
+                                  ? palette.primaryAccent
+                                  : palette.textMutedColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Afinación Inteligente con Reconocimiento",
+                                    style: TextStyle(
+                                      color: palette.textColor,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    "Detecta timbre y adapta afinador, filtro acústico y SoundFont",
+                                    style: TextStyle(
+                                      color: palette.textMutedColor,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              key: const Key('toggle_smart_instrument_switch'),
+                              value: viewModel.isSmartInstrumentTuningActive,
+                              activeThumbColor: palette.primaryAccent,
+                              onChanged: (_) {
+                                viewModel.toggleSmartInstrumentTuning();
+                                setModalState(() {});
+                              },
+                            ),
+                          ],
+                        ),
+                        if (viewModel.isSmartInstrumentTuningActive) ...[
+                          const Divider(color: Colors.white10, height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: SmartInstrumentBadge(
+                                  isSmartTuningActive: viewModel.isSmartInstrumentTuningActive,
+                                  autoSwitchEnabled: viewModel.autoSwitchInstrumentEnabled,
+                                  match: viewModel.lastDetectedMatch,
+                                  activeInstrument: viewModel.activeInstrument,
+                                  palette: palette,
+                                  onToggleSmartTuning: () {
+                                    viewModel.toggleSmartInstrumentTuning();
+                                    setModalState(() {});
+                                  },
+                                  onToggleAutoSwitch: () {
+                                    viewModel.toggleAutoSwitchInstrument();
+                                    setModalState(() {});
+                                  },
+                                  onApplyMatch: (match) {
+                                    viewModel.applyDetectedInstrumentMatch(match);
+                                    setModalState(() {});
+                                  },
+                                  onDismissMatch: () {
+                                    viewModel.dismissSmartInstrumentMatch();
+                                    setModalState(() {});
+                                  },
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  Text(
+                                    "Auto-adaptar",
+                                    style: TextStyle(
+                                      color: palette.textMutedColor,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                  Checkbox(
+                                    key: const Key('auto_switch_instrument_checkbox'),
+                                    value: viewModel.autoSwitchInstrumentEnabled,
+                                    activeColor: palette.primaryAccent,
+                                    onChanged: (_) {
+                                      viewModel.toggleAutoSwitchInstrument();
+                                      setModalState(() {});
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
               ConstrainedBox(
                 constraints: BoxConstraints(
                   maxHeight: MediaQuery.of(context).size.height * 0.55,
@@ -536,6 +652,8 @@ class TunerScreen extends StatelessWidget {
             ],
           ),
         );
+          },
+        );
       },
     );
   }
@@ -611,6 +729,18 @@ class TunerScreen extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+            SmartInstrumentBadge(
+              isSmartTuningActive: viewModel.isSmartInstrumentTuningActive,
+              autoSwitchEnabled: viewModel.autoSwitchInstrumentEnabled,
+              match: viewModel.lastDetectedMatch,
+              activeInstrument: viewModel.activeInstrument,
+              palette: palette,
+              onToggleSmartTuning: viewModel.toggleSmartInstrumentTuning,
+              onToggleAutoSwitch: viewModel.toggleAutoSwitchInstrument,
+              onApplyMatch: viewModel.applyDetectedInstrumentMatch,
+              onDismissMatch: viewModel.dismissSmartInstrumentMatch,
+              onOpenSelector: () => _showInstrumentModal(context, viewModel),
             ),
             IconButton(
               icon: Icon(Icons.piano, color: palette.secondaryAccent),
@@ -1005,6 +1135,18 @@ class TunerScreen extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+            SmartInstrumentBadge(
+              isSmartTuningActive: viewModel.isSmartInstrumentTuningActive,
+              autoSwitchEnabled: viewModel.autoSwitchInstrumentEnabled,
+              match: viewModel.lastDetectedMatch,
+              activeInstrument: viewModel.activeInstrument,
+              palette: palette,
+              onToggleSmartTuning: viewModel.toggleSmartInstrumentTuning,
+              onToggleAutoSwitch: viewModel.toggleAutoSwitchInstrument,
+              onApplyMatch: viewModel.applyDetectedInstrumentMatch,
+              onDismissMatch: viewModel.dismissSmartInstrumentMatch,
+              onOpenSelector: () => _showInstrumentModal(context, viewModel),
             ),
             IconButton(
               icon: Icon(Icons.piano, color: palette.secondaryAccent),
