@@ -317,6 +317,31 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
                     ),
                   ),
                 ),
+                Expanded(
+                  child: InkWell(
+                    key: const Key('minus_one_tab_btn'),
+                    onTap: () => setState(() => _selectedTab = 3),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedTab == 3 ? palette.primaryAccent : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        "Minus-One",
+                        style: TextStyle(
+                          color: _selectedTab == 3
+                              ? (isDark ? Colors.black : Colors.white)
+                              : palette.textMutedColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -326,14 +351,16 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
           Expanded(
             child: _selectedTab == 2
                 ? ScoreImportTabView(viewModel: widget.viewModel)
-                : SingleChildScrollView(
-                    child: _selectedTab == 0
-                        ? _buildEditorTab(palette, isDark, parsedPreview, totalNotes)
-                        : _buildTemplatesTab(palette, isDark),
-                  ),
+                : _selectedTab == 3
+                    ? _buildMinusOneTab(palette, isDark)
+                    : SingleChildScrollView(
+                        child: _selectedTab == 0
+                            ? _buildEditorTab(palette, isDark, parsedPreview, totalNotes)
+                            : _buildTemplatesTab(palette, isDark),
+                      ),
           ),
 
-          if (_selectedTab != 2) ...[
+          if (_selectedTab == 0 || _selectedTab == 1) ...[
             const SizedBox(height: 12),
 
             // Botón de descomposición
@@ -835,6 +862,326 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
               borderSide: BorderSide(color: palette.primaryAccent),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMinusOneTab(dynamic palette, bool isDark) {
+    return AnimatedBuilder(
+      animation: widget.viewModel,
+      builder: (context, _) {
+        final vm = widget.viewModel;
+        final package = vm.activePackage;
+        final isMinusOne = vm.isMinusOneActive;
+        final session = vm.activeMinusOneSession;
+        final userTrackId = vm.minusOneUserTrackId ??
+            (package.tracks.isNotEmpty ? package.tracks.first.id : '');
+        final guideVolume = session?.guideTrackVolume ?? 0.0;
+        final isPlaying = vm.isMetronomePlaying;
+
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header descriptivo
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: palette.scaffoldBackground,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: palette.surfaceBorderColor),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: palette.primaryAccent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.queue_music_rounded,
+                        color: palette.primaryAccent,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Ensamble Virtual Minus-One",
+                            style: TextStyle(
+                              color: palette.textColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            "Silencia tu instrumento en la obra y practica sobre el acompañamiento con evaluación en vivo.",
+                            style: TextStyle(
+                              color: palette.textMutedColor,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Switch maestro Minus-One
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: palette.scaffoldBackground,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isMinusOne
+                        ? palette.primaryAccent.withValues(alpha: 0.5)
+                        : palette.surfaceBorderColor,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Modo Minus-One",
+                          style: TextStyle(
+                            color: palette.textColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          isMinusOne ? "Pista de instrumento silenciada" : "Todas las pistas audibles",
+                          style: TextStyle(
+                            color: isMinusOne ? palette.primaryAccent : palette.textMutedColor,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Switch(
+                      key: const Key('minus_one_mode_switch'),
+                      value: isMinusOne,
+                      activeThumbColor: palette.primaryAccent,
+                      onChanged: (_) {
+                        vm.toggleMinusOneMode(targetTrackId: userTrackId);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Selector de pista de instrumento
+              Text(
+                "Pista de tu Instrumento a Silenciar:",
+                style: TextStyle(
+                  color: palette.textColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              if (package.tracks.isEmpty)
+                Text(
+                  "No hay pistas detectadas en el arreglo.",
+                  style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: package.tracks.map((track) {
+                    final isSelected = track.id == userTrackId;
+                    return ChoiceChip(
+                      key: Key('minus_one_track_chip_${track.id}'),
+                      label: Text(track.title),
+                      selected: isSelected,
+                      selectedColor: palette.primaryAccent,
+                      backgroundColor: palette.scaffoldBackground,
+                      labelStyle: TextStyle(
+                        color: isSelected
+                            ? (isDark ? Colors.black : Colors.white)
+                            : palette.textColor,
+                        fontSize: 11,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                      onSelected: (_) {
+                        vm.setMinusOneUserTrack(track.id);
+                      },
+                    );
+                  }).toList(),
+                ),
+              const SizedBox(height: 14),
+
+              // Control de ganancia pista guía
+              Text(
+                "Volumen Pista Guía Solista: ${(guideVolume * 100).toInt()}%",
+                style: TextStyle(
+                  color: palette.textColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                guideVolume <= 0.0
+                    ? "Silencio total (0%): práctica como solista puro."
+                    : "Pista atenuada (${(guideVolume * 100).toInt()}%): sirve como referencia auditiva.",
+                style: TextStyle(
+                  color: palette.textMutedColor,
+                  fontSize: 10,
+                ),
+              ),
+              Slider(
+                key: const Key('minus_one_guide_volume_slider'),
+                value: guideVolume.clamp(0.0, 0.40),
+                min: 0.0,
+                max: 0.40,
+                divisions: 8,
+                activeColor: palette.primaryAccent,
+                inactiveColor: palette.surfaceBorderColor,
+                onChanged: (val) {
+                  vm.setMinusOneGuideVolume(val);
+                },
+              ),
+              const SizedBox(height: 12),
+
+              // Métricas de desempeño en vivo
+              if (session != null && session.evaluations.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: palette.scaffoldBackground,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: palette.surfaceBorderColor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Evaluación Acústica en Vivo",
+                            style: TextStyle(
+                              color: palette.textColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: palette.primaryAccent.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              "Grado ${session.sessionGrade}",
+                              style: TextStyle(
+                                color: palette.primaryAccent,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildMinusOneMetric(
+                            "Aciertos",
+                            "${session.hitNotesCount}/${session.totalNotesEvaluated}",
+                            palette,
+                          ),
+                          _buildMinusOneMetric(
+                            "Afinación",
+                            "±${session.averageCentsDeviation.toStringAsFixed(1)}c",
+                            palette,
+                          ),
+                          _buildMinusOneMetric(
+                            "On-Time",
+                            "${session.onTimeCount}",
+                            palette,
+                          ),
+                          _buildMinusOneMetric(
+                            "Rushing",
+                            "${session.rushingCount}",
+                            palette,
+                          ),
+                          _buildMinusOneMetric(
+                            "Dragging",
+                            "${session.draggingCount}",
+                            palette,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+              ],
+
+              // Botón de Inicio / Detención de Práctica
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  key: const Key('start_minus_one_practice_btn'),
+                  onPressed: () {
+                    vm.toggleMetronome();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isPlaying ? Colors.redAccent : palette.primaryAccent,
+                    foregroundColor: isDark ? Colors.black : Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: Icon(isPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded),
+                  label: Text(
+                    isPlaying ? "Detener Práctica" : "Iniciar Práctica Minus-One",
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMinusOneMetric(String label, String value, dynamic palette) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: palette.textColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            color: palette.textMutedColor,
+            fontSize: 10,
           ),
         ),
       ],

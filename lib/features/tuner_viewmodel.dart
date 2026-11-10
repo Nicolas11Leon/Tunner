@@ -78,6 +78,8 @@ import 'vocal_autotune/domain/scale_quantizer.dart';
 import 'vocal_autotune/domain/vocal_autotune_processor.dart';
 import 'vocal_autotune/domain/vocal_score_converter.dart';
 import 'instrument/domain/smart_instrument_detector.dart';
+import 'song_library/domain/minus_one_session_entity.dart';
+import 'song_library/domain/minus_one_orchestrator.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -239,6 +241,10 @@ class TunerViewModel extends ChangeNotifier {
   bool _isSmartInstrumentTuningActive = false;
   bool _autoSwitchInstrumentEnabled = false;
   SmartInstrumentMatch? _lastDetectedMatch;
+
+  // Ensamble Virtual Minus-One y Descomposición de Partituras (UC-61)
+  final MinusOneOrchestrator _minusOneOrchestrator = const MinusOneOrchestrator();
+  MinusOneSessionEntity? _activeMinusOneSession;
 
   // Inyección de dependencias en el constructor
   TunerViewModel({
@@ -461,6 +467,11 @@ class TunerViewModel extends ChangeNotifier {
   // --- Vocal Suite & Melodyne Mode (UC-60) ---
   SongPackage? get lastConvertedVocalPackage => _lastConvertedVocalPackage;
   VocalScoreConversionResult? get lastVocalConversionResult => _lastVocalConversionResult;
+
+  // --- Ensamble Virtual Minus-One (UC-61) ---
+  MinusOneSessionEntity? get activeMinusOneSession => _activeMinusOneSession;
+  bool get isMinusOneActive => _activeMinusOneSession?.isMinusOneActive ?? false;
+  String? get minusOneUserTrackId => _activeMinusOneSession?.userTrackId;
 
   // --- Getters de Grabación & Auto-Escucha (Loopback) ---
   bool get isAudioRecording => _isAudioRecording;
@@ -1300,6 +1311,12 @@ class TunerViewModel extends ChangeNotifier {
         sustainRatio: 1.0,
       );
       _activeEvaluations.add(eval);
+      if (_activeMinusOneSession != null && _activeMinusOneSession!.isMinusOneActive) {
+        _activeMinusOneSession = _minusOneOrchestrator.recordEvaluation(
+          _activeMinusOneSession!,
+          eval,
+        );
+      }
     }
   }
 
@@ -1469,6 +1486,23 @@ class TunerViewModel extends ChangeNotifier {
       metronomeTrack: _mixerConsole.metronomeTrack,
       stems: package.tracks,
     );
+
+    if (_activeMinusOneSession != null && _activeMinusOneSession!.isMinusOneActive) {
+      final userTrackId = _minusOneOrchestrator.detectUserTrack(package, _activeInstrument.id);
+      _activeMinusOneSession = _minusOneOrchestrator.createSession(
+        package: package,
+        userTrackId: userTrackId,
+        isMinusOneActive: true,
+        isMutedUserTrack: _activeMinusOneSession!.guideTrackVolume <= 0.0,
+        guideTrackVolume: _activeMinusOneSession!.guideTrackVolume,
+      );
+      _mixerConsole = _minusOneOrchestrator.configureMinusOneMixer(
+        _mixerConsole,
+        userTrackId,
+        muteUserTrack: _activeMinusOneSession!.guideTrackVolume <= 0.0,
+        guideVolume: _activeMinusOneSession!.guideTrackVolume,
+      );
+    }
 
     resetSongState();
     notifyListeners();
@@ -2425,6 +2459,96 @@ class TunerViewModel extends ChangeNotifier {
     _activePackage = snapped;
     notifyListeners();
     _triggerAutoSave();
+  }
+
+  // =========================================================================
+  // Ensamble Virtual Minus-One y Descomposición de Partituras (UC-61)
+  // =========================================================================
+
+  /// Conmuta la activación del modo de práctica Minus-One para la obra activa.
+  void toggleMinusOneMode({String? targetTrackId}) {
+    if (_activeMinusOneSession != null && _activeMinusOneSession!.isMinusOneActive) {
+      final userTrack = _activeMinusOneSession!.userTrackId;
+      _mixerConsole = _minusOneOrchestrator.restoreFullEnsembleMixer(_mixerConsole, userTrack);
+      _activeMinusOneSession = _activeMinusOneSession!.copyWith(
+        isMinusOneActive: false,
+        isMutedUserTrack: false,
+      );
+    } else {
+      final trackId = targetTrackId ??
+          _minusOneOrchestrator.detectUserTrack(_activePackage, _activeInstrument.id);
+      _activeMinusOneSession = _minusOneOrchestrator.createSession(
+        package: _activePackage,
+        userTrackId: trackId,
+        isMinusOneActive: true,
+        isMutedUserTrack: true,
+      );
+      _mixerConsole = _minusOneOrchestrator.configureMinusOneMixer(
+        _mixerConsole,
+        trackId,
+        muteUserTrack: true,
+      );
+    }
+    notifyListeners();
+  }
+
+  /// Asigna qué pista de la partitura corresponde al instrumento del usuario.
+  void setMinusOneUserTrack(String trackId) {
+    if (_activeMinusOneSession != null && _activeMinusOneSession!.userTrackId != trackId) {
+      _mixerConsole = _minusOneOrchestrator.restoreFullEnsembleMixer(
+        _mixerConsole,
+        _activeMinusOneSession!.userTrackId,
+      );
+    }
+    final guideVol = _activeMinusOneSession?.guideTrackVolume ?? 0.0;
+    _activeMinusOneSession = _minusOneOrchestrator.createSession(
+      package: _activePackage,
+      userTrackId: trackId,
+      isMinusOneActive: true,
+      isMutedUserTrack: guideVol <= 0.0,
+      guideTrackVolume: guideVol,
+    );
+    _mixerConsole = _minusOneOrchestrator.configureMinusOneMixer(
+      _mixerConsole,
+      trackId,
+      muteUserTrack: guideVol <= 0.0,
+      guideVolume: guideVol,
+    );
+    notifyListeners();
+  }
+
+  /// Ajusta el volumen de la pista guía del usuario durante el modo Minus-One (0.0 = silencio total).
+  void setMinusOneGuideVolume(double volume) {
+    if (_activeMinusOneSession == null) return;
+    _activeMinusOneSession = _activeMinusOneSession!.copyWith(
+      guideTrackVolume: volume,
+      isMutedUserTrack: volume <= 0.0,
+    );
+    _mixerConsole = _minusOneOrchestrator.configureMinusOneMixer(
+      _mixerConsole,
+      _activeMinusOneSession!.userTrackId,
+      muteUserTrack: volume <= 0.0,
+      guideVolume: volume,
+    );
+    notifyListeners();
+  }
+
+  /// Registra una evaluación acústica en tiempo real en la sesión Minus-One activa.
+  void recordMinusOneEvaluation(NoteEvaluationEntity evaluation) {
+    if (_activeMinusOneSession == null || !_activeMinusOneSession!.isMinusOneActive) return;
+    _activeMinusOneSession = _minusOneOrchestrator.recordEvaluation(
+      _activeMinusOneSession!,
+      evaluation,
+    );
+    notifyListeners();
+  }
+
+  /// Reinicia las evaluaciones acumuladas en la sesión Minus-One activa.
+  void resetMinusOneEvaluations() {
+    if (_activeMinusOneSession != null) {
+      _activeMinusOneSession = _activeMinusOneSession!.copyWith(evaluations: const []);
+      notifyListeners();
+    }
   }
 
   @override
