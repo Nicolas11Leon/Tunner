@@ -114,6 +114,19 @@ class MixerConsoleEntity {
     );
   }
 
+  MixerConsoleEntity setTrackMute(String trackId, bool isMuted) {
+    if (trackId == metronomeTrack.id) {
+      return MixerConsoleEntity(
+        metronomeTrack: metronomeTrack.copyWith(isMuted: isMuted),
+        stems: stems,
+      );
+    }
+    return MixerConsoleEntity(
+      metronomeTrack: metronomeTrack,
+      stems: stems.map((t) => t.id == trackId ? t.copyWith(isMuted: isMuted) : t).toList(),
+    );
+  }
+
   MixerConsoleEntity toggleSolo(String trackId) {
     if (trackId == metronomeTrack.id) {
       return MixerConsoleEntity(
