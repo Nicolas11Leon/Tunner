@@ -18,48 +18,73 @@ Antes de escribir tu primera línea de código, te pedimos familiarizarte con nu
    * **Capa de Dominio (`lib/*/domain/`):** Dart puro. Cero dependencias de Flutter, widgets, paquetes externos de UI o plugins de plataforma. Alberga entidades matemáticas, modelos musicales y algoritmos puros.
    * **Capa de Datos e Infraestructura (`lib/*/data/`):** Implementaciones concretas, decodificación de archivos binarios (SF2, MIDI, MusicXML), persistencia atómica y streams de micrófono.
    * **Capa de Presentación (`lib/*/presentation/`):** Widgets reactivos de Flutter, ViewModels, CustomPainters y layouts adaptativos. La UI jamás accede al hardware ni a los códecs directamente.
-3. **Disciplina de Audio y Hardware:**  
+3. **Disciplina de Audio, Puertos y Hardware:**  
    * **Cero bucles de espera activa (*Zero Busy-Waiting*):** Ningún hilo o Isolate puede monopolizar la CPU en bucles vacíos. Debe cederse el tiempo al sistema operativo.
    * **Latencia Sub-10ms:** Las cadenas de DSP y relojes de transporte deben minimizar el tamaño de buffers para una respuesta instantánea entre el oído y la pantalla.
-4. **Calidad y Verificación Rigurosa:**  
+   * **Bypass de DSP Telefónico:** La captura de audio debe solicitarse en modo crudo (`AudioSource.UNPROCESSED`) para evitar que la cancelación de eco y compresión del OS degraden los armónicos instrumentales.
+   * **Seguridad Acústica Anti-Feedback:** El monitoreo en vivo solo se autoriza mediante `PortPermissionBroker` si se detectan auriculares o interfaces externas conectadas, previniendo acoples por altavoces.
+4. **Política de Tono Técnico Riguroso (Zero Emojis Policy):**  
+   * La documentación técnica de Tunner se rige por estándares de conservatorio y rigor científico.
+   * Queda estrictamente prohibido el uso de emojis o lenguaje informal en el código fuente, commits, tests y documentos en `docs/`.
+5. **Calidad y Verificación Rigurosa:**  
    * Todo nuevo desarrollo debe acompañarse de pruebas unitarias o de integración.
    * La suite de pruebas debe pasar al 100% (`flutter test`).
    * Cero errores y cero advertencias en el análisis estático (`flutter analyze`).
 
 ---
 
-## 2. ¿Cómo Puedes Colaborar?
+## 2. Protocolo Obligatorio de Documentación Previa y Decisiones (ADRs)
+
+En Tunner no se escribe una sola línea de código sin haber completado previamente la cadena documental canónica. Consulta el manual completo en [docs/00_standards/standard_engineering_and_documentation_protocol.md](docs/00_standards/standard_engineering_and_documentation_protocol.md).
+
+Para cualquier contribución que añada funcionalidad o altere la arquitectura, es **estrictamente obligatorio** redactar y vincular:
+
+1. **Documento Técnico de Arquitectura (`docs/01_product_vision/`):**  
+   Utilizando la [Plantilla de Documentación](docs/templates/plantilla_documentacion.md). Debe incluir formulación matemática en LaTeX (KaTeX), fundamentos acústicos y requerimientos atómicos verificables.
+2. **Caso de Uso Canónico (`docs/02_use_cases/`):**  
+   Clasificado secuencialmente (`00` a `N`) utilizando la [Plantilla de Caso de Uso](docs/templates/plantilla_caso_de_uso.md). Debe contener obligatoriamente:
+   * Diagrama formal de Casos de Uso en Mermaid (`flowchart LR`).
+   * Diagrama de Secuencia en Mermaid (`sequenceDiagram`).
+   * Precondiciones, postcondiciones, flujo principal, alternativos y de error.
+3. **Registro de Decisión de Arquitectura / ADR (`docs/04_adrs/`):**  
+   Numerado secuencialmente (`0001` a `NNNN`). Cualquier encrucijada técnica, selección de códec, modelo de datos, gestión de puertos o política de seguridad debe quedar registrada para la posteridad con su Estado, Contexto, Decisión y Consecuencias.
+4. **Plan de Implementación Formal (`docs/05_implementation_plans/`):**  
+   Utilizando la [Plantilla de Plan de Implementación](docs/templates/plantilla_plan_implementacion.md). Delimita el alcance (In-Scope vs Out-of-Scope) y define la hoja de ruta paso a paso (Dominio -> Infraestructura -> Presentación -> Pruebas).
+
+---
+
+## 3. ¿Cómo Puedes Colaborar?
 
 Buscamos diversos perfiles interdisciplinarios:
 
-### 2.1 Músicos, Compositores y Docentes
+### 3.1 Músicos, Compositores y Docentes
 * Proponer o calibrar nuevos **temperamentos históricos** y sistemas de afinación microtonal (Maqamat, Slendro/Pelog, sistemas de entonación justa).
 * Crear partituras y ejercicios pedagógicos de dominio público para el catálogo de estudio.
 * Validar la respuesta tímbrica y afinación en instrumentos orquestales, folclóricos y étnicos reales.
 * Proponer nuevas metodologías de entrenamiento auditivo y evaluación de ritmo.
 
-### 2.2 Ingenieros de Audio y DSP
+### 3.2 Ingenieros de Audio y DSP
 * Proponer y refinar algoritmos de detección de tono (variantes avanzadas de YIN, SWIPE, MPM polifónico).
 * Desarrollar y optimizar filtros acústicos digitales (filtros comb, notch adaptativos para micrófonos, filtros IIR/FIR).
 * Expandir el motor de síntesis de tablas de ondas (SoundFont SF2/SFZ) y modelado físico de instrumentos.
 
-### 2.3 Desarrolladores Flutter y Dart
+### 3.3 Desarrolladores Flutter y Dart
 * Optimizar los `CustomPainter` de la notación musical SMuFL para mantener 60/120 FPS sin caídas de cuadros.
 * Mejorar la accesibilidad, lectores de pantalla y navegación por teclado en escritorio.
 * Implementar nuevos componentes modulares para el Rack de Estudio y la Consola Multitarea.
 * Añadir soporte para nuevas plataformas o empaquetado nativo (Flatpak, AppImage, APK, macOS DMG).
 
-### 2.4 Ingenieros de Sistemas (C++, Rust y `dart:ffi`)
+### 3.4 Ingenieros de Sistemas (C++, Rust y `dart:ffi`)
 * Ayudar en el diseño del futuro motor DSP nativo compilado mediante `dart:ffi` para procesamiento por bloques de ultra baja latencia ($\le 3\text{ ms}$).
 * Optimizaciones SIMD para cálculo vectorial en transformadas de Fourier y autocorrelación.
 
-### 2.5 Diseñadores, Traductores y Documentadores
+### 3.5 Diseñadores, Traductores y Documentadores
 * Internacionalización (i18n): Traducir la interfaz a más idiomas (inglés, francés, alemán, japonés, portugués, etc.).
 * Redactar guías de estudio acústico, manuales interactivos y tutoriales para usuarios noveles.
 
 ---
 
-## 3. Entorno de Desarrollo y Puesta en Marcha
+## 4. Entorno de Desarrollo y Puesta en Marcha
 
 ### Requisitos
 * [Flutter SDK](https://flutter.dev/docs/get-started/install) (Canal estable `^3.11.5` o superior).
@@ -87,7 +112,7 @@ flutter test
 
 ---
 
-## 4. Flujo Canónico de Trabajo (Git & Pull Requests)
+## 5. Flujo Canónico de Trabajo (Git & Pull Requests)
 
 1. **Crea una rama para tu contribución:**
    ```bash
@@ -118,7 +143,7 @@ flutter test
 
 ---
 
-## 5. Ideas para Empezar ("Good First Issues")
+## 6. Ideas para Empezar ("Good First Issues")
 
 ¿Quieres empezar pero no sabes por dónde? Aquí tienes algunas ideas inmediatas y bienvenidas:
 
@@ -130,7 +155,7 @@ flutter test
 
 ---
 
-## 6. Código de Conducta y Respeto Mutuo
+## 7. Código de Conducta y Respeto Mutuo
 
 En el proyecto Tunner creemos en una colaboración basada en:
 * **Rigor científico y honestidad intelectual.**
@@ -139,7 +164,7 @@ En el proyecto Tunner creemos en una colaboración basada en:
 
 ---
 
-## 7. Contacto y Comunicación
+## 8. Contacto y Comunicación
 
 Para preguntas técnicas, propuestas de diseño o dudas sobre la arquitectura:
 * **Creador y Arquitecto Principal:** Nicolás León ([@Nicolas11Leon](https://github.com/Nicolas11Leon)).
