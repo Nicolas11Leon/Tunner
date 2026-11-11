@@ -81,6 +81,94 @@ class ScoreEditorOperations {
     );
   }
 
+  /// Inserta un acorde (múltiples notas simultáneas en el mismo startTick y duración)
+  /// en un compás específico, resolviendo solapamientos rítmicos.
+  SongPackage insertChordNotes({
+    required SongPackage package,
+    required int measureIndex,
+    required int startTick,
+    required int durationTicks,
+    required List<String> noteNames,
+  }) {
+    if (measureIndex < 0 || measureIndex >= package.score.measures.length) {
+      return package;
+    }
+
+    final targetMeasure = package.score.measures[measureIndex];
+    final maxTicks = targetMeasure.timeSignature.totalTicks;
+
+    final clampedStartTick = startTick.clamp(0, maxTicks - 1);
+    final clampedDuration = math.min(durationTicks, maxTicks - clampedStartTick);
+    if (clampedDuration <= 0) return package;
+
+    final newEndTick = clampedStartTick + clampedDuration;
+
+    // Filtrar y recortar notas preexistentes que se solapen con el intervalo temporal
+    final newNotes = <HierarchicalNote>[];
+    for (final existing in targetMeasure.notes) {
+      final existingStart = existing.startTick;
+      final existingEnd = existing.startTick + existing.durationTicks;
+
+      // Caso 1: La nota existente está completamente antes o después del nuevo rango
+      if (existingEnd <= clampedStartTick || existingStart >= newEndTick) {
+        newNotes.add(existing);
+      }
+      // Caso 2: La nota existente comienza antes del nuevo rango pero se solapa al final
+      else if (existingStart < clampedStartTick && existingEnd > clampedStartTick) {
+        final shortenedDuration = clampedStartTick - existingStart;
+        if (shortenedDuration > 0) {
+          newNotes.add(existing.copyWith(durationTicks: shortenedDuration));
+        }
+      }
+      // Caso 3: La nota existente comienza dentro del nuevo rango pero termina después
+      else if (existingStart >= clampedStartTick && existingEnd > newEndTick) {
+        final remainingStart = newEndTick;
+        final remainingDuration = existingEnd - newEndTick;
+        if (remainingDuration > 0) {
+          newNotes.add(existing.copyWith(
+            startTick: remainingStart,
+            durationTicks: remainingDuration,
+          ));
+        }
+      }
+    }
+
+    // Insertar las notas del acorde
+    final filteredNoteNames = noteNames.where((n) => n.isNotEmpty && n != '--').toSet().toList();
+    if (filteredNoteNames.isEmpty) {
+      newNotes.add(HierarchicalNote(
+        startTick: clampedStartTick,
+        durationTicks: clampedDuration,
+        noteName: '--',
+        isRest: true,
+      ));
+    } else {
+      for (final noteName in filteredNoteNames) {
+        newNotes.add(HierarchicalNote(
+          startTick: clampedStartTick,
+          durationTicks: clampedDuration,
+          noteName: noteName,
+          isRest: false,
+        ));
+      }
+    }
+
+    // Ordenar cronológicamente por startTick y luego alfabéticamente
+    newNotes.sort((a, b) {
+      final tickComp = a.startTick.compareTo(b.startTick);
+      if (tickComp != 0) return tickComp;
+      return a.noteName.compareTo(b.noteName);
+    });
+
+    final updatedMeasure = targetMeasure.copyWith(notes: newNotes);
+    final updatedMeasures = List<MeasureEntity>.from(package.score.measures);
+    updatedMeasures[measureIndex] = updatedMeasure;
+
+    return package.copyWith(
+      score: package.score.copyWith(measures: updatedMeasures),
+    );
+  }
+
   /// Elimina la nota en el tick dado reemplazándola por un silencio ("--").
   SongPackage deleteNoteAt({
     required SongPackage package,

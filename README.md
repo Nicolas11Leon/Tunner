@@ -1,7 +1,7 @@
 # Tunner: Studio Pitch, Real-Time Acoustic Lab and Sheet Music Engine
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
-[![Tests: 549 Passing](https://img.shields.io/badge/Tests-549%20Passing-brightgreen.svg)]()
+[![Tests: 567 Passing](https://img.shields.io/badge/Tests-567%20Passing-brightgreen.svg)]()
 [![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
 [![Architecture: Clean Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-informational.svg)]()
 [![Privacy: 100% Offline--First](https://img.shields.io/badge/Privacy-100%25%20Offline--First-blueviolet.svg)]()
@@ -220,8 +220,8 @@ tunner/
 │   │   ├── tuner_viewmodel.dart    # Orquestador principal con Inversion de Dependencias
 │   │   └── tuner_screen.dart       # Pantalla tradicional unificada del laboratorio acustico
 │   └── main.dart                   # Punto de entrada de la aplicacion
-├── test/                           # 549 pruebas unitarias, de integracion y de widgets
-├── docs/                           # 62 Casos de Uso, 56 ADRs, 64 Planes de Implementacion
+├── test/                           # 567 pruebas unitarias, de integracion y de widgets
+├── docs/                           # 63 Casos de Uso, 57 ADRs, 65 Planes de Implementacion
 └── CONTRIBUTING.md                  # Guia detallada para colaboradores del proyecto
 ```
 
