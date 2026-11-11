@@ -80,6 +80,8 @@ import 'vocal_autotune/domain/vocal_score_converter.dart';
 import 'instrument/domain/smart_instrument_detector.dart';
 import 'song_library/domain/minus_one_session_entity.dart';
 import 'song_library/domain/minus_one_orchestrator.dart';
+import 'modular_rack/domain/port_permission_broker.dart';
+import 'tuner/domain/hardware_audio_endpoint.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -245,6 +247,11 @@ class TunerViewModel extends ChangeNotifier {
   // Ensamble Virtual Minus-One y Descomposición de Partituras (UC-61)
   final MinusOneOrchestrator _minusOneOrchestrator = const MinusOneOrchestrator();
   MinusOneSessionEntity? _activeMinusOneSession;
+
+  // Arbitraje de Puertos de Hardware y Seguridad Acústica (UC-62)
+  final PortPermissionBroker _portPermissionBroker = const PortPermissionBroker();
+  bool _isHeadphonesConnected = false;
+  List<HardwareAudioEndpoint> _hardwareAudioEndpoints = const [];
 
   // Inyección de dependencias en el constructor
   TunerViewModel({
@@ -472,6 +479,16 @@ class TunerViewModel extends ChangeNotifier {
   MinusOneSessionEntity? get activeMinusOneSession => _activeMinusOneSession;
   bool get isMinusOneActive => _activeMinusOneSession?.isMinusOneActive ?? false;
   String? get minusOneUserTrackId => _activeMinusOneSession?.userTrackId;
+
+  // --- Arbitraje de Puertos de Hardware y Seguridad Acústica (UC-62) ---
+  PortPermissionBroker get portPermissionBroker => _portPermissionBroker;
+  bool get isHeadphonesConnected => _isHeadphonesConnected;
+  bool get canActivateLiveMonitoring =>
+      _portPermissionBroker.canAuthorizeLiveMonitoring(
+        isHeadphonesOrInterfaceConnected: _isHeadphonesConnected,
+      );
+  List<HardwareAudioEndpoint> get hardwareAudioEndpoints =>
+      List.unmodifiable(_hardwareAudioEndpoints);
 
   // --- Getters de Grabación & Auto-Escucha (Loopback) ---
   bool get isAudioRecording => _isAudioRecording;
@@ -2549,6 +2566,35 @@ class TunerViewModel extends ChangeNotifier {
       _activeMinusOneSession = _activeMinusOneSession!.copyWith(evaluations: const []);
       notifyListeners();
     }
+  }
+
+  // =========================================================================
+  // Arbitraje de Puertos de Hardware y Seguridad Acústica (UC-62)
+  // =========================================================================
+
+  /// Actualiza el estado de conexión de auriculares o monitores externos desacoplados.
+  void setHeadphonesConnected(bool connected) {
+    if (_isHeadphonesConnected == connected) return;
+    _isHeadphonesConnected = connected;
+    notifyListeners();
+  }
+
+  /// Actualiza la lista de transductores y puertos de audio físicos detectados.
+  void updateHardwareEndpoints(List<HardwareAudioEndpoint> endpoints) {
+    _hardwareAudioEndpoints = List.unmodifiable(endpoints);
+    final hasSafeOutput = endpoints.any((e) => e.isOutput && e.isFeedbackSafe);
+    if (hasSafeOutput != _isHeadphonesConnected) {
+      _isHeadphonesConnected = hasSafeOutput;
+    }
+    notifyListeners();
+  }
+
+  /// Retorna un mensaje de advertencia si se intenta activar monitoreo en vivo sin auriculares.
+  String getLiveMonitoringSafetyWarning() {
+    return _portPermissionBroker.getSafetyWarningReason(
+      isHeadphonesConnected: _isHeadphonesConnected,
+      isLiveMonitoringRequested: true,
+    );
   }
 
   @override

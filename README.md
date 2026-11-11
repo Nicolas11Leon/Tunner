@@ -1,7 +1,7 @@
 # Tunner: Studio Pitch, Real-Time Acoustic Lab and Sheet Music Engine
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
-[![Tests: 538 Passing](https://img.shields.io/badge/Tests-538%20Passing-brightgreen.svg)]()
+[![Tests: 549 Passing](https://img.shields.io/badge/Tests-549%20Passing-brightgreen.svg)]()
 [![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
 [![Architecture: Clean Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-informational.svg)]()
 [![Privacy: 100% Offline--First](https://img.shields.io/badge/Privacy-100%25%20Offline--First-blueviolet.svg)]()
@@ -138,13 +138,13 @@ flowchart LR
 * [x] 8 Temperamentos históricos y calibración continua de $A_4$ (415–466 Hz).
 * [x] Renderizador vectorial SMuFL y editor interactivo con patrón Memento.
 * [x] Importador/Exportador MusicXML 3.1 y serializador binario MIDI SMF 0.
-* [x] 538 pruebas automatizadas passing y 0 lints en análisis estático.
+* [x] 549 pruebas automatizadas passing y 0 lints en análisis estático.
 
 ### 4.2 Fase 2: Suites Sinergéticas y Multitarea Profesional (En Progreso Activo)
 * [x] **Afinador Inteligente:** Detección de timbre y adaptación de micrófono ([PR #15](https://github.com/Nicolas11Leon/Tunner/pull/15)).
 * [x] **Suite Vocal & Modo Melodyne:** Auto-Tune en tiempo real, grabación dual y edición en pentagrama ([PR #16](https://github.com/Nicolas11Leon/Tunner/pull/16)).
 * [x] **Catálogo Canónico TTC:** Taxonomía de tareas de práctica y salto rápido modal `J`.
-* [ ] **Descomponedor de Partituras & Ensamble "Minus-One":** Descomposición de partituras multitrack, silenciamiento del instrumento del usuario, síntesis del acompañamiento con SoundFont SF2 y evaluación simultánea de la interpretación en vivo.
+* [x] **Descomponedor de Partituras & Ensamble "Minus-One":** Descomposición de partituras multitrack, silenciamiento del instrumento del usuario, síntesis del acompañamiento con SoundFont SF2 y evaluación simultánea de la interpretación en vivo ([PR #19](https://github.com/Nicolas11Leon/Tunner/pull/19)).
 * [ ] **Transcripción Polifónica Mic-to-Score:** Separación espectral de acordes complejos captados por micrófono y transcripción polifónica directa a partitura.
 * [ ] **Tutor de Afinación Justa Dinámica:** Ajuste interactivo de afinación en tiempo real según el rol armónico de la nota en el acorde ejecutado por un ensamble.
 
@@ -220,8 +220,8 @@ tunner/
 │   │   ├── tuner_viewmodel.dart    # Orquestador principal con Inversion de Dependencias
 │   │   └── tuner_screen.dart       # Pantalla tradicional unificada del laboratorio acustico
 │   └── main.dart                   # Punto de entrada de la aplicacion
-├── test/                           # 538 pruebas unitarias, de integracion y de widgets
-├── docs/                           # 60 Casos de Uso, 54 ADRs, 62 Planes de Implementacion
+├── test/                           # 549 pruebas unitarias, de integracion y de widgets
+├── docs/                           # 62 Casos de Uso, 56 ADRs, 64 Planes de Implementacion
 └── CONTRIBUTING.md                  # Guia detallada para colaboradores del proyecto
 ```
 
@@ -246,7 +246,7 @@ flutter pub get
 # 3. Analisis estatico de codigo (0 advertencias garantizadas)
 flutter analyze
 
-# 4. Ejecucion de la suite completa de pruebas (538 pruebas passing)
+# 4. Ejecucion de la suite completa de pruebas (549 pruebas passing)
 flutter test
 ```
 
