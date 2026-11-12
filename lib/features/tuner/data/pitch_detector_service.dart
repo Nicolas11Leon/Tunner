@@ -14,8 +14,10 @@ import '../domain/signal_conditioning_filter.dart';
 /// complementado con acondicionamiento de señal en tiempo real (DC-Blocker y Ganancia Adaptativa)
 /// y aislamiento acústico por tesitura y Tone Lock para rechazo de habla humana.
 class PitchDetectorService implements IPitchDetectorService {
-  final _audioRecorder = AudioRecorder();
+  AudioRecorder? _recorderInstance;
+  AudioRecorder get _audioRecorder => _recorderInstance ??= AudioRecorder();
   StreamSubscription? _audioSubscription;
+  bool _isRecording = false;
   
   Isolate? _dspIsolate;
   ReceivePort? _fromWorkerPort;
@@ -25,6 +27,8 @@ class PitchDetectorService implements IPitchDetectorService {
   MicrophoneCalibrationProfile _activeProfile = const MicrophoneCalibrationProfile();
   InstrumentAcousticFilterConfig _activeInstrumentFilter = InstrumentAcousticFilterConfig.universal();
   String _selectedDeviceId = '';
+
+  PitchDetectorService({AudioRecorder? audioRecorder}) : _recorderInstance = audioRecorder;
 
   @override
   Function(double)? onPitchDetected;
@@ -218,6 +222,7 @@ class PitchDetectorService implements IPitchDetectorService {
         );
 
         final stream = await _audioRecorder.startStream(config);
+        _isRecording = true;
 
         _audioSubscription = stream.listen((data) {
           _toWorkerPort?.send(data);
@@ -235,7 +240,14 @@ class PitchDetectorService implements IPitchDetectorService {
     await _audioSubscription?.cancel();
     _audioSubscription = null;
 
-    await _audioRecorder.stop();
+    if (_isRecording) {
+      _isRecording = false;
+      try {
+        await _audioRecorder.stop();
+      } catch (e) {
+        debugPrint("Error al detener grabador de audio: $e");
+      }
+    }
 
     _fromWorkerPort?.close();
     _fromWorkerPort = null;
