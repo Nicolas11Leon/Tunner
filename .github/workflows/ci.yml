@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Flutter SDK
-        uses: subosito/flutter-action@f2c4f6fb9d9575564076644f4f14502fb800d1b7 # v2.18.0
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: 'stable'
           cache: true
