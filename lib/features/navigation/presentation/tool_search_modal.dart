@@ -8,6 +8,8 @@ import '../../tuner/presentation/temperament_selector_modal.dart';
 import '../../instrument/presentation/instrument_selector_modal.dart';
 import '../../pedagogy_report/presentation/pedagogical_report_modal.dart';
 import '../../song_library/presentation/song_decomposer_modal.dart';
+import '../../dj_console/presentation/dj_console_modal.dart';
+import '../../dj_console/presentation/dj_console_view_model.dart';
 
 /// Modal predictivo de búsqueda universal (Spotlight Search) para localizar y lanzar
 /// cualquier herramienta del software en menos de 2 segundos.
@@ -101,6 +103,10 @@ class _ToolSearchModalState extends State<ToolSearchModal> {
       case 'open_score_importer':
       case 'open_score_editor':
         SongDecomposerModal.show(context, widget.viewModel);
+        break;
+      case 'open_dj_console':
+        final djVm = DjConsoleViewModel();
+        DjConsoleModal.show(context, djVm, widget.viewModel.currentPalette);
         break;
       default:
         break;
