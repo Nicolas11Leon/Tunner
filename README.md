@@ -2,7 +2,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![CI Pipeline](https://github.com/Nicolas11Leon/Tunner/actions/workflows/ci.yml/badge.svg)](https://github.com/Nicolas11Leon/Tunner/actions/workflows/ci.yml)
-[![Tests: 604 Passing](https://img.shields.io/badge/Tests-604%20Passing-brightgreen.svg)]()
+[![Tests: 617 Passing](https://img.shields.io/badge/Tests-617%20Passing-brightgreen.svg)]()
 [![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
 [![Architecture: Clean Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-informational.svg)]()
 [![Privacy: 100% Offline--First](https://img.shields.io/badge/Privacy-100%25%20Offline--First-blueviolet.svg)]()
@@ -46,6 +46,7 @@ graph TD
     A --> I["Consola Mezcladora de Stems"]:::audio
     A --> J["Persistencia Local Atomica Offline"]:::storage
     A --> K["Consola DJ Virtual & Performance FX"]:::audio
+    A --> L["Tutor de Entonacion Armonica (Just Intonation)"]:::tuner
 
     B --> B1["Afinador Estroboscopico Virtual (±0.1 Cents)"]:::tuner
     B --> B2["Afinador Inteligente & Reconocimiento Timbrico"]:::tuner
@@ -81,6 +82,11 @@ graph TD
     K --> K2["Crossfader Curvo & Jog Wheels Vectoriales"]:::audio
     K --> K3["Filtro Bipolar Sweep & Delay Sincronizado"]:::audio
     K --> K4["Beat Tracker Onset & Grabador Master WAV"]:::audio
+
+    L --> L1["Deteccion Dinamica de Rol Armonico"]:::tuner
+    L --> L2["Calculo de Diana Pura (5-Limit & 7-Limit)"]:::tuner
+    L --> L3["Medidor Vectorial de Batimiento Acustico"]:::tuner
+    L --> L4["Dron Armonico de Ensamble Puro"]:::tuner
 ```
 
 ---
@@ -152,8 +158,9 @@ flowchart LR
 * [x] **Suite Vocal & Modo Melodyne:** Auto-Tune en tiempo real, grabación dual y edición en pentagrama ([PR #16](https://github.com/Nicolas11Leon/Tunner/pull/16)).
 * [x] **Catálogo Canónico TTC:** Taxonomía de tareas de práctica y salto rápido modal `J`.
 * [x] **Descomponedor de Partituras & Ensamble "Minus-One":** Descomposición de partituras multitrack, silenciamiento del instrumento del usuario, síntesis del acompañamiento con SoundFont SF2 y evaluación simultánea de la interpretación en vivo ([PR #19](https://github.com/Nicolas11Leon/Tunner/pull/19)).
-* [ ] **Transcripción Polifónica Mic-to-Score:** Separación espectral de acordes complejos captados por micrófono y transcripción polifónica directa a partitura.
-* [ ] **Tutor de Afinación Justa Dinámica:** Ajuste interactivo de afinación en tiempo real según el rol armónico de la nota en el acorde ejecutado por un ensamble.
+* [x] **Transcripción Polifónica Mic-to-Score:** Separación espectral de acordes complejos captados por micrófono y transcripción polifónica directa a partitura ([PR #22](https://github.com/Nicolas11Leon/Tunner/pull/22)).
+* [x] **Consola DJ Virtual & Performance FX:** Dual-deck virtual DJ console, mapeo universal QWERTY, filtro bipolar sweep, delay sincronizado, beat tracking y grabador máster WAV ([PR #24](https://github.com/Nicolas11Leon/Tunner/pull/24), [PR #25](https://github.com/Nicolas11Leon/Tunner/pull/25)).
+* [x] **Tutor de Afinación Justa Dinámica:** Ajuste interactivo de afinación en tiempo real según el rol armónico de la nota en el acorde ejecutado por un ensamble ([PR #26](https://github.com/Nicolas11Leon/Tunner/pull/26)).
 
 ### 4.3 Fase 3: Aceleración FFI Nativa y Expansión de Sonidos (Planificada)
 * [ ] **Motor DSP Nativo (`tunner_dsp_engine`):** Procesamiento de audio por bloques en C++ o Rust enlazado vía `dart:ffi` para alcanzar latencias deterministas $\le 3\text{ ms}$.
@@ -221,6 +228,7 @@ tunner/
 │   │   ├── exercise_generator/     # Generador procedural de escalas y arpegios
 │   │   ├── mixer/                  # Consola mezcladora multicanal de stems
 │   │   ├── dj_console/             # Consola DJ Virtual: Dual-deck, FX bipolar/delay, beat tracking y grabador WAV
+│   │   ├── harmonic_tutor/         # Tutor de afinacion justa, rol armonico y cancelacion de batimientos
 │   │   ├── song_library/           # Descompositor pedagogico y repertorio
 │   │   ├── vocal_autotune/         # Suite vocal: Auto-Tune en vivo y convertidor a pentagrama
 │   │   ├── persistence/            # Persistencia atomica offline (.tmp + rename seguro)
@@ -228,8 +236,8 @@ tunner/
 │   │   ├── tuner_viewmodel.dart    # Orquestador principal con Inversion de Dependencias
 │   │   └── tuner_screen.dart       # Pantalla tradicional unificada del laboratorio acustico
 │   └── main.dart                   # Punto de entrada de la aplicacion
-├── test/                           # 604 pruebas unitarias, de integracion y de widgets
-├── docs/                           # 66 Casos de Uso, 60 ADRs, 64 Planes de Implementacion
+├── test/                           # 617 pruebas unitarias, de integracion y de widgets
+├── docs/                           # 67 Casos de Uso, 61 ADRs, 65 Planes de Implementacion
 └── CONTRIBUTING.md                  # Guia detallada para colaboradores del proyecto
 ```
 
@@ -254,10 +262,7 @@ flutter pub get
 # 3. Analisis estatico de codigo (0 advertencias garantizadas)
 flutter analyze
 
-# 4. Ejecucion de la suite completa de pruebas (604 pruebas passing)
-flutter test
-
-# 4. Ejecucion de la suite completa de pruebas (549 pruebas passing)
+# 4. Ejecucion de la suite completa de pruebas (617 pruebas passing)
 flutter test
 ```
 

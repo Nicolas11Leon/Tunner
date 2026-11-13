@@ -63,6 +63,15 @@ class AppToolCatalog {
       actionId: 'open_concert_pitch',
     ),
     AppToolItem(
+      id: 'harmonic_tutor',
+      title: 'Tutor de Afinación Justa & Rol Armónico',
+      subtitle: 'Entonación pura de ensamble, ratios Just Intonation y anulación de batimientos',
+      category: AppToolCategory.tuner,
+      icon: Icons.graphic_eq,
+      keywords: ['armonia', 'justa', 'batimiento', 'consonancia', 'tercera', 'quinta', 'ensamble', 'coro', 'cuerdas', 'puro', 'ji'],
+      actionId: 'open_harmonic_tutor',
+    ),
+    AppToolItem(
       id: 'temperaments',
       title: 'Temperamentos Históricos & Microtonalidad',
       subtitle: 'Pitagórico, Mesotónico, Werckmeister, Vallotti y Just Intonation',
