@@ -590,22 +590,32 @@ class VocalAutoTuneModal extends StatelessWidget {
                       const SizedBox(height: 4),
 
                       // Switch de Preservación de Formantes
-                      SwitchListTile(
-                        key: const Key('formant_preservation_switch'),
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          'Preservación de Formantes',
-                          style: TextStyle(color: palette.textColor, fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          'Mantiene las resonancias del tracto vocal natural',
-                          style: TextStyle(color: palette.textMutedColor, fontSize: 11),
-                        ),
-                        value: config.formantPreservation,
-                        activeThumbColor: palette.secondaryAccent,
-                        onChanged: (val) {
-                          viewModel.updateAutoTuneConfig(config.copyWith(formantPreservation: val));
-                        },
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Preservación de Formantes',
+                                  style: TextStyle(color: palette.textColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  'Mantiene las resonancias del tracto vocal natural',
+                                  style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            key: const Key('formant_preservation_switch'),
+                            value: config.formantPreservation,
+                            activeThumbColor: palette.secondaryAccent,
+                            onChanged: (val) {
+                              viewModel.updateAutoTuneConfig(config.copyWith(formantPreservation: val));
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),

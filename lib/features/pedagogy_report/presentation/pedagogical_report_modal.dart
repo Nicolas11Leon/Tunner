@@ -477,29 +477,40 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: cardBorder),
       ),
-      child: SwitchListTile(
-        key: key,
-        value: value,
-        onChanged: onChanged,
-        title: Text(
-          title,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: palette.textColor,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: palette.textColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: palette.textMutedColor,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 11,
-            color: palette.textMutedColor,
+          Switch(
+            key: key,
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: palette.primaryAccent,
+            activeTrackColor: palette.primaryAccent.withValues(alpha: 0.35),
           ),
-        ),
-        activeThumbColor: palette.primaryAccent,
-        activeTrackColor: palette.primaryAccent.withValues(alpha: 0.35),
-        dense: true,
-        contentPadding: EdgeInsets.zero,
+        ],
       ),
     );
   }

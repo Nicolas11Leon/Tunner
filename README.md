@@ -1,6 +1,7 @@
 # Tunner: Studio Pitch, Real-Time Acoustic Lab and Sheet Music Engine
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+[![CI Pipeline](https://github.com/Nicolas11Leon/Tunner/actions/workflows/ci.yml/badge.svg)](https://github.com/Nicolas11Leon/Tunner/actions/workflows/ci.yml)
 [![Tests: 567 Passing](https://img.shields.io/badge/Tests-567%20Passing-brightgreen.svg)]()
 [![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
 [![Architecture: Clean Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-informational.svg)]()
@@ -221,7 +222,7 @@ tunner/
 │   │   └── tuner_screen.dart       # Pantalla tradicional unificada del laboratorio acustico
 │   └── main.dart                   # Punto de entrada de la aplicacion
 ├── test/                           # 567 pruebas unitarias, de integracion y de widgets
-├── docs/                           # 63 Casos de Uso, 57 ADRs, 65 Planes de Implementacion
+├── docs/                           # 64 Casos de Uso, 58 ADRs, 66 Planes de Implementacion
 └── CONTRIBUTING.md                  # Guia detallada para colaboradores del proyecto
 ```
 
