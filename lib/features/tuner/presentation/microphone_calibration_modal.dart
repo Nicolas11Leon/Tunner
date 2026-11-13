@@ -680,32 +680,62 @@ class _MicrophoneCalibrationModalState extends State<MicrophoneCalibrationModal>
           ),
 
           // 6. Switches: Aislamiento por Tesitura y DC-Blocker
-          SwitchListTile(
-            key: const Key('advanced_isolation_switch'),
-            contentPadding: EdgeInsets.zero,
-            title: Text('Aislamiento por Tesitura Instrumental', style: TextStyle(color: palette.textColor, fontSize: 13)),
-            subtitle: Text(
-              'Confina la detección al registro físico del instrumento activo',
-              style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Aislamiento por Tesitura Instrumental', style: TextStyle(color: palette.textColor, fontSize: 13)),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Confina la detección al registro físico del instrumento activo',
+                        style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  key: const Key('advanced_isolation_switch'),
+                  activeThumbColor: palette.primaryAccent,
+                  value: rigor.enableInstrumentIsolation,
+                  onChanged: (val) {
+                    viewModel.setAcousticRigorAdvancedParameters(enableInstrumentIsolation: val);
+                  },
+                ),
+              ],
             ),
-            activeThumbColor: palette.primaryAccent,
-            value: rigor.enableInstrumentIsolation,
-            onChanged: (val) {
-              viewModel.setAcousticRigorAdvancedParameters(enableInstrumentIsolation: val);
-            },
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text('Filtro DC-Blocker (15 Hz)', style: TextStyle(color: palette.textColor, fontSize: 13)),
-            subtitle: Text(
-              'Elimina polarización de corriente continua de interfaces de audio',
-              style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Filtro DC-Blocker (15 Hz)', style: TextStyle(color: palette.textColor, fontSize: 13)),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Elimina polarización de corriente continua de interfaces de audio',
+                        style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  activeThumbColor: palette.secondaryAccent,
+                  value: profile.enableDcBlocker,
+                  onChanged: (val) {
+                    viewModel.setAcousticRigorAdvancedParameters(enableDcBlocker: val);
+                  },
+                ),
+              ],
             ),
-            activeThumbColor: palette.secondaryAccent,
-            value: profile.enableDcBlocker,
-            onChanged: (val) {
-              viewModel.setAcousticRigorAdvancedParameters(enableDcBlocker: val);
-            },
           ),
         ],
       ),
