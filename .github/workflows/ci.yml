@@ -1,0 +1,55 @@
+name: Tunner CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci-quality-gate:
+    name: Flutter Analyze, Test & Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: '3.41.9'
+          channel: 'stable'
+          cache: true
+
+      - name: Verify Flutter Toolchain
+        run: flutter --version
+
+      - name: Install Package Dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Run Static Code Analysis
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run Automated Test Suite with Coverage
+        run: flutter test --coverage
+
+      - name: Upload Test Coverage Artifact
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/lcov.info
+          if-no-files-found: warn

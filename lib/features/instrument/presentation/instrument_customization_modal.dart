@@ -248,19 +248,21 @@ class _InstrumentCustomizationModalState extends State<InstrumentCustomizationMo
           const SizedBox(height: 8),
           ...TemperamentEngine.allTemperaments.map((temp) {
             final isSelected = _profile.temperament.id == temp.id;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 6),
-              decoration: BoxDecoration(
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Material(
                 color: isSelected ? accentColor.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: isSelected ? accentColor : Colors.white12),
-              ),
-              child: ListTile(
-                dense: true,
-                title: Text(temp.name, style: TextStyle(color: isSelected ? accentColor : Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                subtitle: Text('${temp.historicalEra} • ${temp.description}', style: const TextStyle(color: Colors.white54, fontSize: 10)),
-                trailing: isSelected ? Icon(Icons.check, color: accentColor, size: 18) : null,
-                onTap: () => _updateProfile(_profile.copyWith(temperament: temp)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(color: isSelected ? accentColor : Colors.white12),
+                ),
+                child: ListTile(
+                  dense: true,
+                  title: Text(temp.name, style: TextStyle(color: isSelected ? accentColor : Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                  subtitle: Text('${temp.historicalEra} • ${temp.description}', style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                  trailing: isSelected ? Icon(Icons.check, color: accentColor, size: 18) : null,
+                  onTap: () => _updateProfile(_profile.copyWith(temperament: temp)),
+                ),
               ),
             );
           }),

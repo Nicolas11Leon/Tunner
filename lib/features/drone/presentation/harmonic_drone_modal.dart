@@ -306,38 +306,66 @@ class HarmonicDroneModal extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      SwitchListTile(
-                        key: const Key('drone_toggle_fifth_switch'),
-                        value: config.includeFifth,
-                        title: Text(
-                          'Quinta Armónica Superior (${config.fifthDisplayName})',
-                          style: TextStyle(color: palette.textColor, fontSize: 13),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Quinta Armónica Superior (${config.fifthDisplayName})',
+                                    style: TextStyle(color: palette.textColor, fontSize: 13),
+                                  ),
+                                  Text(
+                                    'Intervalo puro 3:2 o temperado para consonancia acústica',
+                                    style: TextStyle(color: palette.textMutedColor, fontSize: 10),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              key: const Key('drone_toggle_fifth_switch'),
+                              value: config.includeFifth,
+                              activeThumbColor: palette.primaryAccent,
+                              onChanged: (val) {
+                                viewModel.setDroneConfig(config.copyWith(includeFifth: val));
+                              },
+                            ),
+                          ],
                         ),
-                        subtitle: Text(
-                          'Intervalo puro 3:2 o temperado para consonancia acústica',
-                          style: TextStyle(color: palette.textMutedColor, fontSize: 10),
-                        ),
-                        activeThumbColor: palette.primaryAccent,
-                        onChanged: (val) {
-                          viewModel.setDroneConfig(config.copyWith(includeFifth: val));
-                        },
                       ),
                       const Divider(height: 1, thickness: 0.5),
-                      SwitchListTile(
-                        key: const Key('drone_toggle_octave_switch'),
-                        value: config.includeOctave,
-                        title: Text(
-                          'Octava Superior (${config.octaveDisplayName})',
-                          style: TextStyle(color: palette.textColor, fontSize: 13),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Octava Superior (${config.octaveDisplayName})',
+                                    style: TextStyle(color: palette.textColor, fontSize: 13),
+                                  ),
+                                  Text(
+                                    'Refuerzo de presencia y brillo armónico',
+                                    style: TextStyle(color: palette.textMutedColor, fontSize: 10),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              key: const Key('drone_toggle_octave_switch'),
+                              value: config.includeOctave,
+                              activeThumbColor: palette.primaryAccent,
+                              onChanged: (val) {
+                                viewModel.setDroneConfig(config.copyWith(includeOctave: val));
+                              },
+                            ),
+                          ],
                         ),
-                        subtitle: Text(
-                          'Refuerzo de presencia y brillo armónico',
-                          style: TextStyle(color: palette.textMutedColor, fontSize: 10),
-                        ),
-                        activeThumbColor: palette.primaryAccent,
-                        onChanged: (val) {
-                          viewModel.setDroneConfig(config.copyWith(includeOctave: val));
-                        },
                       ),
                     ],
                   ),
@@ -356,20 +384,21 @@ class HarmonicDroneModal extends StatelessWidget {
                 const SizedBox(height: 8),
                 ...DroneTimbre.values.map((timbre) {
                   final isSelected = config.timbre == timbre;
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: BoxDecoration(
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Material(
                       color: isSelected
                           ? palette.primaryAccent.withValues(alpha: 0.12)
                           : palette.cardBackground,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: isSelected
-                            ? palette.primaryAccent
-                            : palette.staffLinesColor.withValues(alpha: 0.2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(
+                          color: isSelected
+                              ? palette.primaryAccent
+                              : palette.staffLinesColor.withValues(alpha: 0.2),
+                        ),
                       ),
-                    ),
-                    child: ListTile(
+                      child: ListTile(
                       key: Key('drone_timbre_${timbre.name}'),
                       title: Text(
                         timbre.displayName,
@@ -390,7 +419,8 @@ class HarmonicDroneModal extends StatelessWidget {
                         viewModel.setDroneConfig(config.copyWith(timbre: timbre));
                       },
                     ),
-                  );
+                  ),
+                );
                 }),
                 const SizedBox(height: 16),
 

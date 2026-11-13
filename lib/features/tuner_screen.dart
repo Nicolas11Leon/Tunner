@@ -140,12 +140,13 @@ class TunerScreen extends StatelessWidget {
                     final isCurrent = viewModel.activePackage.id == pkg.id;
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
+                      child: Material(
                         color: palette.staffBackground,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: isCurrent ? palette.secondaryAccent : Colors.white10),
-                      ),
-                      child: ListTile(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(color: isCurrent ? palette.secondaryAccent : Colors.white10),
+                        ),
+                        child: ListTile(
                         dense: true,
                         leading: CircleAvatar(
                           backgroundColor: isCurrent ? palette.secondaryAccent.withValues(alpha: 0.2) : Colors.white10,
@@ -175,7 +176,8 @@ class TunerScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-                    );
+                    ),
+                  );
                   }),
                   const SizedBox(height: 16),
                 ],
@@ -580,17 +582,18 @@ class TunerScreen extends StatelessWidget {
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
+                      child: Material(
                         color: isSelected
                             ? palette.primaryAccent.withValues(alpha: 0.15)
                             : palette.scaffoldBackground,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isSelected ? palette.primaryAccent : Colors.white10,
-                          width: isSelected ? 1.5 : 1.0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: isSelected ? palette.primaryAccent : Colors.white10,
+                            width: isSelected ? 1.5 : 1.0,
+                          ),
                         ),
-                      ),
-                      child: ListTile(
+                        child: ListTile(
                         onTap: () {
                           viewModel.setInstrumentProfile(inst);
                           Navigator.pop(ctx);
@@ -644,7 +647,8 @@ class TunerScreen extends StatelessWidget {
                           ],
                         ),
                       ),
-                    );
+                    ),
+                  );
                   },
                 ),
               ),

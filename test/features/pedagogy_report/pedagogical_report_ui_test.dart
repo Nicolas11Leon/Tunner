@@ -92,7 +92,7 @@ void main() {
     await tester.tap(certSwitch);
     await tester.pump();
 
-    final switchWidget = tester.widget<SwitchListTile>(certSwitch);
+    final switchWidget = tester.widget<Switch>(certSwitch);
     expect(switchWidget.value, false);
   });
 
