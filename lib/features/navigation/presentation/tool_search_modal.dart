@@ -10,6 +10,8 @@ import '../../pedagogy_report/presentation/pedagogical_report_modal.dart';
 import '../../song_library/presentation/song_decomposer_modal.dart';
 import '../../dj_console/presentation/dj_console_modal.dart';
 import '../../dj_console/presentation/dj_console_view_model.dart';
+import '../../harmonic_tutor/presentation/harmonic_tutor_modal.dart';
+import '../../harmonic_tutor/presentation/harmonic_tutor_view_model.dart';
 
 /// Modal predictivo de búsqueda universal (Spotlight Search) para localizar y lanzar
 /// cualquier herramienta del software en menos de 2 segundos.
@@ -107,6 +109,10 @@ class _ToolSearchModalState extends State<ToolSearchModal> {
       case 'open_dj_console':
         final djVm = DjConsoleViewModel();
         DjConsoleModal.show(context, djVm, widget.viewModel.currentPalette);
+        break;
+      case 'open_harmonic_tutor':
+        final tutorVm = HarmonicTutorViewModel();
+        HarmonicTutorModal.show(context, viewModel: tutorVm, palette: widget.viewModel.currentPalette);
         break;
       default:
         break;
