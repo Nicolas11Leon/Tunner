@@ -63,6 +63,36 @@ void main() {
       expect(invalidMeasure.isValidMeasure, isFalse);
     });
 
+    test('Measure with polyphonic chord occupying full measure reports isValidMeasure as true', () {
+      final chordMeasure = MeasureEntity(
+        index: 0,
+        timeSignature: TimeSignature.commonTime44, // 16 ticks
+        notes: [
+          // Tríada de Do Mayor tocada como redonda (16 ticks simultáneos)
+          HierarchicalNote.note(startTick: 0, durationTicks: 16, noteName: 'Do4'),
+          HierarchicalNote.note(startTick: 0, durationTicks: 16, noteName: 'Mi4'),
+          HierarchicalNote.note(startTick: 0, durationTicks: 16, noteName: 'Sol4'),
+        ],
+      );
+      expect(chordMeasure.isValidMeasure, isTrue);
+    });
+
+    test('Measure with mixed chord and melody reports isValidMeasure correctly', () {
+      final mixedMeasure = MeasureEntity(
+        index: 0,
+        timeSignature: TimeSignature.commonTime44, // 16 ticks
+        notes: [
+          // Acorde en primera mitad (ticks 0 a 8)
+          HierarchicalNote.note(startTick: 0, durationTicks: 8, noteName: 'Do4'),
+          HierarchicalNote.note(startTick: 0, durationTicks: 8, noteName: 'Sol4'),
+          // Dos negras en segunda mitad (ticks 8 a 12, 12 a 16)
+          HierarchicalNote.note(startTick: 8, durationTicks: 4, noteName: 'Re4'),
+          HierarchicalNote.note(startTick: 12, durationTicks: 4, noteName: 'Mi4'),
+        ],
+      );
+      expect(mixedMeasure.isValidMeasure, isTrue);
+    });
+
     test('Multi-measure studies have sequential indices and at least two measures', () {
       final studies = HierarchicalScore.getMockStudies();
       final multiMeasureStudy = studies.firstWhere((s) => s.measures.length > 1);

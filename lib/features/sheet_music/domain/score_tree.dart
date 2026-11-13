@@ -114,12 +114,18 @@ class MeasureEntity {
   });
 
   /// Verifica si la suma de duraciones coincide exactamente con la métrica del compás.
+  /// Soporta tanto melodías monofónicas como acordes polifónicos con notas simultáneas.
   bool get isValidMeasure {
-    int totalOccupiedTicks = 0;
+    final Set<int> occupiedTicks = {};
     for (final note in notes) {
-      totalOccupiedTicks += note.durationTicks;
+      if (note.startTick < 0 || note.endTick > timeSignature.totalTicks) {
+        return false;
+      }
+      for (int t = note.startTick; t < note.endTick; t++) {
+        occupiedTicks.add(t);
+      }
     }
-    return totalOccupiedTicks == timeSignature.totalTicks;
+    return occupiedTicks.length == timeSignature.totalTicks;
   }
 
   MeasureEntity copyWith({

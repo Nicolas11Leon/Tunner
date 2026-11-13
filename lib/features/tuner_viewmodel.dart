@@ -44,6 +44,7 @@ import 'universal_importer/domain/canonical_midi_exporter.dart';
 import 'universal_importer/domain/canonical_abc_exporter.dart';
 import 'universal_importer/domain/canonical_pdf_exporter.dart';
 import 'transcription/domain/live_transcription_engine.dart';
+import 'transcription/domain/polyphonic_transcription_engine.dart';
 import 'exercise_generator/domain/algorithmic_exercise_generator.dart';
 import 'tuner/domain/temperament_engine.dart';
 import 'tuner/domain/acoustic_echo_suppressor.dart';
@@ -179,6 +180,8 @@ class TunerViewModel extends ChangeNotifier {
   final CanonicalPdfExporter _pdfExporter = const CanonicalPdfExporter();
   final LiveTranscriptionEngine _transcriptionEngine = LiveTranscriptionEngine();
   bool _isLiveTranscriptionActive = false;
+  final PolyphonicTranscriptionEngine _polyphonicTranscriptionEngine = PolyphonicTranscriptionEngine();
+  bool _isPolyphonicTranscriptionActive = false;
   final AlgorithmicExerciseGenerator _exerciseGenerator = const AlgorithmicExerciseGenerator();
   final TemperamentEngine _temperamentEngine = const TemperamentEngine();
   MusicalTemperament _selectedTemperament = TemperamentEngine.allTemperaments.first;
@@ -599,6 +602,8 @@ class TunerViewModel extends ChangeNotifier {
   bool get isMetronomeActive => _isMetronomePlaying;
   bool get isScorePlaybackEnabled => _isScorePlaybackEnabled;
   bool get isLiveTranscriptionActive => _isLiveTranscriptionActive;
+  bool get isPolyphonicTranscriptionActive => _isPolyphonicTranscriptionActive;
+  PolyphonicTranscriptionEngine get polyphonicTranscriptionEngine => _polyphonicTranscriptionEngine;
 
   /// Alterna el metrónomo de práctica.
   void toggleMetronome() => startSongWithCountIn();
@@ -1270,6 +1275,34 @@ class TunerViewModel extends ChangeNotifier {
       }
     }
     _recognizedChord = detected;
+
+    if (_isPolyphonicTranscriptionActive) {
+      final noteNames = multiResult.voices.map((v) => v.fullNoteName).toList();
+      final effectiveNotes = noteNames.isNotEmpty
+          ? noteNames
+          : (detected.isRecognized ? detected.notes : <String>[]);
+
+      final double rms;
+      if (samples.isNotEmpty) {
+        double sumSquares = 0.0;
+        for (final s in samples) {
+          sumSquares += s * s;
+        }
+        rms = math.sqrt(sumSquares / samples.length);
+      } else {
+        rms = _currentMicRmsLevel;
+      }
+
+      final updatedPkg = _polyphonicTranscriptionEngine.processPolyphonicFrame(
+        noteNames: effectiveNotes,
+        energyRms: rms,
+      );
+      if (updatedPkg != null) {
+        _scoreHistory.recordState(_activePackage);
+        _activePackage = updatedPkg;
+      }
+    }
+
     notifyListeners();
   }
 
@@ -2269,6 +2302,46 @@ class TunerViewModel extends ChangeNotifier {
       }
     }
     notifyListeners();
+  }
+
+  /// Activa o detiene la transcripción polifónica de acordes del micrófono a la partitura en tiempo real.
+  void togglePolyphonicLiveTranscription() {
+    _isPolyphonicTranscriptionActive = !_isPolyphonicTranscriptionActive;
+    if (_isPolyphonicTranscriptionActive) {
+      if (!_isChordRecognitionActive) {
+        _isChordRecognitionActive = true;
+      }
+      _polyphonicTranscriptionEngine.start(
+        initialPackage: _activePackage,
+        startMeasureIndex: _currentMeasureIndex,
+        startTick: _currentSubTick >= 0 ? _currentSubTick : 0,
+      );
+    } else {
+      final finalPkg = _polyphonicTranscriptionEngine.stop();
+      if (finalPkg != null) {
+        _scoreHistory.recordState(_activePackage);
+        _activePackage = finalPkg;
+      }
+    }
+    notifyListeners();
+  }
+
+  /// Procesa un frame de transcripción polifónica de forma determinista.
+  void processPolyphonicTranscriptionFrame({
+    required List<String> noteNames,
+    double energyRms = 0.1,
+  }) {
+    if (!_isPolyphonicTranscriptionActive) return;
+
+    final updatedPkg = _polyphonicTranscriptionEngine.processPolyphonicFrame(
+      noteNames: noteNames,
+      energyRms: energyRms,
+    );
+    if (updatedPkg != null) {
+      _scoreHistory.recordState(_activePackage);
+      _activePackage = updatedPkg;
+      notifyListeners();
+    }
   }
 
   /// Genera proceduralmente una rutina técnica o escala de conservatorio y la carga en el atril digital.
