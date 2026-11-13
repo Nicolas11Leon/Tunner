@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/tunner_theme.dart';
+import '../data/dj_audio_processor.dart';
+import '../domain/dj_channel_fx_entity.dart';
 import '../domain/dj_crossfader_entity.dart';
 import '../domain/dj_deck_entity.dart';
 import 'dj_console_view_model.dart';
@@ -49,7 +51,7 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
           ),
           child: Column(
             children: [
-              // 1. Header Bar
+              // 1. Header Bar with REC button and Keymap editor
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
@@ -69,12 +71,46 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                             ),
                           ),
                           Text(
-                            'Mezcla dual, crossfader curvo y control total por teclado QWERTY',
+                            'Mezcla dual, FX de filtro/delay, beat tracking y grabación máster WAV',
                             style: TextStyle(color: palette.textMutedColor, fontSize: 11),
                           ),
                         ],
                       ),
                     ),
+                    // Live Mix Recording Master Button
+                    ElevatedButton.icon(
+                      key: const Key('toggle_live_recording_btn'),
+                      onPressed: () {
+                        if (vm.recorder.isRecording) {
+                          final duration = vm.recorder.durationSeconds;
+                          final wavBytes = vm.stopRecording();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Grabación finalizada: ${duration}s (${wavBytes?.lengthInBytes ?? 0} bytes WAV)'),
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        } else {
+                          vm.startRecording();
+                        }
+                      },
+                      icon: Icon(
+                        vm.recorder.isRecording ? Icons.stop : Icons.fiber_manual_record,
+                        size: 16,
+                        color: vm.recorder.isRecording ? Colors.white : Colors.redAccent,
+                      ),
+                      label: Text(
+                        vm.recorder.isRecording ? 'REC ${vm.recorder.durationSeconds}s' : 'REC',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: vm.recorder.isRecording ? Colors.redAccent : const Color(0xFF2A2A38),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     ElevatedButton.icon(
                       key: const Key('open_keymap_editor_btn'),
                       onPressed: () => DjKeymapEditorModal.show(context, vm, palette),
@@ -148,6 +184,7 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
   Widget _buildDeckCard(DjDeckEntity deck, String deckId, Color accentColor, double rotationAngle) {
     final palette = widget.palette;
     final vm = widget.viewModel;
+    final fx = deckId == 'A' ? vm.fxA : vm.fxB;
 
     return Material(
       color: palette.cardBackground,
@@ -158,6 +195,7 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Track Info & BPM
             Row(
@@ -206,6 +244,38 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+
+            // Stem & Beat Tracking Ingestion Button
+            OutlinedButton.icon(
+              key: Key('deck_${deckId}_load_stem_btn'),
+              icon: const Icon(Icons.graphic_eq, size: 14),
+              label: const Text('Cargar Stem & Detectar BPM', style: TextStyle(fontSize: 10)),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: accentColor.withValues(alpha: 0.3)),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: const Size(0, 28),
+              ),
+              onPressed: () {
+                final demoGroove = DjAudioProcessor().generateDemoGroove(
+                  bpm: deckId == 'A' ? 124.0 : 128.0,
+                  frequencyHz: deckId == 'A' ? 55.0 : 65.0,
+                  durationMs: 4000,
+                );
+                final detectedBpm = vm.loadTrackWithBeatTracking(
+                  deckId,
+                  title: 'Stem Groove $deckId',
+                  artist: 'Algorithmic Tracker',
+                  audioSamples: demoGroove,
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Stem cargado en Deck $deckId - BPM detectado: ${detectedBpm.toStringAsFixed(1)}'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 12),
 
             // Vector Jog Wheel
@@ -248,6 +318,93 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                 ),
               ],
             ),
+
+            // Channel FX: Bipolar Sweep Filter Controls
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'FILTER',
+                        style: TextStyle(color: palette.textMutedColor, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        fx.filterPosition < -0.01
+                            ? 'LPF ${(fx.cutoffFrequencyHz).round()} Hz'
+                            : fx.filterPosition > 0.01
+                                ? 'HPF ${(fx.cutoffFrequencyHz).round()} Hz'
+                                : 'BYPASS',
+                        style: TextStyle(color: accentColor, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                      InkWell(
+                        key: Key('deck_${deckId}_filter_reset_btn'),
+                        onTap: () => vm.setChannelFilter(deckId, 0.0),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          child: Text('RESET', style: TextStyle(color: palette.textMutedColor, fontSize: 9)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 2,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    ),
+                    child: Slider(
+                      key: Key('deck_${deckId}_filter_slider'),
+                      value: fx.filterPosition.clamp(-1.0, 1.0),
+                      min: -1.0,
+                      max: 1.0,
+                      activeColor: accentColor,
+                      inactiveColor: Colors.white12,
+                      onChanged: (val) => vm.setChannelFilter(deckId, val),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Channel FX: Beat-Synced Delay Controls
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Row(
+                children: [
+                  FilterChip(
+                    key: Key('deck_${deckId}_delay_toggle_chip'),
+                    label: const Text('DELAY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                    selected: fx.isDelayActive,
+                    selectedColor: accentColor.withValues(alpha: 0.3),
+                    checkmarkColor: accentColor,
+                    onSelected: (_) => vm.toggleChannelDelay(deckId),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButton<DjDelayDivision>(
+                      value: fx.delayDivision,
+                      isDense: true,
+                      dropdownColor: palette.cardBackground,
+                      style: TextStyle(color: palette.textColor, fontSize: 11),
+                      underline: const SizedBox(),
+                      items: DjDelayDivision.values.map((div) {
+                        return DropdownMenuItem(
+                          value: div,
+                          child: Text(div.label),
+                        );
+                      }).toList(),
+                      onChanged: (div) {
+                        if (div != null) vm.setChannelDelayDivision(deckId, div);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
 
             // Hot Cues (1..4)
             Row(

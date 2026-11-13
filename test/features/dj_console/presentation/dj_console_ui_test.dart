@@ -31,7 +31,7 @@ void main() {
   });
 
   group('DjConsoleModal UI Tests', () {
-    testWidgets('Renders Deck A, Deck B, jog wheels and crossfader controls', (tester) async {
+    testWidgets('Renders Deck A, Deck B, jog wheels, FX controls, and crossfader', (tester) async {
       tester.view.physicalSize = const Size(1200, 1000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -46,6 +46,10 @@ void main() {
       expect(find.byKey(const Key('crossfader_slider')), findsOneWidget);
       expect(find.byKey(const Key('deck_A_play_btn')), findsOneWidget);
       expect(find.byKey(const Key('deck_B_play_btn')), findsOneWidget);
+      expect(find.byKey(const Key('toggle_live_recording_btn')), findsOneWidget);
+      expect(find.byKey(const Key('deck_A_filter_slider')), findsOneWidget);
+      expect(find.byKey(const Key('deck_A_delay_toggle_chip')), findsOneWidget);
+      expect(find.byKey(const Key('deck_A_load_stem_btn')), findsOneWidget);
     });
 
     testWidgets('Tapping Play button on Deck A toggles playback state and changes button label', (tester) async {
@@ -108,6 +112,68 @@ void main() {
 
       expect(viewModel.deckA.isSyncActive, isTrue);
       expect(viewModel.deckA.effectiveBpm, closeTo(viewModel.deckB.effectiveBpm, 0.001));
+    });
+
+    testWidgets('Toggles delay and resets filter on Deck A', (tester) async {
+      tester.view.physicalSize = const Size(1200, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(createTestApp(viewModel));
+      await tester.pump();
+
+      // Toggle delay
+      expect(viewModel.fxA.isDelayActive, isFalse);
+      await tester.tap(find.byKey(const Key('deck_A_delay_toggle_chip')));
+      await tester.pump();
+      expect(viewModel.fxA.isDelayActive, isTrue);
+
+      // Adjust filter then reset
+      viewModel.setChannelFilter('A', 0.6);
+      await tester.pump();
+      expect(viewModel.fxA.filterPosition, 0.6);
+
+      await tester.tap(find.byKey(const Key('deck_A_filter_reset_btn')));
+      await tester.pump();
+      expect(viewModel.fxA.filterPosition, 0.0);
+    });
+
+    testWidgets('Tapping load stem triggers algorithmic beat tracking and updates deck', (tester) async {
+      tester.view.physicalSize = const Size(1200, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(createTestApp(viewModel));
+      await tester.pump();
+
+      final loadStemBtn = find.byKey(const Key('deck_A_load_stem_btn'));
+      await tester.tap(loadStemBtn);
+      await tester.pump();
+
+      expect(viewModel.deckA.trackTitle, 'Stem Groove A');
+      expect(viewModel.deckA.artist, 'Algorithmic Tracker');
+    });
+
+    testWidgets('Tapping REC button starts and stops live recording session', (tester) async {
+      tester.view.physicalSize = const Size(1200, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(createTestApp(viewModel));
+      await tester.pump();
+
+      final recBtn = find.byKey(const Key('toggle_live_recording_btn'));
+      expect(viewModel.recorder.isRecording, isFalse);
+
+      // Start recording
+      await tester.tap(recBtn);
+      await tester.pump();
+      expect(viewModel.recorder.isRecording, isTrue);
+
+      // Stop recording
+      await tester.tap(recBtn);
+      await tester.pump();
+      expect(viewModel.recorder.isRecording, isFalse);
     });
 
     testWidgets('Tapping open_keymap_editor_btn opens DjKeymapEditorModal with category filters', (tester) async {

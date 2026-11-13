@@ -49,7 +49,7 @@ std::string Utf8FromUtf16(const wchar_t* utf16_string) {
       CP_UTF8, WC_ERR_INVALID_CHARS, utf16_string,
       -1, nullptr, 0, nullptr, nullptr)
     -1; // remove the trailing null character
-  int input_length = (int)wcslen(utf16_string);
+  int input_length = (int)wcsnlen_s(utf16_string, 65536);
   std::string utf8_string;
   if (target_length == 0 || target_length > utf8_string.max_size()) {
     return utf8_string;

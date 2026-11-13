@@ -1,11 +1,16 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import '../data/dj_audio_processor.dart';
 import '../data/dj_keymap_persistence_service.dart';
+import '../data/dj_mix_wav_encoder.dart';
+import '../domain/bpm_beat_tracker_engine.dart';
 import '../domain/dj_action.dart';
+import '../domain/dj_channel_fx_entity.dart';
 import '../domain/dj_crossfader_entity.dart';
 import '../domain/dj_deck_entity.dart';
 import '../domain/dj_keymap_profile_entity.dart';
+import '../domain/dj_live_mix_recorder_entity.dart';
 import '../domain/dj_performance_orchestrator.dart';
 
 /// ViewModel managing state, hardware keyboard event dispatch, and UI reactivity
@@ -13,17 +18,21 @@ import '../domain/dj_performance_orchestrator.dart';
 class DjConsoleViewModel extends ChangeNotifier {
   final DjPerformanceOrchestrator _orchestrator;
   final DjKeymapPersistenceService _persistenceService;
+  final DjAudioProcessor _audioProcessor;
 
   Timer? _playbackTicker;
   double _rotationAngleA = 0.0;
   double _rotationAngleB = 0.0;
   bool _isDisposed = false;
+  Uint8List? _lastRecordedWavBytes;
 
   DjConsoleViewModel({
     DjPerformanceOrchestrator? orchestrator,
     DjKeymapPersistenceService? persistenceService,
+    DjAudioProcessor? audioProcessor,
   })  : _orchestrator = orchestrator ?? DjPerformanceOrchestrator(),
-        _persistenceService = persistenceService ?? DjKeymapPersistenceService() {
+        _persistenceService = persistenceService ?? DjKeymapPersistenceService(),
+        _audioProcessor = audioProcessor ?? DjAudioProcessor() {
     _initPersistenceAndKeyHandler();
     _startTicker();
   }
@@ -32,9 +41,13 @@ class DjConsoleViewModel extends ChangeNotifier {
   DjDeckEntity get deckB => _orchestrator.deckB;
   DjCrossfaderEntity get crossfader => _orchestrator.crossfader;
   DjKeymapProfileEntity get keymapProfile => _orchestrator.keymapProfile;
+  DjChannelFxEntity get fxA => _orchestrator.fxA;
+  DjChannelFxEntity get fxB => _orchestrator.fxB;
+  DjLiveMixRecorderEntity get recorder => _orchestrator.recorder;
   double get masterVolume => _orchestrator.masterVolume;
   double get rotationAngleA => _rotationAngleA;
   double get rotationAngleB => _rotationAngleB;
+  Uint8List? get lastRecordedWavBytes => _lastRecordedWavBytes;
 
   Future<void> _initPersistenceAndKeyHandler() async {
     final profile = await _persistenceService.loadActiveProfile();
@@ -57,6 +70,41 @@ class DjConsoleViewModel extends ChangeNotifier {
         _orchestrator.executeAction(DjAction.deckBNudgeForward);
         changed = true;
       }
+
+      // If recording is active, capture audio slice
+      if (recorder.isRecording) {
+        final sampleRate = _audioProcessor.sampleRate;
+        final sliceLength = (sampleRate * 0.033).round();
+        final dummyBufferA = Float32List(sliceLength);
+        final dummyBufferB = Float32List(sliceLength);
+
+        final mixedChunk = _audioProcessor.mixBuffers(
+          bufferA: dummyBufferA,
+          bufferB: dummyBufferB,
+          gainA: _orchestrator.deckAGain,
+          gainB: _orchestrator.deckBGain,
+          eqLowA: deckA.gainLow,
+          eqMidA: deckA.gainMid,
+          eqHighA: deckA.gainHigh,
+          eqLowB: deckB.gainLow,
+          eqMidB: deckB.gainMid,
+          eqHighB: deckB.gainHigh,
+          filterA: fxA.filterPosition,
+          filterB: fxB.filterPosition,
+          delayActiveA: fxA.isDelayActive,
+          delaySamplesA: fxA.calculateDelaySamples(bpm: deckA.effectiveBpm, sampleRate: sampleRate),
+          delayFeedbackA: fxA.delayFeedback,
+          delayDryWetA: fxA.delayDryWet,
+          delayActiveB: fxB.isDelayActive,
+          delaySamplesB: fxB.calculateDelaySamples(bpm: deckB.effectiveBpm, sampleRate: sampleRate),
+          delayFeedbackB: fxB.delayFeedback,
+          delayDryWetB: fxB.delayDryWet,
+        );
+
+        _orchestrator.appendRecordingChunk(mixedChunk, DateTime.now().millisecondsSinceEpoch);
+        changed = true;
+      }
+
       if (changed && !_isDisposed) {
         notifyListeners();
       }
@@ -139,6 +187,78 @@ class DjConsoleViewModel extends ChangeNotifier {
   void setEqGains(String deckId, {double? low, double? mid, double? high}) {
     _orchestrator.setEqGains(deckId, low: low, mid: mid, high: high);
     if (!_isDisposed) notifyListeners();
+  }
+
+  // FX: Filter & Delay
+  void setChannelFilter(String deckId, double position) {
+    _orchestrator.setChannelFilter(deckId, position);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void toggleChannelDelay(String deckId) {
+    _orchestrator.toggleChannelDelay(deckId);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void setChannelDelayDivision(String deckId, DjDelayDivision division) {
+    _orchestrator.setChannelDelayDivision(deckId, division);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void setChannelDelayParams(String deckId, {double? feedback, double? dryWet}) {
+    _orchestrator.setChannelDelayParams(deckId, feedback: feedback, dryWet: dryWet);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  // Live Mixdown Recording
+  void startRecording() {
+    _orchestrator.startRecording(DateTime.now().millisecondsSinceEpoch);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  Uint8List? stopRecording() {
+    _orchestrator.stopRecording();
+    final consolidated = _orchestrator.consolidateRecordingBuffer();
+    if (consolidated.isNotEmpty) {
+      _lastRecordedWavBytes = DjMixWavEncoder.encode(
+        samples: consolidated,
+        sampleRate: _audioProcessor.sampleRate,
+        numChannels: 2,
+      );
+    }
+    if (!_isDisposed) notifyListeners();
+    return _lastRecordedWavBytes;
+  }
+
+  void clearRecording() {
+    _orchestrator.clearRecording();
+    _lastRecordedWavBytes = null;
+    if (!_isDisposed) notifyListeners();
+  }
+
+  /// Automatically estimates BPM from audio samples using [BpmBeatTrackerEngine]
+  /// and loads the track into the deck.
+  double loadTrackWithBeatTracking(
+    String deckId, {
+    required String title,
+    required String artist,
+    required Float32List audioSamples,
+    int sampleRate = 44100,
+  }) {
+    final estimatedBpm = BpmBeatTrackerEngine.estimateBpm(
+      samples: audioSamples,
+      sampleRate: sampleRate,
+    );
+    final durationMs = ((audioSamples.length / sampleRate) * 1000.0).round();
+    _orchestrator.loadTrack(
+      deckId,
+      title: title,
+      artist: artist,
+      bpm: estimatedBpm,
+      durationMs: durationMs,
+    );
+    if (!_isDisposed) notifyListeners();
+    return estimatedBpm;
   }
 
   void scratchDeck(String deckId, double deltaRadians) {
