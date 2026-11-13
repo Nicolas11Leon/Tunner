@@ -1,16 +1,22 @@
+import 'dart:typed_data';
 import 'dj_action.dart';
+import 'dj_channel_fx_entity.dart';
 import 'dj_crossfader_entity.dart';
 import 'dj_deck_entity.dart';
 import 'dj_keymap_profile_entity.dart';
+import 'dj_live_mix_recorder_entity.dart';
 
 /// Pure Dart orchestrator responsible for managing the active state of both DJ decks,
-/// the crossfader, volume balances, and dispatching discrete DJ performance actions.
+/// the crossfader, volume balances, performance FX, live recording and dispatching actions.
 class DjPerformanceOrchestrator {
   DjDeckEntity _deckA;
   DjDeckEntity _deckB;
   DjCrossfaderEntity _crossfader;
   DjKeymapProfileEntity _keymapProfile;
   double _masterVolume;
+  DjChannelFxEntity _fxA;
+  DjChannelFxEntity _fxB;
+  DjLiveMixRecorderEntity _recorder;
 
   DjPerformanceOrchestrator({
     DjDeckEntity? deckA,
@@ -18,17 +24,30 @@ class DjPerformanceOrchestrator {
     DjCrossfaderEntity? crossfader,
     DjKeymapProfileEntity? keymapProfile,
     double masterVolume = 1.0,
+    DjChannelFxEntity? fxA,
+    DjChannelFxEntity? fxB,
+    DjLiveMixRecorderEntity? recorder,
   })  : _deckA = deckA ?? const DjDeckEntity(deckId: 'A', trackTitle: 'Demo Groove A', bpm: 124.0),
         _deckB = deckB ?? const DjDeckEntity(deckId: 'B', trackTitle: 'Demo Synthwave B', bpm: 128.0),
         _crossfader = crossfader ?? const DjCrossfaderEntity(),
         _keymapProfile = keymapProfile ?? DjKeymapProfileEntity.defaultErgonomic(),
-        _masterVolume = masterVolume.clamp(0.0, 1.0);
+        _masterVolume = masterVolume.clamp(0.0, 1.0),
+        _fxA = fxA ?? const DjChannelFxEntity(),
+        _fxB = fxB ?? const DjChannelFxEntity(),
+        _recorder = recorder ?? const DjLiveMixRecorderEntity();
 
   DjDeckEntity get deckA => _deckA;
   DjDeckEntity get deckB => _deckB;
   DjCrossfaderEntity get crossfader => _crossfader;
   DjKeymapProfileEntity get keymapProfile => _keymapProfile;
   double get masterVolume => _masterVolume;
+  DjChannelFxEntity get fxA => _fxA;
+  DjChannelFxEntity get fxB => _fxB;
+  DjLiveMixRecorderEntity get recorder => _recorder;
+
+  double get deckAGain => _crossfader.calculateGains().gainA;
+  double get deckBGain => _crossfader.calculateGains().gainB;
+  Float32List consolidateRecordingBuffer() => _recorder.consolidateBuffer();
 
   /// Returns effective output gains for both decks after factoring channel volume,
   /// crossfader position, and master volume.
@@ -238,6 +257,64 @@ class DjPerformanceOrchestrator {
     }
   }
 
+  /// Sets bipolar filter position [-1.0, 1.0] for the specified deck.
+  void setChannelFilter(String deckId, double position) {
+    if (deckId == 'A') {
+      _fxA = _fxA.copyWith(filterPosition: position);
+    } else {
+      _fxB = _fxB.copyWith(filterPosition: position);
+    }
+  }
+
+  /// Toggles delay effect on/off for the specified deck.
+  void toggleChannelDelay(String deckId) {
+    if (deckId == 'A') {
+      _fxA = _fxA.copyWith(isDelayActive: !_fxA.isDelayActive);
+    } else {
+      _fxB = _fxB.copyWith(isDelayActive: !_fxB.isDelayActive);
+    }
+  }
+
+  /// Sets delay division for the specified deck.
+  void setChannelDelayDivision(String deckId, DjDelayDivision division) {
+    if (deckId == 'A') {
+      _fxA = _fxA.copyWith(delayDivision: division);
+    } else {
+      _fxB = _fxB.copyWith(delayDivision: division);
+    }
+  }
+
+  /// Sets delay feedback and dry/wet balance.
+  void setChannelDelayParams(String deckId, {double? feedback, double? dryWet}) {
+    if (deckId == 'A') {
+      _fxA = _fxA.copyWith(delayFeedback: feedback, delayDryWet: dryWet);
+    } else {
+      _fxB = _fxB.copyWith(delayFeedback: feedback, delayDryWet: dryWet);
+    }
+  }
+
+  /// Starts live mix recording session.
+  void startRecording(int nowMs) {
+    _recorder = _recorder.start(nowMs);
+  }
+
+  /// Appends an audio chunk to the active recording session.
+  void appendRecordingChunk(Float32List chunk, int nowMs) {
+    if (_recorder.isRecording) {
+      _recorder = _recorder.appendChunk(chunk, nowMs);
+    }
+  }
+
+  /// Stops live mix recording.
+  void stopRecording() {
+    _recorder = _recorder.stop();
+  }
+
+  /// Clears recorded session.
+  void clearRecording() {
+    _recorder = _recorder.clear();
+  }
+
   /// Dispatches and executes a discrete [DjAction].
   void executeAction(DjAction action) {
     switch (action) {
@@ -366,6 +443,43 @@ class DjPerformanceOrchestrator {
         break;
       case DjAction.masterVolumeDown:
         setMasterVolume(_masterVolume - 0.05);
+        break;
+
+      // FX & Beat Performance: Deck A
+      case DjAction.deckAFilterSweepLeft:
+        setChannelFilter('A', _fxA.filterPosition - 0.1);
+        break;
+      case DjAction.deckAFilterSweepRight:
+        setChannelFilter('A', _fxA.filterPosition + 0.1);
+        break;
+      case DjAction.deckAFilterReset:
+        setChannelFilter('A', 0.0);
+        break;
+      case DjAction.deckAToggleDelay:
+        toggleChannelDelay('A');
+        break;
+
+      // FX & Beat Performance: Deck B
+      case DjAction.deckBFilterSweepLeft:
+        setChannelFilter('B', _fxB.filterPosition - 0.1);
+        break;
+      case DjAction.deckBFilterSweepRight:
+        setChannelFilter('B', _fxB.filterPosition + 0.1);
+        break;
+      case DjAction.deckBFilterReset:
+        setChannelFilter('B', 0.0);
+        break;
+      case DjAction.deckBToggleDelay:
+        toggleChannelDelay('B');
+        break;
+
+      // Live Mixdown Recording
+      case DjAction.toggleMixRecording:
+        if (_recorder.isRecording) {
+          stopRecording();
+        } else {
+          startRecording(DateTime.now().millisecondsSinceEpoch);
+        }
         break;
     }
   }

@@ -2,7 +2,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![CI Pipeline](https://github.com/Nicolas11Leon/Tunner/actions/workflows/ci.yml/badge.svg)](https://github.com/Nicolas11Leon/Tunner/actions/workflows/ci.yml)
-[![Tests: 589 Passing](https://img.shields.io/badge/Tests-589%20Passing-brightgreen.svg)]()
+[![Tests: 604 Passing](https://img.shields.io/badge/Tests-604%20Passing-brightgreen.svg)]()
 [![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
 [![Architecture: Clean Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-informational.svg)]()
 [![Privacy: 100% Offline--First](https://img.shields.io/badge/Privacy-100%25%20Offline--First-blueviolet.svg)]()
@@ -45,6 +45,7 @@ graph TD
     A --> H["Evaluacion Pedagogica 4D & TTC"]:::tuner
     A --> I["Consola Mezcladora de Stems"]:::audio
     A --> J["Persistencia Local Atomica Offline"]:::storage
+    A --> K["Consola DJ Virtual & Performance FX"]:::audio
 
     B --> B1["Afinador Estroboscopico Virtual (±0.1 Cents)"]:::tuner
     B --> B2["Afinador Inteligente & Reconocimiento Timbrico"]:::tuner
@@ -75,6 +76,11 @@ graph TD
     H --> H1["Deteccion de Rushing vs Dragging"]:::tuner
     H --> H2["Catalogo de Tareas de Practica (TTC) & Salto 'J'"]:::tuner
     H --> H3["Reporte de Desempeno y Grados S, A, B, C, D"]:::tuner
+
+    K --> K1["Mapeo Ergonomico QWERTY / MIDI"]:::audio
+    K --> K2["Crossfader Curvo & Jog Wheels Vectoriales"]:::audio
+    K --> K3["Filtro Bipolar Sweep & Delay Sincronizado"]:::audio
+    K --> K4["Beat Tracker Onset & Grabador Master WAV"]:::audio
 ```
 
 ---
@@ -214,6 +220,7 @@ tunner/
 │   │   ├── chord_analyzer/         # Analizador polifonico y visualizador armonico H1-H8
 │   │   ├── exercise_generator/     # Generador procedural de escalas y arpegios
 │   │   ├── mixer/                  # Consola mezcladora multicanal de stems
+│   │   ├── dj_console/             # Consola DJ Virtual: Dual-deck, FX bipolar/delay, beat tracking y grabador WAV
 │   │   ├── song_library/           # Descompositor pedagogico y repertorio
 │   │   ├── vocal_autotune/         # Suite vocal: Auto-Tune en vivo y convertidor a pentagrama
 │   │   ├── persistence/            # Persistencia atomica offline (.tmp + rename seguro)
@@ -221,8 +228,8 @@ tunner/
 │   │   ├── tuner_viewmodel.dart    # Orquestador principal con Inversion de Dependencias
 │   │   └── tuner_screen.dart       # Pantalla tradicional unificada del laboratorio acustico
 │   └── main.dart                   # Punto de entrada de la aplicacion
-├── test/                           # 589 pruebas unitarias, de integracion y de widgets
-├── docs/                           # 65 Casos de Uso, 59 ADRs, 67 Planes de Implementacion
+├── test/                           # 604 pruebas unitarias, de integracion y de widgets
+├── docs/                           # 66 Casos de Uso, 60 ADRs, 64 Planes de Implementacion
 └── CONTRIBUTING.md                  # Guia detallada para colaboradores del proyecto
 ```
 
@@ -246,6 +253,9 @@ flutter pub get
 
 # 3. Analisis estatico de codigo (0 advertencias garantizadas)
 flutter analyze
+
+# 4. Ejecucion de la suite completa de pruebas (604 pruebas passing)
+flutter test
 
 # 4. Ejecucion de la suite completa de pruebas (549 pruebas passing)
 flutter test

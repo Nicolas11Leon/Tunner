@@ -23,6 +23,12 @@ enum DjAction {
   deckAKillMid,
   deckAKillHigh,
 
+  // Deck A Performance FX
+  deckAFilterSweepLeft,
+  deckAFilterSweepRight,
+  deckAFilterReset,
+  deckAToggleDelay,
+
   // Deck B Transport & Pitch
   deckBPlayPause,
   deckBCue,
@@ -44,6 +50,12 @@ enum DjAction {
   deckBKillMid,
   deckBKillHigh,
 
+  // Deck B Performance FX
+  deckBFilterSweepLeft,
+  deckBFilterSweepRight,
+  deckBFilterReset,
+  deckBToggleDelay,
+
   // Crossfader
   crossfaderShiftLeft,
   crossfaderShiftRight,
@@ -51,9 +63,10 @@ enum DjAction {
   crossfaderHardLeft,
   crossfaderHardRight,
 
-  // Master
+  // Master & Recording
   masterVolumeUp,
   masterVolumeDown,
+  toggleMixRecording,
 }
 
 extension DjActionExtension on DjAction {
@@ -89,6 +102,14 @@ extension DjActionExtension on DjAction {
         return 'Deck A: Kill Mid EQ';
       case DjAction.deckAKillHigh:
         return 'Deck A: Kill High EQ';
+      case DjAction.deckAFilterSweepLeft:
+        return 'Deck A: Filtro Low-Pass (-0.1)';
+      case DjAction.deckAFilterSweepRight:
+        return 'Deck A: Filtro High-Pass (+0.1)';
+      case DjAction.deckAFilterReset:
+        return 'Deck A: Reset Filtro (Bypass)';
+      case DjAction.deckAToggleDelay:
+        return 'Deck A: Activar / Desactivar Delay';
 
       case DjAction.deckBPlayPause:
         return 'Deck B: Play / Pausa';
@@ -120,6 +141,14 @@ extension DjActionExtension on DjAction {
         return 'Deck B: Kill Mid EQ';
       case DjAction.deckBKillHigh:
         return 'Deck B: Kill High EQ';
+      case DjAction.deckBFilterSweepLeft:
+        return 'Deck B: Filtro Low-Pass (-0.1)';
+      case DjAction.deckBFilterSweepRight:
+        return 'Deck B: Filtro High-Pass (+0.1)';
+      case DjAction.deckBFilterReset:
+        return 'Deck B: Reset Filtro (Bypass)';
+      case DjAction.deckBToggleDelay:
+        return 'Deck B: Activar / Desactivar Delay';
 
       case DjAction.crossfaderShiftLeft:
         return 'Crossfader: Desplazar a Izquierda';
@@ -136,6 +165,8 @@ extension DjActionExtension on DjAction {
         return 'Master: Subir Volumen';
       case DjAction.masterVolumeDown:
         return 'Master: Bajar Volumen';
+      case DjAction.toggleMixRecording:
+        return 'Master: Iniciar / Detener Grabacion REC';
     }
   }
 
