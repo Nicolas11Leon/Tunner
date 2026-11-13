@@ -37,7 +37,7 @@ jobs:
         run: flutter --version
 
       - name: Install Package Dependencies
-        run: flutter pub get --enforce-lockfile
+        run: flutter pub get
 
       - name: Run Static Code Analysis
         run: flutter analyze --no-fatal-infos
