@@ -158,19 +158,20 @@ class _UniversalInstrumentSearchModalState extends State<UniversalInstrumentSear
                 final isCurrent = viewModel.activeInstrument.universalId == inst.universalId;
                 final primaryColor = inst.visualProfile.primaryAccentColor;
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Material(
                     color: isCurrent
                         ? primaryColor.withValues(alpha: 0.12)
                         : Colors.white.withValues(alpha: 0.04),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isCurrent ? primaryColor : Colors.white12,
-                      width: isCurrent ? 1.5 : 1.0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: isCurrent ? primaryColor : Colors.white12,
+                        width: isCurrent ? 1.5 : 1.0,
+                      ),
                     ),
-                  ),
-                  child: ListTile(
+                    child: ListTile(
                     leading: Container(
                       width: 44,
                       height: 44,
@@ -219,7 +220,8 @@ class _UniversalInstrumentSearchModalState extends State<UniversalInstrumentSear
                       Navigator.pop(context);
                     },
                   ),
-                );
+                ),
+              );
               },
             ),
           ),

@@ -231,16 +231,17 @@ class _ToolSearchModalState extends State<ToolSearchModal> {
                     itemBuilder: (context, index) {
                       final tool = _filteredTools[index];
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Material(
                           color: palette.cardBackground,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: palette.staffLinesColor.withValues(alpha: 0.15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: BorderSide(
+                              color: palette.staffLinesColor.withValues(alpha: 0.15),
+                            ),
                           ),
-                        ),
-                        child: ListTile(
+                          child: ListTile(
                           key: Key('tool_search_item_${tool.id}'),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                           leading: Container(
@@ -282,7 +283,8 @@ class _ToolSearchModalState extends State<ToolSearchModal> {
                           ),
                           onTap: () => _executeTool(tool),
                         ),
-                      );
+                      ),
+                    );
                     },
                   ),
           ),

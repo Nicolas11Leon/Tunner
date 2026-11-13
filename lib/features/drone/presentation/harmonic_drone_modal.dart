@@ -356,20 +356,21 @@ class HarmonicDroneModal extends StatelessWidget {
                 const SizedBox(height: 8),
                 ...DroneTimbre.values.map((timbre) {
                   final isSelected = config.timbre == timbre;
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: BoxDecoration(
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Material(
                       color: isSelected
                           ? palette.primaryAccent.withValues(alpha: 0.12)
                           : palette.cardBackground,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: isSelected
-                            ? palette.primaryAccent
-                            : palette.staffLinesColor.withValues(alpha: 0.2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(
+                          color: isSelected
+                              ? palette.primaryAccent
+                              : palette.staffLinesColor.withValues(alpha: 0.2),
+                        ),
                       ),
-                    ),
-                    child: ListTile(
+                      child: ListTile(
                       key: Key('drone_timbre_${timbre.name}'),
                       title: Text(
                         timbre.displayName,
@@ -390,7 +391,8 @@ class HarmonicDroneModal extends StatelessWidget {
                         viewModel.setDroneConfig(config.copyWith(timbre: timbre));
                       },
                     ),
-                  );
+                  ),
+                );
                 }),
                 const SizedBox(height: 16),
 

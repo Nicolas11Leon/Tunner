@@ -330,11 +330,11 @@ class _AudioMidiExportModalState extends State<AudioMidiExportModal> {
                 ),
               ),
               const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: palette.staffBackground,
+              Material(
+                color: palette.staffBackground,
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.2)),
+                  side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.2)),
                 ),
                 child: ListView.separated(
                   shrinkWrap: true,

@@ -95,19 +95,20 @@ class InstrumentSelectorModal extends StatelessWidget {
                 final inst = InstrumentProfileEntity.standardInstruments[index];
                 final isSelected = viewModel.activeInstrument.id == inst.id;
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Material(
                     color: isSelected
                         ? palette.primaryAccent.withValues(alpha: 0.15)
                         : palette.cardBackground,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isSelected ? palette.primaryAccent : palette.staffLinesColor.withValues(alpha: 0.2),
-                      width: isSelected ? 1.5 : 1.0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: isSelected ? palette.primaryAccent : palette.staffLinesColor.withValues(alpha: 0.2),
+                        width: isSelected ? 1.5 : 1.0,
+                      ),
                     ),
-                  ),
-                  child: ListTile(
+                    child: ListTile(
                     key: Key('instrument_option_${inst.id}'),
                     onTap: () {
                       viewModel.setInstrumentProfile(inst);
@@ -151,7 +152,8 @@ class InstrumentSelectorModal extends StatelessWidget {
                             style: TextStyle(color: palette.textMutedColor, fontSize: 16),
                           ),
                   ),
-                );
+                ),
+              );
               },
             ),
           ),
