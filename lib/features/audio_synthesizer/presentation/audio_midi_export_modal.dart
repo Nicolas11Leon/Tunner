@@ -192,65 +192,129 @@ class _AudioMidiExportModalState extends State<AudioMidiExportModal> {
               ),
               child: Column(
                 children: [
-                  SwitchListTile.adaptive(
-                    key: const Key('export_switch_master'),
-                    title: Text(
-                      "Master Mixdown WAV",
-                      style: TextStyle(color: palette.textColor, fontSize: 13, fontWeight: FontWeight.w600),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                "Master Mixdown WAV",
+                                style: TextStyle(color: palette.textColor, fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "Mezcla estéreo balanceada según volúmenes de consola",
+                                style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch.adaptive(
+                          key: const Key('export_switch_master'),
+                          value: _includeMaster,
+                          activeTrackColor: palette.primaryAccent,
+                          onChanged: (val) => setState(() => _includeMaster = val),
+                        ),
+                      ],
                     ),
-                    subtitle: Text(
-                      "Mezcla estéreo balanceada según volúmenes de consola",
-                      style: TextStyle(color: palette.textMutedColor, fontSize: 11),
-                    ),
-                    value: _includeMaster,
-                    activeTrackColor: palette.primaryAccent,
-                    onChanged: (val) => setState(() => _includeMaster = val),
                   ),
                   Divider(height: 1, color: palette.staffLinesColor.withValues(alpha: 0.2)),
-                  SwitchListTile.adaptive(
-                    key: const Key('export_switch_stems'),
-                    title: Text(
-                      "Stems Separados WAV",
-                      style: TextStyle(color: palette.textColor, fontSize: 13, fontWeight: FontWeight.w600),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                "Stems Separados WAV",
+                                style: TextStyle(color: palette.textColor, fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "Pistas aisladas de melodía, acompañamiento y metrónomo",
+                                style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch.adaptive(
+                          key: const Key('export_switch_stems'),
+                          value: _includeStems,
+                          activeTrackColor: palette.primaryAccent,
+                          onChanged: (val) => setState(() => _includeStems = val),
+                        ),
+                      ],
                     ),
-                    subtitle: Text(
-                      "Pistas aisladas de melodía, acompañamiento y metrónomo",
-                      style: TextStyle(color: palette.textMutedColor, fontSize: 11),
-                    ),
-                    value: _includeStems,
-                    activeTrackColor: palette.primaryAccent,
-                    onChanged: (val) => setState(() => _includeStems = val),
                   ),
                   Divider(height: 1, color: palette.staffLinesColor.withValues(alpha: 0.2)),
-                  SwitchListTile.adaptive(
-                    key: const Key('export_switch_midi'),
-                    title: Text(
-                      "Archivo MIDI Canónico (.mid)",
-                      style: TextStyle(color: palette.textColor, fontSize: 13, fontWeight: FontWeight.w600),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                "Archivo MIDI Canónico (.mid)",
+                                style: TextStyle(color: palette.textColor, fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "Secuencia Standard MIDI SMF con métrica y tempo 480 PPQN",
+                                style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch.adaptive(
+                          key: const Key('export_switch_midi'),
+                          value: _includeMidi,
+                          activeTrackColor: palette.primaryAccent,
+                          onChanged: (val) => setState(() => _includeMidi = val),
+                        ),
+                      ],
                     ),
-                    subtitle: Text(
-                      "Secuencia Standard MIDI SMF con métrica y tempo 480 PPQN",
-                      style: TextStyle(color: palette.textMutedColor, fontSize: 11),
-                    ),
-                    value: _includeMidi,
-                    activeTrackColor: palette.primaryAccent,
-                    onChanged: (val) => setState(() => _includeMidi = val),
                   ),
                   if (widget.viewModel.activeRecording != null) ...[
                     Divider(height: 1, color: palette.staffLinesColor.withValues(alpha: 0.2)),
-                    SwitchListTile.adaptive(
-                      key: const Key('export_switch_take'),
-                      title: Text(
-                        "Toma de Práctica Grabada",
-                        style: TextStyle(color: palette.textColor, fontSize: 13, fontWeight: FontWeight.w600),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  "Toma de Práctica Grabada",
+                                  style: TextStyle(color: palette.textColor, fontSize: 13, fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  "Audio registrado por micrófono en sesión",
+                                  style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch.adaptive(
+                            key: const Key('export_switch_take'),
+                            value: _includeRecordedTake,
+                            activeTrackColor: palette.secondaryAccent,
+                            onChanged: (val) => setState(() => _includeRecordedTake = val),
+                          ),
+                        ],
                       ),
-                      subtitle: Text(
-                        "Audio registrado por micrófono en sesión",
-                        style: TextStyle(color: palette.textMutedColor, fontSize: 11),
-                      ),
-                      value: _includeRecordedTake,
-                      activeTrackColor: palette.secondaryAccent,
-                      onChanged: (val) => setState(() => _includeRecordedTake = val),
                     ),
                   ],
                 ],
