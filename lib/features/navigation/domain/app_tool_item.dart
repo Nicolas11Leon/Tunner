@@ -159,6 +159,15 @@ class AppToolCatalog {
       keywords: ['espectro', 'comparar', 'armonicos', 'fft', 'timbre', 'proyeccion'],
       actionId: 'open_spectral_comparator',
     ),
+    AppToolItem(
+      id: 'dj_console',
+      title: 'Consola de DJ Virtual & Mapeo QWERTY',
+      subtitle: 'Mezcla en vivo de pistas y stems con jog wheels, EQ Kill, crossfader curvo y atajos de teclado',
+      category: AppToolCategory.recording,
+      icon: Icons.album,
+      keywords: ['dj', 'consola', 'mezcla', 'mix', 'crossfader', 'teclado', 'qwerty', 'jogwheel', 'scratch', 'bpm', 'sync', 'stems'],
+      actionId: 'open_dj_console',
+    ),
 
     // 5. Canciones & Partituras
     AppToolItem(
