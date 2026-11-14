@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/tunner_theme.dart';
 import '../data/dj_audio_processor.dart';
+import '../data/dj_hardware_catalog.dart';
 import '../domain/dj_channel_fx_entity.dart';
 import '../domain/dj_crossfader_entity.dart';
 import '../domain/dj_deck_entity.dart';
 import 'dj_console_view_model.dart';
 import 'dj_keymap_editor_modal.dart';
+import 'dj_visual_mapping_overlay.dart';
 import 'vector_jog_wheel.dart';
 
-/// Full-featured Virtual DJ Performance Console Modal.
+/// Full-featured Virtual DJ Performance Console Modal with Physical Hardware Skins & Gamepad.
 class DjConsoleModal extends StatefulWidget {
   final DjConsoleViewModel viewModel;
   final TunnerThemePalette palette;
@@ -43,7 +45,7 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
         final vm = widget.viewModel;
 
         return Container(
-          height: MediaQuery.of(context).size.height * 0.92,
+          height: MediaQuery.of(context).size.height,
           decoration: BoxDecoration(
             color: palette.scaffoldBackground,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -51,9 +53,9 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
           ),
           child: Column(
             children: [
-              // 1. Header Bar with REC button and Keymap editor
+              // 1. Header Bar with Skin selector, View Toggle, REC button and Keymap editor
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: Row(
                   children: [
                     Icon(Icons.album, color: palette.primaryAccent, size: 24),
@@ -71,12 +73,67 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                             ),
                           ),
                           Text(
-                            'Mezcla dual, FX de filtro/delay, beat tracking y grabación máster WAV',
+                            'Emulador de hardware, teclado QWERTY, mandos Xbox/PS y audio local',
                             style: TextStyle(color: palette.textMutedColor, fontSize: 11),
                           ),
                         ],
                       ),
                     ),
+
+                    // Skin Selector Dropdown
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1E28),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF383848)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          key: const Key('skin_selector_dropdown'),
+                          value: vm.activeSkin.id,
+                          dropdownColor: const Color(0xFF1E1E28),
+                          style: TextStyle(color: palette.textColor, fontSize: 12),
+                          icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF00E5FF), size: 18),
+                          items: DjHardwareCatalog.allSkins().map((s) {
+                            return DropdownMenuItem<String>(
+                              value: s.id,
+                              child: Text(s.name, style: const TextStyle(fontSize: 11)),
+                            );
+                          }).toList(),
+                          onChanged: (skinId) {
+                            if (skinId != null) vm.selectSkin(skinId);
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // View Toggle (Hardware Skin visibility)
+                    OutlinedButton.icon(
+                      key: const Key('toggle_hardware_view_btn'),
+                      onPressed: () => vm.toggleHardwareView(),
+                      icon: Icon(
+                        vm.isHardwareViewActive ? Icons.videogame_asset : Icons.view_quilt,
+                        size: 16,
+                        color: vm.isHardwareViewActive ? const Color(0xFF00E5FF) : palette.textColor,
+                      ),
+                      label: Text(
+                        vm.isHardwareViewActive ? 'Hardware: ON' : 'Hardware: OFF',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: vm.isHardwareViewActive ? const Color(0xFF00E5FF) : palette.textColor,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: vm.isHardwareViewActive ? const Color(0xFF00E5FF) : const Color(0xFF383848),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
                     // Live Mix Recording Master Button
                     ElevatedButton.icon(
                       key: const Key('toggle_live_recording_btn'),
@@ -86,7 +143,7 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                           final wavBytes = vm.stopRecording();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Grabación finalizada: ${duration}s (${wavBytes?.lengthInBytes ?? 0} bytes WAV)'),
+                              content: Text('Grabacion finalizada: ${duration}s (${wavBytes?.lengthInBytes ?? 0} bytes WAV)'),
                               duration: const Duration(seconds: 3),
                             ),
                           );
@@ -133,12 +190,33 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
               ),
               Divider(height: 1, color: palette.staffLinesColor.withValues(alpha: 0.2)),
 
-              // 2. Main Mixing Workspace: Deck A - Mixer Center - Deck B
+              // 2. Main Mixing Workspace
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   child: Column(
                     children: [
+                      if (vm.isHardwareViewActive) ...[
+                        // Vector Hardware Console Skin with Interactive Mapping Overlay
+                        DjVisualMappingOverlay(
+                          skin: vm.activeSkin,
+                          selectedZone: vm.selectedZoneForMapping,
+                          isLearnModeActive: vm.isLearnModeActive,
+                          lastCapturedInput: vm.lastCapturedInputToken,
+                          jogRotationA: vm.rotationAngleA,
+                          jogRotationB: vm.rotationAngleB,
+                          onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
+                          onActionTriggered: (action) => vm.executeAction(action),
+                          onToggleLearnMode: () => vm.toggleLearnMode(),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Xbox / Playstation Gamepad quick simulator testbar
+                        _buildGamepadSimulatorBar(vm, palette),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Classic Modular Cards (Deck A - Mixer - Deck B)
                       LayoutBuilder(
                         builder: (context, constraints) {
                           final isNarrow = constraints.maxWidth < 650;
@@ -166,7 +244,7 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                           }
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
 
                       // 3. Crossfader & Master Section
                       _buildCrossfaderSection(vm),
@@ -178,6 +256,78 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildGamepadSimulatorBar(DjConsoleViewModel vm, TunnerThemePalette palette) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF141418),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF2E2E38)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.sports_esports, color: Color(0xFF00E5FF), size: 16),
+              const SizedBox(width: 6),
+              Text(
+                'SIMULADOR DE MANDO (Xbox / PlayStation)',
+                style: TextStyle(
+                  color: palette.textColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'Toca para probar respuestas del mando',
+                style: TextStyle(color: palette.textMutedColor, fontSize: 10),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildGamepadTestChip(vm, 'Xbox_A', 'A (Play A)', Colors.green),
+                _buildGamepadTestChip(vm, 'Xbox_X', 'X (Cue A)', Colors.blue),
+                _buildGamepadTestChip(vm, 'Xbox_B', 'B (Play B)', Colors.red),
+                _buildGamepadTestChip(vm, 'Xbox_Y', 'Y (Cue B)', Colors.amber),
+                _buildGamepadTestChip(vm, 'Xbox_LB', 'LB (Sync A)', Colors.cyan),
+                _buildGamepadTestChip(vm, 'Xbox_RB', 'RB (Sync B)', Colors.cyan),
+                _buildGamepadTestChip(vm, 'Xbox_LT', 'LT (Filter A)', Colors.orange),
+                _buildGamepadTestChip(vm, 'Xbox_RT', 'RT (Filter B)', Colors.orange),
+                _buildGamepadTestChip(vm, 'Xbox_LS', 'LS (Snap A)', Colors.purple),
+                _buildGamepadTestChip(vm, 'Xbox_RS', 'RS (Snap B)', Colors.purple),
+                _buildGamepadTestChip(vm, 'Xbox_Select', 'Select (Center)', Colors.grey),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGamepadTestChip(DjConsoleViewModel vm, String token, String label, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6.0),
+      child: ActionChip(
+        key: Key('gamepad_chip_$token'),
+        label: Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF22222A),
+        side: BorderSide(color: color.withAlpha(160)),
+        labelStyle: TextStyle(color: color),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        onPressed: () {
+          vm.injectGamepadInput(token, isDown: true);
+        },
+      ),
     );
   }
 
@@ -276,7 +426,7 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                 );
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
 
             // Vector Jog Wheel
             Center(
@@ -289,7 +439,7 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                 onTap: () => vm.togglePlay(deckId),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
 
             // Pitch Slider Controls (-8% to +8%)
             Row(
@@ -319,138 +469,16 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
               ],
             ),
 
-            // Channel FX: Bipolar Sweep Filter Controls
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'FILTER',
-                        style: TextStyle(color: palette.textMutedColor, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        fx.filterPosition < -0.01
-                            ? 'LPF ${(fx.cutoffFrequencyHz).round()} Hz'
-                            : fx.filterPosition > 0.01
-                                ? 'HPF ${(fx.cutoffFrequencyHz).round()} Hz'
-                                : 'BYPASS',
-                        style: TextStyle(color: accentColor, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                      InkWell(
-                        key: Key('deck_${deckId}_filter_reset_btn'),
-                        onTap: () => vm.setChannelFilter(deckId, 0.0),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                          child: Text('RESET', style: TextStyle(color: palette.textMutedColor, fontSize: 9)),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    ),
-                    child: Slider(
-                      key: Key('deck_${deckId}_filter_slider'),
-                      value: fx.filterPosition.clamp(-1.0, 1.0),
-                      min: -1.0,
-                      max: 1.0,
-                      activeColor: accentColor,
-                      inactiveColor: Colors.white12,
-                      onChanged: (val) => vm.setChannelFilter(deckId, val),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Channel FX: Beat-Synced Delay Controls
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: Row(
-                children: [
-                  FilterChip(
-                    key: Key('deck_${deckId}_delay_toggle_chip'),
-                    label: const Text('DELAY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                    selected: fx.isDelayActive,
-                    selectedColor: accentColor.withValues(alpha: 0.3),
-                    checkmarkColor: accentColor,
-                    onSelected: (_) => vm.toggleChannelDelay(deckId),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: DropdownButton<DjDelayDivision>(
-                      value: fx.delayDivision,
-                      isDense: true,
-                      dropdownColor: palette.cardBackground,
-                      style: TextStyle(color: palette.textColor, fontSize: 11),
-                      underline: const SizedBox(),
-                      items: DjDelayDivision.values.map((div) {
-                        return DropdownMenuItem(
-                          value: div,
-                          child: Text(div.label),
-                        );
-                      }).toList(),
-                      onChanged: (div) {
-                        if (div != null) vm.setChannelDelayDivision(deckId, div);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Hot Cues (1..4)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(4, (i) {
-                final cueIndex = i + 1;
-                final isSet = deck.hotCues.containsKey(cueIndex);
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: OutlinedButton(
-                      key: Key('deck_${deckId}_cue_$cueIndex'),
-                      onPressed: () => vm.triggerHotCue(deckId, cueIndex),
-                      onLongPress: () => vm.clearHotCue(deckId, cueIndex),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: isSet ? accentColor.withValues(alpha: 0.25) : Colors.transparent,
-                        side: BorderSide(color: isSet ? accentColor : Colors.white12),
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        minimumSize: const Size(0, 32),
-                      ),
-                      child: Text(
-                        'CUE $cueIndex',
-                        style: TextStyle(
-                          color: isSet ? accentColor : palette.textMutedColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 10),
-
-            // Main Transport Buttons: Cue & Play/Pause
+            // Transport Buttons (Cue & Play)
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    key: Key('deck_${deckId}_cue_main_btn'),
+                    key: Key('deck_${deckId}_cue_btn'),
                     onPressed: () => vm.triggerCue(deckId),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2A2A38),
+                      backgroundColor: Colors.amber.shade800,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     child: const Text('CUE', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -458,21 +486,125 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
+                  flex: 2,
                   child: ElevatedButton.icon(
                     key: Key('deck_${deckId}_play_btn'),
                     onPressed: () => vm.togglePlay(deckId),
+                    icon: Icon(deck.isPlaying ? Icons.pause : Icons.play_arrow),
+                    label: Text(deck.isPlaying ? 'PAUSE' : 'PLAY', style: const TextStyle(fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: deck.isPlaying ? const Color(0xFFE53935) : const Color(0xFF43A047),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      backgroundColor: deck.isPlaying ? Colors.green.shade700 : accentColor,
+                      foregroundColor: Colors.black,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    icon: Icon(deck.isPlaying ? Icons.pause : Icons.play_arrow, size: 18),
-                    label: Text(deck.isPlaying ? 'PAUSE' : 'PLAY', style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+
+            // 4 Hot Cues
+            Text(
+              'HOT CUES',
+              style: TextStyle(color: palette.textMutedColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: List.generate(4, (idx) {
+                final pos = deck.hotCues[idx];
+                final isSet = pos != null;
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: idx < 3 ? 4 : 0),
+                    child: OutlinedButton(
+                      key: Key('deck_${deckId}_hotcue_$idx'),
+                      onPressed: () => vm.triggerHotCue(deckId, idx),
+                      onLongPress: () => vm.clearHotCue(deckId, idx),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: isSet ? accentColor.withValues(alpha: 0.3) : Colors.transparent,
+                        side: BorderSide(color: isSet ? accentColor : palette.staffLinesColor.withValues(alpha: 0.2)),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                      child: Text(
+                        '${idx + 1}',
+                        style: TextStyle(color: isSet ? accentColor : palette.textMutedColor, fontWeight: FontWeight.bold, fontSize: 11),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 6),
+
+            // Performance FX: Bipolar Filter Sweep
+            Text(
+              'FILTRO BIPOLAR (LPF <-> FLAT <-> HPF)',
+              style: TextStyle(color: palette.textMutedColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+            ),
+            Row(
+              children: [
+                Text('LPF', style: TextStyle(color: palette.textMutedColor, fontSize: 9)),
+                Expanded(
+                  child: Slider(
+                    key: Key('deck_${deckId}_filter_slider'),
+                    value: fx.filterPosition.clamp(-1.0, 1.0),
+                    min: -1.0,
+                    max: 1.0,
+                    activeColor: fx.filterPosition == 0.0 ? Colors.grey : (fx.filterPosition < 0 ? Colors.blueAccent : Colors.redAccent),
+                    onChanged: (val) => vm.setChannelFilter(deckId, val),
+                  ),
+                ),
+                Text('HPF', style: TextStyle(color: palette.textMutedColor, fontSize: 9)),
+                TextButton(
+                  key: Key('deck_${deckId}_filter_reset_btn'),
+                  onPressed: () => vm.setChannelFilter(deckId, 0.0),
+                  child: Text('Reset', style: TextStyle(color: palette.textMutedColor, fontSize: 9)),
+                ),
+              ],
+            ),
+
+            // Performance FX: Beat-Synced Delay
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'DELAY SINCRONIZADO',
+                  style: TextStyle(color: palette.textMutedColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+                ),
+                ActionChip(
+                  key: Key('deck_${deckId}_delay_toggle_chip'),
+                  label: Text(fx.isDelayActive ? 'ON' : 'OFF', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                  backgroundColor: fx.isDelayActive ? accentColor : const Color(0xFF22222E),
+                  labelStyle: TextStyle(color: fx.isDelayActive ? Colors.black : palette.textMutedColor),
+                  onPressed: () => vm.toggleChannelDelay(deckId),
+                ),
+              ],
+            ),
+            if (fx.isDelayActive) ...[
+              Row(
+                children: [
+                  Text('División:', style: TextStyle(color: palette.textColor, fontSize: 10)),
+                  const SizedBox(width: 8),
+                  DropdownButton<DjDelayDivision>(
+                    value: fx.delayDivision,
+                    dropdownColor: palette.cardBackground,
+                    style: TextStyle(color: palette.textColor, fontSize: 10),
+                    underline: const SizedBox(),
+                    items: const [
+                      DropdownMenuItem(value: DjDelayDivision.halfBeat, child: Text('1/2 Beat')),
+                      DropdownMenuItem(value: DjDelayDivision.quarterBeat, child: Text('1/4 Beat')),
+                      DropdownMenuItem(value: DjDelayDivision.eighthBeat, child: Text('1/8 Beat')),
+                      DropdownMenuItem(value: DjDelayDivision.sixteenthBeat, child: Text('1/16 Beat')),
+                    ],
+                    onChanged: (div) {
+                      if (div != null) vm.setChannelDelayDivision(deckId, div);
+                    },
+                  ),
+                  const Spacer(),
+                  Text('Fdbk: ${(fx.delayFeedback * 100).toInt()}%', style: TextStyle(color: palette.textMutedColor, fontSize: 10)),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -514,7 +646,7 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                     ],
                   ),
                 ),
-                Container(width: 1, height: 160, color: palette.staffLinesColor.withValues(alpha: 0.2)),
+                Container(width: 1, height: 140, color: palette.staffLinesColor.withValues(alpha: 0.2)),
                 // Deck B EQ
                 Expanded(
                   child: Column(
@@ -527,6 +659,28 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                       _buildEqSlider('B', 'low', vm.deckB.gainLow, vm.deckB.isKillLow, vm),
                     ],
                   ),
+                ),
+              ],
+            ),
+            const Divider(height: 10),
+
+            // Master Volume
+            Row(
+              children: [
+                Icon(Icons.volume_up, size: 16, color: palette.textColor),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Slider(
+                    value: vm.masterVolume,
+                    min: 0.0,
+                    max: 1.5,
+                    activeColor: palette.primaryAccent,
+                    onChanged: (val) => vm.setMasterVolume(val),
+                  ),
+                ),
+                Text(
+                  '${(vm.masterVolume * 100).toInt()}%',
+                  style: TextStyle(color: palette.textColor, fontSize: 11, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -584,7 +738,7 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
         side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.15)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Column(
           children: [
             Row(
