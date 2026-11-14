@@ -159,7 +159,7 @@ flowchart LR
 * [x] **Catálogo Canónico TTC:** Taxonomía de tareas de práctica y salto rápido modal `J`.
 * [x] **Descomponedor de Partituras & Ensamble "Minus-One":** Descomposición de partituras multitrack, silenciamiento del instrumento del usuario, síntesis del acompañamiento con SoundFont SF2 y evaluación simultánea de la interpretación en vivo ([PR #19](https://github.com/Nicolas11Leon/Tunner/pull/19)).
 * [x] **Transcripción Polifónica Mic-to-Score:** Separación espectral de acordes complejos captados por micrófono y transcripción polifónica directa a partitura ([PR #22](https://github.com/Nicolas11Leon/Tunner/pull/22)).
-* [x] **Consola DJ Virtual & Performance FX:** Dual-deck virtual DJ console, mapeo universal QWERTY, filtro bipolar sweep, delay sincronizado, beat tracking y grabador máster WAV ([PR #24](https://github.com/Nicolas11Leon/Tunner/pull/24), [PR #25](https://github.com/Nicolas11Leon/Tunner/pull/25)).
+* [x] **Consola DJ Virtual & Performance FX:** Dual-deck virtual DJ console, mapeo universal QWERTY, skins de hardware Pioneer DDJ-FLX4 / CDJ-3000 / Traktor Kontrol S4, mapeo de mandos Xbox/PS, filtro bipolar sweep, delay sincronizado, beat tracking y grabador máster WAV ([PR #24](https://github.com/Nicolas11Leon/Tunner/pull/24), [PR #25](https://github.com/Nicolas11Leon/Tunner/pull/25), [PR #27](https://github.com/Nicolas11Leon/Tunner/pull/27)).
 * [x] **Tutor de Afinación Justa Dinámica:** Ajuste interactivo de afinación en tiempo real según el rol armónico de la nota en el acorde ejecutado por un ensamble ([PR #26](https://github.com/Nicolas11Leon/Tunner/pull/26)).
 
 ### 4.3 Fase 3: Aceleración FFI Nativa y Expansión de Sonidos (Planificada)
@@ -236,8 +236,8 @@ tunner/
 │   │   ├── tuner_viewmodel.dart    # Orquestador principal con Inversion de Dependencias
 │   │   └── tuner_screen.dart       # Pantalla tradicional unificada del laboratorio acustico
 │   └── main.dart                   # Punto de entrada de la aplicacion
-├── test/                           # 617 pruebas unitarias, de integracion y de widgets
-├── docs/                           # 67 Casos de Uso, 61 ADRs, 65 Planes de Implementacion
+├── test/                           # 634 pruebas unitarias, de integracion y de widgets
+├── docs/                           # 68 Casos de Uso, 62 ADRs, 66 Planes de Implementacion
 └── CONTRIBUTING.md                  # Guia detallada para colaboradores del proyecto
 ```
 
