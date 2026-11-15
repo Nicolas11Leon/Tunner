@@ -6,17 +6,23 @@ import '../data/dj_gamepad_input_service.dart';
 import '../data/dj_hardware_catalog.dart';
 import '../data/dj_keymap_persistence_service.dart';
 import '../data/dj_mix_wav_encoder.dart';
+import '../data/dj_transition_sfx_synthesizer.dart';
 import '../domain/bpm_beat_tracker_engine.dart';
 import '../domain/dj_action.dart';
 import '../domain/dj_channel_fx_entity.dart';
 import '../domain/dj_controller_profile_entity.dart';
 import '../domain/dj_crossfader_entity.dart';
+import '../domain/dj_cue_monitor_entity.dart';
 import '../domain/dj_deck_entity.dart';
+import '../domain/dj_harmonic_camelot_engine.dart';
 import '../domain/dj_hardware_skin_entity.dart';
 import '../domain/dj_keymap_profile_entity.dart';
 import '../domain/dj_live_mix_recorder_entity.dart';
 import '../domain/dj_performance_orchestrator.dart';
+import '../domain/dj_sampler_bank_entity.dart';
 import '../domain/dj_skin_zone_entity.dart';
+import '../domain/dj_smart_automix_engine.dart';
+import '../domain/dj_stem_isolation_entity.dart';
 
 /// ViewModel managing state, hardware keyboard event dispatch, and UI reactivity
 /// for the Virtual DJ Performance Console with Hardware Skins and Gamepad support.
@@ -35,9 +41,17 @@ class DjConsoleViewModel extends ChangeNotifier {
   // Hardware Skins & Gamepad Mapping
   DjHardwareSkinEntity _activeSkin = DjHardwareCatalog.ddjFlx4();
   bool _isHardwareViewActive = false;
+  bool _isProWorkstationActive = false;
   bool _isLearnModeActive = false;
   DjSkinZoneEntity? _selectedZoneForMapping;
   String? _lastCapturedInputToken;
+
+  // Spectral RGB Waveforms & Last Sampler Buffer
+  List<SpectralWaveformBucket> _waveformA =
+      DjTransitionSfxSynthesizer.generateSyntheticTrackWaveform(bpm: 124.0);
+  List<SpectralWaveformBucket> _waveformB =
+      DjTransitionSfxSynthesizer.generateSyntheticTrackWaveform(bpm: 128.0);
+  Float32List? _lastSamplerBuffer;
 
   DjConsoleViewModel({
     DjPerformanceOrchestrator? orchestrator,
@@ -76,13 +90,21 @@ class DjConsoleViewModel extends ChangeNotifier {
   double get rotationAngleB => _rotationAngleB;
   Uint8List? get lastRecordedWavBytes => _lastRecordedWavBytes;
 
-  // Hardware skins getters
+  // Hardware skins & Pro Workstation getters
   DjHardwareSkinEntity get activeSkin => _activeSkin.withActiveActions(activeLitActions);
   bool get isHardwareViewActive => _isHardwareViewActive;
+  bool get isProWorkstationActive => _isProWorkstationActive;
   bool get isLearnModeActive => _isLearnModeActive;
   DjSkinZoneEntity? get selectedZoneForMapping => _selectedZoneForMapping;
   String? get lastCapturedInputToken => _lastCapturedInputToken;
   DjControllerProfileEntity get controllerProfile => _inputService.profile;
+  DjSamplerBankEntity get sampler => _orchestrator.sampler;
+  DjSmartAutomixEngine get automix => _orchestrator.automix;
+  DjCueMonitorEntity get cueMonitor => _orchestrator.cueMonitor;
+  CamelotCompatibility get harmonicCompatibility => _orchestrator.harmonicCompatibility;
+  List<SpectralWaveformBucket> get waveformA => _waveformA;
+  List<SpectralWaveformBucket> get waveformB => _waveformB;
+  Float32List? get lastSamplerBuffer => _lastSamplerBuffer;
 
   /// Returns the set of active actions currently illuminating physical LEDs.
   Set<DjAction> get activeLitActions {
@@ -108,12 +130,16 @@ class DjConsoleViewModel extends ChangeNotifier {
       bool changed = false;
       if (deckA.isPlaying) {
         _rotationAngleA += (deckA.effectiveBpm / 60.0) * 0.15;
-        _orchestrator.executeAction(DjAction.deckANudgeForward);
+        _orchestrator.advanceDeckPlayback('A', 33);
         changed = true;
       }
       if (deckB.isPlaying) {
         _rotationAngleB += (deckB.effectiveBpm / 60.0) * 0.15;
-        _orchestrator.executeAction(DjAction.deckBNudgeForward);
+        _orchestrator.advanceDeckPlayback('B', 33);
+        changed = true;
+      }
+      if (_orchestrator.automix.isActive) {
+        _orchestrator.advanceAutomix(33);
         changed = true;
       }
 
@@ -199,6 +225,86 @@ class DjConsoleViewModel extends ChangeNotifier {
 
   void toggleHardwareView() {
     _isHardwareViewActive = !_isHardwareViewActive;
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void toggleProWorkstation() {
+    _isProWorkstationActive = !_isProWorkstationActive;
+    if (!_isDisposed) notifyListeners();
+  }
+
+  // --- Pro Workstation Controls ---
+  void toggleStem(String deckId, DjStemType type) {
+    _orchestrator.toggleStem(deckId, type);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void applyStemPreset(String deckId, String preset) {
+    _orchestrator.applyStemPreset(deckId, preset);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void toggleKeyLock(String deckId) {
+    _orchestrator.toggleKeyLock(deckId);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void syncKey(String deckId) {
+    _orchestrator.syncKey(deckId);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void toggleLoop(String deckId) {
+    _orchestrator.toggleLoop(deckId);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void halveLoop(String deckId) {
+    _orchestrator.halveLoop(deckId);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void doubleLoop(String deckId) {
+    _orchestrator.doubleLoop(deckId);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void toggleSlipMode(String deckId) {
+    _orchestrator.toggleSlipMode(deckId);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void beatJump(String deckId, double beats) {
+    _orchestrator.beatJump(deckId, beats);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void triggerSamplerPad(DjSamplerPadType pad) {
+    _orchestrator.triggerSamplerPad(pad);
+    _lastSamplerBuffer = DjTransitionSfxSynthesizer.generatePadBuffer(
+      pad,
+      sampleRate: _audioProcessor.sampleRate,
+    );
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void startSmartAutomix(AutomixDirection dir, {int durationBars = 8}) {
+    _orchestrator.startSmartAutomix(dir, durationBars: durationBars);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void cancelSmartAutomix() {
+    _orchestrator.cancelSmartAutomix();
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void toggleCueMonitor(String deckId) {
+    _orchestrator.toggleCueMonitor(deckId);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void toggleSplitCue() {
+    _orchestrator.toggleSplitCue();
     if (!_isDisposed) notifyListeners();
   }
 
@@ -354,6 +460,19 @@ class DjConsoleViewModel extends ChangeNotifier {
       samples: audioSamples,
       sampleRate: sampleRate,
     );
+    final estimatedKey = DjHarmonicCamelotEngine.estimateCamelotKeyFromSamples(
+      audioSamples,
+      sampleRate: sampleRate,
+    );
+    final spectralSummary = DjTransitionSfxSynthesizer.computeSpectralWaveformSummary(
+      audioSamples,
+      sampleRate: sampleRate,
+    );
+    if (deckId == 'A') {
+      _waveformA = spectralSummary;
+    } else {
+      _waveformB = spectralSummary;
+    }
     final durationMs = ((audioSamples.length / sampleRate) * 1000.0).round();
     _orchestrator.loadTrack(
       deckId,
@@ -361,6 +480,7 @@ class DjConsoleViewModel extends ChangeNotifier {
       artist: artist,
       bpm: estimatedBpm,
       durationMs: durationMs,
+      camelotKey: estimatedKey.code,
     );
     if (!_isDisposed) notifyListeners();
     return estimatedBpm;

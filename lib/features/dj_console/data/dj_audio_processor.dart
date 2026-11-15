@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
+import '../domain/dj_stem_isolation_entity.dart';
 
 /// High-performance, deterministic stereo audio processor for the Virtual DJ Console.
 ///
@@ -183,6 +184,99 @@ class DjAudioProcessor {
       buffer[i] = (osc * envelope * 0.8).clamp(-1.0, 1.0);
     }
     return buffer;
+  }
+
+  /// Applies real-time 4-Stem isolation (Bass, Drums, Vocals, Melody) using
+  /// Linkwitz-Riley-inspired crossover bands and transient envelope separation.
+  Float32List applyStemIsolation(
+    Float32List input,
+    DjStemIsolationEntity stems,
+  ) {
+    if (input.isEmpty || stems.isBypass) {
+      return Float32List.fromList(input);
+    }
+
+    final gBass = stems.effectiveBassGain;
+    final gDrums = stems.effectiveDrumsGain;
+    final gVocals = stems.effectiveVocalGain;
+    final gMelody = stems.effectiveMelodyGain;
+
+    final output = Float32List(input.length);
+
+    // Crossover coefficients:
+    // Bass LPF at 220 Hz
+    final dt = 1.0 / sampleRate;
+    final rcBass = 1.0 / (2.0 * math.pi * 220.0);
+    final alphaBass = (dt / (rcBass + dt)).clamp(0.001, 1.0);
+
+    // High LPF at 3800 Hz (complement = High > 3800 Hz)
+    final rcHigh = 1.0 / (2.0 * math.pi * 3800.0);
+    final alphaHigh = (dt / (rcHigh + dt)).clamp(0.001, 1.0);
+
+    // Fast vs slow transient envelope for Drum impact separation
+    final alphaFastEnv = (dt / (0.002 + dt)).clamp(0.001, 1.0); // 2ms attack
+    final alphaSlowEnv = (dt / (0.045 + dt)).clamp(0.001, 1.0); // 45ms release
+
+    double lpBass1 = 0.0;
+    double lpBass2 = 0.0;
+    double lpHigh = 0.0;
+    double fastEnv = 0.0;
+    double slowEnv = 0.0;
+
+    for (int i = 0; i < input.length; i++) {
+      final x = input[i];
+      // Two cascaded 1st-order HPFs at 220 Hz (12 dB/oct low-cut) for clean
+      // bass separation and exact complementary reconstruction (bassBand + noBass == x).
+      lpBass1 += alphaBass * (x - lpBass1);
+      final hp1 = x - lpBass1;
+      lpBass2 += alphaBass * (hp1 - lpBass2);
+      final noBass = hp1 - lpBass2;
+      lpHigh += alphaHigh * (x - lpHigh);
+
+      final bassBand = x - noBass;
+      final highBand = x - lpHigh;
+      final midBand = noBass - highBand;
+
+      final absMid = midBand.abs();
+      fastEnv += alphaFastEnv * (absMid - fastEnv);
+      slowEnv += alphaSlowEnv * (absMid - slowEnv);
+
+      // Transient ratio [0..1]: high when fast energy spikes above sustained body
+      final transientRatio = fastEnv > 1e-6
+          ? ((fastEnv - slowEnv).clamp(0.0, fastEnv) / fastEnv).clamp(0.0, 1.0)
+          : 0.0;
+
+      // Drums: percussive mid transients + high-frequency hi-hats/cymbals
+      final drumSignal = (midBand * transientRatio) + (highBand * 0.65);
+      // Vocals: sustained central mid-range formants
+      final vocalSignal = midBand * (1.0 - transientRatio) * 0.70;
+      // Melody: upper harmonic body + remaining sustained mid
+      final melodySignal = (midBand * (1.0 - transientRatio) * 0.30) + (highBand * 0.35);
+
+      final reconstructed = (bassBand * gBass) +
+          (drumSignal * gDrums) +
+          (vocalSignal * gVocals) +
+          (melodySignal * gMelody);
+
+      output[i] = _softLimit(reconstructed);
+    }
+
+    return output;
+  }
+
+  /// Encodes Split-Cue Stereo output for PCs with a single 3.5mm stereo jack:
+  /// Left channel (even indices) = Master Mix, Right channel (odd indices) = Cue Monitor (PFL).
+  Float32List encodeSplitCueStereo({
+    required Float32List masterMono,
+    required Float32List cueMono,
+  }) {
+    final frames = math.max(masterMono.length, cueMono.length);
+    final interleaved = Float32List(frames * 2);
+    for (int i = 0; i < frames; i++) {
+      interleaved[i * 2] = i < masterMono.length ? _softLimit(masterMono[i]) : 0.0;
+      interleaved[(i * 2) + 1] = i < cueMono.length ? _softLimit(cueMono[i]) : 0.0;
+    }
+    return interleaved;
   }
 
   static double _softLimit(double x) {

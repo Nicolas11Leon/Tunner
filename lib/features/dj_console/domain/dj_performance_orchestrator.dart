@@ -2,12 +2,19 @@ import 'dart:typed_data';
 import 'dj_action.dart';
 import 'dj_channel_fx_entity.dart';
 import 'dj_crossfader_entity.dart';
+import 'dj_cue_monitor_entity.dart';
 import 'dj_deck_entity.dart';
+import 'dj_harmonic_camelot_engine.dart';
 import 'dj_keymap_profile_entity.dart';
 import 'dj_live_mix_recorder_entity.dart';
+import 'dj_loop_and_slip_engine.dart';
+import 'dj_sampler_bank_entity.dart';
+import 'dj_smart_automix_engine.dart';
+import 'dj_stem_isolation_entity.dart';
 
 /// Pure Dart orchestrator responsible for managing the active state of both DJ decks,
-/// the crossfader, volume balances, performance FX, live recording and dispatching actions.
+/// the crossfader, volume balances, performance FX, 4-Stems, Camelot harmonic sync,
+/// auto-loops with Slip Mode, Sampler bank, Smart Automix, Split-Cue, and live recording.
 class DjPerformanceOrchestrator {
   DjDeckEntity _deckA;
   DjDeckEntity _deckB;
@@ -17,6 +24,9 @@ class DjPerformanceOrchestrator {
   DjChannelFxEntity _fxA;
   DjChannelFxEntity _fxB;
   DjLiveMixRecorderEntity _recorder;
+  DjSamplerBankEntity _sampler;
+  DjSmartAutomixEngine _automix;
+  DjCueMonitorEntity _cueMonitor;
 
   DjPerformanceOrchestrator({
     DjDeckEntity? deckA,
@@ -27,14 +37,20 @@ class DjPerformanceOrchestrator {
     DjChannelFxEntity? fxA,
     DjChannelFxEntity? fxB,
     DjLiveMixRecorderEntity? recorder,
-  })  : _deckA = deckA ?? const DjDeckEntity(deckId: 'A', trackTitle: 'Demo Groove A', bpm: 124.0),
-        _deckB = deckB ?? const DjDeckEntity(deckId: 'B', trackTitle: 'Demo Synthwave B', bpm: 128.0),
+    DjSamplerBankEntity? sampler,
+    DjSmartAutomixEngine? automix,
+    DjCueMonitorEntity? cueMonitor,
+  })  : _deckA = deckA ?? const DjDeckEntity(deckId: 'A', trackTitle: 'Demo Groove A', bpm: 124.0, camelotKey: '8A'),
+        _deckB = deckB ?? const DjDeckEntity(deckId: 'B', trackTitle: 'Demo Synthwave B', bpm: 128.0, camelotKey: '9A'),
         _crossfader = crossfader ?? const DjCrossfaderEntity(),
         _keymapProfile = keymapProfile ?? DjKeymapProfileEntity.defaultErgonomic(),
         _masterVolume = masterVolume.clamp(0.0, 1.0),
         _fxA = fxA ?? const DjChannelFxEntity(),
         _fxB = fxB ?? const DjChannelFxEntity(),
-        _recorder = recorder ?? const DjLiveMixRecorderEntity();
+        _recorder = recorder ?? const DjLiveMixRecorderEntity(),
+        _sampler = sampler ?? const DjSamplerBankEntity(),
+        _automix = automix ?? const DjSmartAutomixEngine(),
+        _cueMonitor = cueMonitor ?? const DjCueMonitorEntity();
 
   DjDeckEntity get deckA => _deckA;
   DjDeckEntity get deckB => _deckB;
@@ -44,6 +60,17 @@ class DjPerformanceOrchestrator {
   DjChannelFxEntity get fxA => _fxA;
   DjChannelFxEntity get fxB => _fxB;
   DjLiveMixRecorderEntity get recorder => _recorder;
+  DjSamplerBankEntity get sampler => _sampler;
+  DjSmartAutomixEngine get automix => _automix;
+  DjCueMonitorEntity get cueMonitor => _cueMonitor;
+
+  /// Evaluates real-time harmonic compatibility between Deck A and Deck B on the Camelot Wheel.
+  CamelotCompatibility get harmonicCompatibility {
+    return DjHarmonicCamelotEngine.analyzeCompatibility(
+      _deckA.effectiveCamelotKey.code,
+      _deckB.effectiveCamelotKey.code,
+    );
+  }
 
   double get deckAGain => _crossfader.calculateGains().gainA;
   double get deckBGain => _crossfader.calculateGains().gainB;
@@ -64,7 +91,11 @@ class DjPerformanceOrchestrator {
   }
 
   /// Updates crossfader position in range [-1.0, 1.0].
-  void setCrossfaderPosition(double position) {
+  /// Automatically cancels Smart Automix if user takes manual control.
+  void setCrossfaderPosition(double position, {bool fromAutomix = false}) {
+    if (!fromAutomix && _automix.isActive) {
+      _automix = _automix.cancel();
+    }
     _crossfader = _crossfader.copyWith(position: position);
   }
 
@@ -86,6 +117,7 @@ class DjPerformanceOrchestrator {
     required double bpm,
     required int durationMs,
     String? audioPath,
+    String camelotKey = '8A',
   }) {
     final newDeck = DjDeckEntity(
       deckId: deckId,
@@ -94,6 +126,7 @@ class DjPerformanceOrchestrator {
       bpm: bpm,
       durationMs: durationMs,
       audioPath: audioPath,
+      camelotKey: camelotKey,
       currentPositionMs: 0,
       isPlaying: false,
     );
@@ -481,6 +514,352 @@ class DjPerformanceOrchestrator {
           startRecording(DateTime.now().millisecondsSinceEpoch);
         }
         break;
+
+      // Pro Workstation: 4-Stems Deck A
+      case DjAction.deckAToggleVocalStem:
+        toggleStem('A', DjStemType.vocals);
+        break;
+      case DjAction.deckAToggleDrumsStem:
+        toggleStem('A', DjStemType.drums);
+        break;
+      case DjAction.deckAToggleBassStem:
+        toggleStem('A', DjStemType.bass);
+        break;
+      case DjAction.deckAToggleMelodyStem:
+        toggleStem('A', DjStemType.melody);
+        break;
+
+      // Pro Workstation: 4-Stems Deck B
+      case DjAction.deckBToggleVocalStem:
+        toggleStem('B', DjStemType.vocals);
+        break;
+      case DjAction.deckBToggleDrumsStem:
+        toggleStem('B', DjStemType.drums);
+        break;
+      case DjAction.deckBToggleBassStem:
+        toggleStem('B', DjStemType.bass);
+        break;
+      case DjAction.deckBToggleMelodyStem:
+        toggleStem('B', DjStemType.melody);
+        break;
+
+      // Pro Workstation: Auto-Loops, Slip & Beat Jump Deck A
+      case DjAction.deckALoopToggle:
+        toggleLoop('A');
+        break;
+      case DjAction.deckALoopHalve:
+        halveLoop('A');
+        break;
+      case DjAction.deckALoopDouble:
+        doubleLoop('A');
+        break;
+      case DjAction.deckAToggleSlip:
+        toggleSlipMode('A');
+        break;
+      case DjAction.deckABeatJumpForward:
+        beatJump('A', 4.0);
+        break;
+      case DjAction.deckABeatJumpBack:
+        beatJump('A', -4.0);
+        break;
+
+      // Pro Workstation: Auto-Loops, Slip & Beat Jump Deck B
+      case DjAction.deckBLoopToggle:
+        toggleLoop('B');
+        break;
+      case DjAction.deckBLoopHalve:
+        halveLoop('B');
+        break;
+      case DjAction.deckBLoopDouble:
+        doubleLoop('B');
+        break;
+      case DjAction.deckBToggleSlip:
+        toggleSlipMode('B');
+        break;
+      case DjAction.deckBBeatJumpForward:
+        beatJump('B', 4.0);
+        break;
+      case DjAction.deckBBeatJumpBack:
+        beatJump('B', -4.0);
+        break;
+
+      // Pro Workstation: Harmonic Key-Sync
+      case DjAction.deckAKeySync:
+        syncKey('A');
+        break;
+      case DjAction.deckBKeySync:
+        syncKey('B');
+        break;
+
+      // Pro Workstation: Sampler Pads & Master Automix / Split-Cue
+      case DjAction.triggerSamplerRiser:
+        triggerSamplerPad(DjSamplerPadType.whiteNoiseRiser);
+        break;
+      case DjAction.triggerSamplerDrop:
+        triggerSamplerPad(DjSamplerPadType.subBassDrop);
+        break;
+      case DjAction.triggerSamplerAirhorn:
+        triggerSamplerPad(DjSamplerPadType.clubAirhorn);
+        break;
+      case DjAction.triggerSamplerSiren:
+        triggerSamplerPad(DjSamplerPadType.laserDubSiren);
+        break;
+      case DjAction.toggleSmartAutomix:
+        if (_automix.isActive) {
+          cancelSmartAutomix();
+        } else {
+          final dir = _crossfader.position <= 0.0
+              ? AutomixDirection.deckAToDeckB
+              : AutomixDirection.deckBToDeckA;
+          startSmartAutomix(dir);
+        }
+        break;
+      case DjAction.toggleSplitCue:
+        toggleSplitCue();
+        break;
     }
+  }
+
+  // --- Pro Workstation Methods ---
+
+  void _updateDeck(String deckId, DjDeckEntity Function(DjDeckEntity deck) transform) {
+    if (deckId == 'A') {
+      _deckA = transform(_deckA);
+    } else {
+      _deckB = transform(_deckB);
+    }
+  }
+
+  /// Toggles mute on one of the 4 real-time stems (Vocals, Drums, Bass, Melody).
+  void toggleStem(String deckId, DjStemType type) {
+    _updateDeck(deckId, (deck) => deck.copyWith(stems: deck.stems.toggleMute(type)));
+  }
+
+  /// Applies a fast stem performance preset ('acapella', 'instrumental', 'rhythm', 'reset').
+  void applyStemPreset(String deckId, String preset) {
+    _updateDeck(deckId, (deck) {
+      switch (preset) {
+        case 'acapella':
+          return deck.copyWith(stems: deck.stems.isolateAcapella());
+        case 'instrumental':
+          return deck.copyWith(stems: deck.stems.isolateInstrumental());
+        case 'rhythm':
+          return deck.copyWith(stems: deck.stems.isolateRhythm());
+        default:
+          return deck.copyWith(stems: deck.stems.resetAll());
+      }
+    });
+  }
+
+  /// Updates the detected Camelot key for the deck.
+  void setDeckCamelotKey(String deckId, String camelotKey) {
+    _updateDeck(deckId, (deck) => deck.copyWith(camelotKey: camelotKey));
+  }
+
+  /// Toggles Master Tempo / Key-Lock on the deck.
+  void toggleKeyLock(String deckId) {
+    _updateDeck(deckId, (deck) => deck.copyWith(isKeyLockEnabled: !deck.isKeyLockEnabled));
+  }
+
+  /// Shifts deck musical key by [delta] semitones within [-6, +6].
+  void shiftPitchSemitones(String deckId, int delta) {
+    _updateDeck(
+      deckId,
+      (deck) => deck.copyWith(pitchSemitonesShift: deck.pitchSemitonesShift + delta),
+    );
+  }
+
+  /// Automatically shifts deck key in semitones to match the opposite deck on the Camelot Wheel.
+  void syncKey(String deckId) {
+    final src = deckId == 'A' ? _deckA : _deckB;
+    final dst = deckId == 'A' ? _deckB : _deckA;
+
+    final optimalDelta = DjHarmonicCamelotEngine.calculateOptimalSemitoneShift(
+      src.camelotKey,
+      dst.effectiveCamelotKey.code,
+    );
+    _updateDeck(deckId, (deck) => deck.copyWith(pitchSemitonesShift: optimalDelta));
+  }
+
+  /// Engages a quantized Auto-Loop of [beats] beats from current position.
+  void engageAutoLoop(String deckId, double beats) {
+    _updateDeck(deckId, (deck) {
+      final startMs = deck.currentPositionMs;
+      final loopDuration = DjLoopAndSlipEngine.computeLoopDurationMs(
+        beats: beats,
+        effectiveBpm: deck.effectiveBpm,
+      );
+      final endMs = (startMs + loopDuration).clamp(startMs + 15, deck.durationMs);
+      return deck.copyWith(
+        isLoopActive: true,
+        loopStartMs: startMs,
+        loopEndMs: endMs,
+        loopBeats: beats,
+      );
+    });
+  }
+
+  /// Toggles active Auto-Loop or exits it (restoring slip position if Slip Mode is active).
+  void toggleLoop(String deckId) {
+    final deck = deckId == 'A' ? _deckA : _deckB;
+    if (deck.isLoopActive) {
+      exitLoop(deckId);
+    } else {
+      engageAutoLoop(deckId, deck.loopBeats);
+    }
+  }
+
+  /// Exits active Auto-Loop; if Slip Mode is enabled, snaps back to phantom timeline.
+  void exitLoop(String deckId) {
+    _updateDeck(deckId, (deck) {
+      final targetPos = deck.isSlipModeActive ? deck.slipPositionMs : deck.currentPositionMs;
+      return deck.copyWith(
+        isLoopActive: false,
+        currentPositionMs: targetPos.clamp(0, deck.durationMs),
+      );
+    });
+  }
+
+  /// Halves current loop size (down to 1/32 beat).
+  void halveLoop(String deckId) {
+    _updateDeck(deckId, (deck) {
+      final nextBeats = DjLoopAndSlipEngine.halveBeats(deck.loopBeats);
+      final loopDuration = DjLoopAndSlipEngine.computeLoopDurationMs(
+        beats: nextBeats,
+        effectiveBpm: deck.effectiveBpm,
+      );
+      final newEnd = (deck.loopStartMs + loopDuration).clamp(deck.loopStartMs + 15, deck.durationMs);
+      return deck.copyWith(
+        loopBeats: nextBeats,
+        loopEndMs: newEnd,
+      );
+    });
+  }
+
+  /// Doubles current loop size (up to 16 beats).
+  void doubleLoop(String deckId) {
+    _updateDeck(deckId, (deck) {
+      final nextBeats = DjLoopAndSlipEngine.doubleBeats(deck.loopBeats);
+      final loopDuration = DjLoopAndSlipEngine.computeLoopDurationMs(
+        beats: nextBeats,
+        effectiveBpm: deck.effectiveBpm,
+      );
+      final newEnd = (deck.loopStartMs + loopDuration).clamp(deck.loopStartMs + 15, deck.durationMs);
+      return deck.copyWith(
+        loopBeats: nextBeats,
+        loopEndMs: newEnd,
+      );
+    });
+  }
+
+  /// Jumps playback forward or backward by quantized [beatDelta] beats.
+  void beatJump(String deckId, double beatDelta) {
+    _updateDeck(deckId, (deck) {
+      final nextPos = DjLoopAndSlipEngine.computeBeatJumpPositionMs(
+        currentPositionMs: deck.currentPositionMs,
+        beatDelta: beatDelta,
+        effectiveBpm: deck.effectiveBpm,
+        durationMs: deck.durationMs,
+      );
+      return deck.copyWith(
+        currentPositionMs: nextPos,
+        slipPositionMs: deck.isSlipModeActive ? deck.slipPositionMs : nextPos,
+      );
+    });
+  }
+
+  /// Toggles Slip Mode (maintains phantom background timeline during loops/scratches).
+  void toggleSlipMode(String deckId) {
+    _updateDeck(deckId, (deck) {
+      final enabling = !deck.isSlipModeActive;
+      return deck.copyWith(
+        isSlipModeActive: enabling,
+        slipPositionMs: deck.currentPositionMs,
+      );
+    });
+  }
+
+  /// Advances deterministic playback for a playing deck, honoring Auto-Loops and Slip Mode.
+  void advanceDeckPlayback(String deckId, int elapsedMs) {
+    _updateDeck(deckId, (deck) {
+      if (!deck.isPlaying) return deck;
+      final scaledDelta = (elapsedMs * deck.pitchMultiplier).round();
+      var nextPos = (deck.currentPositionMs + scaledDelta).clamp(0, deck.durationMs);
+      final nextSlip = (deck.slipPositionMs + scaledDelta).clamp(0, deck.durationMs);
+
+      if (deck.isLoopActive) {
+        nextPos = DjLoopAndSlipEngine.wrapLoopPosition(
+          nextPositionMs: nextPos,
+          loopStartMs: deck.loopStartMs,
+          loopEndMs: deck.loopEndMs,
+        );
+      }
+
+      return deck.copyWith(
+        currentPositionMs: nextPos,
+        slipPositionMs: deck.isSlipModeActive ? nextSlip : nextPos,
+      );
+    });
+  }
+
+  /// Triggers a performance SFX pad on the 8-pad Sampler bank.
+  void triggerSamplerPad(DjSamplerPadType pad) {
+    _sampler = _sampler.triggerPad(pad);
+  }
+
+  /// Updates Sampler bank output volume in range [0.0, 1.0].
+  void setSamplerVolume(double volume) {
+    _sampler = _sampler.copyWith(masterVolume: volume.clamp(0.0, 1.0));
+  }
+
+  /// Starts Smart Automix with automatic Bass-Swap transition.
+  void startSmartAutomix(
+    AutomixDirection direction, {
+    int durationBars = 8,
+    bool enableBassSwap = true,
+  }) {
+    _automix = _automix.start(
+      direction: direction,
+      durationBars: durationBars,
+      enableBassSwap: enableBassSwap,
+    );
+    // Ensure both decks are playing during transition
+    if (!_deckA.isPlaying) togglePlay('A');
+    if (!_deckB.isPlaying) togglePlay('B');
+  }
+
+  /// Cancels active Smart Automix.
+  void cancelSmartAutomix() {
+    _automix = _automix.cancel();
+  }
+
+  /// Advances Smart Automix timeline, updating crossfader and Bass-Swap low EQ.
+  void advanceAutomix(int elapsedMs) {
+    if (!_automix.isActive) return;
+    final refBpm = _automix.direction == AutomixDirection.deckAToDeckB
+        ? _deckA.effectiveBpm
+        : _deckB.effectiveBpm;
+    _automix = _automix.advance(elapsedMs: elapsedMs, referenceBpm: refBpm);
+
+    setCrossfaderPosition(_automix.crossfaderPosition, fromAutomix: true);
+    if (_automix.enableBassSwap) {
+      _deckA = _deckA.copyWith(gainLow: _automix.bassSwapGainLowA);
+      _deckB = _deckB.copyWith(gainLow: _automix.bassSwapGainLowB);
+    }
+  }
+
+  /// Toggles PFL Headphone Cue monitoring on Deck A or B.
+  void toggleCueMonitor(String deckId) {
+    _cueMonitor = deckId == 'A' ? _cueMonitor.toggleCueA() : _cueMonitor.toggleCueB();
+  }
+
+  /// Toggles PC Split-Cue Mono mode (Master L / Cue R).
+  void toggleSplitCue() {
+    _cueMonitor = _cueMonitor.toggleSplitCue();
+  }
+
+  /// Sets headphone monitor blend between Cue (0.0) and Master (1.0).
+  void setCueMasterMix(double mix) {
+    _cueMonitor = _cueMonitor.copyWith(cueMasterMix: mix);
   }
 }

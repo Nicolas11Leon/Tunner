@@ -67,6 +67,42 @@ enum DjAction {
   masterVolumeUp,
   masterVolumeDown,
   toggleMixRecording,
+
+  // Pro Workstation: 4-Stems Deck A & B
+  deckAToggleVocalStem,
+  deckAToggleDrumsStem,
+  deckAToggleBassStem,
+  deckAToggleMelodyStem,
+  deckBToggleVocalStem,
+  deckBToggleDrumsStem,
+  deckBToggleBassStem,
+  deckBToggleMelodyStem,
+
+  // Pro Workstation: Auto-Loops, Slip & Beat Jump
+  deckALoopToggle,
+  deckALoopHalve,
+  deckALoopDouble,
+  deckAToggleSlip,
+  deckABeatJumpForward,
+  deckABeatJumpBack,
+  deckBLoopToggle,
+  deckBLoopHalve,
+  deckBLoopDouble,
+  deckBToggleSlip,
+  deckBBeatJumpForward,
+  deckBBeatJumpBack,
+
+  // Pro Workstation: Harmonic Key-Sync
+  deckAKeySync,
+  deckBKeySync,
+
+  // Pro Workstation: Sampler Pads & Master Automix / Split-Cue
+  triggerSamplerRiser,
+  triggerSamplerDrop,
+  triggerSamplerAirhorn,
+  triggerSamplerSiren,
+  toggleSmartAutomix,
+  toggleSplitCue,
 }
 
 extension DjActionExtension on DjAction {
@@ -167,6 +203,62 @@ extension DjActionExtension on DjAction {
         return 'Master: Bajar Volumen';
       case DjAction.toggleMixRecording:
         return 'Master: Iniciar / Detener Grabacion REC';
+      case DjAction.deckAToggleVocalStem:
+        return 'Deck A: Stem Vocal';
+      case DjAction.deckAToggleDrumsStem:
+        return 'Deck A: Stem Drums';
+      case DjAction.deckAToggleBassStem:
+        return 'Deck A: Stem Bass';
+      case DjAction.deckAToggleMelodyStem:
+        return 'Deck A: Stem Melody';
+      case DjAction.deckBToggleVocalStem:
+        return 'Deck B: Stem Vocal';
+      case DjAction.deckBToggleDrumsStem:
+        return 'Deck B: Stem Drums';
+      case DjAction.deckBToggleBassStem:
+        return 'Deck B: Stem Bass';
+      case DjAction.deckBToggleMelodyStem:
+        return 'Deck B: Stem Melody';
+      case DjAction.deckALoopToggle:
+        return 'Deck A: Auto-Loop Toggle';
+      case DjAction.deckALoopHalve:
+        return 'Deck A: Loop 1/2x';
+      case DjAction.deckALoopDouble:
+        return 'Deck A: Loop 2x';
+      case DjAction.deckAToggleSlip:
+        return 'Deck A: Slip Mode';
+      case DjAction.deckABeatJumpForward:
+        return 'Deck A: Beat Jump +4';
+      case DjAction.deckABeatJumpBack:
+        return 'Deck A: Beat Jump -4';
+      case DjAction.deckBLoopToggle:
+        return 'Deck B: Auto-Loop Toggle';
+      case DjAction.deckBLoopHalve:
+        return 'Deck B: Loop 1/2x';
+      case DjAction.deckBLoopDouble:
+        return 'Deck B: Loop 2x';
+      case DjAction.deckBToggleSlip:
+        return 'Deck B: Slip Mode';
+      case DjAction.deckBBeatJumpForward:
+        return 'Deck B: Beat Jump +4';
+      case DjAction.deckBBeatJumpBack:
+        return 'Deck B: Beat Jump -4';
+      case DjAction.deckAKeySync:
+        return 'Deck A: Harmonic Key-Sync';
+      case DjAction.deckBKeySync:
+        return 'Deck B: Harmonic Key-Sync';
+      case DjAction.triggerSamplerRiser:
+        return 'Sampler: White Noise Riser';
+      case DjAction.triggerSamplerDrop:
+        return 'Sampler: Sub-Bass Drop';
+      case DjAction.triggerSamplerAirhorn:
+        return 'Sampler: Club Airhorn';
+      case DjAction.triggerSamplerSiren:
+        return 'Sampler: Laser Dub Siren';
+      case DjAction.toggleSmartAutomix:
+        return 'Master: Smart Automix (Bass-Swap)';
+      case DjAction.toggleSplitCue:
+        return 'Master: Split-Cue Mono (PC Audifonos)';
     }
   }
 

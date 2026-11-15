@@ -7,6 +7,7 @@ import '../domain/dj_crossfader_entity.dart';
 import '../domain/dj_deck_entity.dart';
 import 'dj_console_view_model.dart';
 import 'dj_keymap_editor_modal.dart';
+import 'dj_pro_workstation_panel.dart';
 import 'dj_visual_mapping_overlay.dart';
 import 'vector_jog_wheel.dart';
 
@@ -68,21 +69,31 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                             'Consola de DJ Virtual',
                             style: TextStyle(
                               color: palette.textColor,
-                              fontSize: 16,
+                              fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           Text(
-                            'Emulador de hardware, teclado QWERTY, mandos Xbox/PS y audio local',
-                            style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                            'Stems, Camelot, Hardware Skins, Gamepad y WAV',
+                            style: TextStyle(color: palette.textMutedColor, fontSize: 10.5),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      flex: 0,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
 
                     // Skin Selector Dropdown
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1E1E28),
                         borderRadius: BorderRadius.circular(8),
@@ -93,18 +104,45 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                           key: const Key('skin_selector_dropdown'),
                           value: vm.activeSkin.id,
                           dropdownColor: const Color(0xFF1E1E28),
-                          style: TextStyle(color: palette.textColor, fontSize: 12),
-                          icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF00E5FF), size: 18),
+                          style: TextStyle(color: palette.textColor, fontSize: 11),
+                          icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF00E5FF), size: 16),
                           items: DjHardwareCatalog.allSkins().map((s) {
+                            final shortName = s.name.split('(').first.trim();
                             return DropdownMenuItem<String>(
                               value: s.id,
-                              child: Text(s.name, style: const TextStyle(fontSize: 11)),
+                              child: Text(shortName, style: const TextStyle(fontSize: 11)),
                             );
                           }).toList(),
                           onChanged: (skinId) {
                             if (skinId != null) vm.selectSkin(skinId);
                           },
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Pro Workstation Toggle (4-Stems, Camelot, RGB Waveforms, Sampler, Split-Cue)
+                    OutlinedButton.icon(
+                      key: const Key('toggle_pro_workstation_btn'),
+                      onPressed: () => vm.toggleProWorkstation(),
+                      icon: Icon(
+                        Icons.auto_graph,
+                        size: 16,
+                        color: vm.isProWorkstationActive ? const Color(0xFFFFD700) : palette.textColor,
+                      ),
+                      label: Text(
+                        vm.isProWorkstationActive ? 'Pro: ON' : 'Pro Studio',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: vm.isProWorkstationActive ? const Color(0xFFFFD700) : palette.textColor,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: vm.isProWorkstationActive ? const Color(0xFFFFD700) : const Color(0xFF383848),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -180,7 +218,11 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                     IconButton(
                       icon: Icon(Icons.close, color: palette.textColor),
                       onPressed: () => Navigator.of(context).pop(),
@@ -196,6 +238,13 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   child: Column(
                     children: [
+                      if (vm.isProWorkstationActive) ...[
+                        DjProWorkstationPanel(
+                          viewModel: vm,
+                          palette: palette,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       if (vm.isHardwareViewActive) ...[
                         // Vector Hardware Console Skin with Interactive Mapping Overlay
                         DjVisualMappingOverlay(
