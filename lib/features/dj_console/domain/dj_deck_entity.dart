@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+import 'dj_harmonic_camelot_engine.dart';
+import 'dj_stem_isolation_entity.dart';
 
 /// Immutable representation of a single virtual DJ deck player.
 class DjDeckEntity {
@@ -51,6 +53,19 @@ class DjDeckEntity {
   final bool isLoopActive;
   final int loopStartMs;
   final int loopEndMs;
+  final double loopBeats;
+
+  /// Pro Workstation: Real-time 4-Stem isolation state.
+  final DjStemIsolationEntity stems;
+
+  /// Pro Workstation: Detected Camelot Key ('1A'..'12B'), Key-Lock & Semitone shift.
+  final String camelotKey;
+  final bool isKeyLockEnabled;
+  final int pitchSemitonesShift;
+
+  /// Pro Workstation: Slip Mode phantom timeline pointer.
+  final bool isSlipModeActive;
+  final int slipPositionMs;
 
   const DjDeckEntity({
     required this.deckId,
@@ -76,7 +91,23 @@ class DjDeckEntity {
     this.isLoopActive = false,
     this.loopStartMs = 0,
     this.loopEndMs = 0,
+    this.loopBeats = 4.0,
+    this.stems = const DjStemIsolationEntity(),
+    this.camelotKey = '8A',
+    this.isKeyLockEnabled = true,
+    this.pitchSemitonesShift = 0,
+    this.isSlipModeActive = false,
+    this.slipPositionMs = 0,
   });
+
+  /// Effective Camelot key after any semitone shift (or pitch shift when Key-Lock is off).
+  CamelotKey get effectiveCamelotKey {
+    final autoPitchSemitones = isKeyLockEnabled ? 0 : (centsOffset / 100.0).round();
+    return DjHarmonicCamelotEngine.transpose(
+      camelotKey,
+      pitchSemitonesShift + autoPitchSemitones,
+    );
+  }
 
   /// Effective playback tempo after pitch alteration.
   double get effectiveBpm => bpm * pitchMultiplier;
@@ -122,6 +153,13 @@ class DjDeckEntity {
     bool? isLoopActive,
     int? loopStartMs,
     int? loopEndMs,
+    double? loopBeats,
+    DjStemIsolationEntity? stems,
+    String? camelotKey,
+    bool? isKeyLockEnabled,
+    int? pitchSemitonesShift,
+    bool? isSlipModeActive,
+    int? slipPositionMs,
   }) {
     return DjDeckEntity(
       deckId: deckId,
@@ -147,6 +185,13 @@ class DjDeckEntity {
       isLoopActive: isLoopActive ?? this.isLoopActive,
       loopStartMs: loopStartMs ?? this.loopStartMs,
       loopEndMs: loopEndMs ?? this.loopEndMs,
+      loopBeats: loopBeats ?? this.loopBeats,
+      stems: stems ?? this.stems,
+      camelotKey: camelotKey ?? this.camelotKey,
+      isKeyLockEnabled: isKeyLockEnabled ?? this.isKeyLockEnabled,
+      pitchSemitonesShift: (pitchSemitonesShift ?? this.pitchSemitonesShift).clamp(-6, 6),
+      isSlipModeActive: isSlipModeActive ?? this.isSlipModeActive,
+      slipPositionMs: slipPositionMs ?? this.slipPositionMs,
     );
   }
 }
