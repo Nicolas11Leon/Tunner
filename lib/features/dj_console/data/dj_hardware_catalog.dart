@@ -1400,17 +1400,38 @@ class DjHardwareCatalog {
     );
   }
 
-  /// Returns all built-in hardware skins available.
+  static final Map<String, DjHardwareSkinEntity> _customSkins = {};
+
+  /// Registra una consola personalizada creada o importada por el usuario.
+  static void registerCustomSkin(DjHardwareSkinEntity skin) {
+    _customSkins[skin.id] = skin;
+  }
+
+  /// Desregistra una consola personalizada.
+  static void unregisterCustomSkin(String id) {
+    _customSkins.remove(id);
+  }
+
+  /// Limpia todas las consolas personalizadas en memoria (útil para pruebas).
+  static void clearCustomSkins() {
+    _customSkins.clear();
+  }
+
+  /// Returns all built-in and user-custom hardware skins available.
   static List<DjHardwareSkinEntity> allSkins() => [
         ddjFlx4(),
         cdj3000(),
         traktorKontrolS4(),
         denonPrime4(),
         mixtrackProFx(),
+        ..._customSkins.values,
       ];
 
   /// Finds skin by identifier with fallback to DDJ-FLX4.
   static DjHardwareSkinEntity findById(String id) {
+    if (_customSkins.containsKey(id)) {
+      return _customSkins[id]!;
+    }
     return allSkins().firstWhere(
       (s) => s.id == id,
       orElse: () => ddjFlx4(),

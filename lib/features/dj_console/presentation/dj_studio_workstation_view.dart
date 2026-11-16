@@ -6,6 +6,11 @@ import '../domain/dj_harmonic_camelot_engine.dart';
 import '../domain/dj_sampler_bank_entity.dart';
 import '../domain/dj_smart_automix_engine.dart';
 import '../domain/dj_stem_isolation_entity.dart';
+import '../../../core/docking/domain/studio_dock_layout_entity.dart';
+import '../../../core/docking/domain/studio_dock_zone.dart';
+import '../../../core/docking/domain/studio_dockable_panel_entity.dart';
+import '../../../core/docking/presentation/studio_workspace_docking_container.dart';
+import 'dj_console_model_builder_modal.dart';
 import 'dj_console_view_model.dart';
 import 'dj_interactive_keymap_visualizer_modal.dart';
 import 'dj_parallel_waveform_painter.dart';
@@ -101,6 +106,99 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
   }
 
   Widget _buildCentralContent(BuildContext context, DjConsoleViewModel vm, dynamic tokens) {
+    if (_workstationViewMode == 'docking') {
+      // Modo Multi-Panel Docking: Arrastre libre a paneles divididos (Left, Center, Right, Bottom)
+      final dockablePanels = [
+        StudioDockablePanelEntity(
+          id: 'panel_hardware_console',
+          title: 'Consola Hardware Emulada (${vm.activeSkin.name})',
+          icon: Icons.album,
+          currentZone: StudioDockZone.center,
+          builder: (ctx) => SingleChildScrollView(
+            padding: const EdgeInsets.all(8),
+            child: DjVisualMappingOverlay(
+              skin: vm.activeSkin,
+              selectedZone: vm.selectedZoneForMapping,
+              isLearnModeActive: vm.isLearnModeActive,
+              lastCapturedInput: vm.lastCapturedInputToken,
+              jogRotationA: vm.rotationAngleA,
+              jogRotationB: vm.rotationAngleB,
+              keymapProfile: vm.keymapProfile,
+              showKeyBadges: vm.showKeyBadges,
+              onSkinSelected: (skinId) => vm.selectSkin(skinId),
+              onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
+              onActionTriggered: (action) => vm.executeAction(action),
+              onToggleLearnMode: () => vm.toggleLearnMode(),
+              onOpenKeymapVisualizer: () => DjInteractiveKeymapVisualizerModal.show(
+                ctx,
+                vm,
+                TunnerThemePalette.obsidianStudio,
+              ),
+            ),
+          ),
+        ),
+        StudioDockablePanelEntity(
+          id: 'panel_waveforms',
+          title: 'Formas de Onda RGB y Espectro',
+          icon: Icons.graphic_eq,
+          currentZone: StudioDockZone.center,
+          builder: (ctx) => Container(
+            height: 90,
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0C0E14),
+              borderRadius: BorderRadius.circular(tokens.radiusSmall),
+              border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(tokens.radiusSmall),
+              child: CustomPaint(
+                painter: DjParallelWaveformPainter(
+                  deckA: vm.deckA,
+                  deckB: vm.deckB,
+                  waveformA: vm.waveformA,
+                  waveformB: vm.waveformB,
+                ),
+              ),
+            ),
+          ),
+        ),
+        StudioDockablePanelEntity(
+          id: 'panel_club_mixer',
+          title: 'Mezclador Dual de Grado Club',
+          icon: Icons.tune,
+          currentZone: StudioDockZone.right,
+          builder: (ctx) => SingleChildScrollView(
+            padding: const EdgeInsets.all(8),
+            child: _buildClubMixerCenter(ctx, vm, tokens),
+          ),
+        ),
+        StudioDockablePanelEntity(
+          id: 'panel_stems_sampler',
+          title: 'Aislamiento 4-Stems y Sampler Pads',
+          icon: Icons.grid_view,
+          currentZone: StudioDockZone.bottom,
+          builder: (ctx) => SingleChildScrollView(
+            padding: const EdgeInsets.all(8),
+            child: _buildPerformanceStemsAndSampler(ctx, vm, tokens),
+          ),
+        ),
+      ];
+
+      return StudioWorkspaceDockingContainer(
+        panels: dockablePanels,
+        initialLayout: const StudioDockLayoutEntity(
+          zonePanelIds: {
+            StudioDockZone.center: ['panel_hardware_console', 'panel_waveforms'],
+            StudioDockZone.right: ['panel_club_mixer'],
+            StudioDockZone.bottom: ['panel_stems_sampler'],
+            StudioDockZone.left: [],
+            StudioDockZone.floating: [],
+          },
+        ),
+      );
+    }
+
     if (_workstationViewMode == 'hardware') {
       // Modo Hardware Fiel Puro a Pantalla Completa
       return SingleChildScrollView(
@@ -265,7 +363,7 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
             ),
             const SizedBox(width: 16),
 
-            // Selector de Modo de Trabajo (Split / Hardware / Modular)
+            // Selector de Modo de Trabajo (Split / Hardware / Modular / Docking)
             SegmentedButton<String>(
               segments: const [
                 ButtonSegment(
@@ -282,6 +380,11 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                   value: 'modular',
                   icon: Icon(Icons.view_quilt, size: 13),
                   label: Text('Modular DAW', style: TextStyle(fontSize: 10)),
+                ),
+                ButtonSegment(
+                  value: 'docking',
+                  icon: Icon(Icons.dashboard_customize, size: 13),
+                  label: Text('Docking DAW (Arrastrar)', style: TextStyle(fontSize: 10)),
                 ),
               ],
               selected: {_workstationViewMode},
@@ -358,6 +461,26 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                   vm.startRecording();
                 }
               },
+            ),
+            const SizedBox(width: 8),
+
+            // Emular Consola (+)
+            ElevatedButton.icon(
+              key: const Key('open_console_builder_btn'),
+              icon: const Icon(Icons.add_circle_outline, size: 14),
+              label: const Text('EMULAR CONSOLA (+)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.18),
+                foregroundColor: const Color(0xFF10B981),
+                side: const BorderSide(color: Color(0xFF10B981)),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                minimumSize: Size.zero,
+              ),
+              onPressed: () => DjConsoleModelBuilderModal.show(
+                context,
+                vm,
+                TunnerThemePalette.obsidianStudio,
+              ),
             ),
             const SizedBox(width: 8),
 
