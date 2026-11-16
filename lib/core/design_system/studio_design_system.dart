@@ -13,7 +13,9 @@ export 'atoms/studio_toolbar.dart';
 
 // Moléculas
 export 'molecules/studio_segmented_control.dart';
+export 'molecules/studio_tree_view.dart';
 export 'molecules/studio_vu_meter.dart';
 
 // Organismos
+export 'organisms/studio_desktop_app_shell.dart';
 export 'organisms/studio_workbench_shell.dart';

@@ -14,6 +14,9 @@ import 'quick_action_dock_widget.dart';
 import '../../ear_training/presentation/blind_ear_trainer_modal.dart';
 import '../../chord_analyzer/presentation/chord_analyzer_modal.dart';
 import '../../guided_lessons/presentation/task_quick_jump_modal.dart';
+import '../../../core/design_system/studio_design_system.dart';
+import '../../acoustic_lab/presentation/harmonic_spectrogram_modal.dart';
+import '../../drone/presentation/harmonic_drone_modal.dart';
 
 /// Intenciones para el sistema de atajos de teclado de grado profesional y memoria muscular (DAWs).
 class TogglePlayIntent extends Intent {
@@ -337,6 +340,120 @@ class _MainAppShellState extends State<MainAppShell> {
     );
   }
 
+  String _buildCurrentBreadcrumb() {
+    switch (_currentIndex) {
+      case 0:
+        return 'tunner / Estudio / Inicio & Visión General';
+      case 1:
+        return 'tunner / Acústica / Afinador de Precisión & Metrónomo';
+      case 2:
+        return 'tunner / Conservatorio / Tutor & Lecciones Guiadas';
+      case 3:
+        return 'tunner / Producción / Rack Modular de Estudio';
+      case 4:
+        return 'tunner / Composición / Biblioteca & Partituras';
+      default:
+        return 'tunner / Estudio';
+    }
+  }
+
+  String _buildCurrentActiveItemId() {
+    switch (_currentIndex) {
+      case 0:
+        return 'item_home';
+      case 1:
+        return 'item_tuner';
+      case 2:
+        return 'item_learning';
+      case 3:
+        return 'item_rack';
+      case 4:
+        return 'item_composition';
+      default:
+        return 'item_home';
+    }
+  }
+
+  List<StudioTreeSection> _buildNavigationSections(TunerViewModel viewModel) {
+    final palette = viewModel.currentPalette;
+
+    return [
+      StudioTreeSection(
+        title: 'Espacios de Trabajo',
+        items: [
+          StudioTreeItem(
+            id: 'item_home',
+            title: 'Inicio & Visión General',
+            icon: Icons.dashboard_outlined,
+            shortcut: '1',
+            onSelect: () => _navigateToTab(0),
+          ),
+          StudioTreeItem(
+            id: 'item_tuner',
+            title: 'Afinador de Precisión',
+            icon: Icons.tune_rounded,
+            shortcut: '2',
+            badge: '${viewModel.referencePitch.toInt()} Hz',
+            badgeColor: palette.primaryAccent,
+            onSelect: () => _navigateToTab(1),
+          ),
+          StudioTreeItem(
+            id: 'item_learning',
+            title: 'Tutor & Lecciones Guiadas',
+            icon: Icons.school_outlined,
+            shortcut: '3',
+            onSelect: () => _navigateToTab(2),
+          ),
+          StudioTreeItem(
+            id: 'item_rack',
+            title: 'Rack Modular de Estudio',
+            icon: Icons.view_agenda_outlined,
+            shortcut: '4',
+            onSelect: () => _navigateToTab(3),
+          ),
+          StudioTreeItem(
+            id: 'item_composition',
+            title: 'Biblioteca & Partituras',
+            icon: Icons.menu_book_outlined,
+            shortcut: '5',
+            onSelect: () => _navigateToTab(4),
+          ),
+        ],
+      ),
+      StudioTreeSection(
+        title: 'Herramientas de Análisis',
+        items: [
+          StudioTreeItem(
+            id: 'item_spectrogram',
+            title: 'Espectrograma FFT Armónico',
+            icon: Icons.analytics_outlined,
+            onSelect: () => HarmonicSpectrogramModal.show(context),
+          ),
+          StudioTreeItem(
+            id: 'item_drone',
+            title: 'Dron Armónico & Afinación',
+            icon: Icons.volume_up_outlined,
+            onSelect: () => HarmonicDroneModal.show(context, viewModel),
+          ),
+          StudioTreeItem(
+            id: 'item_chords',
+            title: 'Analizador Polifónico',
+            icon: Icons.stacked_bar_chart_rounded,
+            shortcut: 'Shift+C',
+            onSelect: () => ChordAnalyzerModal.show(context, viewModel),
+          ),
+          StudioTreeItem(
+            id: 'item_ear',
+            title: 'Entrenador Auditivo a Ciegas',
+            icon: Icons.hearing_outlined,
+            shortcut: 'Shift+E',
+            onSelect: () => BlindEarTrainerModal.show(context, viewModel),
+          ),
+        ],
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<TunerViewModel>();
@@ -484,102 +601,205 @@ class _MainAppShellState extends State<MainAppShell> {
         },
         child: Focus(
           autofocus: true,
-          child: Scaffold(
-            backgroundColor: palette.scaffoldBackground,
-            body: Stack(
-              children: [
-                IndexedStack(
-                  index: _currentIndex,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktop = constraints.maxWidth >= 720;
+
+              final viewportContent = IndexedStack(
+                index: _currentIndex,
+                children: [
+                  HomeDashboardScreen(onNavigateToTab: _navigateToTab),
+                  const TunerScreen(),
+                  LearningPracticeWorkspaceView(
+                    viewModel: viewModel,
+                    palette: palette,
+                    onOpenInstrumentModal: () => _openInstrumentSelector(viewModel),
+                  ),
+                  const ModularStudioRackView(),
+                  CompositionNotationWorkspaceView(
+                    viewModel: viewModel,
+                    palette: palette,
+                    onOpenLibraryModal: () {},
+                    onOpenMixerModal: () {},
+                  ),
+                ],
+              );
+
+              if (isDesktop) {
+                return StudioDesktopAppShell(
+                  currentBreadcrumb: _buildCurrentBreadcrumb(),
+                  navigationSections: _buildNavigationSections(viewModel),
+                  activeItemId: _buildCurrentActiveItemId(),
+                  activeView: viewportContent,
+                  onOpenSearch: () => _openCommandPalette(viewModel),
+                  onOpenShortcuts: () => _openShortcutsGuide(viewModel),
+                  customStatusItems: [
+                    Text(
+                      'A4 = ${viewModel.referencePitch.toInt()} Hz',
+                      style: TextStyle(
+                        color: palette.textMutedColor,
+                        fontSize: 9.0,
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'TEMPO: ${viewModel.bpm.round()} BPM',
+                      style: TextStyle(
+                        color: palette.textMutedColor,
+                        fontSize: 9.0,
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'INSTRUMENTO: ${viewModel.activeInstrument.name.toUpperCase()}',
+                      style: TextStyle(
+                        color: palette.primaryAccent,
+                        fontSize: 9.0,
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                  sidebarFooter: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: palette.cardBackground,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: palette.primaryAccent.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            viewModel.activeInstrument.clef.symbol,
+                            style: TextStyle(
+                              color: palette.primaryAccent,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                viewModel.activeInstrument.name,
+                                style: TextStyle(
+                                  color: palette.textColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '${viewModel.activeInstrument.family.displayName} • ${viewModel.activeInstrument.key.displayName}',
+                                style: TextStyle(
+                                  color: palette.textMutedColor,
+                                  fontSize: 9,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        OutlinedButton(
+                          onPressed: () => _openInstrumentSelector(viewModel),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: palette.primaryAccent,
+                            side: BorderSide(
+                              color: palette.primaryAccent.withValues(alpha: 0.3),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          child: const Text('Cambiar', style: TextStyle(fontSize: 10)),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              // Vista móvil / compacta
+              return Scaffold(
+                backgroundColor: palette.scaffoldBackground,
+                body: Stack(
                   children: [
-                    // 0: Dashboard Principal con Tarjetas y Buscador
-                    HomeDashboardScreen(
-                      onNavigateToTab: _navigateToTab,
-                    ),
-
-                    // 1: Afinador de Precisión & Metrónomo
-                    const TunerScreen(),
-
-                    // 2: Tutor Interactivo & Aprendizaje
-                    LearningPracticeWorkspaceView(
+                    viewportContent,
+                    QuickActionDockWidget(
                       viewModel: viewModel,
                       palette: palette,
-                      onOpenInstrumentModal: () => _openInstrumentSelector(viewModel),
-                    ),
-
-                    // 3: Rack de Estudio Modular & Consola Multitarea
-                    const ModularStudioRackView(),
-
-                    // 4: Biblioteca de Canciones & Partituras
-                    CompositionNotationWorkspaceView(
-                      viewModel: viewModel,
-                      palette: palette,
-                      onOpenLibraryModal: () {},
-                      onOpenMixerModal: () {},
+                      onOpenCommandPalette: () => _openCommandPalette(viewModel),
+                      onOpenShortcutsGuide: () => _openShortcutsGuide(viewModel),
+                      onOpenTunerTab: () => _navigateToTab(1),
                     ),
                   ],
                 ),
-
-                // Barra Flotante de Acciones Rápidas (Quick Actions Dock)
-                QuickActionDockWidget(
-                  viewModel: viewModel,
-                  palette: palette,
-                  onOpenCommandPalette: () => _openCommandPalette(viewModel),
-                  onOpenShortcutsGuide: () => _openShortcutsGuide(viewModel),
-                  onOpenTunerTab: () => _navigateToTab(1),
-                ),
-              ],
-            ),
-            bottomNavigationBar: Container(
-              decoration: BoxDecoration(
-                color: palette.scaffoldBackground,
-                border: Border(
-                  top: BorderSide(
-                    color: palette.staffLinesColor.withValues(alpha: 0.2),
-                    width: 1.0,
+                bottomNavigationBar: Container(
+                  decoration: BoxDecoration(
+                    color: palette.scaffoldBackground,
+                    border: Border(
+                      top: BorderSide(
+                        color: palette.staffLinesColor.withValues(alpha: 0.2),
+                        width: 1.0,
+                      ),
+                    ),
+                  ),
+                  child: NavigationBar(
+                    selectedIndex: _currentIndex,
+                    onDestinationSelected: _navigateToTab,
+                    backgroundColor: palette.scaffoldBackground,
+                    indicatorColor: palette.primaryAccent.withValues(alpha: 0.18),
+                    elevation: 0,
+                    labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                    destinations: [
+                      NavigationDestination(
+                        key: const Key('nav_tab_home'),
+                        icon: Icon(Icons.home_outlined, color: palette.textMutedColor),
+                        selectedIcon: Icon(Icons.home, color: palette.primaryAccent),
+                        label: 'Inicio',
+                      ),
+                      NavigationDestination(
+                        key: const Key('nav_tab_tuner'),
+                        icon: Icon(Icons.tune_outlined, color: palette.textMutedColor),
+                        selectedIcon: Icon(Icons.tune, color: palette.primaryAccent),
+                        label: 'Afinador',
+                      ),
+                      NavigationDestination(
+                        key: const Key('nav_tab_learning'),
+                        icon: Icon(Icons.school_outlined, color: palette.textMutedColor),
+                        selectedIcon: Icon(Icons.school, color: palette.correctPitchColor),
+                        label: 'Aprender',
+                      ),
+                      NavigationDestination(
+                        key: const Key('nav_tab_studio'),
+                        icon: Icon(Icons.fiber_manual_record_outlined, color: palette.textMutedColor),
+                        selectedIcon: Icon(Icons.fiber_manual_record, color: palette.secondaryAccent),
+                        label: 'Estudio',
+                      ),
+                      NavigationDestination(
+                        key: const Key('nav_tab_library'),
+                        icon: Icon(Icons.menu_book_outlined, color: palette.textMutedColor),
+                        selectedIcon: Icon(Icons.menu_book, color: palette.primaryAccent),
+                        label: 'Canciones',
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              child: NavigationBar(
-                selectedIndex: _currentIndex,
-                onDestinationSelected: _navigateToTab,
-                backgroundColor: palette.scaffoldBackground,
-                indicatorColor: palette.primaryAccent.withValues(alpha: 0.18),
-                elevation: 0,
-                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                destinations: [
-                  NavigationDestination(
-                    key: const Key('nav_tab_home'),
-                    icon: Icon(Icons.home_outlined, color: palette.textMutedColor),
-                    selectedIcon: Icon(Icons.home, color: palette.primaryAccent),
-                    label: 'Inicio',
-                  ),
-                  NavigationDestination(
-                    key: const Key('nav_tab_tuner'),
-                    icon: Icon(Icons.tune_outlined, color: palette.textMutedColor),
-                    selectedIcon: Icon(Icons.tune, color: palette.primaryAccent),
-                    label: 'Afinador',
-                  ),
-                  NavigationDestination(
-                    key: const Key('nav_tab_learning'),
-                    icon: Icon(Icons.school_outlined, color: palette.textMutedColor),
-                    selectedIcon: Icon(Icons.school, color: palette.correctPitchColor),
-                    label: 'Aprender',
-                  ),
-                  NavigationDestination(
-                    key: const Key('nav_tab_studio'),
-                    icon: Icon(Icons.fiber_manual_record_outlined, color: palette.textMutedColor),
-                    selectedIcon: Icon(Icons.fiber_manual_record, color: palette.secondaryAccent),
-                    label: 'Estudio',
-                  ),
-                  NavigationDestination(
-                    key: const Key('nav_tab_library'),
-                    icon: Icon(Icons.menu_book_outlined, color: palette.textMutedColor),
-                    selectedIcon: Icon(Icons.menu_book, color: palette.primaryAccent),
-                    label: 'Canciones',
-                  ),
-                ],
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
