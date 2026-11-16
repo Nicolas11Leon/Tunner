@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'modular_rack_viewmodel.dart';
 import 'connection_matrix_modal.dart';
 import 'universal_instrument_search_modal.dart';
 import '../../instrument/presentation/instrument_customization_modal.dart';
 import '../../instrument/presentation/universal_master_keyboard_widget.dart';
+import '../../tuner_viewmodel.dart';
 
 /// Consola Central Multitarea de Coordinación y Control Maestro.
 /// Muestra transporte global sincronizado (Play, Rec, Stop), estado de sincronía,
@@ -209,7 +211,16 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.stop, color: Colors.white70, size: 22),
                     tooltip: 'Detener Todo',
-                    onPressed: isRunning || isRecording ? viewModel.stopMasterSession : null,
+                    onPressed: isRunning || isRecording
+                        ? () {
+                            viewModel.stopMasterSession();
+                            try {
+                              final tunerVM = context.read<TunerViewModel>();
+                              if (tunerVM.isMetronomeActive) tunerVM.toggleMetronome();
+                              if (tunerVM.isRecording) tunerVM.stopPracticeRecording();
+                            } catch (_) {}
+                          }
+                        : null,
                   ),
 
                   // Botón PLAY / PAUSE Maestro
@@ -220,7 +231,13 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                       size: 32,
                     ),
                     tooltip: isRunning ? 'Pausar Sesión' : 'Iniciar Sesión',
-                    onPressed: viewModel.toggleMasterSession,
+                    onPressed: () {
+                      viewModel.toggleMasterSession();
+                      try {
+                        final tunerVM = context.read<TunerViewModel>();
+                        tunerVM.toggleMetronome();
+                      } catch (_) {}
+                    },
                   ),
 
                   // Botón RECORD Maestro
@@ -231,7 +248,17 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                       size: 26,
                     ),
                     tooltip: isRecording ? 'Detener Grabación' : 'Grabar Sesión',
-                    onPressed: viewModel.toggleMasterRecording,
+                    onPressed: () {
+                      viewModel.toggleMasterRecording();
+                      try {
+                        final tunerVM = context.read<TunerViewModel>();
+                        if (tunerVM.isRecording) {
+                          tunerVM.stopPracticeRecording();
+                        } else {
+                          tunerVM.startPracticeRecording();
+                        }
+                      } catch (_) {}
+                    },
                   ),
                 ],
               ),
