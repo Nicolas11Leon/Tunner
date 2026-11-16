@@ -8,7 +8,6 @@ import '../../media_vault/domain/media_asset_entity.dart';
 import '../../media_vault/domain/media_synergy_target.dart';
 import '../../media_vault/presentation/media_vault_viewmodel.dart';
 import '../../media_vault/presentation/media_vault_workspace_modal.dart';
-import '../data/dj_audio_processor.dart';
 import '../data/dj_hardware_catalog.dart';
 import '../domain/dj_channel_fx_entity.dart';
 import '../domain/dj_crossfader_entity.dart';
@@ -16,6 +15,8 @@ import '../domain/dj_deck_entity.dart';
 import 'dj_console_view_model.dart';
 import 'dj_keymap_editor_modal.dart';
 import 'dj_pro_workstation_panel.dart';
+import 'dj_track_loader_modal.dart';
+import 'dj_vertical_channel_strip.dart';
 import 'dj_visual_mapping_overlay.dart';
 import 'vector_jog_wheel.dart';
 
@@ -527,31 +528,13 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
             OutlinedButton.icon(
               key: Key('deck_${deckId}_load_stem_btn'),
               icon: const Icon(Icons.graphic_eq, size: 14),
-              label: const Text('Cargar Stem & Detectar BPM', style: TextStyle(fontSize: 10)),
+              label: const Text('Cargar Pista / Stem de Estudio', style: TextStyle(fontSize: 10)),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: accentColor.withValues(alpha: 0.3)),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 minimumSize: const Size(0, 28),
               ),
-              onPressed: () {
-                final demoGroove = DjAudioProcessor().generateDemoGroove(
-                  bpm: deckId == 'A' ? 124.0 : 128.0,
-                  frequencyHz: deckId == 'A' ? 55.0 : 65.0,
-                  durationMs: 4000,
-                );
-                final detectedBpm = vm.loadTrackWithBeatTracking(
-                  deckId,
-                  title: 'Stem Groove $deckId',
-                  artist: 'Algorithmic Tracker',
-                  audioSamples: demoGroove,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Stem cargado en Deck $deckId - BPM detectado: ${detectedBpm.toStringAsFixed(1)}'),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              },
+              onPressed: () => DjTrackLoaderModal.show(context, deckId: deckId, viewModel: vm),
             ),
             const SizedBox(height: 6),
 
@@ -752,44 +735,31 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
         child: Column(
           children: [
             Text(
-              'MEZCLADOR',
+              'MEZCLADOR DUAL CLUB',
               style: TextStyle(color: palette.textColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
 
-            // Dual EQ Controls
+            // Tiras de Canales Verticales (CH A y CH B)
             Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Deck A EQ
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text('HIGH', style: TextStyle(color: palette.textMutedColor, fontSize: 10)),
-                      _buildEqSlider('A', 'high', vm.deckA.gainHigh, vm.deckA.isKillHigh, vm),
-                      Text('MID', style: TextStyle(color: palette.textMutedColor, fontSize: 10)),
-                      _buildEqSlider('A', 'mid', vm.deckA.gainMid, vm.deckA.isKillMid, vm),
-                      Text('LOW', style: TextStyle(color: palette.textMutedColor, fontSize: 10)),
-                      _buildEqSlider('A', 'low', vm.deckA.gainLow, vm.deckA.isKillLow, vm),
-                    ],
-                  ),
+                DjVerticalChannelStrip(
+                  deckId: 'A',
+                  deck: vm.deckA,
+                  viewModel: vm,
+                  accentColor: palette.primaryAccent,
                 ),
-                Container(width: 1, height: 140, color: palette.staffLinesColor.withValues(alpha: 0.2)),
-                // Deck B EQ
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text('HIGH', style: TextStyle(color: palette.textMutedColor, fontSize: 10)),
-                      _buildEqSlider('B', 'high', vm.deckB.gainHigh, vm.deckB.isKillHigh, vm),
-                      Text('MID', style: TextStyle(color: palette.textMutedColor, fontSize: 10)),
-                      _buildEqSlider('B', 'mid', vm.deckB.gainMid, vm.deckB.isKillMid, vm),
-                      Text('LOW', style: TextStyle(color: palette.textMutedColor, fontSize: 10)),
-                      _buildEqSlider('B', 'low', vm.deckB.gainLow, vm.deckB.isKillLow, vm),
-                    ],
-                  ),
+                const SizedBox(width: 8),
+                DjVerticalChannelStrip(
+                  deckId: 'B',
+                  deck: vm.deckB,
+                  viewModel: vm,
+                  accentColor: palette.secondaryAccent,
                 ),
               ],
             ),
-            const Divider(height: 10),
+            const SizedBox(height: 10),
 
             // Master Volume
             Row(
@@ -797,12 +767,20 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                 Icon(Icons.volume_up, size: 16, color: palette.textColor),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Slider(
-                    value: vm.masterVolume,
-                    min: 0.0,
-                    max: 1.5,
-                    activeColor: palette.primaryAccent,
-                    onChanged: (val) => vm.setMasterVolume(val),
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3,
+                      activeTrackColor: palette.primaryAccent,
+                      inactiveTrackColor: Colors.white12,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    ),
+                    child: Slider(
+                      value: vm.masterVolume,
+                      min: 0.0,
+                      max: 1.5,
+                      activeColor: palette.primaryAccent,
+                      onChanged: (val) => vm.setMasterVolume(val),
+                    ),
                   ),
                 ),
                 Text(
@@ -814,43 +792,6 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildEqSlider(String deckId, String band, double gain, bool isKilled, DjConsoleViewModel vm) {
-    final palette = widget.palette;
-
-    return Row(
-      children: [
-        IconButton(
-          key: Key('kill_${deckId}_$band'),
-          icon: Icon(Icons.flash_off, size: 14, color: isKilled ? Colors.redAccent : palette.textMutedColor),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
-          tooltip: 'Kill $band',
-          onPressed: () => vm.toggleEqKill(deckId, band),
-        ),
-        Expanded(
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 2,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-            ),
-            child: Slider(
-              value: gain.clamp(0.0, 1.5),
-              min: 0.0,
-              max: 1.5,
-              activeColor: isKilled ? Colors.redAccent : palette.primaryAccent,
-              inactiveColor: Colors.white10,
-              onChanged: (val) {
-                if (band == 'low') vm.setEqGains(deckId, low: val);
-                if (band == 'mid') vm.setEqGains(deckId, mid: val);
-                if (band == 'high') vm.setEqGains(deckId, high: val);
-              },
-            ),
-          ),
-        ),
-      ],
     );
   }
 

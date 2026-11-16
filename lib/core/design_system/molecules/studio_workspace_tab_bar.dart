@@ -54,7 +54,7 @@ class StudioWorkspaceTabBar extends StatelessWidget {
       shortcut: 'F3',
     ),
     StudioWorkspaceTabItem(
-      index: 2,
+      index: 5,
       label: 'Consola DJ',
       icon: Icons.album_rounded,
       shortcut: 'F4',

@@ -72,7 +72,7 @@ void main() {
     });
 
     testWidgets('Tapping crossfader buttons updates position accurately', (tester) async {
-      tester.view.physicalSize = const Size(1200, 1000);
+      tester.view.physicalSize = const Size(1200, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
@@ -148,10 +148,14 @@ void main() {
 
       final loadStemBtn = find.byKey(const Key('deck_A_load_stem_btn'));
       await tester.tap(loadStemBtn);
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(viewModel.deckA.trackTitle, 'Stem Groove A');
-      expect(viewModel.deckA.artist, 'Algorithmic Tracker');
+      // Tap CARGAR EN A on first studio track
+      await tester.tap(find.text('CARGAR EN A').first);
+      await tester.pumpAndSettle();
+
+      expect(viewModel.deckA.trackTitle, 'Midnight Cyber Synthwave');
+      expect(viewModel.deckA.artist, 'Tunner Studio Sessions');
     });
 
     testWidgets('Tapping REC button starts and stops live recording session', (tester) async {

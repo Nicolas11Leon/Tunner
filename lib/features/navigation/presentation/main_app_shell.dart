@@ -20,6 +20,8 @@ import '../../drone/presentation/harmonic_drone_modal.dart';
 import '../../song_library/presentation/studio_assets_modals.dart';
 import '../../song_library/presentation/song_decomposer_modal.dart';
 import '../../modular_rack/presentation/modular_rack_viewmodel.dart';
+import '../../dj_console/presentation/dj_studio_workstation_view.dart';
+import '../../dj_console/presentation/dj_console_view_model.dart';
 import '../../../core/design_system/molecules/studio_automations_modal.dart';
 import '../../../core/design_system/molecules/studio_customizations_modal.dart';
 import '../../../core/design_system/molecules/studio_settings_modal.dart';
@@ -136,22 +138,25 @@ class MainAppShell extends StatefulWidget {
 class _MainAppShellState extends State<MainAppShell> {
   late int _currentIndex;
   late final ModularRackViewModel _modularRackViewModel;
+  late final DjConsoleViewModel _djConsoleViewModel;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _modularRackViewModel = ModularRackViewModel();
+    _djConsoleViewModel = DjConsoleViewModel();
   }
 
   @override
   void dispose() {
     _modularRackViewModel.dispose();
+    _djConsoleViewModel.dispose();
     super.dispose();
   }
 
   void _navigateToTab(int index) {
-    if (index >= 0 && index < 5) {
+    if (index >= 0 && index < 6) {
       setState(() {
         _currentIndex = index;
       });
@@ -674,6 +679,8 @@ class _MainAppShellState extends State<MainAppShell> {
         return 'tunner / Estudio & Grabación / Rack Modular de Efectos DSP';
       case 4:
         return 'tunner / Biblioteca / Editor & Reproductor MusicXML';
+      case 5:
+        return 'tunner / Consola DJ Studio / Mezclador de Grado Club & 4-Stems';
       default:
         return 'tunner / Espacio de Trabajo Activo';
     }
@@ -691,6 +698,8 @@ class _MainAppShellState extends State<MainAppShell> {
         return 'item_rack';
       case 4:
         return 'item_composition';
+      case 5:
+        return 'item_dj';
       default:
         return 'item_home';
     }
@@ -951,6 +960,15 @@ class _MainAppShellState extends State<MainAppShell> {
                 hasDragHandle: _currentIndex == 3,
                 onSelect: () => _navigateToTab(3),
               ),
+              StudioTreeItem(
+                id: 'item_dj',
+                title: 'Consola DJ Pro Studio',
+                icon: Icons.album_rounded,
+                timestamp: 'Club Mixer',
+                statusDotColor: Colors.cyanAccent,
+                hasDragHandle: _currentIndex == 5,
+                onSelect: () => _navigateToTab(5),
+              ),
             ],
           ),
         ],
@@ -1130,6 +1148,7 @@ class _MainAppShellState extends State<MainAppShell> {
                     ),
                     onOpenMixerModal: () => SongDecomposerModal.show(context, viewModel),
                   ),
+                  DjStudioWorkstationView(viewModel: _djConsoleViewModel),
                 ],
               );
 

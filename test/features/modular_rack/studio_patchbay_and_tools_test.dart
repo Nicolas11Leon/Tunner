@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:tunner/core/design_system/studio_design_system.dart';
-import 'package:tunner/features/modular_rack/domain/rack_module_entity.dart';
 import 'package:tunner/features/modular_rack/presentation/modular_rack_viewmodel.dart';
 import 'package:tunner/features/modular_rack/presentation/rack_unit_card.dart';
 import 'package:tunner/features/modular_rack/presentation/studio_patchbay_modal.dart';
