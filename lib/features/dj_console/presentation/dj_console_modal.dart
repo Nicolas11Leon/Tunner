@@ -1,5 +1,13 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import '../../../core/design_system/atoms/studio_theme_switcher.dart';
+import '../../../core/design_system/studio_theme_provider.dart';
 import '../../../core/theme/tunner_theme.dart';
+import '../../media_vault/domain/media_asset_entity.dart';
+import '../../media_vault/domain/media_synergy_target.dart';
+import '../../media_vault/presentation/media_vault_viewmodel.dart';
+import '../../media_vault/presentation/media_vault_workspace_modal.dart';
 import '../data/dj_audio_processor.dart';
 import '../data/dj_hardware_catalog.dart';
 import '../domain/dj_channel_fx_entity.dart';
@@ -36,9 +44,41 @@ class DjConsoleModal extends StatefulWidget {
 }
 
 class _DjConsoleModalState extends State<DjConsoleModal> {
+  late final MediaVaultViewModel _mediaVaultViewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _mediaVaultViewModel = MediaVaultViewModel(
+      onDispatchToTool: (asset, target) {
+        if (target == MediaSynergyTarget.djDeckA ||
+            target == MediaSynergyTarget.djDeckB) {
+          final deckId = target == MediaSynergyTarget.djDeckA ? 'A' : 'B';
+          final samples = (asset.pcmSamples != null && asset.pcmSamples!.isNotEmpty)
+              ? Float32List.fromList(asset.pcmSamples!)
+              : Float32List(4410);
+          widget.viewModel.loadTrackWithBeatTracking(
+            deckId,
+            title: asset.title,
+            artist: asset.kind.displayName,
+            audioSamples: samples,
+            sampleRate: asset.sampleRate,
+          );
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _mediaVaultViewModel.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = widget.palette;
+    final tokens = StudioThemeScope.of(context);
 
     return ListenableBuilder(
       listenable: widget.viewModel,
@@ -48,48 +88,59 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
         return Container(
           height: MediaQuery.of(context).size.height,
           decoration: BoxDecoration(
-            color: palette.scaffoldBackground,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.25)),
+            color: tokens.canvasBackground,
+            border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
           ),
           child: Column(
             children: [
-              // 1. Header Bar with Skin selector, View Toggle, REC button and Keymap editor
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              // 1. Studio Header Bar with Skin selector, Theme Switcher, View Toggle, REC & Keymap
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: tokens.panelHeaderBackground,
+                  border: Border(
+                    bottom: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
+                  ),
+                ),
                 child: Row(
                   children: [
-                    Icon(Icons.album, color: palette.primaryAccent, size: 24),
+                    Icon(Icons.album, color: tokens.accentPrimary, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
+                      flex: 2,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Consola de DJ Virtual',
+                            'CONSOLA DJ STUDIO',
                             style: TextStyle(
-                              color: palette.textColor,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
+                              color: tokens.textPrimary,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
-                            'Stems, Camelot, Hardware Skins, Gamepad y WAV',
-                            style: TextStyle(color: palette.textMutedColor, fontSize: 10.5),
+                            'Stems | Camelot | Hardware | Gamepad | WAV',
+                            style: TextStyle(color: tokens.textMuted, fontSize: 10),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Flexible(
-                      flex: 0,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                    Expanded(
+                      flex: 5,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          alignment: WrapAlignment.end,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
+                            const StudioThemeSwitcher(),
 
                     // Skin Selector Dropdown
                     Container(
@@ -117,6 +168,33 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                             if (skinId != null) vm.selectSkin(skinId);
                           },
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Multimedia Vault & Timeline Studio Button
+                    OutlinedButton.icon(
+                      key: const Key('open_media_vault_btn'),
+                      onPressed: () => MediaVaultWorkspaceModal.show(
+                        context,
+                        viewModel: _mediaVaultViewModel,
+                      ),
+                      icon: Icon(
+                        Icons.library_music_outlined,
+                        size: 16,
+                        color: palette.primaryAccent,
+                      ),
+                      label: Text(
+                        'Boveda / I/O',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: palette.textColor,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF383848)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -224,7 +302,7 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                     ),
                     const SizedBox(width: 4),
                     IconButton(
-                      icon: Icon(Icons.close, color: palette.textColor),
+                      icon: Icon(Icons.close, color: tokens.textSecondary, size: 18),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],

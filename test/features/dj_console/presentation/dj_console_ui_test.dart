@@ -39,7 +39,7 @@ void main() {
       await tester.pumpWidget(createTestApp(viewModel));
       await tester.pump();
 
-      expect(find.text('Consola de DJ Virtual'), findsOneWidget);
+      expect(find.text('CONSOLA DJ STUDIO'), findsOneWidget);
       expect(find.text('DECK A'), findsWidgets);
       expect(find.text('DECK B'), findsWidgets);
       expect(find.byType(VectorJogWheel), findsNWidgets(2));
