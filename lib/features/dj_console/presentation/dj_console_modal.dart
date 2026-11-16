@@ -265,17 +265,17 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E28),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF383848)),
+                        color: tokens.inputSurface,
+                        borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
+                        border: Border.all(color: tokens.borderHairline),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           key: const Key('skin_selector_dropdown'),
                           value: vm.activeSkin.id,
-                          dropdownColor: const Color(0xFF1E1E28),
-                          style: TextStyle(color: palette.textColor, fontSize: 11),
-                          icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF00E5FF), size: 16),
+                          dropdownColor: tokens.panelBackground,
+                          style: TextStyle(color: tokens.textPrimary, fontSize: 11),
+                          icon: Icon(Icons.arrow_drop_down, color: tokens.accentPrimary, size: 16),
                           items: DjHardwareCatalog.allSkins().map((s) {
                             final shortName = s.name.split('(').first.trim();
                             return DropdownMenuItem<String>(
@@ -301,18 +301,18 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                       icon: Icon(
                         Icons.library_music_outlined,
                         size: 16,
-                        color: palette.primaryAccent,
+                        color: tokens.accentPrimary,
                       ),
                       label: Text(
                         'Boveda / I/O',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: palette.textColor,
+                          color: tokens.textPrimary,
                         ),
                       ),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFF383848)),
+                        side: BorderSide(color: tokens.borderHairline),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       ),
                     ),
@@ -325,19 +325,19 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                       icon: Icon(
                         Icons.auto_graph,
                         size: 16,
-                        color: vm.isProWorkstationActive ? const Color(0xFFFFD700) : palette.textColor,
+                        color: vm.isProWorkstationActive ? tokens.accentSecondary : tokens.textSecondary,
                       ),
                       label: Text(
                         vm.isProWorkstationActive ? 'Pro: ON' : 'Pro Studio',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: vm.isProWorkstationActive ? const Color(0xFFFFD700) : palette.textColor,
+                          color: vm.isProWorkstationActive ? tokens.accentSecondary : tokens.textSecondary,
                         ),
                       ),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(
-                          color: vm.isProWorkstationActive ? const Color(0xFFFFD700) : const Color(0xFF383848),
+                          color: vm.isProWorkstationActive ? tokens.accentSecondary : tokens.borderHairline,
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       ),
@@ -351,18 +351,18 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                       icon: Icon(
                         vm.isHardwareViewActive ? Icons.videogame_asset : Icons.view_quilt,
                         size: 16,
-                        color: vm.isHardwareViewActive ? const Color(0xFF00E5FF) : palette.textColor,
+                        color: vm.isHardwareViewActive ? tokens.accentPrimary : tokens.textSecondary,
                       ),
                       label: Text(
                         vm.isHardwareViewActive ? 'Hardware: ON' : 'Hardware: OFF',
                         style: TextStyle(
                           fontSize: 11,
-                          color: vm.isHardwareViewActive ? const Color(0xFF00E5FF) : palette.textColor,
+                          color: vm.isHardwareViewActive ? tokens.accentPrimary : tokens.textSecondary,
                         ),
                       ),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(
-                          color: vm.isHardwareViewActive ? const Color(0xFF00E5FF) : const Color(0xFF383848),
+                          color: vm.isHardwareViewActive ? tokens.accentPrimary : tokens.borderHairline,
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       ),
@@ -389,17 +389,17 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                       icon: Icon(
                         vm.recorder.isRecording ? Icons.stop : Icons.fiber_manual_record,
                         size: 16,
-                        color: vm.recorder.isRecording ? Colors.white : Colors.redAccent,
+                        color: vm.recorder.isRecording ? Colors.white : tokens.statusError,
                       ),
                       label: Text(
                         vm.recorder.isRecording ? 'REC ${vm.recorder.durationSeconds}s' : 'REC',
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: vm.recorder.isRecording ? Colors.redAccent : const Color(0xFF2A2A38),
+                        backgroundColor: vm.recorder.isRecording ? tokens.statusError : tokens.inputSurface,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.borderRadiusSmall)),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -409,10 +409,10 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                       icon: const Icon(Icons.keyboard, size: 16),
                       label: const Text('Mapear Teclado', style: TextStyle(fontSize: 12)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: palette.primaryAccent,
+                        backgroundColor: tokens.accentPrimary,
                         foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.borderRadiusSmall)),
                       ),
                     ),
                           ],

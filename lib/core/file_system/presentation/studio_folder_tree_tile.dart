@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design_system/studio_theme_provider.dart';
 import '../data/studio_workspace_file_system_service.dart';
 import '../domain/studio_file_system_node.dart';
 import 'studio_file_system_modals.dart';
@@ -21,6 +22,7 @@ class StudioFolderTreeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.tokensOf(context);
     final isSelected = service.selectedNodeId == folder.id;
     final isActiveFolder = service.activeFolderId == folder.id;
 
@@ -31,7 +33,7 @@ class StudioFolderTreeTile extends StatelessWidget {
         // Fila de encabezado de carpeta
         InkWell(
           onTap: () => service.toggleFolder(folder.id),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
           child: Container(
             padding: EdgeInsets.only(
               left: 4.0 + (depth * 14.0),
@@ -41,13 +43,13 @@ class StudioFolderTreeTile extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: isSelected
-                  ? const Color(0xFF00E5FF).withValues(alpha: 0.12)
+                  ? tokens.accentPrimary.withValues(alpha: 0.14)
                   : isActiveFolder
-                      ? const Color(0xFF1E283C).withValues(alpha: 0.5)
+                      ? tokens.hoverSurface
                       : Colors.transparent,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
               border: isSelected
-                  ? Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.35), width: 1.0)
+                  ? Border.all(color: tokens.borderFocus, width: 1.0)
                   : null,
             ),
             child: Row(
@@ -56,7 +58,7 @@ class StudioFolderTreeTile extends StatelessWidget {
                 Icon(
                   folder.isExpanded ? Icons.expand_more : Icons.chevron_right,
                   size: 14,
-                  color: const Color(0xFF8E9BAE),
+                  color: tokens.textSecondary,
                 ),
                 const SizedBox(width: 4),
 
@@ -64,7 +66,7 @@ class StudioFolderTreeTile extends StatelessWidget {
                 Icon(
                   folder.isExpanded ? Icons.folder_open : Icons.folder,
                   size: 15,
-                  color: folder.isExpanded ? const Color(0xFFFFD54F) : const Color(0xFFFFB74D),
+                  color: folder.isExpanded ? tokens.accentSecondary : tokens.accentSecondary.withValues(alpha: 0.8),
                 ),
                 const SizedBox(width: 6),
 
@@ -73,7 +75,7 @@ class StudioFolderTreeTile extends StatelessWidget {
                   child: Text(
                     folder.name,
                     style: TextStyle(
-                      color: isSelected ? Colors.white : const Color(0xFFD1D5DB),
+                      color: isSelected ? tokens.textPrimary : tokens.textSecondary,
                       fontSize: 12.0,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.2,
@@ -87,13 +89,13 @@ class StudioFolderTreeTile extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF141824),
-                    borderRadius: BorderRadius.circular(4),
+                    color: tokens.inputSurface,
+                    borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
                   ),
                   child: Text(
                     '${folder.children.length}',
-                    style: const TextStyle(
-                      color: Color(0xFF7E8B9E),
+                    style: TextStyle(
+                      color: tokens.textMuted,
                       fontSize: 9.0,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'monospace',
@@ -114,9 +116,9 @@ class StudioFolderTreeTile extends StatelessWidget {
           if (folder.children.isEmpty) ...[
             Padding(
               padding: EdgeInsets.only(left: 20.0 + (depth * 14.0), top: 2.0, bottom: 2.0),
-              child: const Text(
+              child: Text(
                 'Carpeta vacía',
-                style: TextStyle(color: Color(0xFF556075), fontSize: 10.0, fontStyle: FontStyle.italic),
+                style: TextStyle(color: tokens.textMuted, fontSize: 10.0, fontStyle: FontStyle.italic),
               ),
             ),
           ] else ...[
@@ -147,14 +149,16 @@ class StudioFolderTreeTile extends StatelessWidget {
   }
 
   Widget _buildFolderContextMenu(BuildContext context) {
+    final tokens = StudioThemeScope.tokensOf(context);
+
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_horiz, size: 13, color: Color(0xFF6B7280)),
+      icon: Icon(Icons.more_horiz, size: 13, color: tokens.textMuted),
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-      color: const Color(0xFF141824),
+      color: tokens.elevatedSurface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: Color(0xFF28324A)),
+        borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
+        side: BorderSide(color: tokens.borderHairline),
       ),
       onSelected: (value) {
         if (value == 'new_file') {
@@ -184,48 +188,48 @@ class StudioFolderTreeTile extends StatelessWidget {
         }
       },
       itemBuilder: (ctx) => [
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'new_file',
           height: 32,
           child: Row(
             children: [
-              Icon(Icons.note_add_outlined, size: 13, color: Color(0xFF00E5FF)),
-              SizedBox(width: 8),
-              Text('Nuevo Archivo Aquí...', style: TextStyle(fontSize: 11, color: Colors.white)),
+              Icon(Icons.note_add_outlined, size: 13, color: tokens.accentPrimary),
+              const SizedBox(width: 8),
+              Text('Nuevo Archivo Aquí...', style: TextStyle(fontSize: 11, color: tokens.textPrimary)),
             ],
           ),
         ),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'new_folder',
           height: 32,
           child: Row(
             children: [
-              Icon(Icons.create_new_folder_outlined, size: 13, color: Color(0xFFFFB74D)),
-              SizedBox(width: 8),
-              Text('Nueva Subcarpeta...', style: TextStyle(fontSize: 11, color: Colors.white)),
+              Icon(Icons.create_new_folder_outlined, size: 13, color: tokens.accentSecondary),
+              const SizedBox(width: 8),
+              Text('Nueva Subcarpeta...', style: TextStyle(fontSize: 11, color: tokens.textPrimary)),
             ],
           ),
         ),
         if (folder.id != 'root') ...[
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'rename',
             height: 32,
             child: Row(
               children: [
-                Icon(Icons.edit_outlined, size: 13, color: Color(0xFF8E9BAE)),
-                SizedBox(width: 8),
-                Text('Renombrar Carpeta', style: TextStyle(fontSize: 11, color: Colors.white)),
+                Icon(Icons.edit_outlined, size: 13, color: tokens.textSecondary),
+                const SizedBox(width: 8),
+                Text('Renombrar Carpeta', style: TextStyle(fontSize: 11, color: tokens.textPrimary)),
               ],
             ),
           ),
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'delete',
             height: 32,
             child: Row(
               children: [
-                Icon(Icons.delete_outline, size: 13, color: Color(0xFFFF5252)),
-                SizedBox(width: 8),
-                Text('Eliminar Carpeta', style: TextStyle(fontSize: 11, color: Color(0xFFFF5252))),
+                Icon(Icons.delete_outline, size: 13, color: tokens.statusError),
+                const SizedBox(width: 8),
+                Text('Eliminar Carpeta', style: TextStyle(fontSize: 11, color: tokens.statusError)),
               ],
             ),
           ),

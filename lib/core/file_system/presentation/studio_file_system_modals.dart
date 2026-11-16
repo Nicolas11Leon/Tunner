@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design_system/studio_theme_provider.dart';
 import '../data/studio_workspace_file_system_service.dart';
 import '../domain/studio_file_system_node.dart';
 import '../domain/studio_file_type.dart';
@@ -56,21 +57,23 @@ class StudioFileSystemModals {
     required StudioWorkspaceFileSystemService service,
     required StudioFileSystemNode node,
   }) {
+    final tokens = StudioThemeScope.tokensOf(context);
+
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF10131E),
+        backgroundColor: tokens.elevatedSurface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: Color(0xFF28324A)),
+          borderRadius: BorderRadius.circular(tokens.borderRadiusMedium),
+          side: BorderSide(color: tokens.borderHairline),
         ),
         title: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF5252), size: 20),
+            Icon(Icons.warning_amber_rounded, color: tokens.statusError, size: 20),
             const SizedBox(width: 8),
             Text(
               node.isFolder ? '¿Eliminar Carpeta?' : '¿Eliminar Archivo?',
-              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+              style: TextStyle(color: tokens.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -78,16 +81,16 @@ class StudioFileSystemModals {
           node.isFolder
               ? 'Se eliminará la carpeta "${node.name}" y todos los archivos contenidos de forma irreversible.'
               : '¿Deseas eliminar permanentemente "${node.name}"?',
-          style: const TextStyle(color: Color(0xFF8E9BAE), fontSize: 12),
+          style: TextStyle(color: tokens.textSecondary, fontSize: 12),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar', style: TextStyle(color: Color(0xFF8E9BAE))),
+            child: Text('Cancelar', style: TextStyle(color: tokens.textSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF5252),
+              backgroundColor: tokens.statusError,
               foregroundColor: Colors.white,
             ),
             onPressed: () {
@@ -145,11 +148,13 @@ class _CreateFileModalDialogState extends State<_CreateFileModalDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.tokensOf(context);
+
     return Dialog(
-      backgroundColor: const Color(0xFF10131E),
+      backgroundColor: tokens.panelBackground,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Color(0xFF28324A), width: 1.2),
+        borderRadius: BorderRadius.circular(tokens.borderRadiusMedium),
+        side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
@@ -161,13 +166,13 @@ class _CreateFileModalDialogState extends State<_CreateFileModalDialog> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.note_add_outlined, color: Color(0xFF00E5FF), size: 20),
+                  Icon(Icons.note_add_outlined, color: tokens.accentPrimary, size: 20),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'CREAR NUEVO ARCHIVO',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: tokens.textPrimary,
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.6,
@@ -175,39 +180,39 @@ class _CreateFileModalDialogState extends State<_CreateFileModalDialog> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+                    icon: Icon(Icons.close, color: tokens.textMuted, size: 18),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
               const SizedBox(height: 14),
-              const Text(
+              Text(
                 'Nombre del Documento:',
-                style: TextStyle(color: Color(0xFF8E9BAE), fontSize: 11, fontWeight: FontWeight.bold),
+                style: TextStyle(color: tokens.textSecondary, fontSize: 11, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
               TextField(
                 controller: _nameController,
                 autofocus: true,
-                style: const TextStyle(color: Colors.white, fontSize: 12),
+                style: TextStyle(color: tokens.textPrimary, fontSize: 12),
                 decoration: InputDecoration(
                   hintText: 'Ej. Preludio_Sol_Menor...',
-                  hintStyle: const TextStyle(color: Color(0xFF556075), fontSize: 11),
+                  hintStyle: TextStyle(color: tokens.textMuted, fontSize: 11),
                   filled: true,
-                  fillColor: const Color(0xFF161B28),
+                  fillColor: tokens.inputSurface,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(tokens.borderRadiusSmall)),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFF00E5FF), width: 1.5),
+                    borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
+                    borderSide: BorderSide(color: tokens.borderFocus, width: 1.5),
                   ),
                 ),
                 onSubmitted: (_) => _submit(),
               ),
               const SizedBox(height: 14),
-              const Text(
+              Text(
                 'Tipo de Documento:',
-                style: TextStyle(color: Color(0xFF8E9BAE), fontSize: 11, fontWeight: FontWeight.bold),
+                style: TextStyle(color: tokens.textSecondary, fontSize: 11, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -219,14 +224,14 @@ class _CreateFileModalDialogState extends State<_CreateFileModalDialog> {
 
                   return InkWell(
                     onTap: () => setState(() => _selectedType = type),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                       decoration: BoxDecoration(
-                        color: isSelected ? typeColor.withValues(alpha: 0.22) : const Color(0xFF161B28),
-                        borderRadius: BorderRadius.circular(6),
+                        color: isSelected ? typeColor.withValues(alpha: 0.22) : tokens.inputSurface,
+                        borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
                         border: Border.all(
-                          color: isSelected ? typeColor : const Color(0xFF283248),
+                          color: isSelected ? typeColor : tokens.borderHairline,
                           width: isSelected ? 1.5 : 1.0,
                         ),
                       ),
@@ -242,7 +247,7 @@ class _CreateFileModalDialogState extends State<_CreateFileModalDialog> {
                           Text(
                             type.displayName,
                             style: TextStyle(
-                              color: isSelected ? Colors.white : const Color(0xFF8E9BAE),
+                              color: isSelected ? tokens.textPrimary : tokens.textSecondary,
                               fontSize: 10,
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                             ),
@@ -259,12 +264,12 @@ class _CreateFileModalDialogState extends State<_CreateFileModalDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancelar', style: TextStyle(color: Color(0xFF8E9BAE))),
+                    child: Text('Cancelar', style: TextStyle(color: tokens.textSecondary)),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00E5FF),
+                      backgroundColor: tokens.accentPrimary,
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     ),
@@ -322,11 +327,13 @@ class _CreateFolderModalDialogState extends State<_CreateFolderModalDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.tokensOf(context);
+
     return Dialog(
-      backgroundColor: const Color(0xFF10131E),
+      backgroundColor: tokens.panelBackground,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Color(0xFF28324A), width: 1.2),
+        borderRadius: BorderRadius.circular(tokens.borderRadiusMedium),
+        side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
@@ -338,16 +345,16 @@ class _CreateFolderModalDialogState extends State<_CreateFolderModalDialog> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.create_new_folder_outlined, color: Color(0xFFFFB74D), size: 20),
+                  Icon(Icons.create_new_folder_outlined, color: tokens.accentSecondary, size: 20),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'NUEVA CARPETA',
-                      style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: tokens.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+                    icon: Icon(Icons.close, color: tokens.textMuted, size: 18),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -356,17 +363,17 @@ class _CreateFolderModalDialogState extends State<_CreateFolderModalDialog> {
               TextField(
                 controller: _nameController,
                 autofocus: true,
-                style: const TextStyle(color: Colors.white, fontSize: 12),
+                style: TextStyle(color: tokens.textPrimary, fontSize: 12),
                 decoration: InputDecoration(
                   labelText: 'Nombre de la carpeta',
-                  labelStyle: const TextStyle(color: Color(0xFF8E9BAE), fontSize: 11),
+                  labelStyle: TextStyle(color: tokens.textSecondary, fontSize: 11),
                   filled: true,
-                  fillColor: const Color(0xFF161B28),
+                  fillColor: tokens.inputSurface,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(tokens.borderRadiusSmall)),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFFFB74D), width: 1.5),
+                    borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
+                    borderSide: BorderSide(color: tokens.accentSecondary, width: 1.5),
                   ),
                 ),
                 onSubmitted: (_) => _submit(),
@@ -377,12 +384,12 @@ class _CreateFolderModalDialogState extends State<_CreateFolderModalDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancelar', style: TextStyle(color: Color(0xFF8E9BAE))),
+                    child: Text('Cancelar', style: TextStyle(color: tokens.textSecondary)),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFB74D),
+                      backgroundColor: tokens.accentSecondary,
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     ),
@@ -437,11 +444,13 @@ class _RenameNodeModalDialogState extends State<_RenameNodeModalDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.tokensOf(context);
+
     return Dialog(
-      backgroundColor: const Color(0xFF10131E),
+      backgroundColor: tokens.panelBackground,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Color(0xFF28324A), width: 1.2),
+        borderRadius: BorderRadius.circular(tokens.borderRadiusMedium),
+        side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
@@ -453,16 +462,16 @@ class _RenameNodeModalDialogState extends State<_RenameNodeModalDialog> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.edit_outlined, color: Color(0xFF00E5FF), size: 18),
+                  Icon(Icons.edit_outlined, color: tokens.accentPrimary, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       widget.node.isFolder ? 'RENOMBRAR CARPETA' : 'RENOMBRAR ARCHIVO',
-                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: tokens.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+                    icon: Icon(Icons.close, color: tokens.textMuted, size: 18),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -471,14 +480,14 @@ class _RenameNodeModalDialogState extends State<_RenameNodeModalDialog> {
               TextField(
                 controller: _nameController,
                 autofocus: true,
-                style: const TextStyle(color: Colors.white, fontSize: 12),
+                style: TextStyle(color: tokens.textPrimary, fontSize: 12),
                 decoration: InputDecoration(
                   labelText: 'Nuevo nombre',
-                  labelStyle: const TextStyle(color: Color(0xFF8E9BAE), fontSize: 11),
+                  labelStyle: TextStyle(color: tokens.textSecondary, fontSize: 11),
                   filled: true,
-                  fillColor: const Color(0xFF161B28),
+                  fillColor: tokens.inputSurface,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(tokens.borderRadiusSmall)),
                 ),
                 onSubmitted: (_) => _submit(),
               ),
@@ -488,12 +497,12 @@ class _RenameNodeModalDialogState extends State<_RenameNodeModalDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancelar', style: TextStyle(color: Color(0xFF8E9BAE))),
+                    child: Text('Cancelar', style: TextStyle(color: tokens.textSecondary)),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00E5FF),
+                      backgroundColor: tokens.accentPrimary,
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     ),

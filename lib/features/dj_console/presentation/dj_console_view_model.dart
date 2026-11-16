@@ -42,7 +42,7 @@ class DjConsoleViewModel extends ChangeNotifier {
 
   // Hardware Skins & Gamepad Mapping
   DjHardwareSkinEntity _activeSkin = DjHardwareCatalog.ddjFlx4();
-  bool _isHardwareViewActive = false;
+  bool _isHardwareViewActive = true;
   bool _isProWorkstationActive = false;
   bool _showKeyBadges = true;
   bool _isLearnModeActive = false;

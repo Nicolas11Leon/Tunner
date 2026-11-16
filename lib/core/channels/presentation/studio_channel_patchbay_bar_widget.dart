@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design_system/studio_theme_provider.dart';
 import '../data/studio_patchbay_routing_service.dart';
 import '../domain/studio_channel_bus.dart';
 import 'studio_channel_modals.dart';
@@ -16,6 +17,8 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.tokensOf(context);
+
     return ListenableBuilder(
       listenable: routingService,
       builder: (context, _) {
@@ -23,20 +26,20 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: const BoxDecoration(
-            color: Color(0xFF0C0E15),
-            border: Border(bottom: BorderSide(color: Color(0xFF1E2538))),
+          decoration: BoxDecoration(
+            color: tokens.panelHeaderBackground,
+            border: Border(bottom: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth)),
           ),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                const Icon(Icons.cable, color: Color(0xFF00E5FF), size: 16),
+                Icon(Icons.cable, color: tokens.accentPrimary, size: 16),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   'MATRIZ PATCHBAY:',
                   style: TextStyle(
-                    color: Color(0xFF8E9BAE),
+                    color: tokens.textSecondary,
                     fontSize: 10.5,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.6,
@@ -53,9 +56,9 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
                     style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00E5FF).withValues(alpha: 0.15),
-                    foregroundColor: const Color(0xFF00E5FF),
-                    side: const BorderSide(color: Color(0xFF00E5FF), width: 1.0),
+                    backgroundColor: tokens.accentPrimary.withValues(alpha: 0.15),
+                    foregroundColor: tokens.accentPrimary,
+                    side: BorderSide(color: tokens.accentPrimary, width: 1.0),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     minimumSize: Size.zero,
                   ),
@@ -82,6 +85,7 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
   }
 
   Widget _buildChannelPill(BuildContext context, StudioChannelBus channel) {
+    final tokens = StudioThemeScope.tokensOf(context);
     final chColor = Color(channel.colorHex);
     final sources = routingService.matrix.findSourcesForChannel(channel.id);
     final sinks = routingService.matrix.findSinksForChannel(channel.id);
@@ -91,10 +95,10 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF141824),
-        borderRadius: BorderRadius.circular(6),
+        color: tokens.elevatedSurface,
+        borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
         border: Border.all(
-          color: totalConnections > 0 ? chColor.withValues(alpha: 0.7) : const Color(0xFF242C3E),
+          color: totalConnections > 0 ? chColor.withValues(alpha: 0.7) : tokens.borderHairline,
           width: totalConnections > 0 ? 1.5 : 1.0,
         ),
       ),
@@ -107,7 +111,7 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
             height: 8,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: totalConnections > 0 ? chColor : const Color(0xFF384358),
+              color: totalConnections > 0 ? chColor : tokens.textMuted,
               boxShadow: totalConnections > 0
                   ? [
                       BoxShadow(
@@ -128,7 +132,7 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
               routingService: routingService,
               channel: channel,
             ),
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2.0),
               child: Column(
@@ -141,19 +145,19 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
                       Text(
                         channel.shortCode,
                         style: TextStyle(
-                          color: totalConnections > 0 ? Colors.white : const Color(0xFF8E9BAE),
+                          color: totalConnections > 0 ? tokens.textPrimary : tokens.textSecondary,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(width: 3),
-                      const Icon(Icons.edit, size: 9, color: Color(0xFF556075)),
+                      Icon(Icons.edit, size: 9, color: tokens.textMuted),
                     ],
                   ),
                   Text(
                     channel.name,
-                    style: const TextStyle(
-                      color: Color(0xFF7E8B9E),
+                    style: TextStyle(
+                      color: tokens.textMuted,
                       fontSize: 8.5,
                       fontWeight: FontWeight.w500,
                     ),
@@ -170,9 +174,9 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
             decoration: BoxDecoration(
-              color: const Color(0xFF0A0C12),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: const Color(0xFF1E2538)),
+              color: tokens.inputSurface,
+              borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
+              border: Border.all(color: tokens.borderHairline),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -182,16 +186,16 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
                     width: 5,
                     height: 5,
                     margin: const EdgeInsets.only(right: 4),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0xFF10B981),
+                      color: tokens.statusSuccess,
                     ),
                   ),
                 ],
                 Text(
                   '${channel.activeBpm.toStringAsFixed(1)} BPM • ${channel.activeCamelotKey}',
                   style: TextStyle(
-                    color: channel.isPlaying ? const Color(0xFF10B981) : const Color(0xFFA0AEC0),
+                    color: channel.isPlaying ? tokens.statusSuccess : tokens.textSecondary,
                     fontSize: 8.5,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'monospace',
@@ -206,13 +210,13 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
             decoration: BoxDecoration(
-              color: const Color(0xFF0A0C12),
-              borderRadius: BorderRadius.circular(4),
+              color: tokens.inputSurface,
+              borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
             ),
             child: Text(
               '$totalConnections Plugs',
               style: TextStyle(
-                color: totalConnections > 0 ? chColor : const Color(0xFF556075),
+                color: totalConnections > 0 ? chColor : tokens.textMuted,
                 fontSize: 8.5,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'monospace',
@@ -227,7 +231,7 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
             icon: Icon(
               channel.isMuted ? Icons.volume_off : Icons.volume_up,
               size: 13,
-              color: channel.isMuted ? const Color(0xFFFF5252) : const Color(0xFF8E9BAE),
+              color: channel.isMuted ? tokens.statusError : tokens.textSecondary,
             ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
@@ -238,7 +242,7 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
           if (isCustom) ...[
             IconButton(
               tooltip: 'Eliminar Canal Personalizado',
-              icon: const Icon(Icons.close, size: 12, color: Color(0xFF7E8B9E)),
+              icon: Icon(Icons.close, size: 12, color: tokens.textMuted),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
               onPressed: () => routingService.removeCustomChannel(channel.id),

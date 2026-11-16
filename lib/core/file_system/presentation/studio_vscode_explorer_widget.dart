@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design_system/studio_theme_provider.dart';
 import '../data/studio_workspace_file_system_service.dart';
 import '../domain/studio_file_system_node.dart';
 import 'studio_explorer_action_header.dart';
@@ -20,15 +21,17 @@ class StudioVsCodeExplorerWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.tokensOf(context);
+
     return ListenableBuilder(
       listenable: service,
       builder: (context, _) {
         final filteredRoot = service.filteredRootFolder;
 
         return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF0C0E14),
-            border: Border(right: BorderSide(color: Color(0xFF1E2538), width: 1.0)),
+          decoration: BoxDecoration(
+            color: tokens.panelBackground,
+            border: Border(right: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -47,8 +50,8 @@ class StudioVsCodeExplorerWidget extends StatelessWidget {
                                 ? 'No se encontraron archivos coincidentes con "${service.searchQuery}"'
                                 : 'Proyecto vacío.\nUsa los botones superiores para agregar archivos o carpetas.',
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Color(0xFF556075),
+                            style: TextStyle(
+                              color: tokens.textMuted,
                               fontSize: 11,
                               height: 1.4,
                             ),
@@ -86,19 +89,19 @@ class StudioVsCodeExplorerWidget extends StatelessWidget {
               // Barra inferior de estado del Explorador
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF0A0C12),
-                  border: Border(top: BorderSide(color: Color(0xFF1A2030), width: 1.0)),
+                decoration: BoxDecoration(
+                  color: tokens.panelHeaderBackground,
+                  border: Border(top: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.data_usage, size: 10, color: Color(0xFF00E5FF)),
+                    Icon(Icons.data_usage, size: 10, color: tokens.accentPrimary),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         '${filteredRoot.totalFilesCount} Archivos',
-                        style: const TextStyle(
-                          color: Color(0xFF7E8B9E),
+                        style: TextStyle(
+                          color: tokens.textSecondary,
                           fontSize: 9.5,
                           fontFamily: 'monospace',
                           fontWeight: FontWeight.w500,
@@ -107,10 +110,10 @@ class StudioVsCodeExplorerWidget extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Text(
+                    Text(
                       'ZLIB BINARY',
                       style: TextStyle(
-                        color: Color(0xFF556075),
+                        color: tokens.textMuted,
                         fontSize: 8.5,
                         fontFamily: 'monospace',
                         fontWeight: FontWeight.bold,

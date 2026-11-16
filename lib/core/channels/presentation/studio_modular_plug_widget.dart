@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design_system/studio_theme_provider.dart';
 import '../data/studio_patchbay_routing_service.dart';
 import '../domain/studio_modular_plug.dart';
 import 'studio_channel_modals.dart';
@@ -22,6 +23,8 @@ class StudioModularPlugWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.tokensOf(context);
+
     return ListenableBuilder(
       listenable: routingService,
       builder: (context, _) {
@@ -53,15 +56,15 @@ class StudioModularPlugWidget extends StatelessWidget {
                     height: size,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFF141720),
+                      color: tokens.inputSurface,
                       border: Border.all(
-                        color: isPulsing ? Colors.white : plugColor,
+                        color: isPulsing ? tokens.textPrimary : plugColor,
                         width: isPulsing ? 2.5 : 1.8,
                       ),
                       boxShadow: currentPlug.isConnected
                           ? [
                               BoxShadow(
-                                color: (isPulsing ? Colors.white : plugColor).withValues(alpha: isPulsing ? 0.9 : 0.45),
+                                color: (isPulsing ? tokens.textPrimary : plugColor).withValues(alpha: isPulsing ? 0.9 : 0.45),
                                 blurRadius: isPulsing ? 12 : 6,
                                 spreadRadius: isPulsing ? 2 : 0,
                               ),
@@ -74,8 +77,8 @@ class StudioModularPlugWidget extends StatelessWidget {
                         height: size * 0.45,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF07080C),
-                          border: Border.all(color: const Color(0xFF2E3548), width: 1.0),
+                          color: tokens.canvasBackground,
+                          border: Border.all(color: tokens.borderHairline, width: 1.0),
                         ),
                         child: Center(
                           child: Container(
@@ -83,7 +86,7 @@ class StudioModularPlugWidget extends StatelessWidget {
                             height: size * 0.2,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: currentPlug.isConnected ? plugColor : const Color(0xFF161922),
+                              color: currentPlug.isConnected ? plugColor : tokens.textMuted.withValues(alpha: 0.3),
                             ),
                           ),
                         ),
@@ -100,7 +103,7 @@ class StudioModularPlugWidget extends StatelessWidget {
                         Text(
                           currentPlug.label,
                           style: TextStyle(
-                            color: currentPlug.isConnected ? Colors.white : const Color(0xFF8E9BAE),
+                            color: currentPlug.isConnected ? tokens.textPrimary : tokens.textSecondary,
                             fontSize: 9.5,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.3,
@@ -111,7 +114,7 @@ class StudioModularPlugWidget extends StatelessWidget {
                               ? (connectedBus?.shortCode ?? currentPlug.connectedChannelId!.replaceAll('_', ' ').toUpperCase())
                               : 'DESCONECTADO',
                           style: TextStyle(
-                            color: currentPlug.isConnected ? plugColor : const Color(0xFF556075),
+                            color: currentPlug.isConnected ? plugColor : tokens.textMuted,
                             fontSize: 8.0,
                             fontWeight: FontWeight.w600,
                             fontFamily: 'monospace',
@@ -130,11 +133,13 @@ class StudioModularPlugWidget extends StatelessWidget {
   }
 
   void _showChannelSelectorMenu(BuildContext context, StudioModularPlug targetPlug) {
+    final tokens = StudioThemeScope.tokensOf(context);
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF10131D),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      backgroundColor: tokens.panelBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(tokens.borderRadiusLarge)),
       ),
       builder: (ctx) {
         return ListenableBuilder(
@@ -151,13 +156,13 @@ class StudioModularPlugWidget extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.cable, color: Color(0xFF00E5FF), size: 18),
+                        Icon(Icons.cable, color: tokens.accentPrimary, size: 18),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'CONECTAR PLUG: ${targetPlug.label}',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: tokens.textPrimary,
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 0.5,
@@ -168,9 +173,9 @@ class StudioModularPlugWidget extends StatelessWidget {
                           icon: const Icon(Icons.add, size: 12),
                           label: const Text('Crear Canal', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00E5FF).withValues(alpha: 0.15),
-                            foregroundColor: const Color(0xFF00E5FF),
-                            side: const BorderSide(color: Color(0xFF00E5FF), width: 1),
+                            backgroundColor: tokens.accentPrimary.withValues(alpha: 0.15),
+                            foregroundColor: tokens.accentPrimary,
+                            side: BorderSide(color: tokens.accentPrimary, width: 1),
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                             minimumSize: Size.zero,
                           ),
@@ -183,15 +188,15 @@ class StudioModularPlugWidget extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white60, size: 18),
+                          icon: Icon(Icons.close, color: tokens.textMuted, size: 18),
                           onPressed: () => Navigator.of(ctx).pop(),
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
-                    const Text(
+                    Text(
                       'Selecciona el canal con el que deseas enlazar esta herramienta (sincroniza BPM, tono y audio en vivo):',
-                      style: TextStyle(color: Color(0xFF8E9BAE), fontSize: 11),
+                      style: TextStyle(color: tokens.textSecondary, fontSize: 11),
                     ),
                     const SizedBox(height: 12),
 
@@ -211,14 +216,14 @@ class StudioModularPlugWidget extends StatelessWidget {
                                 routingService.connectPlugToChannel(targetPlug.id, channel.id);
                                 Navigator.of(ctx).pop();
                               },
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? chColor.withValues(alpha: 0.22) : const Color(0xFF161C2A),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: isSelected ? chColor.withValues(alpha: 0.22) : tokens.inputSurface,
+                                  borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
                                   border: Border.all(
-                                    color: isSelected ? chColor : const Color(0xFF283248),
+                                    color: isSelected ? chColor : tokens.borderHairline,
                                     width: isSelected ? 2.0 : 1.0,
                                   ),
                                 ),
@@ -247,7 +252,7 @@ class StudioModularPlugWidget extends StatelessWidget {
                                         Text(
                                           channel.name,
                                           style: TextStyle(
-                                            color: isSelected ? Colors.white : const Color(0xFFB0B9C6),
+                                            color: isSelected ? tokens.textPrimary : tokens.textSecondary,
                                             fontSize: 11,
                                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                                           ),
@@ -255,7 +260,7 @@ class StudioModularPlugWidget extends StatelessWidget {
                                         Text(
                                           '${channel.shortCode} • ${channel.activeBpm.toStringAsFixed(1)} BPM • ${channel.activeCamelotKey}',
                                           style: TextStyle(
-                                            color: isSelected ? chColor : const Color(0xFF6B7280),
+                                            color: isSelected ? chColor : tokens.textMuted,
                                             fontSize: 9,
                                             fontFamily: 'monospace',
                                           ),
@@ -267,14 +272,14 @@ class StudioModularPlugWidget extends StatelessWidget {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                          color: tokens.statusSuccess.withValues(alpha: 0.2),
                                           borderRadius: BorderRadius.circular(3),
-                                          border: Border.all(color: const Color(0xFF10B981), width: 0.8),
+                                          border: Border.all(color: tokens.statusSuccess, width: 0.8),
                                         ),
-                                        child: const Text(
+                                        child: Text(
                                           'PLAY',
                                           style: TextStyle(
-                                            color: Color(0xFF10B981),
+                                            color: tokens.statusSuccess,
                                             fontSize: 7.5,
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -293,13 +298,13 @@ class StudioModularPlugWidget extends StatelessWidget {
                     const SizedBox(height: 14),
                     // Botón Desconectar Plug
                     OutlinedButton.icon(
-                      icon: const Icon(Icons.power_off, size: 14, color: Color(0xFFFF5252)),
-                      label: const Text(
+                      icon: Icon(Icons.power_off, size: 14, color: tokens.statusError),
+                      label: Text(
                         'Desconectar Plug (Suspender Recepción de Parámetros)',
-                        style: TextStyle(fontSize: 11, color: Color(0xFFFF5252)),
+                        style: TextStyle(fontSize: 11, color: tokens.statusError),
                       ),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFFF5252)),
+                        side: BorderSide(color: tokens.statusError),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                       onPressed: () {

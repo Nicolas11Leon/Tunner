@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design_system/studio_theme_provider.dart';
 import '../data/studio_workspace_file_system_service.dart';
 import 'studio_file_system_modals.dart';
 
@@ -33,24 +34,26 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.tokensOf(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F121C),
-        border: Border(bottom: BorderSide(color: Color(0xFF1E2538), width: 1.0)),
+      decoration: BoxDecoration(
+        color: tokens.panelHeaderBackground,
+        border: Border(bottom: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
-              const Icon(Icons.folder_special_outlined, size: 14, color: Color(0xFF00E5FF)),
+              Icon(Icons.folder_special_outlined, size: 14, color: tokens.accentPrimary),
               const SizedBox(width: 6),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'EXPLORADOR DE PROYECTO',
                   style: TextStyle(
-                    color: Color(0xFF8E9BAE),
+                    color: tokens.textSecondary,
                     fontSize: 10.0,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.8,
@@ -65,7 +68,7 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
                 icon: Icon(
                   _showSearchBar ? Icons.search_off : Icons.search,
                   size: 13,
-                  color: _showSearchBar ? const Color(0xFF00E5FF) : const Color(0xFF8E9BAE),
+                  color: _showSearchBar ? tokens.accentPrimary : tokens.textSecondary,
                 ),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
@@ -84,7 +87,7 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
               IconButton(
                 key: const Key('btn_new_file'),
                 tooltip: 'Nuevo Archivo...',
-                icon: const Icon(Icons.note_add_outlined, size: 14, color: Color(0xFF00E5FF)),
+                icon: Icon(Icons.note_add_outlined, size: 14, color: tokens.accentPrimary),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                 onPressed: () => StudioFileSystemModals.showCreateFileModal(
@@ -97,7 +100,7 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
               IconButton(
                 key: const Key('btn_new_folder'),
                 tooltip: 'Nueva Carpeta...',
-                icon: const Icon(Icons.create_new_folder_outlined, size: 14, color: Color(0xFFFFB74D)),
+                icon: Icon(Icons.create_new_folder_outlined, size: 14, color: tokens.accentSecondary),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                 onPressed: () => StudioFileSystemModals.showCreateFolderModal(
@@ -110,7 +113,7 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
               IconButton(
                 key: const Key('btn_refresh_tree'),
                 tooltip: 'Refrescar Explorador',
-                icon: const Icon(Icons.refresh, size: 14, color: Color(0xFF8E9BAE)),
+                icon: Icon(Icons.refresh, size: 14, color: tokens.textSecondary),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                 onPressed: () {
@@ -123,7 +126,7 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
               IconButton(
                 key: const Key('btn_collapse_all'),
                 tooltip: 'Colapsar Carpetas',
-                icon: const Icon(Icons.unfold_less, size: 14, color: Color(0xFF8E9BAE)),
+                icon: Icon(Icons.unfold_less, size: 14, color: tokens.textSecondary),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                 onPressed: () => widget.service.collapseAll(),
@@ -137,23 +140,23 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
             Container(
               height: 28,
               decoration: BoxDecoration(
-                color: const Color(0xFF161B28),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFF28324A)),
+                color: tokens.inputSurface,
+                borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
+                border: Border.all(color: tokens.borderHairline),
               ),
               child: TextField(
                 key: const Key('file_explorer_search_input'),
                 controller: _searchController,
                 autofocus: true,
-                style: const TextStyle(color: Colors.white, fontSize: 11),
+                style: TextStyle(color: tokens.textPrimary, fontSize: 11),
                 decoration: InputDecoration(
                   hintText: 'Filtrar archivos o carpetas...',
-                  hintStyle: const TextStyle(color: Color(0xFF556075), fontSize: 10),
-                  prefixIcon: const Icon(Icons.filter_list, size: 12, color: Color(0xFF00E5FF)),
+                  hintStyle: TextStyle(color: tokens.textMuted, fontSize: 10),
+                  prefixIcon: Icon(Icons.filter_list, size: 12, color: tokens.accentPrimary),
                   prefixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear, size: 11, color: Colors.white54),
+                          icon: Icon(Icons.clear, size: 11, color: tokens.textMuted),
                           onPressed: () {
                             _searchController.clear();
                             widget.service.setSearchQuery('');

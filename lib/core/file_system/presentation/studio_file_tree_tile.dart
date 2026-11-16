@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design_system/studio_theme_provider.dart';
 import '../data/studio_workspace_file_system_service.dart';
 import '../domain/studio_file_system_node.dart';
 import '../domain/studio_file_type.dart';
@@ -40,6 +41,7 @@ class StudioFileTreeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.tokensOf(context);
     final isSelected = service.selectedNodeId == file.id;
     final fileColor = Color(file.fileType.colorHex);
 
@@ -48,7 +50,7 @@ class StudioFileTreeTile extends StatelessWidget {
         service.selectNode(file.id);
         onFileTapped?.call();
       },
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
       child: Container(
         padding: EdgeInsets.only(
           left: 8.0 + (depth * 14.0),
@@ -57,10 +59,10 @@ class StudioFileTreeTile extends StatelessWidget {
           bottom: 3.5,
         ),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF00E5FF).withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(4),
+          color: isSelected ? tokens.accentPrimary.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
           border: isSelected
-              ? Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.4), width: 1.0)
+              ? Border.all(color: tokens.borderFocus, width: 1.0)
               : null,
         ),
         child: Row(
@@ -78,7 +80,7 @@ class StudioFileTreeTile extends StatelessWidget {
               child: Text(
                 file.name,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : const Color(0xFFB0B9C6),
+                  color: isSelected ? tokens.textPrimary : tokens.textSecondary,
                   fontSize: 11.5,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   letterSpacing: 0.2,
@@ -91,8 +93,8 @@ class StudioFileTreeTile extends StatelessWidget {
             // Tamaño en bytes
             Text(
               file.formattedSize,
-              style: const TextStyle(
-                color: Color(0xFF556075),
+              style: TextStyle(
+                color: tokens.textMuted,
                 fontSize: 9.0,
                 fontFamily: 'monospace',
               ),
@@ -108,14 +110,16 @@ class StudioFileTreeTile extends StatelessWidget {
   }
 
   Widget _buildContextMenu(BuildContext context) {
+    final tokens = StudioThemeScope.tokensOf(context);
+
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, size: 12, color: Color(0xFF6B7280)),
+      icon: Icon(Icons.more_vert, size: 12, color: tokens.textMuted),
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-      color: const Color(0xFF141824),
+      color: tokens.elevatedSurface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: Color(0xFF28324A)),
+        borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
+        side: BorderSide(color: tokens.borderHairline),
       ),
       onSelected: (value) {
         if (value == 'rename') {
@@ -133,25 +137,25 @@ class StudioFileTreeTile extends StatelessWidget {
         }
       },
       itemBuilder: (ctx) => [
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'rename',
           height: 32,
           child: Row(
             children: [
-              Icon(Icons.edit_outlined, size: 13, color: Color(0xFF00E5FF)),
-              SizedBox(width: 8),
-              Text('Renombrar', style: TextStyle(fontSize: 11, color: Colors.white)),
+              Icon(Icons.edit_outlined, size: 13, color: tokens.accentPrimary),
+              const SizedBox(width: 8),
+              Text('Renombrar', style: TextStyle(fontSize: 11, color: tokens.textPrimary)),
             ],
           ),
         ),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'delete',
           height: 32,
           child: Row(
             children: [
-              Icon(Icons.delete_outline, size: 13, color: Color(0xFFFF5252)),
-              SizedBox(width: 8),
-              Text('Eliminar', style: TextStyle(fontSize: 11, color: Color(0xFFFF5252))),
+              Icon(Icons.delete_outline, size: 13, color: tokens.statusError),
+              const SizedBox(width: 8),
+              Text('Eliminar', style: TextStyle(fontSize: 11, color: tokens.statusError)),
             ],
           ),
         ),
