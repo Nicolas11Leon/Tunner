@@ -46,7 +46,7 @@ class VisualInterfaceProfile {
   /// Color de fondo o textura de superficie del módulo.
   final Color surfaceColor;
 
-  /// Glifo musical SMuFL representativo del instrumento (o código unicode musical).
+  /// Glifo musical técnico representativo del instrumento (código técnico o clave musical SMuFL).
   final String smuflGlyph;
 
   /// Etiquetas de cuerdas, parches o teclas que se muestran en el visualizador.
@@ -69,7 +69,7 @@ class VisualInterfaceProfile {
     primaryAccentColor: Color(0xFFF59E0B), // Ámbar dorado
     secondaryAccentColor: Color(0xFFD97706),
     surfaceColor: Color(0xFF1E140F), // Madera oscura
-    smuflGlyph: '🎸',
+    smuflGlyph: 'STR',
     tactileLabels: ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'],
   );
 
@@ -80,7 +80,7 @@ class VisualInterfaceProfile {
     primaryAccentColor: Color(0xFF38BDF8), // Azul eléctrico
     secondaryAccentColor: Color(0xFF0284C7),
     surfaceColor: Color(0xFF0F172A), // Slate profundo
-    smuflGlyph: '🎸',
+    smuflGlyph: 'BSS',
     tactileLabels: ['E1', 'A1', 'D2', 'G2'],
   );
 
@@ -91,7 +91,7 @@ class VisualInterfaceProfile {
     primaryAccentColor: Color(0xFFE11D48), // Carmín de luthier
     secondaryAccentColor: Color(0xFFBE123C),
     surfaceColor: Color(0xFF1C1014),
-    smuflGlyph: '🎻',
+    smuflGlyph: 'VLN',
     tactileLabels: ['G3', 'D4', 'A4', 'E5'],
   );
 
@@ -102,7 +102,7 @@ class VisualInterfaceProfile {
     primaryAccentColor: Color(0xFFFBBF24), // Oro metálico
     secondaryAccentColor: Color(0xFFD97706),
     surfaceColor: Color(0xFF1A1608),
-    smuflGlyph: '🎺',
+    smuflGlyph: 'BRS',
     tactileLabels: ['Pistón 1', 'Pistón 2', 'Pistón 3'],
   );
 
@@ -113,7 +113,7 @@ class VisualInterfaceProfile {
     primaryAccentColor: Color(0xFF34D399), // Esmeralda / plata
     secondaryAccentColor: Color(0xFF059669),
     surfaceColor: Color(0xFF0B1713),
-    smuflGlyph: '🎷',
+    smuflGlyph: 'WND',
     tactileLabels: ['Llave C', 'Llave D', 'Llave E', 'Llave F', 'Llave G', 'Llave A', 'Llave B'],
   );
 
@@ -124,7 +124,7 @@ class VisualInterfaceProfile {
     primaryAccentColor: Color(0xFFA78BFA), // Púrpura conservatorio
     secondaryAccentColor: Color(0xFF7C3AED),
     surfaceColor: Color(0xFF140F21),
-    smuflGlyph: '🎹',
+    smuflGlyph: 'PNO',
     tactileLabels: ['88 Teclas (A0 - C8)'],
   );
 
@@ -135,7 +135,7 @@ class VisualInterfaceProfile {
     primaryAccentColor: Color(0xFFFB923C), // Naranja madera
     secondaryAccentColor: Color(0xFFEA580C),
     surfaceColor: Color(0xFF1C130D),
-    smuflGlyph: '🪵',
+    smuflGlyph: 'MLT',
     tactileLabels: ['Láminas Cromáticas (C2 - C7)'],
   );
 
@@ -146,7 +146,7 @@ class VisualInterfaceProfile {
     primaryAccentColor: Color(0xFF10B981), // Verde cromo
     secondaryAccentColor: Color(0xFF059669),
     surfaceColor: Color(0xFF0B1A14),
-    smuflGlyph: '🥁',
+    smuflGlyph: 'DRM',
     tactileLabels: ['Bombo', 'Caja', 'Hi-Hat', 'Tom 1', 'Tom 2', 'Tom Piso', 'Crash', 'Ride'],
   );
 
@@ -157,7 +157,7 @@ class VisualInterfaceProfile {
     primaryAccentColor: Color(0xFF06B6D4), // Cian de estudio
     secondaryAccentColor: Color(0xFF0891B2),
     surfaceColor: Color(0xFF09171C),
-    smuflGlyph: '🎤',
+    smuflGlyph: 'VOX',
     tactileLabels: ['Formante F1', 'Formante F2', 'Vibrato Rate', 'Autotune Speed'],
   );
 
@@ -168,7 +168,7 @@ class VisualInterfaceProfile {
     primaryAccentColor: Color(0xFFEC4899), // Magenta Neón
     secondaryAccentColor: Color(0xFFDB2777),
     surfaceColor: Color(0xFF1B0C18),
-    smuflGlyph: '🎛️',
+    smuflGlyph: 'SYN',
     tactileLabels: ['Osc 1 (Saw)', 'Cutoff', 'Resonance', 'Glide'],
   );
 }

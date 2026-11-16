@@ -158,15 +158,15 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                     itemBuilder: (context) => const [
                       PopupMenuItem(
                         value: 'calentamiento',
-                        child: Text('🔥 Preset Calentamiento (Afinador + Dron + Metrónomo)', style: TextStyle(color: Colors.white, fontSize: 12)),
+                        child: Text('Preset Calentamiento (Afinador + Dron + Metrónomo)', style: TextStyle(color: Colors.white, fontSize: 12)),
                       ),
                       PopupMenuItem(
                         value: 'transcripcion_partitura',
-                        child: Text('🎼 Preset Transcripción (Tocar -> Escribir en Pentagrama)', style: TextStyle(color: Colors.white, fontSize: 12)),
+                        child: Text('Preset Transcripción (Tocar -> Escribir en Pentagrama)', style: TextStyle(color: Colors.white, fontSize: 12)),
                       ),
                       PopupMenuItem(
                         value: 'produccion_vocal',
-                        child: Text('✨ Preset Vocal (Autotune + Grabador + Espectro)', style: TextStyle(color: Colors.white, fontSize: 12)),
+                        child: Text('Preset Vocal (Autotune + Grabador + Espectro)', style: TextStyle(color: Colors.white, fontSize: 12)),
                       ),
                     ],
                   ),

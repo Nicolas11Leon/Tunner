@@ -45,6 +45,8 @@ class StudioThemeScope extends InheritedNotifier<StudioThemeController> {
     return scope?.notifier?.tokens ?? StudioDesignTokens.adobeSpectrumDark;
   }
 
+  static StudioDesignTokens tokensOf(BuildContext context) => of(context);
+
   static StudioThemeController? controllerOf(BuildContext context) {
     return context
         .dependOnInheritedWidgetOfExactType<StudioThemeScope>()

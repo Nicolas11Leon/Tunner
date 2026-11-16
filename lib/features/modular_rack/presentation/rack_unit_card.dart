@@ -68,8 +68,27 @@ class RackUnitCard extends StatelessWidget {
                   ),
                 ),
 
-                // Icono del tipo de módulo
-                Text(module.moduleType.icon, style: const TextStyle(fontSize: 16)),
+                // Insignia técnica del módulo (Studio Code)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(
+                      color: primaryColor.withValues(alpha: 0.35),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Text(
+                    module.moduleType.icon,
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 8),
 
                 // Título del módulo
@@ -460,7 +479,7 @@ class RackUnitCard extends StatelessWidget {
       children: [
         Text('ENTRENAMIENTO A CIEGAS: MODO AUDITIVO ACTIVO',
             style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-        Text('RACHA: 5 🔥 (GRADO S)',
+        Text('RACHA: 5 [GRADO S]',
             style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
       ],
     );
