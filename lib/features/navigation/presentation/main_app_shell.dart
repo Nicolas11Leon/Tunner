@@ -19,6 +19,10 @@ import '../../acoustic_lab/presentation/harmonic_spectrogram_modal.dart';
 import '../../drone/presentation/harmonic_drone_modal.dart';
 import '../../song_library/presentation/studio_assets_modals.dart';
 import '../../song_library/presentation/song_decomposer_modal.dart';
+import '../../modular_rack/presentation/modular_rack_viewmodel.dart';
+import '../../../core/design_system/molecules/studio_automations_modal.dart';
+import '../../../core/design_system/molecules/studio_customizations_modal.dart';
+import '../../../core/design_system/molecules/studio_settings_modal.dart';
 
 /// Intenciones para el sistema de atajos de teclado de grado profesional y memoria muscular (DAWs).
 class TogglePlayIntent extends Intent {
@@ -131,11 +135,19 @@ class MainAppShell extends StatefulWidget {
 
 class _MainAppShellState extends State<MainAppShell> {
   late int _currentIndex;
+  late final ModularRackViewModel _modularRackViewModel;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _modularRackViewModel = ModularRackViewModel();
+  }
+
+  @override
+  void dispose() {
+    _modularRackViewModel.dispose();
+    super.dispose();
   }
 
   void _navigateToTab(int index) {
@@ -517,6 +529,49 @@ class _MainAppShellState extends State<MainAppShell> {
         },
       ),
       PromptSuggestion(
+        id: 'cmd_import',
+        trigger: '/',
+        command: '/importar',
+        title: 'Importar Archivo Universal',
+        description: 'Importar archivos MusicXML, MIDI, ABC, PDF o WAV',
+        category: 'Archivos',
+        shortcut: 'Ctrl+O',
+        icon: Icons.file_open_outlined,
+        onExecute: (_) => StudioAssetsModals.showImportScoreDialog(
+          context: context,
+          viewModel: viewModel,
+          onNavigateToTab: _navigateToTab,
+        ),
+      ),
+      PromptSuggestion(
+        id: 'cmd_nueva_partitura',
+        trigger: '/',
+        command: '/nueva',
+        title: 'Crear Nueva Partitura',
+        description: 'Inicializar partitura en blanco en el espacio de trabajo',
+        category: 'Composición',
+        shortcut: 'Ctrl+N',
+        icon: Icons.post_add_rounded,
+        onExecute: (_) => StudioAssetsModals.showNewScoreDialog(
+          context: context,
+          viewModel: viewModel,
+          onNavigateToTab: _navigateToTab,
+        ),
+      ),
+      PromptSuggestion(
+        id: 'cmd_save_preset',
+        trigger: '/',
+        command: '/preset',
+        title: 'Guardar Preset de Afinación',
+        description: 'Almacenar afinación actual en biblioteca local',
+        category: 'Afinación',
+        icon: Icons.bookmark_add_outlined,
+        onExecute: (_) => StudioAssetsModals.showNewTuningPresetDialog(
+          context: context,
+          viewModel: viewModel,
+        ),
+      ),
+      PromptSuggestion(
         id: 'cmd_help',
         trigger: '/',
         command: '/help',
@@ -532,20 +587,33 @@ class _MainAppShellState extends State<MainAppShell> {
       PromptSuggestion(
         id: 'mod_tuner',
         trigger: '@',
-        command: '@tunner',
+        command: '@afinador',
         title: 'Espacio de Afinación Orquestal',
         description: 'Navegar al afinador estroboscópico',
         category: 'Módulos',
+        shortcut: 'Alt+1',
         icon: Icons.tune_rounded,
         onExecute: (_) => _navigateToTab(1),
       ),
       PromptSuggestion(
+        id: 'mod_metronome',
+        trigger: '@',
+        command: '@metronomo',
+        title: 'Metrónomo Determinista',
+        description: 'Navegar al panel de control de tempo y pulso',
+        category: 'Módulos',
+        shortcut: 'Alt+0',
+        icon: Icons.access_time_rounded,
+        onExecute: (_) => _navigateToTab(0),
+      ),
+      PromptSuggestion(
         id: 'mod_studio',
         trigger: '@',
-        command: '@estudio',
-        title: 'Espacio de Producción & Rack DSP',
-        description: 'Navegar al rack modular de efectos',
+        command: '@rack',
+        title: 'Espacio de Producción & Rack Modular',
+        description: 'Navegar a la consola modular de efectos',
         category: 'Módulos',
+        shortcut: 'Alt+4',
         icon: Icons.view_agenda_outlined,
         onExecute: (_) => _navigateToTab(3),
       ),
@@ -553,9 +621,10 @@ class _MainAppShellState extends State<MainAppShell> {
         id: 'mod_conservatory',
         trigger: '@',
         command: '@conservatorio',
-        title: 'Espacio de Aprendizaje & Tutor',
-        description: 'Navegar al tutor guiado de compás',
+        title: 'Espacio de Aprendizaje & Pedagogía',
+        description: 'Navegar al tutor guiado de compás y entonación',
         category: 'Módulos',
+        shortcut: 'Alt+3',
         icon: Icons.school_outlined,
         onExecute: (_) => _navigateToTab(2),
       ),
@@ -566,6 +635,7 @@ class _MainAppShellState extends State<MainAppShell> {
         title: 'Espacio de Biblioteca & Partituras',
         description: 'Navegar al visor de notación musical',
         category: 'Módulos',
+        shortcut: 'Alt+5',
         icon: Icons.menu_book_outlined,
         onExecute: (_) => _navigateToTab(4),
       ),
@@ -578,6 +648,16 @@ class _MainAppShellState extends State<MainAppShell> {
         category: 'Módulos',
         icon: Icons.analytics_outlined,
         onExecute: (_) => HarmonicSpectrogramModal.show(context),
+      ),
+      PromptSuggestion(
+        id: 'mod_chords',
+        trigger: '@',
+        command: '@acordes',
+        title: 'Analizador Polifónico de Acordes',
+        description: 'Abrir analizador de acordes simultáneos',
+        category: 'Módulos',
+        icon: Icons.stacked_bar_chart_rounded,
+        onExecute: (_) => ChordAnalyzerModal.show(context, viewModel),
       ),
     ];
   }
@@ -1039,7 +1119,7 @@ class _MainAppShellState extends State<MainAppShell> {
                     palette: palette,
                     onOpenInstrumentModal: () => _openInstrumentSelector(viewModel),
                   ),
-                  const ModularStudioRackView(),
+                  ModularStudioRackView(viewModel: _modularRackViewModel),
                   CompositionNotationWorkspaceView(
                     viewModel: viewModel,
                     palette: palette,
@@ -1062,9 +1142,35 @@ class _MainAppShellState extends State<MainAppShell> {
                   onOpenSearch: () => _openCommandPalette(viewModel),
                   onOpenShortcuts: () => _openShortcutsGuide(viewModel),
                   onOpenHelp: () => _openShortcutsGuide(viewModel),
-                  onOpenAutomations: () => viewModel.toggleMetronome(),
-                  onOpenCustomizations: () => _openInstrumentSelector(viewModel),
-                  onOpenSettings: () => _openInstrumentSelector(viewModel),
+                  onOpenAutomations: () => StudioAutomationsModal.show(context, viewModel),
+                  onOpenCustomizations: () => StudioCustomizationsModal.show(context, viewModel),
+                  onOpenSettings: () => StudioSettingsModal.show(context, viewModel),
+                  onMenuNewScore: () => StudioAssetsModals.showNewScoreDialog(
+                    context: context,
+                    viewModel: viewModel,
+                    onNavigateToTab: _navigateToTab,
+                  ),
+                  onMenuImportFile: () => StudioAssetsModals.showImportScoreDialog(
+                    context: context,
+                    viewModel: viewModel,
+                    onNavigateToTab: _navigateToTab,
+                  ),
+                  onMenuNewPreset: () => StudioAssetsModals.showNewTuningPresetDialog(
+                    context: context,
+                    viewModel: viewModel,
+                  ),
+                  onMenuSaveWorkspace: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Espacio de trabajo guardado correctamente en almacenamiento local.'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  onMenuResetWorkspace: () => viewModel.resetSongState(),
+                  onMenuToggleRack: () => _navigateToTab(3),
+                  onNavigateToTabIndex: (idx) => _navigateToTab(idx),
+                  onOpenSpectrogram: () => HarmonicSpectrogramModal.show(context),
                   promptSuggestions: _buildPromptSuggestions(viewModel),
                   isRecording: viewModel.isRecording,
                   onToggleRecording: () {

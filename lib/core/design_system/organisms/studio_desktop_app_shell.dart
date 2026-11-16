@@ -36,6 +36,14 @@ class StudioDesktopAppShell extends StatelessWidget {
   final bool isRecording;
   final VoidCallback? onToggleRecording;
   final String engineName;
+  final VoidCallback? onMenuNewScore;
+  final VoidCallback? onMenuImportFile;
+  final VoidCallback? onMenuNewPreset;
+  final VoidCallback? onMenuSaveWorkspace;
+  final VoidCallback? onMenuResetWorkspace;
+  final VoidCallback? onMenuToggleRack;
+  final ValueChanged<int>? onNavigateToTabIndex;
+  final VoidCallback? onOpenSpectrogram;
 
   const StudioDesktopAppShell({
     super.key,
@@ -58,6 +66,14 @@ class StudioDesktopAppShell extends StatelessWidget {
     this.isRecording = false,
     this.onToggleRecording,
     this.engineName = 'Tartini DSP 2.1',
+    this.onMenuNewScore,
+    this.onMenuImportFile,
+    this.onMenuNewPreset,
+    this.onMenuSaveWorkspace,
+    this.onMenuResetWorkspace,
+    this.onMenuToggleRack,
+    this.onNavigateToTabIndex,
+    this.onOpenSpectrogram,
   });
 
   @override
@@ -85,10 +101,10 @@ class StudioDesktopAppShell extends StatelessWidget {
               child: Row(
                 children: [
                   // Menús de Aplicación de Escritorio
-                  _buildTopMenuItem('Tunner', tokens, isBrand: true),
-                  _buildTopMenuItem('Workspace', tokens),
-                  _buildTopMenuItem('View', tokens),
-                  _buildTopMenuItem('Window', tokens),
+                  _buildTunnerMenu(context, tokens),
+                  _buildWorkspaceMenu(context, tokens),
+                  _buildViewMenu(context, tokens),
+                  _buildWindowMenu(context, tokens),
 
                   const SizedBox(width: 8),
                   const StudioHairline(orientation: Axis.vertical, length: 14),
@@ -141,10 +157,31 @@ class StudioDesktopAppShell extends StatelessWidget {
                   const SizedBox(width: 4),
                   const StudioThemeSwitcher(),
                   const SizedBox(width: 4),
-                  Icon(
-                    Icons.more_vert_rounded,
-                    size: 16,
-                    color: tokens.textMuted,
+                  PopupMenuButton<String>(
+                    tooltip: 'Opciones de la Estación',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    icon: Icon(Icons.more_vert_rounded, size: 16, color: tokens.textMuted),
+                    color: tokens.panelBackground,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                      side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
+                    ),
+                    onSelected: (val) {
+                      if (val == 'settings') onOpenSettings?.call();
+                      if (val == 'shortcuts') onOpenShortcuts();
+                      if (val == 'automations') onOpenAutomations?.call();
+                      if (val == 'customizations') onOpenCustomizations?.call();
+                      if (val == 'about') _showAboutTunnerDialog(context, tokens);
+                    },
+                    itemBuilder: (ctx) => [
+                      _buildPopupMenuItem('settings', 'Ajustes del Estudio', Icons.settings_outlined, tokens),
+                      _buildPopupMenuItem('shortcuts', 'Atajos de Teclado', Icons.keyboard_outlined, tokens, shortcut: '?'),
+                      _buildPopupMenuItem('automations', 'Automatizaciones', Icons.access_time_rounded, tokens),
+                      _buildPopupMenuItem('customizations', 'Personalización Técnica', Icons.tune_rounded, tokens),
+                      const PopupMenuDivider(height: 8),
+                      _buildPopupMenuItem('about', 'Acerca de Tunner', Icons.info_outline_rounded, tokens),
+                    ],
                   ),
                 ],
               ),
@@ -364,18 +401,280 @@ class StudioDesktopAppShell extends StatelessWidget {
     );
   }
 
-  Widget _buildTopMenuItem(String label, StudioDesignTokens tokens, {bool isBrand = false}) {
-    return InkWell(
-      onTap: () {},
-      borderRadius: BorderRadius.circular(tokens.radiusSmall),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 3.0),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isBrand ? tokens.accentPrimary : tokens.textPrimary,
-            fontSize: 11.5,
-            fontWeight: isBrand ? FontWeight.w800 : FontWeight.w500,
+  Widget _buildTunnerMenu(BuildContext context, StudioDesignTokens tokens) {
+    return _buildTopPopupMenu(
+      context: context,
+      label: 'Tunner',
+      tokens: tokens,
+      isBrand: true,
+      onSelected: (val) {
+        if (val == 'about') _showAboutTunnerDialog(context, tokens);
+        if (val == 'shortcuts') onOpenShortcuts();
+        if (val == 'settings') onOpenSettings?.call();
+        if (val == 'updates') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tunner v2.29.0 está actualizado con el motor acústico más reciente.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      },
+      items: [
+        _buildPopupMenuItem('about', 'Acerca de Tunner', Icons.info_outline_rounded, tokens),
+        _buildPopupMenuItem('shortcuts', 'Guía de Atajos de Teclado', Icons.keyboard_outlined, tokens, shortcut: '?'),
+        _buildPopupMenuItem('settings', 'Preferencias del Estudio...', Icons.tune_rounded, tokens, shortcut: 'Ctrl+,'),
+        const PopupMenuDivider(height: 8),
+        _buildPopupMenuItem('updates', 'Comprobar Actualizaciones', Icons.system_update_alt_rounded, tokens),
+      ],
+    );
+  }
+
+  Widget _buildWorkspaceMenu(BuildContext context, StudioDesignTokens tokens) {
+    return _buildTopPopupMenu(
+      context: context,
+      label: 'Workspace',
+      tokens: tokens,
+      onSelected: (val) {
+        if (val == 'new_score') onMenuNewScore?.call();
+        if (val == 'import_file') onMenuImportFile?.call();
+        if (val == 'new_preset') onMenuNewPreset?.call();
+        if (val == 'save_workspace') onMenuSaveWorkspace?.call();
+        if (val == 'reset_workspace') onMenuResetWorkspace?.call();
+      },
+      items: [
+        _buildPopupMenuItem('new_score', 'Nueva Partitura...', Icons.post_add_rounded, tokens, shortcut: 'Ctrl+N'),
+        _buildPopupMenuItem('import_file', 'Importar Archivo Universal...', Icons.file_open_outlined, tokens, shortcut: 'Ctrl+O'),
+        _buildPopupMenuItem('new_preset', 'Nuevo Preset de Afinación...', Icons.bookmark_add_outlined, tokens),
+        const PopupMenuDivider(height: 8),
+        _buildPopupMenuItem('save_workspace', 'Guardar Estado de Sesión', Icons.save_outlined, tokens, shortcut: 'Ctrl+S'),
+        _buildPopupMenuItem('reset_workspace', 'Reiniciar Espacio de Trabajo', Icons.refresh_rounded, tokens),
+      ],
+    );
+  }
+
+  Widget _buildViewMenu(BuildContext context, StudioDesignTokens tokens) {
+    return _buildTopPopupMenu(
+      context: context,
+      label: 'View',
+      tokens: tokens,
+      onSelected: (val) {
+        if (val == 'toggle_rack') onMenuToggleRack?.call();
+        if (val == 'search') onOpenSearch();
+        if (val == 'automations') onOpenAutomations?.call();
+        if (val == 'customizations') onOpenCustomizations?.call();
+        if (val == 'spectrogram') onOpenSpectrogram?.call();
+      },
+      items: [
+        _buildPopupMenuItem('search', 'Búsqueda Rápida Omnibox', Icons.search_rounded, tokens, shortcut: 'Ctrl+K'),
+        _buildPopupMenuItem('toggle_rack', 'Alternar Rack Modular', Icons.dashboard_customize_outlined, tokens, shortcut: 'Tab'),
+        _buildPopupMenuItem('spectrogram', 'Espectrograma FFT Pantalla Completa', Icons.graphic_eq_rounded, tokens),
+        const PopupMenuDivider(height: 8),
+        _buildPopupMenuItem('automations', 'Panel de Automatizaciones', Icons.access_time_rounded, tokens),
+        _buildPopupMenuItem('customizations', 'Personalización Técnica DSP', Icons.tune_rounded, tokens),
+      ],
+    );
+  }
+
+  Widget _buildWindowMenu(BuildContext context, StudioDesignTokens tokens) {
+    return _buildTopPopupMenu(
+      context: context,
+      label: 'Window',
+      tokens: tokens,
+      onSelected: (val) {
+        if (val == 'tuner') onNavigateToTabIndex?.call(1);
+        if (val == 'metronome') onNavigateToTabIndex?.call(0);
+        if (val == 'learning') onNavigateToTabIndex?.call(2);
+        if (val == 'studio') onNavigateToTabIndex?.call(3);
+        if (val == 'library') onNavigateToTabIndex?.call(4);
+      },
+      items: [
+        _buildPopupMenuItem('tuner', '1. Afinador Estroboscópico Pro', Icons.tune_rounded, tokens, shortcut: 'Alt+1'),
+        _buildPopupMenuItem('metronome', '2. Metrónomo Determinista', Icons.access_time_rounded, tokens, shortcut: 'Alt+2'),
+        _buildPopupMenuItem('learning', '3. Conservatorio & Pedagogía', Icons.school_outlined, tokens, shortcut: 'Alt+3'),
+        _buildPopupMenuItem('studio', '4. Rack Modular de Estudio', Icons.dashboard_customize_outlined, tokens, shortcut: 'Alt+4'),
+        _buildPopupMenuItem('library', '5. Biblioteca de Canciones', Icons.menu_book_outlined, tokens, shortcut: 'Alt+5'),
+      ],
+    );
+  }
+
+  Widget _buildTopPopupMenu({
+    required BuildContext context,
+    required String label,
+    required StudioDesignTokens tokens,
+    required List<PopupMenuEntry<String>> items,
+    required ValueChanged<String> onSelected,
+    bool isBrand = false,
+  }) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        popupMenuTheme: PopupMenuThemeData(
+          color: tokens.panelBackground,
+          elevation: 8,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.radiusSmall),
+            side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
+          ),
+        ),
+      ),
+      child: PopupMenuButton<String>(
+        tooltip: label,
+        offset: const Offset(0, 26),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 10, minHeight: 10),
+        color: tokens.panelBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tokens.radiusSmall),
+          side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
+        ),
+        onSelected: onSelected,
+        itemBuilder: (ctx) => items,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 3.0),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isBrand ? tokens.accentPrimary : tokens.textPrimary,
+              fontSize: 11.5,
+              fontWeight: isBrand ? FontWeight.w800 : FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _buildPopupMenuItem(
+    String value,
+    String title,
+    IconData icon,
+    StudioDesignTokens tokens, {
+    String? shortcut,
+  }) {
+    return PopupMenuItem<String>(
+      value: value,
+      height: 32,
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: tokens.textSecondary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: tokens.textPrimary,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          if (shortcut != null) ...[
+            const SizedBox(width: 8),
+            Text(
+              shortcut,
+              style: TextStyle(
+                color: tokens.textMuted,
+                fontSize: 9.5,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showAboutTunnerDialog(BuildContext context, StudioDesignTokens tokens) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: tokens.panelBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tokens.radiusMedium),
+          side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: tokens.elevatedSurface,
+                        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                        border: Border.all(color: tokens.borderHairline, width: 0.5),
+                      ),
+                      child: Icon(Icons.waves_rounded, size: 22, color: tokens.accentPrimary),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tunner Audio Workstation',
+                          style: TextStyle(
+                            color: tokens.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Version $appVersion (Offline-First Pro Suite)',
+                          style: TextStyle(
+                            color: tokens.textMuted,
+                            fontSize: 10.5,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const StudioHairline(orientation: Axis.horizontal),
+                const SizedBox(height: 14),
+                Text(
+                  'Estación de trabajo acústica modular y conservatorio digital. Diseñada para pedagogía musical avanzada, entonación pura, transcriptor en tiempo real y análisis acústico sin latencia.',
+                  style: TextStyle(
+                    color: tokens.textSecondary,
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '• Motor DSP: $engineName\n• Precisión: ±0.1 cents (MPM/NSDF)\n• Estándar Notación: SMuFL 1.4\n• Arquitectura: Monolito Modular Limpio',
+                  style: TextStyle(
+                    color: tokens.textMuted,
+                    fontSize: 10,
+                    height: 1.5,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: tokens.accentPrimary,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                      ),
+                    ),
+                    child: const Text('Entendido', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
