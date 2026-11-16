@@ -49,6 +49,7 @@ class StudioDesktopAppShell extends StatefulWidget {
   final VoidCallback? onMenuToggleRack;
   final ValueChanged<int>? onNavigateToTabIndex;
   final VoidCallback? onOpenSpectrogram;
+  final Widget? customSidebarExplorer;
 
   const StudioDesktopAppShell({
     super.key,
@@ -81,6 +82,7 @@ class StudioDesktopAppShell extends StatefulWidget {
     this.onMenuToggleRack,
     this.onNavigateToTabIndex,
     this.onOpenSpectrogram,
+    this.customSidebarExplorer,
   });
 
   @override
@@ -92,6 +94,7 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
   bool _isSidebarVisible = true;
   bool _isDualSplitActive = false;
   double _dualSplitRatio = 0.50;
+  String _sidebarMode = 'explorer'; // 'explorer' o 'tools'
 
   void _toggleSidebar() {
     setState(() {
@@ -306,12 +309,114 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
 
                             const StudioHairline(orientation: Axis.horizontal),
 
-                            // Árbol Jerárquico de Proyectos y Carpetas
-                            Expanded(
-                              child: StudioTreeView(
-                                sections: widget.navigationSections,
-                                selectedItemId: widget.activeItemId,
+                            // Conmutador de Modo de Barra Lateral (Archivos VS Code / Suite de Herramientas)
+                            if (widget.customSidebarExplorer != null) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF0F121C),
+                                  border: Border(bottom: BorderSide(color: Color(0xFF1E2538))),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: InkWell(
+                                        key: const Key('sidebar_mode_explorer_btn'),
+                                        onTap: () => setState(() => _sidebarMode = 'explorer'),
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: _sidebarMode == 'explorer'
+                                                ? const Color(0xFF1E283C)
+                                                : Colors.transparent,
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: _sidebarMode == 'explorer'
+                                                ? Border.all(color: const Color(0xFF00E5FF), width: 1)
+                                                : null,
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.folder_outlined,
+                                                size: 12,
+                                                color: _sidebarMode == 'explorer'
+                                                    ? const Color(0xFF00E5FF)
+                                                    : const Color(0xFF8E9BAE),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Archivos',
+                                                style: TextStyle(
+                                                  color: _sidebarMode == 'explorer'
+                                                      ? Colors.white
+                                                      : const Color(0xFF8E9BAE),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: InkWell(
+                                        key: const Key('sidebar_mode_tools_btn'),
+                                        onTap: () => setState(() => _sidebarMode = 'tools'),
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: _sidebarMode == 'tools'
+                                                ? const Color(0xFF1E283C)
+                                                : Colors.transparent,
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: _sidebarMode == 'tools'
+                                                ? Border.all(color: const Color(0xFF00E5FF), width: 1)
+                                                : null,
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.grid_view_outlined,
+                                                size: 12,
+                                                color: _sidebarMode == 'tools'
+                                                    ? const Color(0xFF00E5FF)
+                                                    : const Color(0xFF8E9BAE),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Herramientas',
+                                                style: TextStyle(
+                                                  color: _sidebarMode == 'tools'
+                                                      ? Colors.white
+                                                      : const Color(0xFF8E9BAE),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
+                            ],
+
+                            // Árbol Jerárquico de Proyectos y Carpetas (VS Code Explorer o Suite de Herramientas)
+                            Expanded(
+                              child: (_sidebarMode == 'explorer' && widget.customSidebarExplorer != null)
+                                  ? widget.customSidebarExplorer!
+                                  : StudioTreeView(
+                                      sections: widget.navigationSections,
+                                      selectedItemId: widget.activeItemId,
+                                    ),
                             ),
 
                             // Instrumento Activo

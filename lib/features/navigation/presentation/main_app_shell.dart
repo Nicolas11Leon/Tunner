@@ -25,6 +25,10 @@ import '../../dj_console/presentation/dj_console_view_model.dart';
 import '../../../core/design_system/molecules/studio_automations_modal.dart';
 import '../../../core/design_system/molecules/studio_customizations_modal.dart';
 import '../../../core/design_system/molecules/studio_settings_modal.dart';
+import '../../../core/file_system/data/studio_workspace_file_system_service.dart';
+import '../../../core/file_system/domain/studio_file_system_node.dart';
+import '../../../core/file_system/domain/studio_file_type.dart';
+import '../../../core/file_system/presentation/studio_vscode_explorer_widget.dart';
 
 /// Intenciones para el sistema de atajos de teclado de grado profesional y memoria muscular (DAWs).
 class TogglePlayIntent extends Intent {
@@ -139,6 +143,7 @@ class _MainAppShellState extends State<MainAppShell> {
   late int _currentIndex;
   late final ModularRackViewModel _modularRackViewModel;
   late final DjConsoleViewModel _djConsoleViewModel;
+  late final StudioWorkspaceFileSystemService _fileSystemService;
 
   @override
   void initState() {
@@ -146,6 +151,82 @@ class _MainAppShellState extends State<MainAppShell> {
     _currentIndex = widget.initialIndex;
     _modularRackViewModel = ModularRackViewModel();
     _djConsoleViewModel = DjConsoleViewModel();
+    _fileSystemService = StudioWorkspaceFileSystemService();
+    _fileSystemService.onOpenFile = _handleOpenFile;
+  }
+
+  void _handleOpenFile(StudioFileEntity file) {
+    switch (file.fileType) {
+      case StudioFileType.score:
+        _navigateToTab(4);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Partitura abierta en el Editor: ${file.name}'),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        break;
+      case StudioFileType.audioWav:
+        _navigateToTab(5);
+        _djConsoleViewModel.loadTrackSimple('A', title: file.name, bpm: 124.0, camelotKey: '8B');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Audio cargado en Deck A de la Consola DJ: ${file.name}'),
+            backgroundColor: const Color(0xFF00E5FF),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        break;
+      case StudioFileType.tuningPreset:
+        _navigateToTab(1);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Preset de afinación activado: ${file.name}'),
+            backgroundColor: const Color(0xFFFFAB00),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        break;
+      case StudioFileType.rackTool:
+        _navigateToTab(3);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Módulo de rack cargado: ${file.name}'),
+            backgroundColor: const Color(0xFF8B5CF6),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        break;
+      case StudioFileType.djBlueprint:
+        _navigateToTab(5);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Modelo de consola DJ aplicado: ${file.name}'),
+            backgroundColor: const Color(0xFF3D5AFE),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        break;
+      case StudioFileType.project:
+        _navigateToTab(0);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Proyecto Tunner restaurado íntegramente: ${file.name}'),
+            backgroundColor: const Color(0xFF00E5FF),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        break;
+      case StudioFileType.genericFile:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Archivo cargado: ${file.name} (${file.formattedSize})'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        break;
+    }
   }
 
   @override
@@ -1296,6 +1377,9 @@ class _MainAppShellState extends State<MainAppShell> {
                         ),
                       ],
                     ),
+                  ),
+                  customSidebarExplorer: StudioVsCodeExplorerWidget(
+                    service: _fileSystemService,
                   ),
                 );
               }
