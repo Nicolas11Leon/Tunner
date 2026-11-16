@@ -30,11 +30,13 @@ import 'vector_jog_wheel.dart';
 class DjStudioWorkstationView extends StatefulWidget {
   final DjConsoleViewModel? viewModel;
   final String initialViewMode;
+  final VoidCallback? onClose;
 
   const DjStudioWorkstationView({
     super.key,
     this.viewModel,
     this.initialViewMode = 'modular',
+    this.onClose,
   });
 
   @override
@@ -91,28 +93,83 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
     _patchbayService.registerPlug(_deckBPlug);
     _patchbayService.registerPlug(_masterOutPlug);
 
-    // Escuchas para inyección de señales a Decks
+    // Escuchas para sincronización reactiva bidireccional hacia los Decks
     _patchbayService.registerSinkListener('plug_dj_deck_a_in', (sourceId, channelId, payload) {
-      final title = payload['title'] as String? ?? 'Melodía Partitura Canal A';
-      final bpm = (payload['bpm'] as num?)?.toDouble() ?? 120.0;
-      final key = payload['key'] as String? ?? '8B';
-      _viewModel.loadTrackSimple('A', title: title, bpm: bpm, camelotKey: key);
+      if (sourceId == 'plug_dj_deck_a_in') return;
+      final title = payload['title'] as String?;
+      final bpm = (payload['bpm'] as num?)?.toDouble();
+      final key = payload['key'] as String?;
+      if (title != null || bpm != null || key != null) {
+        _viewModel.loadTrackSimple(
+          'A',
+          title: title ?? _viewModel.deckA.trackTitle,
+          bpm: bpm ?? _viewModel.deckA.bpm,
+          camelotKey: key ?? _viewModel.deckA.camelotKey,
+        );
+      }
+      final isPlaying = payload['isPlaying'] as bool?;
+      if (isPlaying != null && isPlaying != _viewModel.deckA.isPlaying) {
+        _viewModel.togglePlay('A');
+      }
     });
 
     _patchbayService.registerSinkListener('plug_dj_deck_b_in', (sourceId, channelId, payload) {
-      final title = payload['title'] as String? ?? 'Pista Externa Canal B';
-      final bpm = (payload['bpm'] as num?)?.toDouble() ?? 126.0;
-      final key = payload['key'] as String? ?? '9A';
-      _viewModel.loadTrackSimple('B', title: title, bpm: bpm, camelotKey: key);
+      if (sourceId == 'plug_dj_deck_b_in') return;
+      final title = payload['title'] as String?;
+      final bpm = (payload['bpm'] as num?)?.toDouble();
+      final key = payload['key'] as String?;
+      if (title != null || bpm != null || key != null) {
+        _viewModel.loadTrackSimple(
+          'B',
+          title: title ?? _viewModel.deckB.trackTitle,
+          bpm: bpm ?? _viewModel.deckB.bpm,
+          camelotKey: key ?? _viewModel.deckB.camelotKey,
+        );
+      }
+      final isPlaying = payload['isPlaying'] as bool?;
+      if (isPlaying != null && isPlaying != _viewModel.deckB.isPlaying) {
+        _viewModel.togglePlay('B');
+      }
     });
+
+    _viewModel.addListener(_syncDecksToChannels);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focusNode.requestFocus();
     });
   }
 
+  void _syncDecksToChannels() {
+    final plugA = _patchbayService.plugs['plug_dj_deck_a_in'];
+    if (plugA != null && plugA.isConnected) {
+      _patchbayService.publishChannelParameters(
+        plugA.connectedChannelId!,
+        title: _viewModel.deckA.trackTitle,
+        bpm: _viewModel.deckA.effectiveBpm,
+        key: _viewModel.deckA.effectiveCamelotKey.code,
+        isPlaying: _viewModel.deckA.isPlaying,
+        positionMs: _viewModel.deckA.currentPositionMs,
+        initiatorPlugId: 'plug_dj_deck_a_in',
+      );
+    }
+
+    final plugB = _patchbayService.plugs['plug_dj_deck_b_in'];
+    if (plugB != null && plugB.isConnected) {
+      _patchbayService.publishChannelParameters(
+        plugB.connectedChannelId!,
+        title: _viewModel.deckB.trackTitle,
+        bpm: _viewModel.deckB.effectiveBpm,
+        key: _viewModel.deckB.effectiveCamelotKey.code,
+        isPlaying: _viewModel.deckB.isPlaying,
+        positionMs: _viewModel.deckB.currentPositionMs,
+        initiatorPlugId: 'plug_dj_deck_b_in',
+      );
+    }
+  }
+
   @override
   void dispose() {
+    _viewModel.removeListener(_syncDecksToChannels);
     _patchbayService.unregisterSinkListener('plug_dj_deck_a_in');
     _patchbayService.unregisterSinkListener('plug_dj_deck_b_in');
     _focusNode.dispose();
@@ -600,6 +657,15 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                 );
               },
             ),
+            if (widget.onClose != null) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                key: const Key('close_dj_studio_workstation_btn'),
+                tooltip: 'Cerrar Estación DJ',
+                icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                onPressed: widget.onClose,
+              ),
+            ],
           ],
         ),
       ),

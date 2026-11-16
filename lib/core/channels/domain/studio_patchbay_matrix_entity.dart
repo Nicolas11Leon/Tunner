@@ -8,7 +8,8 @@ enum StudioDspOpcode {
   setBusGain(0x03),
   muteBus(0x04),
   disconnectPlug(0x05),
-  flushBuffers(0x06);
+  flushBuffers(0x06),
+  syncClockAndTransport(0x07);
 
   final int byteCode;
   const StudioDspOpcode(this.byteCode);
@@ -32,7 +33,7 @@ class StudioDspInstruction {
   String toString() => '${opcode.name}($sourceId -> $targetId, param: $parameter)';
 }
 
-/// Matriz global inmutable de parcheo modular entre plugs y canales.
+/// Matriz global inmutable de parcheo modular entre plugs y canales nombrables.
 class StudioPatchbayMatrixEntity {
   final Map<String, StudioChannelBus> channels;
   final Map<String, StudioModularPlug> plugs;
@@ -67,7 +68,7 @@ class StudioPatchbayMatrixEntity {
         .toList();
   }
 
-  /// Conecta un plug a un canal troncal.
+  /// Conecta un plug a un canal troncal o personalizado.
   StudioPatchbayMatrixEntity connectPlug(String plugId, String channelId) {
     final existingPlug = plugs[plugId];
     if (existingPlug == null) return this;
@@ -106,7 +107,52 @@ class StudioPatchbayMatrixEntity {
     );
   }
 
-  /// Actualiza la ganancia o estado de un canal.
+  /// Agrega un nuevo canal personalizado a la matriz.
+  StudioPatchbayMatrixEntity addChannel(StudioChannelBus channel) {
+    final updatedChannels = Map<String, StudioChannelBus>.from(channels);
+    updatedChannels[channel.id] = channel;
+
+    return StudioPatchbayMatrixEntity(
+      channels: updatedChannels,
+      plugs: plugs,
+    );
+  }
+
+  /// Elimina un canal personalizado desconectando automáticamente los plugs que estuvieran enlazados a él.
+  StudioPatchbayMatrixEntity removeChannel(String channelId) {
+    if (!channels.containsKey(channelId)) return this;
+
+    final updatedChannels = Map<String, StudioChannelBus>.from(channels)..remove(channelId);
+    final updatedPlugs = <String, StudioModularPlug>{};
+    for (final entry in plugs.entries) {
+      if (entry.value.connectedChannelId == channelId) {
+        updatedPlugs[entry.key] = entry.value.copyWith(clearConnection: true);
+      } else {
+        updatedPlugs[entry.key] = entry.value;
+      }
+    }
+
+    return StudioPatchbayMatrixEntity(
+      channels: updatedChannels,
+      plugs: updatedPlugs,
+    );
+  }
+
+  /// Renombra un canal existente conservando su ID, color y conexiones.
+  StudioPatchbayMatrixEntity renameChannel(String channelId, String newName) {
+    final existing = channels[channelId];
+    if (existing == null) return this;
+
+    final updatedChannels = Map<String, StudioChannelBus>.from(channels);
+    updatedChannels[channelId] = existing.withName(newName);
+
+    return StudioPatchbayMatrixEntity(
+      channels: updatedChannels,
+      plugs: plugs,
+    );
+  }
+
+  /// Actualiza la ganancia, silenciamiento o estado de un canal.
   StudioPatchbayMatrixEntity updateChannel(StudioChannelBus channel) {
     final updatedChannels = Map<String, StudioChannelBus>.from(channels);
     updatedChannels[channel.id] = channel;
@@ -130,6 +176,17 @@ class StudioPatchbayMatrixEntity {
           parameter: channel.isMuted ? 0.0 : channel.gain,
         ),
       );
+
+      if (channel.isPlaying) {
+        instructions.add(
+          StudioDspInstruction(
+            opcode: StudioDspOpcode.syncClockAndTransport,
+            sourceId: channel.id,
+            targetId: 'engine_clock',
+            parameter: channel.activeBpm,
+          ),
+        );
+      }
 
       final sources = findSourcesForChannel(channel.id);
       for (final src in sources) {

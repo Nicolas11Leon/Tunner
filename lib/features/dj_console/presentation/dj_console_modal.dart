@@ -1,6 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import '../../../core/channels/data/studio_patchbay_routing_service.dart';
+import '../../../core/channels/domain/studio_modular_plug.dart';
+import '../../../core/channels/domain/studio_plug_type.dart';
+import '../../../core/channels/presentation/studio_channel_patchbay_bar_widget.dart';
+import '../../../core/channels/presentation/studio_modular_plug_widget.dart';
 import '../../../core/design_system/atoms/studio_theme_switcher.dart';
 import '../../../core/design_system/studio_theme_provider.dart';
 import '../../../core/theme/tunner_theme.dart';
@@ -36,6 +41,10 @@ class DjConsoleModal extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width,
+        maxHeight: MediaQuery.of(context).size.height,
+      ),
       backgroundColor: Colors.transparent,
       builder: (ctx) => DjConsoleModal(viewModel: viewModel, palette: palette),
     );
@@ -47,12 +56,74 @@ class DjConsoleModal extends StatefulWidget {
 
 class _DjConsoleModalState extends State<DjConsoleModal> {
   late final MediaVaultViewModel _mediaVaultViewModel;
+  late final StudioPatchbayRoutingService _patchbayService;
+  late final StudioModularPlug _deckAPlug;
+  late final StudioModularPlug _deckBPlug;
 
   final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
+    _patchbayService = StudioPatchbayRoutingService();
+    _deckAPlug = const StudioModularPlug(
+      id: 'plug_dj_deck_a_in',
+      label: 'IN DECK A',
+      toolId: 'dj_console',
+      type: StudioPlugType.audioInput,
+      connectedChannelId: 'canal_a',
+    );
+    _deckBPlug = const StudioModularPlug(
+      id: 'plug_dj_deck_b_in',
+      label: 'IN DECK B',
+      toolId: 'dj_console',
+      type: StudioPlugType.audioInput,
+      connectedChannelId: 'canal_b',
+    );
+    _patchbayService.registerPlug(_deckAPlug);
+    _patchbayService.registerPlug(_deckBPlug);
+
+    // Escuchas para sincronización de parámetros a Decks
+    _patchbayService.registerSinkListener('plug_dj_deck_a_in', (sourceId, channelId, payload) {
+      if (sourceId == 'plug_dj_deck_a_in') return;
+      final title = payload['title'] as String?;
+      final bpm = (payload['bpm'] as num?)?.toDouble();
+      final key = payload['key'] as String?;
+      if (title != null || bpm != null || key != null) {
+        widget.viewModel.loadTrackSimple(
+          'A',
+          title: title ?? widget.viewModel.deckA.trackTitle,
+          bpm: bpm ?? widget.viewModel.deckA.bpm,
+          camelotKey: key ?? widget.viewModel.deckA.camelotKey,
+        );
+      }
+      final isPlaying = payload['isPlaying'] as bool?;
+      if (isPlaying != null && isPlaying != widget.viewModel.deckA.isPlaying) {
+        widget.viewModel.togglePlay('A');
+      }
+    });
+
+    _patchbayService.registerSinkListener('plug_dj_deck_b_in', (sourceId, channelId, payload) {
+      if (sourceId == 'plug_dj_deck_b_in') return;
+      final title = payload['title'] as String?;
+      final bpm = (payload['bpm'] as num?)?.toDouble();
+      final key = payload['key'] as String?;
+      if (title != null || bpm != null || key != null) {
+        widget.viewModel.loadTrackSimple(
+          'B',
+          title: title ?? widget.viewModel.deckB.trackTitle,
+          bpm: bpm ?? widget.viewModel.deckB.bpm,
+          camelotKey: key ?? widget.viewModel.deckB.camelotKey,
+        );
+      }
+      final isPlaying = payload['isPlaying'] as bool?;
+      if (isPlaying != null && isPlaying != widget.viewModel.deckB.isPlaying) {
+        widget.viewModel.togglePlay('B');
+      }
+    });
+
+    widget.viewModel.addListener(_syncDecksToChannels);
+
     _mediaVaultViewModel = MediaVaultViewModel(
       onDispatchToTool: (asset, target) {
         if (target == MediaSynergyTarget.djDeckA ||
@@ -76,8 +147,39 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
     });
   }
 
+  void _syncDecksToChannels() {
+    final plugA = _patchbayService.plugs['plug_dj_deck_a_in'];
+    if (plugA != null && plugA.isConnected) {
+      _patchbayService.publishChannelParameters(
+        plugA.connectedChannelId!,
+        title: widget.viewModel.deckA.trackTitle,
+        bpm: widget.viewModel.deckA.effectiveBpm,
+        key: widget.viewModel.deckA.effectiveCamelotKey.code,
+        isPlaying: widget.viewModel.deckA.isPlaying,
+        positionMs: widget.viewModel.deckA.currentPositionMs,
+        initiatorPlugId: 'plug_dj_deck_a_in',
+      );
+    }
+
+    final plugB = _patchbayService.plugs['plug_dj_deck_b_in'];
+    if (plugB != null && plugB.isConnected) {
+      _patchbayService.publishChannelParameters(
+        plugB.connectedChannelId!,
+        title: widget.viewModel.deckB.trackTitle,
+        bpm: widget.viewModel.deckB.effectiveBpm,
+        key: widget.viewModel.deckB.effectiveCamelotKey.code,
+        isPlaying: widget.viewModel.deckB.isPlaying,
+        positionMs: widget.viewModel.deckB.currentPositionMs,
+        initiatorPlugId: 'plug_dj_deck_b_in',
+      );
+    }
+  }
+
   @override
   void dispose() {
+    widget.viewModel.removeListener(_syncDecksToChannels);
+    _patchbayService.unregisterSinkListener('plug_dj_deck_a_in');
+    _patchbayService.unregisterSinkListener('plug_dj_deck_b_in');
     _focusNode.dispose();
     _mediaVaultViewModel.dispose();
     super.dispose();
@@ -327,6 +429,9 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
               ),
               Divider(height: 1, color: palette.staffLinesColor.withValues(alpha: 0.2)),
 
+              // Barra Troncal y Personalizada de Canales Modulares
+              StudioChannelPatchbayBarWidget(routingService: _patchbayService),
+
               // 2. Main Mixing Workspace
               Expanded(
                 child: SingleChildScrollView(
@@ -499,6 +604,13 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
             // Track Info & BPM
             Row(
               children: [
+                StudioModularPlugWidget(
+                  plug: deckId == 'A' ? _deckAPlug : _deckBPlug,
+                  routingService: _patchbayService,
+                  size: 26,
+                  showLabel: false,
+                ),
+                const SizedBox(width: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(

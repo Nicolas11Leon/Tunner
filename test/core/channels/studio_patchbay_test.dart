@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tunner/core/channels/data/studio_patchbay_routing_service.dart';
+import 'package:tunner/core/channels/domain/studio_channel_bus.dart';
 import 'package:tunner/core/channels/domain/studio_modular_plug.dart';
 import 'package:tunner/core/channels/domain/studio_patchbay_matrix_entity.dart';
 import 'package:tunner/core/channels/domain/studio_plug_type.dart';
+import 'package:tunner/core/channels/presentation/studio_channel_modals.dart';
 import 'package:tunner/core/channels/presentation/studio_channel_patchbay_bar_widget.dart';
 import 'package:tunner/core/channels/presentation/studio_modular_plug_widget.dart';
 import 'package:tunner/features/dj_console/presentation/dj_console_view_model.dart';
@@ -37,6 +39,41 @@ void main() {
       matrix = matrix.disconnectPlug('plug_test_out');
       expect(matrix.plugs['plug_test_out']!.isConnected, isFalse);
       expect(matrix.findSourcesForChannel('canal_a').isEmpty, isTrue);
+    });
+
+    test('Creates, renames, and removes custom named channels in matrix', () {
+      var matrix = StudioPatchbayMatrixEntity.initial();
+
+      final customBus = StudioChannelBus.createCustom(
+        id: 'canal_guitar',
+        name: 'Guitarra Acústica',
+        shortCode: 'GUIT',
+        colorHex: 0xFFFF6D00,
+      );
+
+      matrix = matrix.addChannel(customBus);
+      expect(matrix.channels.containsKey('canal_guitar'), isTrue);
+      expect(matrix.channels['canal_guitar']!.name, 'Guitarra Acústica');
+
+      // Rename
+      matrix = matrix.renameChannel('canal_guitar', 'Guitarra Eléctrica Lead');
+      expect(matrix.channels['canal_guitar']!.name, 'Guitarra Eléctrica Lead');
+
+      // Connect a plug
+      const plug = StudioModularPlug(
+        id: 'plug_gtr',
+        label: 'IN GTR',
+        toolId: 'tuner',
+        type: StudioPlugType.audioInput,
+      );
+      matrix = matrix.registerPlug(plug);
+      matrix = matrix.connectPlug('plug_gtr', 'canal_guitar');
+      expect(matrix.plugs['plug_gtr']!.connectedChannelId, 'canal_guitar');
+
+      // Remove channel should disconnect plug
+      matrix = matrix.removeChannel('canal_guitar');
+      expect(matrix.channels.containsKey('canal_guitar'), isFalse);
+      expect(matrix.plugs['plug_gtr']!.isConnected, isFalse);
     });
 
     test('Compiles matrix topology to DSP opcode instruction sequence', () {
@@ -75,9 +112,14 @@ void main() {
   });
 
   group('StudioPatchbayRoutingService Tests', () {
-    test('Routes audio signal from source plug to sink listener on same channel', () {
-      final service = StudioPatchbayRoutingService();
+    late StudioPatchbayRoutingService service;
 
+    setUp(() {
+      service = StudioPatchbayRoutingService();
+      service.resetToDefaults();
+    });
+
+    test('Routes audio signal from source plug to sink listener on same channel', () {
       const sourcePlug = StudioModularPlug(
         id: 'score_out_test',
         label: 'SCORE OUT',
@@ -116,8 +158,54 @@ void main() {
       service.unregisterSinkListener('deck_in_test');
     });
 
+    test('Creates custom channels and supports bidirectional parameter synchronization', () {
+      final customBus = service.createCustomChannel(
+        name: 'Voz Principal',
+        colorHex: 0xFF10B981,
+      );
+
+      expect(service.channels.any((c) => c.name == 'Voz Principal'), isTrue);
+
+      const sinkPlug = StudioModularPlug(
+        id: 'voc_sink',
+        label: 'VOC IN',
+        toolId: 'vocoder',
+        type: StudioPlugType.audioInput,
+      );
+      service.registerPlug(sinkPlug);
+
+      Map<String, dynamic>? receivedParams;
+      service.registerSinkListener('voc_sink', (src, channel, payload) {
+        receivedParams = payload;
+      });
+
+      // Connecting plug immediately receives existing channel parameters
+      service.connectPlugToChannel('voc_sink', customBus.id);
+      expect(receivedParams, isNotNull);
+
+      // Publishing new parameters updates channel and propagates to sink
+      service.publishChannelParameters(
+        customBus.id,
+        title: 'Toma 1 Acapella',
+        bpm: 130.0,
+        key: '5A',
+        isPlaying: true,
+      );
+
+      expect(receivedParams!['title'], 'Toma 1 Acapella');
+      expect(receivedParams!['bpm'], 130.0);
+      expect(receivedParams!['key'], '5A');
+      expect(receivedParams!['isPlaying'], isTrue);
+
+      // Renaming channel updates metadata
+      service.renameChannel(customBus.id, 'Voz Líder Procesada');
+      final updated = service.channels.firstWhere((c) => c.id == customBus.id);
+      expect(updated.name, 'Voz Líder Procesada');
+
+      service.unregisterSinkListener('voc_sink');
+    });
+
     test('Toggles mute and gain on channel buses', () {
-      final service = StudioPatchbayRoutingService();
       final initialMute = service.matrix.channels['canal_a']!.isMuted;
 
       service.toggleChannelMute('canal_a');
@@ -167,6 +255,46 @@ void main() {
       expect(vm.deckA.bpm, 120.0);
 
       vm.dispose();
+    });
+
+    testWidgets('Opens modal to create a new custom channel from patchbay bar', (tester) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final service = StudioPatchbayRoutingService();
+      service.resetToDefaults();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StudioChannelPatchbayBarWidget(routingService: service),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap [NUEVO CANAL] button
+      final newChannelBtn = find.byKey(const Key('create_custom_channel_btn'));
+      expect(newChannelBtn, findsOneWidget);
+      await tester.tap(newChannelBtn);
+      await tester.pumpAndSettle();
+
+      // Verify modal is open
+      expect(find.byType(StudioCreateChannelModal), findsOneWidget);
+      expect(find.text('CREAR NUEVO CANAL'), findsOneWidget);
+
+      // Enter channel name
+      await tester.enterText(find.byType(TextField), 'Sintetizador Modular');
+      await tester.pumpAndSettle();
+
+      // Tap 'Crear Canal'
+      await tester.tap(find.text('Crear Canal'));
+      await tester.pumpAndSettle();
+
+      // Verify new channel pill appears in bar
+      expect(service.channels.any((c) => c.name == 'Sintetizador Modular'), isTrue);
+      expect(find.text('Sintetizador Modular'), findsOneWidget);
     });
   });
 }
