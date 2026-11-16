@@ -33,6 +33,8 @@ class DjConsoleViewModel extends ChangeNotifier {
   late final DjGamepadInputService _inputService;
 
   Timer? _playbackTicker;
+  Timer? _momentaryLedTimer;
+  DjAction? _momentaryLitAction;
   double _rotationAngleA = 0.0;
   double _rotationAngleB = 0.0;
   bool _isDisposed = false;
@@ -108,15 +110,52 @@ class DjConsoleViewModel extends ChangeNotifier {
   List<SpectralWaveformBucket> get waveformB => _waveformB;
   Float32List? get lastSamplerBuffer => _lastSamplerBuffer;
 
+  DjAction? get momentaryLitAction => _momentaryLitAction;
+
   /// Returns the set of active actions currently illuminating physical LEDs.
   Set<DjAction> get activeLitActions {
     final lit = <DjAction>{};
     if (deckA.isPlaying) lit.add(DjAction.deckAPlayPause);
     if (deckB.isPlaying) lit.add(DjAction.deckBPlayPause);
+    if (deckA.isSyncActive) lit.add(DjAction.deckASync);
+    if (deckB.isSyncActive) lit.add(DjAction.deckBSync);
+    if (deckA.isLoopActive) lit.add(DjAction.deckALoopToggle);
+    if (deckB.isLoopActive) lit.add(DjAction.deckBLoopToggle);
     if (recorder.isRecording) lit.add(DjAction.toggleMixRecording);
     if (fxA.isDelayActive) lit.add(DjAction.deckAToggleDelay);
     if (fxB.isDelayActive) lit.add(DjAction.deckBToggleDelay);
+    if (fxA.filterPosition.abs() > 0.05) lit.add(DjAction.deckAFilterReset);
+    if (fxB.filterPosition.abs() > 0.05) lit.add(DjAction.deckBFilterReset);
+
+    // Hot Cues LEDs (Deck A)
+    if (deckA.hotCues.isNotEmpty && deckA.hotCues[0] != null) lit.add(DjAction.deckAHotCue1);
+    if (deckA.hotCues.length > 1 && deckA.hotCues[1] != null) lit.add(DjAction.deckAHotCue2);
+    if (deckA.hotCues.length > 2 && deckA.hotCues[2] != null) lit.add(DjAction.deckAHotCue3);
+    if (deckA.hotCues.length > 3 && deckA.hotCues[3] != null) lit.add(DjAction.deckAHotCue4);
+
+    // Hot Cues LEDs (Deck B)
+    if (deckB.hotCues.isNotEmpty && deckB.hotCues[0] != null) lit.add(DjAction.deckBHotCue1);
+    if (deckB.hotCues.length > 1 && deckB.hotCues[1] != null) lit.add(DjAction.deckBHotCue2);
+    if (deckB.hotCues.length > 2 && deckB.hotCues[2] != null) lit.add(DjAction.deckBHotCue3);
+    if (deckB.hotCues.length > 3 && deckB.hotCues[3] != null) lit.add(DjAction.deckBHotCue4);
+
+    // Momentary action pulse (e.g. CUE hit, pad hit)
+    if (_momentaryLitAction != null) {
+      lit.add(_momentaryLitAction!);
+    }
+
     return lit;
+  }
+
+  void _triggerMomentaryPulse(DjAction action) {
+    _momentaryLitAction = action;
+    _momentaryLedTimer?.cancel();
+    _momentaryLedTimer = Timer(const Duration(milliseconds: 140), () {
+      if (!_isDisposed) {
+        _momentaryLitAction = null;
+        notifyListeners();
+      }
+    });
   }
 
   Future<void> _initPersistenceAndKeyHandler() async {
@@ -354,6 +393,7 @@ class DjConsoleViewModel extends ChangeNotifier {
   }
 
   void executeAction(DjAction action) {
+    _triggerMomentaryPulse(action);
     _orchestrator.executeAction(action);
     if (!_isDisposed) notifyListeners();
   }
@@ -379,6 +419,7 @@ class DjConsoleViewModel extends ChangeNotifier {
   }
 
   void triggerCue(String deckId) {
+    _triggerMomentaryPulse(deckId == 'A' ? DjAction.deckACue : DjAction.deckBCue);
     _orchestrator.triggerCue(deckId);
     if (!_isDisposed) notifyListeners();
   }
@@ -399,6 +440,12 @@ class DjConsoleViewModel extends ChangeNotifier {
   }
 
   void triggerHotCue(String deckId, int index) {
+    final actions = deckId == 'A'
+        ? [DjAction.deckAHotCue1, DjAction.deckAHotCue2, DjAction.deckAHotCue3, DjAction.deckAHotCue4]
+        : [DjAction.deckBHotCue1, DjAction.deckBHotCue2, DjAction.deckBHotCue3, DjAction.deckBHotCue4];
+    if (index >= 0 && index < actions.length) {
+      _triggerMomentaryPulse(actions[index]);
+    }
     _orchestrator.triggerHotCue(deckId, index);
     if (!_isDisposed) notifyListeners();
   }
@@ -533,6 +580,7 @@ class DjConsoleViewModel extends ChangeNotifier {
   void dispose() {
     _isDisposed = true;
     _playbackTicker?.cancel();
+    _momentaryLedTimer?.cancel();
     _inputService.dispose();
     HardwareKeyboard.instance.removeHandler(_handleHardwareKeyEvent);
     super.dispose();

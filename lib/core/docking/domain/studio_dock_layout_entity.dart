@@ -32,6 +32,67 @@ class StudioDockLayoutEntity {
     );
   }
 
+  /// Preset 1: DJ Club Clásico (Centro: Consola + Formas de Onda, Derecha: Mezclador, Inferior: Stems)
+  factory StudioDockLayoutEntity.presetClubClassic() {
+    return const StudioDockLayoutEntity(
+      zonePanelIds: {
+        StudioDockZone.center: ['panel_hardware_console', 'panel_waveforms'],
+        StudioDockZone.right: ['panel_club_mixer'],
+        StudioDockZone.bottom: ['panel_stems_sampler'],
+        StudioDockZone.left: [],
+        StudioDockZone.floating: [],
+      },
+      leftSplitRatio: 0.25,
+      rightSplitRatio: 0.32,
+      bottomSplitRatio: 0.35,
+    );
+  }
+
+  /// Preset 2: Consola Hardware Fiel a Pantalla Principal (Centro: Consola pura, Inferior: Waveforms)
+  factory StudioDockLayoutEntity.presetHardwareFocus() {
+    return const StudioDockLayoutEntity(
+      zonePanelIds: {
+        StudioDockZone.center: ['panel_hardware_console'],
+        StudioDockZone.bottom: ['panel_waveforms'],
+        StudioDockZone.left: [],
+        StudioDockZone.right: [],
+        StudioDockZone.floating: [],
+      },
+      bottomSplitRatio: 0.20,
+    );
+  }
+
+  /// Preset 3: Estudio 4-Stems & Performance (Izquierda: Mezclador, Centro: Consola, Inferior: Stems y Sampler)
+  factory StudioDockLayoutEntity.presetStemsStudio() {
+    return const StudioDockLayoutEntity(
+      zonePanelIds: {
+        StudioDockZone.left: ['panel_club_mixer'],
+        StudioDockZone.center: ['panel_hardware_console', 'panel_waveforms'],
+        StudioDockZone.bottom: ['panel_stems_sampler'],
+        StudioDockZone.right: [],
+        StudioDockZone.floating: [],
+      },
+      leftSplitRatio: 0.30,
+      bottomSplitRatio: 0.38,
+    );
+  }
+
+  /// Preset 4: Dividido DAW en 3 Columnas (Izquierda: Stems, Centro: Consola/Ondas, Derecha: Mezclador)
+  factory StudioDockLayoutEntity.presetThreeColumns() {
+    return const StudioDockLayoutEntity(
+      zonePanelIds: {
+        StudioDockZone.left: ['panel_stems_sampler'],
+        StudioDockZone.center: ['panel_hardware_console', 'panel_waveforms'],
+        StudioDockZone.right: ['panel_club_mixer'],
+        StudioDockZone.bottom: [],
+        StudioDockZone.floating: [],
+      },
+      leftSplitRatio: 0.28,
+      rightSplitRatio: 0.30,
+      bottomSplitRatio: 0.30,
+    );
+  }
+
   /// Mueve un panel de su zona actual a una nueva zona de destino.
   StudioDockLayoutEntity movePanel(String panelId, StudioDockZone targetZone) {
     final updated = <StudioDockZone, List<String>>{};

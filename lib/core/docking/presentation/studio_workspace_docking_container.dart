@@ -52,6 +52,93 @@ class _StudioWorkspaceDockingContainerState
     widget.onLayoutChanged?.call(_layout);
   }
 
+  void _applyPreset(StudioDockLayoutEntity preset) {
+    // Asegurar que todos los paneles existentes en widget.panels se preserven
+    var updated = preset;
+    final allPresetIds = preset.zonePanelIds.values.expand((list) => list).toSet();
+    final missingIds = widget.panels.map((p) => p.id).where((id) => !allPresetIds.contains(id)).toList();
+    if (missingIds.isNotEmpty) {
+      final currentCenter = List<String>.from(updated.zonePanelIds[StudioDockZone.center] ?? []);
+      currentCenter.addAll(missingIds);
+      final newMap = Map<StudioDockZone, List<String>>.from(updated.zonePanelIds);
+      newMap[StudioDockZone.center] = currentCenter;
+      updated = StudioDockLayoutEntity(
+        zonePanelIds: newMap,
+        leftSplitRatio: preset.leftSplitRatio,
+        rightSplitRatio: preset.rightSplitRatio,
+        bottomSplitRatio: preset.bottomSplitRatio,
+      );
+    }
+
+    setState(() {
+      _layout = updated;
+      _maximizedPanelId = null;
+    });
+    widget.onLayoutChanged?.call(_layout);
+  }
+
+  Widget _buildLayoutPresetsBar() {
+    return Container(
+      height: 34,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0F121A),
+        border: Border(bottom: BorderSide(color: Color(0xFF1E2538))),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            const Icon(Icons.dashboard_customize, size: 14, color: Color(0xFF00E5FF)),
+            const SizedBox(width: 6),
+            const Text(
+              'DISPOSICIÓN DAW:',
+              style: TextStyle(
+                color: Color(0xFF8E9BAE),
+                fontSize: 10.5,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(width: 8),
+            _buildPresetChip('Club Clásico', Icons.dashboard, () => _applyPreset(StudioDockLayoutEntity.presetClubClassic())),
+            const SizedBox(width: 6),
+            _buildPresetChip('Consola Fiel', Icons.album, () => _applyPreset(StudioDockLayoutEntity.presetHardwareFocus())),
+            const SizedBox(width: 6),
+            _buildPresetChip('Estudio Stems', Icons.grid_view, () => _applyPreset(StudioDockLayoutEntity.presetStemsStudio())),
+            const SizedBox(width: 6),
+            _buildPresetChip('3 Columnas', Icons.view_column, () => _applyPreset(StudioDockLayoutEntity.presetThreeColumns())),
+            const SizedBox(width: 8),
+            TextButton.icon(
+              icon: const Icon(Icons.refresh, size: 12, color: Color(0xFF8E9BAE)),
+              label: const Text('Restablecer', style: TextStyle(fontSize: 10, color: Color(0xFF8E9BAE))),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                minimumSize: Size.zero,
+              ),
+              onPressed: () => _applyPreset(widget.initialLayout ?? StudioDockLayoutEntity.presetClubClassic()),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPresetChip(String label, IconData icon, VoidCallback onTap) {
+    return OutlinedButton.icon(
+      icon: Icon(icon, size: 12),
+      label: Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.white70,
+        backgroundColor: const Color(0xFF161C2A),
+        side: const BorderSide(color: Color(0xFF263248), width: 0.8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: Size.zero,
+      ),
+      onPressed: onTap,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Si hay un panel maximizado, ocupa el 100% de la pantalla
@@ -72,6 +159,7 @@ class _StudioWorkspaceDockingContainerState
       builder: (context, constraints) {
         final totalWidth = constraints.maxWidth;
         final totalHeight = constraints.maxHeight;
+        final availableHeight = (totalHeight - 34.0).clamp(100.0, double.infinity);
 
         final leftPanels = _getPanelsForZone(StudioDockZone.left);
         final rightPanels = _getPanelsForZone(StudioDockZone.right);
@@ -80,14 +168,17 @@ class _StudioWorkspaceDockingContainerState
 
         // 1. Área Horizontal Superior (Izquierda + Centro + Derecha)
         final hasBottom = bottomPanels.isNotEmpty;
-        final bottomHeight = hasBottom ? totalHeight * _layout.bottomSplitRatio : 0.0;
-        final topHeight = totalHeight - bottomHeight;
+        final bottomHeight = hasBottom ? availableHeight * _layout.bottomSplitRatio : 0.0;
+        final topHeight = availableHeight - bottomHeight;
 
         return Column(
           children: [
+            // Barra de Presets de Disposición en 1 Clic
+            _buildLayoutPresetsBar(),
+
             // Fila Superior (Left - Center - Right)
             SizedBox(
-              height: hasBottom ? topHeight : totalHeight,
+              height: hasBottom ? topHeight : availableHeight,
               child: Row(
                 children: [
                   // Panel Izquierdo

@@ -234,16 +234,18 @@ class _DjVisualMappingOverlayState extends State<DjVisualMappingOverlay> {
                     }
                   }
                 },
-                child: CustomPaint(
-                  size: Size(constraints.maxWidth, constraints.maxHeight),
-                  painter: DjHardwareConsolePainter(
-                    skin: widget.skin,
-                    selectedZone: widget.selectedZone,
-                    isLearnModeActive: widget.isLearnModeActive,
-                    jogRotationA: widget.jogRotationA,
-                    jogRotationB: widget.jogRotationB,
-                    keymapProfile: widget.keymapProfile,
-                    showKeyBadges: _showBadges,
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    size: Size(constraints.maxWidth, constraints.maxHeight),
+                    painter: DjHardwareConsolePainter(
+                      skin: widget.skin,
+                      selectedZone: widget.selectedZone,
+                      isLearnModeActive: widget.isLearnModeActive,
+                      jogRotationA: widget.jogRotationA,
+                      jogRotationB: widget.jogRotationB,
+                      keymapProfile: widget.keymapProfile,
+                      showKeyBadges: _showBadges,
+                    ),
                   ),
                 ),
               );

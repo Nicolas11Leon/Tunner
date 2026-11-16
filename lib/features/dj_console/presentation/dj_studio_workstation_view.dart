@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/design_system/studio_theme_provider.dart';
 import '../../../core/theme/tunner_theme.dart';
+import '../domain/dj_action.dart';
 import '../domain/dj_deck_entity.dart';
 import '../domain/dj_harmonic_camelot_engine.dart';
 import '../domain/dj_sampler_bank_entity.dart';
@@ -515,6 +516,8 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
     Color accentColor,
     double rotationAngle,
   ) {
+    final isCueActive = _viewModel.momentaryLitAction == (deckId == 'A' ? DjAction.deckACue : DjAction.deckBCue);
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -642,33 +645,62 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
           ),
           const SizedBox(height: 8),
 
-          // Botones de Transporte Táctiles (CUE y PLAY/PAUSE)
+          // Botones de Transporte Táctiles con Retroalimentación LED (CUE y PLAY/PAUSE)
           Row(
             children: [
               Expanded(
-                child: ElevatedButton(
-                  onPressed: () => _viewModel.triggerCue(deckId),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD97706),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 100),
+                  child: ElevatedButton(
+                    onPressed: () => _viewModel.triggerCue(deckId),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isCueActive ? const Color(0xFFF59E0B) : const Color(0xFF78350F),
+                      foregroundColor: Colors.white,
+                      side: BorderSide(
+                        color: isCueActive ? const Color(0xFFFCD34D) : const Color(0xFFD97706),
+                        width: isCueActive ? 2.0 : 1.0,
+                      ),
+                      shadowColor: isCueActive ? const Color(0xFFF59E0B) : Colors.transparent,
+                      elevation: isCueActive ? 8.0 : 1.0,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                    child: const Text('CUE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
-                  child: const Text('CUE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 flex: 2,
-                child: ElevatedButton.icon(
-                  onPressed: () => _viewModel.togglePlay(deckId),
-                  icon: Icon(deck.isPlaying ? Icons.pause : Icons.play_arrow, size: 16),
-                  label: Text(deck.isPlaying ? 'PAUSE' : 'PLAY', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: deck.isPlaying ? const Color(0xFF10B981) : accentColor,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 100),
+                  child: ElevatedButton.icon(
+                    onPressed: () => _viewModel.togglePlay(deckId),
+                    icon: Icon(
+                      deck.isPlaying ? Icons.pause : Icons.play_arrow,
+                      size: 16,
+                      color: deck.isPlaying ? Colors.white : Colors.black,
+                    ),
+                    label: Text(
+                      deck.isPlaying ? 'PAUSE' : 'PLAY',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: deck.isPlaying ? Colors.white : Colors.black,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: deck.isPlaying ? const Color(0xFF059669) : accentColor,
+                      foregroundColor: deck.isPlaying ? Colors.white : Colors.black,
+                      side: BorderSide(
+                        color: deck.isPlaying ? const Color(0xFF34D399) : Colors.transparent,
+                        width: deck.isPlaying ? 2.0 : 0.0,
+                      ),
+                      shadowColor: deck.isPlaying ? const Color(0xFF10B981) : Colors.transparent,
+                      elevation: deck.isPlaying ? 8.0 : 2.0,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
                   ),
                 ),
               ),
@@ -677,7 +709,7 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
           const SizedBox(height: 10),
 
           // 4 Hot Cues
-          Text(
+          const Text(
             'HOT CUES',
             style: TextStyle(color: Colors.white38, fontSize: 9.5, fontWeight: FontWeight.bold, letterSpacing: 0.8),
           ),
@@ -685,6 +717,10 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
           Row(
             children: List.generate(4, (idx) {
               final isSet = deck.hotCues[idx] != null;
+              final isHotCuePushed = _viewModel.momentaryLitAction ==
+                  (deckId == 'A'
+                      ? [DjAction.deckAHotCue1, DjAction.deckAHotCue2, DjAction.deckAHotCue3, DjAction.deckAHotCue4][idx]
+                      : [DjAction.deckBHotCue1, DjAction.deckBHotCue2, DjAction.deckBHotCue3, DjAction.deckBHotCue4][idx]);
               return Expanded(
                 child: Padding(
                   padding: EdgeInsets.only(right: idx < 3 ? 4 : 0),
@@ -692,15 +728,24 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                     onPressed: () => _viewModel.triggerHotCue(deckId, idx),
                     onLongPress: () => _viewModel.clearHotCue(deckId, idx),
                     style: OutlinedButton.styleFrom(
-                      backgroundColor: isSet ? accentColor.withValues(alpha: 0.25) : Colors.transparent,
-                      side: BorderSide(color: isSet ? accentColor : Colors.white12),
+                      backgroundColor: isHotCuePushed
+                          ? accentColor
+                          : (isSet ? accentColor.withValues(alpha: 0.35) : Colors.transparent),
+                      side: BorderSide(
+                        color: isHotCuePushed
+                            ? Colors.white
+                            : (isSet ? accentColor : Colors.white12),
+                        width: isHotCuePushed ? 2.0 : 1.0,
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       minimumSize: Size.zero,
                     ),
                     child: Text(
                       '${idx + 1}',
                       style: TextStyle(
-                        color: isSet ? accentColor : Colors.white54,
+                        color: isHotCuePushed
+                            ? Colors.black
+                            : (isSet ? accentColor : Colors.white54),
                         fontWeight: FontWeight.bold,
                         fontSize: 10,
                       ),

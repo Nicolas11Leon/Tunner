@@ -177,6 +177,54 @@ void main() {
 
       // Verify presence of DropZoneTarget
       expect(find.byType(StudioDockDropZoneTarget), findsNWidgets(2));
+
+      // Verify Layout Presets Bar
+      expect(find.text('DISPOSICIÓN DAW:'), findsOneWidget);
+      expect(find.text('Club Clásico'), findsOneWidget);
+      expect(find.text('Consola Fiel'), findsOneWidget);
+      expect(find.text('Estudio Stems'), findsOneWidget);
+      expect(find.text('3 Columnas'), findsOneWidget);
+
+      // Tap preset 3 Columnas
+      await tester.tap(find.text('3 Columnas'));
+      await tester.pumpAndSettle();
+
+      // Double-tap header to toggle maximize
+      final headerTitle = find.text('Panel Principal').last;
+      await tester.tap(headerTitle);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(headerTitle);
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('DjConsoleViewModel Tactile LED Synchronization Tests', () {
+    test('activeLitActions synchronizes Play, Cue momentary pulse, Sync, and Hot Cues', () async {
+      final vm = DjConsoleViewModel();
+
+      // Initially no playback
+      expect(vm.activeLitActions.contains(DjAction.deckAPlayPause), isFalse);
+
+      // Play Deck A -> LED lights up
+      vm.togglePlay('A');
+      expect(vm.deckA.isPlaying, isTrue);
+      expect(vm.activeLitActions.contains(DjAction.deckAPlayPause), isTrue);
+
+      // Trigger Cue -> momentary pulse lights up Cue action
+      vm.triggerCue('A');
+      expect(vm.momentaryLitAction, DjAction.deckACue);
+      expect(vm.activeLitActions.contains(DjAction.deckACue), isTrue);
+
+      // Sync Deck A -> lights up Sync
+      vm.syncBpm('A');
+      expect(vm.deckA.isSyncActive, isTrue);
+      expect(vm.activeLitActions.contains(DjAction.deckASync), isTrue);
+
+      // Trigger Hot Cue 1 -> lights up hot cue action
+      vm.triggerHotCue('A', 0);
+      expect(vm.activeLitActions.contains(DjAction.deckAHotCue1), isTrue);
+
+      vm.dispose();
     });
   });
 

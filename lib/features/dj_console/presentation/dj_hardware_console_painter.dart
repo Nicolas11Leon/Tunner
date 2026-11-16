@@ -307,6 +307,14 @@ class DjHardwareConsolePainter extends CustomPainter {
         ..strokeWidth = 2.0;
       canvas.drawCircle(center, radius, bezelPaint);
 
+      // Vivid Neon Halo Glow when button is active/lit
+      if (isLit) {
+        final glow = Paint()
+          ..color = baseColor.withValues(alpha: 0.75)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0);
+        canvas.drawCircle(center, radius * 0.9, glow);
+      }
+
       // Button body
       final bodyPaint = Paint()
         ..shader = RadialGradient(
@@ -321,7 +329,7 @@ class DjHardwareConsolePainter extends CustomPainter {
       final ringPaint = Paint()
         ..color = isLit ? baseColor : baseColor.withValues(alpha: 0.4)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0;
+        ..strokeWidth = isLit ? 2.5 : 2.0;
       canvas.drawCircle(center, radius * 0.88, ringPaint);
 
       // Icon / Label
