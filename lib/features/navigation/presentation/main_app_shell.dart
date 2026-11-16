@@ -343,17 +343,17 @@ class _MainAppShellState extends State<MainAppShell> {
   String _buildCurrentBreadcrumb() {
     switch (_currentIndex) {
       case 0:
-        return 'tunner / Estudio / Inicio & Visión General';
+        return 'tunner / Inicio / Dashboard de Rendimiento';
       case 1:
-        return 'tunner / Acústica / Afinador de Precisión & Metrónomo';
+        return 'tunner / Afinación / Afinador Estroboscópico de Precisión';
       case 2:
-        return 'tunner / Conservatorio / Tutor & Lecciones Guiadas';
+        return 'tunner / Conservatorio / Tutor de Compás & Detección Rushing';
       case 3:
-        return 'tunner / Producción / Rack Modular de Estudio';
+        return 'tunner / Estudio & Grabación / Rack Modular de Efectos DSP';
       case 4:
-        return 'tunner / Composición / Biblioteca & Partituras';
+        return 'tunner / Biblioteca / Editor & Reproductor MusicXML';
       default:
-        return 'tunner / Estudio';
+        return 'tunner / Espacio de Trabajo Activo';
     }
   }
 
@@ -379,75 +379,123 @@ class _MainAppShellState extends State<MainAppShell> {
 
     return [
       StudioTreeSection(
-        title: 'Espacios de Trabajo',
-        items: [
-          StudioTreeItem(
-            id: 'item_home',
-            title: 'Inicio & Visión General',
-            icon: Icons.dashboard_outlined,
-            shortcut: '1',
-            onSelect: () => _navigateToTab(0),
+        title: 'Projects',
+        folders: [
+          StudioTreeFolder(
+            id: 'folder_tunner',
+            title: 'tunner',
+            accentColor: palette.primaryAccent,
+            items: [
+              StudioTreeItem(
+                id: 'item_tuner',
+                title: 'Afinador Estroboscópico',
+                icon: Icons.tune_rounded,
+                timestamp: '${viewModel.referencePitch.toInt()} Hz',
+                statusDotColor: Colors.blueAccent,
+                hasDragHandle: _currentIndex == 1,
+                onSelect: () => _navigateToTab(1),
+              ),
+              StudioTreeItem(
+                id: 'item_drone',
+                title: 'Dron Armónico & Afinación',
+                icon: Icons.volume_up_outlined,
+                timestamp: 'En vivo',
+                onSelect: () => HarmonicDroneModal.show(context, viewModel),
+              ),
+              StudioTreeItem(
+                id: 'item_home',
+                title: 'Dashboard de Rendimiento',
+                icon: Icons.dashboard_outlined,
+                timestamp: '1h ago',
+                hasDragHandle: _currentIndex == 0,
+                onSelect: () => _navigateToTab(0),
+              ),
+            ],
           ),
-          StudioTreeItem(
-            id: 'item_tuner',
-            title: 'Afinador de Precisión',
-            icon: Icons.tune_rounded,
-            shortcut: '2',
-            badge: '${viewModel.referencePitch.toInt()} Hz',
-            badgeColor: palette.primaryAccent,
-            onSelect: () => _navigateToTab(1),
+          StudioTreeFolder(
+            id: 'folder_studio',
+            title: 'Estudio & Grabación',
+            items: [
+              StudioTreeItem(
+                id: 'item_rack',
+                title: 'Rack Modular de Pedales DSP',
+                icon: Icons.view_agenda_outlined,
+                timestamp: '4 pedales',
+                statusDotColor: Colors.purpleAccent,
+                hasDragHandle: _currentIndex == 3,
+                onSelect: () => _navigateToTab(3),
+              ),
+              StudioTreeItem(
+                id: 'item_recording',
+                title: 'Tomas de Práctica & WAV Stems',
+                icon: Icons.graphic_eq_rounded,
+                timestamp: viewModel.isRecording ? 'Grabando' : 'Listo',
+                badge: viewModel.isRecording ? 'REC' : null,
+                badgeColor: Colors.redAccent,
+                onSelect: () {
+                  if (viewModel.isRecording) {
+                    viewModel.stopPracticeRecording();
+                  } else {
+                    viewModel.startPracticeRecording();
+                  }
+                },
+              ),
+            ],
           ),
-          StudioTreeItem(
-            id: 'item_learning',
-            title: 'Tutor & Lecciones Guiadas',
-            icon: Icons.school_outlined,
-            shortcut: '3',
-            onSelect: () => _navigateToTab(2),
+          StudioTreeFolder(
+            id: 'folder_acoustics',
+            title: 'Laboratorio Acústico',
+            items: [
+              StudioTreeItem(
+                id: 'item_spectrogram',
+                title: 'Espectrograma FFT en Vivo',
+                icon: Icons.analytics_outlined,
+                timestamp: '4096 bins',
+                onSelect: () => HarmonicSpectrogramModal.show(context),
+              ),
+              StudioTreeItem(
+                id: 'item_chords',
+                title: 'Analizador Polifónico',
+                icon: Icons.stacked_bar_chart_rounded,
+                timestamp: 'Shift+C',
+                onSelect: () => ChordAnalyzerModal.show(context, viewModel),
+              ),
+            ],
           ),
-          StudioTreeItem(
-            id: 'item_rack',
-            title: 'Rack Modular de Estudio',
-            icon: Icons.view_agenda_outlined,
-            shortcut: '4',
-            onSelect: () => _navigateToTab(3),
+          StudioTreeFolder(
+            id: 'folder_conservatory',
+            title: 'Conservatorio & Lecciones',
+            items: [
+              StudioTreeItem(
+                id: 'item_learning',
+                title: 'Tutor de Tempo & Rushing',
+                icon: Icons.school_outlined,
+                timestamp: '${viewModel.bpm.round()} BPM',
+                hasDragHandle: _currentIndex == 2,
+                onSelect: () => _navigateToTab(2),
+              ),
+              StudioTreeItem(
+                id: 'item_ear',
+                title: 'Entrenador Auditivo a Ciegas',
+                icon: Icons.hearing_outlined,
+                timestamp: 'Shift+E',
+                onSelect: () => BlindEarTrainerModal.show(context, viewModel),
+              ),
+            ],
           ),
-          StudioTreeItem(
-            id: 'item_composition',
-            title: 'Biblioteca & Partituras',
-            icon: Icons.menu_book_outlined,
-            shortcut: '5',
-            onSelect: () => _navigateToTab(4),
-          ),
-        ],
-      ),
-      StudioTreeSection(
-        title: 'Herramientas de Análisis',
-        items: [
-          StudioTreeItem(
-            id: 'item_spectrogram',
-            title: 'Espectrograma FFT Armónico',
-            icon: Icons.analytics_outlined,
-            onSelect: () => HarmonicSpectrogramModal.show(context),
-          ),
-          StudioTreeItem(
-            id: 'item_drone',
-            title: 'Dron Armónico & Afinación',
-            icon: Icons.volume_up_outlined,
-            onSelect: () => HarmonicDroneModal.show(context, viewModel),
-          ),
-          StudioTreeItem(
-            id: 'item_chords',
-            title: 'Analizador Polifónico',
-            icon: Icons.stacked_bar_chart_rounded,
-            shortcut: 'Shift+C',
-            onSelect: () => ChordAnalyzerModal.show(context, viewModel),
-          ),
-          StudioTreeItem(
-            id: 'item_ear',
-            title: 'Entrenador Auditivo a Ciegas',
-            icon: Icons.hearing_outlined,
-            shortcut: 'Shift+E',
-            onSelect: () => BlindEarTrainerModal.show(context, viewModel),
+          StudioTreeFolder(
+            id: 'folder_scores',
+            title: 'Biblioteca de Partituras',
+            items: [
+              StudioTreeItem(
+                id: 'item_composition',
+                title: 'Notación MusicXML & Stems',
+                icon: Icons.menu_book_outlined,
+                timestamp: '4/4',
+                hasDragHandle: _currentIndex == 4,
+                onSelect: () => _navigateToTab(4),
+              ),
+            ],
           ),
         ],
       ),
@@ -603,7 +651,7 @@ class _MainAppShellState extends State<MainAppShell> {
           autofocus: true,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final isDesktop = constraints.maxWidth >= 720;
+              final isDesktop = constraints.maxWidth >= 900;
 
               final viewportContent = IndexedStack(
                 index: _currentIndex,
@@ -633,6 +681,9 @@ class _MainAppShellState extends State<MainAppShell> {
                   activeView: viewportContent,
                   onOpenSearch: () => _openCommandPalette(viewModel),
                   onOpenShortcuts: () => _openShortcutsGuide(viewModel),
+                  onOpenAutomations: () => viewModel.toggleMetronome(),
+                  onOpenCustomizations: () => _openInstrumentSelector(viewModel),
+                  onOpenSettings: () => _openInstrumentSelector(viewModel),
                   customStatusItems: [
                     Text(
                       'A4 = ${viewModel.referencePitch.toInt()} Hz',
