@@ -7,18 +7,24 @@ import '../domain/dj_sampler_bank_entity.dart';
 import '../domain/dj_smart_automix_engine.dart';
 import '../domain/dj_stem_isolation_entity.dart';
 import 'dj_console_view_model.dart';
-import 'dj_keymap_editor_modal.dart';
+import 'dj_interactive_keymap_visualizer_modal.dart';
 import 'dj_parallel_waveform_painter.dart';
 import 'dj_track_loader_modal.dart';
 import 'dj_vertical_channel_strip.dart';
+import 'dj_visual_mapping_overlay.dart';
 import 'vector_jog_wheel.dart';
 
 /// Espacio de Trabajo Nativo de la Consola DJ Pro (DjStudioWorkstationView).
 /// Vista de pantalla completa para mezcla profesional, compatible con resolución de escritorio.
 class DjStudioWorkstationView extends StatefulWidget {
   final DjConsoleViewModel? viewModel;
+  final String initialViewMode;
 
-  const DjStudioWorkstationView({super.key, this.viewModel});
+  const DjStudioWorkstationView({
+    super.key,
+    this.viewModel,
+    this.initialViewMode = 'modular',
+  });
 
   @override
   State<DjStudioWorkstationView> createState() => _DjStudioWorkstationViewState();
@@ -27,20 +33,28 @@ class DjStudioWorkstationView extends StatefulWidget {
 class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
   late final DjConsoleViewModel _viewModel;
   bool _internalVm = false;
+  late final FocusNode _focusNode;
+  late String _workstationViewMode;
 
   @override
   void initState() {
     super.initState();
+    _workstationViewMode = widget.initialViewMode;
+    _focusNode = FocusNode();
     if (widget.viewModel != null) {
       _viewModel = widget.viewModel!;
     } else {
       _viewModel = DjConsoleViewModel();
       _internalVm = true;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
   }
 
   @override
   void dispose() {
+    _focusNode.dispose();
     if (_internalVm) {
       _viewModel.dispose();
     }
@@ -56,77 +70,163 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
       builder: (context, _) {
         final vm = _viewModel;
 
-        return Scaffold(
-          backgroundColor: tokens.canvasBackground,
-          body: SafeArea(
-            child: Column(
-              children: [
-                // 1. Barra de Control Superior (Master Header & Transporte Global)
-                _buildMasterHeader(context, vm, tokens),
+        return Focus(
+          focusNode: _focusNode,
+          autofocus: true,
+          onKeyEvent: (node, event) {
+            if (vm.handleKeyEvent(event)) {
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: Scaffold(
+            backgroundColor: tokens.canvasBackground,
+            body: SafeArea(
+              child: Column(
+                children: [
+                  // 1. Barra de Control Superior (Master Header & Transporte Global)
+                  _buildMasterHeader(context, vm, tokens),
 
-                // 2. Visor de Formas de Onda RGB Paralelas y Camelot Wheel
-                Container(
-                  height: 90,
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0C0E14),
-                    borderRadius: BorderRadius.circular(tokens.radiusSmall),
-                    border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
+                  // 2. Visor Central Condicional según Modo de Vista
+                  Expanded(
+                    child: _buildCentralContent(context, vm, tokens),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(tokens.radiusSmall),
-                    child: CustomPaint(
-                      painter: DjParallelWaveformPainter(
-                        deckA: vm.deckA,
-                        deckB: vm.deckB,
-                        waveformA: vm.waveformA,
-                        waveformB: vm.waveformB,
-                      ),
-                    ),
-                  ),
-                ),
-
-                // 3. Área Central: DECK A - MEZCLADOR CENTRAL CLUB - DECK B
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    child: Column(
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // DECK A (Izquierda)
-                            Expanded(
-                              flex: 5,
-                              child: _buildDeckPanel(context, vm.deckA, 'A', const Color(0xFF00E5FF), vm.rotationAngleA),
-                            ),
-                            const SizedBox(width: 12),
-
-                            // MEZCLADOR DUAL CLUB (Centro)
-                            _buildClubMixerCenter(context, vm, tokens),
-                            const SizedBox(width: 12),
-
-                            // DECK B (Derecha)
-                            Expanded(
-                              flex: 5,
-                              child: _buildDeckPanel(context, vm.deckB, 'B', const Color(0xFFFF4081), vm.rotationAngleB),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-
-                        // 4. Panel de Rendimiento: 4-Stems Isolation & Sampler Pads
-                        _buildPerformanceStemsAndSampler(context, vm, tokens),
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildCentralContent(BuildContext context, DjConsoleViewModel vm, dynamic tokens) {
+    if (_workstationViewMode == 'hardware') {
+      // Modo Hardware Fiel Puro a Pantalla Completa
+      return SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: DjVisualMappingOverlay(
+          skin: vm.activeSkin,
+          selectedZone: vm.selectedZoneForMapping,
+          isLearnModeActive: vm.isLearnModeActive,
+          lastCapturedInput: vm.lastCapturedInputToken,
+          jogRotationA: vm.rotationAngleA,
+          jogRotationB: vm.rotationAngleB,
+          keymapProfile: vm.keymapProfile,
+          showKeyBadges: vm.showKeyBadges,
+          onSkinSelected: (skinId) => vm.selectSkin(skinId),
+          onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
+          onActionTriggered: (action) => vm.executeAction(action),
+          onToggleLearnMode: () => vm.toggleLearnMode(),
+          onOpenKeymapVisualizer: () => DjInteractiveKeymapVisualizerModal.show(
+            context,
+            vm,
+            TunnerThemePalette.obsidianStudio,
+          ),
+        ),
+      );
+    }
+
+    if (_workstationViewMode == 'split') {
+      // Modo Split-Screen: Formas de Onda RGB + Consola Hardware Fiel
+      return SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Column(
+          children: [
+            // Waveforms
+            Container(
+              height: 85,
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0C0E14),
+                borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                child: CustomPaint(
+                  painter: DjParallelWaveformPainter(
+                    deckA: vm.deckA,
+                    deckB: vm.deckB,
+                    waveformA: vm.waveformA,
+                    waveformB: vm.waveformB,
+                  ),
+                ),
+              ),
+            ),
+
+            // Hardware Console
+            DjVisualMappingOverlay(
+              skin: vm.activeSkin,
+              selectedZone: vm.selectedZoneForMapping,
+              isLearnModeActive: vm.isLearnModeActive,
+              lastCapturedInput: vm.lastCapturedInputToken,
+              jogRotationA: vm.rotationAngleA,
+              jogRotationB: vm.rotationAngleB,
+              keymapProfile: vm.keymapProfile,
+              showKeyBadges: vm.showKeyBadges,
+              onSkinSelected: (skinId) => vm.selectSkin(skinId),
+              onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
+              onActionTriggered: (action) => vm.executeAction(action),
+              onToggleLearnMode: () => vm.toggleLearnMode(),
+              onOpenKeymapVisualizer: () => DjInteractiveKeymapVisualizerModal.show(
+                context,
+                vm,
+                TunnerThemePalette.obsidianStudio,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Modo Modular DAW (Clásico con Channel Strips)
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Column(
+        children: [
+          // Waveforms
+          Container(
+            height: 90,
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0C0E14),
+              borderRadius: BorderRadius.circular(tokens.radiusSmall),
+              border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(tokens.radiusSmall),
+              child: CustomPaint(
+                painter: DjParallelWaveformPainter(
+                  deckA: vm.deckA,
+                  deckB: vm.deckB,
+                  waveformA: vm.waveformA,
+                  waveformB: vm.waveformB,
+                ),
+              ),
+            ),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 5,
+                child: _buildDeckPanel(context, vm.deckA, 'A', const Color(0xFF00E5FF), vm.rotationAngleA),
+              ),
+              const SizedBox(width: 12),
+              _buildClubMixerCenter(context, vm, tokens),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 5,
+                child: _buildDeckPanel(context, vm.deckB, 'B', const Color(0xFFFF4081), vm.rotationAngleB),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildPerformanceStemsAndSampler(context, vm, tokens),
+          const SizedBox(height: 16),
+        ],
+      ),
     );
   }
 
@@ -139,104 +239,148 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
           bottom: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
         ),
       ),
-      child: Row(
-        children: [
-          Icon(Icons.album_rounded, color: tokens.accentPrimary, size: 20),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'CONSOLA DJ PRO STUDIO',
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              Text(
-                'Mezclador de Grado Club • 4-Stems DSP • Camelot Armónico',
-                style: TextStyle(color: tokens.textMuted, fontSize: 10),
-              ),
-            ],
-          ),
-          const Spacer(),
-
-          // Compatibilidad Camelot
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(tokens.radiusSmall),
-              border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            Icon(Icons.album_rounded, color: tokens.accentPrimary, size: 20),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.music_note, size: 12, color: Color(0xFFA78BFA)),
-                const SizedBox(width: 4),
                 Text(
-                  '${vm.deckA.effectiveCamelotKey.code} vs ${vm.deckB.effectiveCamelotKey.code}: ${vm.harmonicCompatibility.label}',
-                  style: const TextStyle(
-                    color: Color(0xFFA78BFA),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'monospace',
+                  'CONSOLA DJ PRO STUDIO',
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
                   ),
+                ),
+                Text(
+                  'Modelos Fieles • Mapeo QWERTY • 4-Stems DSP',
+                  style: TextStyle(color: tokens.textMuted, fontSize: 10),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 10),
+            const SizedBox(width: 16),
 
-          // Botón Grabación WAV
-          ElevatedButton.icon(
-            icon: Icon(
-              vm.recorder.isRecording ? Icons.stop : Icons.fiber_manual_record,
-              size: 14,
-              color: vm.recorder.isRecording ? Colors.white : Colors.redAccent,
+            // Selector de Modo de Trabajo (Split / Hardware / Modular)
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(
+                  value: 'split',
+                  icon: Icon(Icons.vertical_split, size: 13),
+                  label: Text('Split Híbrido', style: TextStyle(fontSize: 10)),
+                ),
+                ButtonSegment(
+                  value: 'hardware',
+                  icon: Icon(Icons.album, size: 13),
+                  label: Text('Consola Hardware', style: TextStyle(fontSize: 10)),
+                ),
+                ButtonSegment(
+                  value: 'modular',
+                  icon: Icon(Icons.view_quilt, size: 13),
+                  label: Text('Modular DAW', style: TextStyle(fontSize: 10)),
+                ),
+              ],
+              selected: {_workstationViewMode},
+              onSelectionChanged: (newSelection) {
+                setState(() {
+                  _workstationViewMode = newSelection.first;
+                });
+              },
+              style: SegmentedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+                backgroundColor: tokens.canvasBackground,
+                selectedBackgroundColor: const Color(0xFF00E5FF).withValues(alpha: 0.2),
+                selectedForegroundColor: const Color(0xFF00E5FF),
+                visualDensity: VisualDensity.compact,
+              ),
             ),
-            label: Text(
-              vm.recorder.isRecording ? 'REC ${vm.recorder.durationSeconds}s' : 'GRABAR MEZCLA',
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: vm.recorder.isRecording ? Colors.redAccent : tokens.elevatedSurface,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              minimumSize: Size.zero,
-            ),
-            onPressed: () {
-              if (vm.recorder.isRecording) {
-                final duration = vm.recorder.durationSeconds;
-                final bytes = vm.stopRecording();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Sesión de mezcla guardada ($duration seg, ${bytes?.lengthInBytes ?? 0} bytes WAV)'),
-                    backgroundColor: const Color(0xFF10B981),
+            const SizedBox(width: 24),
+
+            // Compatibilidad Camelot
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.music_note, size: 12, color: Color(0xFFA78BFA)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${vm.deckA.effectiveCamelotKey.code} vs ${vm.deckB.effectiveCamelotKey.code}: ${vm.harmonicCompatibility.label}',
+                    style: const TextStyle(
+                      color: Color(0xFFA78BFA),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'monospace',
+                    ),
                   ),
-                );
-              } else {
-                vm.startRecording();
-              }
-            },
-          ),
-          const SizedBox(width: 8),
-
-          // Mapear Teclado
-          OutlinedButton.icon(
-            icon: const Icon(Icons.keyboard, size: 14),
-            label: const Text('MAPEAR TECLADO', style: TextStyle(fontSize: 10)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: tokens.textPrimary,
-              side: BorderSide(color: tokens.borderHairline),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              minimumSize: Size.zero,
+                ],
+              ),
             ),
-            onPressed: () => DjKeymapEditorModal.show(context, vm, TunnerThemePalette.obsidianStudio),
-          ),
-        ],
+            const SizedBox(width: 10),
+
+            // Botón Grabación WAV
+            ElevatedButton.icon(
+              icon: Icon(
+                vm.recorder.isRecording ? Icons.stop : Icons.fiber_manual_record,
+                size: 14,
+                color: vm.recorder.isRecording ? Colors.white : Colors.redAccent,
+              ),
+              label: Text(
+                vm.recorder.isRecording ? 'REC ${vm.recorder.durationSeconds}s' : 'GRABAR',
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: vm.recorder.isRecording ? Colors.redAccent : tokens.elevatedSurface,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                minimumSize: Size.zero,
+              ),
+              onPressed: () {
+                if (vm.recorder.isRecording) {
+                  final duration = vm.recorder.durationSeconds;
+                  final bytes = vm.stopRecording();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Sesión guardada ($duration seg, ${bytes?.lengthInBytes ?? 0} bytes WAV)'),
+                      backgroundColor: const Color(0xFF10B981),
+                    ),
+                  );
+                } else {
+                  vm.startRecording();
+                }
+              },
+            ),
+            const SizedBox(width: 8),
+
+            // Teclado QWERTY Visualizer
+            ElevatedButton.icon(
+              key: const Key('open_interactive_keymap_btn'),
+              icon: const Icon(Icons.keyboard, size: 14),
+              label: const Text('TECLADO QWERTY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E283C),
+                foregroundColor: const Color(0xFF00E5FF),
+                side: const BorderSide(color: Color(0xFF00E5FF)),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                minimumSize: Size.zero,
+              ),
+              onPressed: () => DjInteractiveKeymapVisualizerModal.show(
+                context,
+                vm,
+                TunnerThemePalette.obsidianStudio,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

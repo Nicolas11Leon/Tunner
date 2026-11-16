@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import '../data/dj_hardware_catalog.dart';
 import '../domain/dj_action.dart';
 import '../domain/dj_hardware_skin_entity.dart';
+import '../domain/dj_keymap_profile_entity.dart';
 import '../domain/dj_skin_zone_entity.dart';
 import 'dj_hardware_console_painter.dart';
 
-/// Interactive vector overlay rendering the hardware skin and capturing touch/click inputs.
-class DjVisualMappingOverlay extends StatelessWidget {
+/// Interactive vector overlay rendering real hardware DJ consoles and capturing keyboard/touch inputs.
+class DjVisualMappingOverlay extends StatefulWidget {
   final DjHardwareSkinEntity skin;
   final DjSkinZoneEntity? selectedZone;
   final bool isLearnModeActive;
@@ -15,6 +17,11 @@ class DjVisualMappingOverlay extends StatelessWidget {
   final VoidCallback? onToggleLearnMode;
   final double jogRotationA;
   final double jogRotationB;
+  final DjKeymapProfileEntity? keymapProfile;
+  final bool showKeyBadges;
+  final ValueChanged<bool>? onToggleShowKeyBadges;
+  final ValueChanged<String>? onSkinSelected;
+  final VoidCallback? onOpenKeymapVisualizer;
 
   const DjVisualMappingOverlay({
     super.key,
@@ -27,50 +34,106 @@ class DjVisualMappingOverlay extends StatelessWidget {
     this.onToggleLearnMode,
     this.jogRotationA = 0.0,
     this.jogRotationB = 0.0,
+    this.keymapProfile,
+    this.showKeyBadges = true,
+    this.onToggleShowKeyBadges,
+    this.onSkinSelected,
+    this.onOpenKeymapVisualizer,
   });
 
   @override
+  State<DjVisualMappingOverlay> createState() => _DjVisualMappingOverlayState();
+}
+
+class _DjVisualMappingOverlayState extends State<DjVisualMappingOverlay> {
+  late bool _showBadges;
+
+  @override
+  void initState() {
+    super.initState();
+    _showBadges = widget.showKeyBadges;
+  }
+
+  @override
+  void didUpdateWidget(covariant DjVisualMappingOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.showKeyBadges != widget.showKeyBadges) {
+      _showBadges = widget.showKeyBadges;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final allSkins = DjHardwareCatalog.allSkins();
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Mode Banner
+        // Mode & Model Selector Bar
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           decoration: BoxDecoration(
-            color: isLearnModeActive ? const Color(0xFF261C02) : const Color(0xFF141418),
-            border: Border(
-              bottom: BorderSide(
-                color: isLearnModeActive ? const Color(0xFFFFD700) : const Color(0xFF282832),
-                width: 1.5,
-              ),
+            color: widget.isLearnModeActive ? const Color(0xFF261C02) : const Color(0xFF141722),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+            border: Border.all(
+              color: widget.isLearnModeActive ? const Color(0xFFFFD700) : const Color(0xFF283244),
+              width: 1.5,
             ),
           ),
           child: Row(
             children: [
               Icon(
-                isLearnModeActive ? Icons.videogame_asset : Icons.album,
-                color: isLearnModeActive ? const Color(0xFFFFD700) : const Color(0xFF00E5FF),
+                widget.isLearnModeActive ? Icons.videogame_asset : Icons.album,
+                color: widget.isLearnModeActive ? const Color(0xFFFFD700) : const Color(0xFF00E5FF),
                 size: 20,
               ),
               const SizedBox(width: 8.0),
+
+              // Console Model Dropdown Switcher
+              DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: widget.skin.id,
+                  dropdownColor: const Color(0xFF181F2C),
+                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF00E5FF), size: 18),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  items: allSkins.map((s) {
+                    return DropdownMenuItem<String>(
+                      value: s.id,
+                      child: Text(s.name),
+                    );
+                  }).toList(),
+                  onChanged: (newId) {
+                    if (newId != null) {
+                      widget.onSkinSelected?.call(newId);
+                    }
+                  },
+                ),
+              ),
+
+              const SizedBox(width: 12.0),
               Expanded(
                 child: Text(
-                  isLearnModeActive
-                      ? (selectedZone != null
-                          ? 'ASIGNANDO: [${selectedZone!.label}] - Presiona tecla o boton de Xbox/PS'
-                          : 'MODO MAPEO: Haz tap en un control en pantalla para vincularlo')
-                      : 'CONSOLA VIRTUAL: ${skin.name}',
+                  widget.isLearnModeActive
+                      ? (widget.selectedZone != null
+                          ? 'ASIGNANDO [${widget.selectedZone!.label}]: Presiona cualquier tecla...'
+                          : 'MODO MAPEO: Haz clic en un botón o perilla para asignarle una tecla')
+                      : 'Acabado Industrial Fiel | 60 FPS Vector Canvas',
                   style: TextStyle(
-                    color: isLearnModeActive ? const Color(0xFFFFD700) : Colors.white,
-                    fontSize: 12.0,
+                    color: widget.isLearnModeActive ? const Color(0xFFFFD700) : const Color(0xFF8E9BAE),
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (lastCapturedInput != null && isLearnModeActive) ...[
+
+              // Last Captured Input Pill
+              if (widget.lastCapturedInput != null && widget.isLearnModeActive) ...[
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                   decoration: BoxDecoration(
@@ -78,7 +141,7 @@ class DjVisualMappingOverlay extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4.0),
                   ),
                   child: Text(
-                    lastCapturedInput!,
+                    widget.lastCapturedInput!,
                     style: const TextStyle(
                       color: Color(0xFF00E676),
                       fontSize: 11.0,
@@ -89,19 +152,56 @@ class DjVisualMappingOverlay extends StatelessWidget {
                 ),
                 const SizedBox(width: 8.0),
               ],
+
+              // Toggle Key Badges Switch
+              IconButton(
+                tooltip: _showBadges ? 'Ocultar Atajos de Teclas' : 'Mostrar Atajos de Teclas',
+                icon: Icon(
+                  _showBadges ? Icons.visibility : Icons.visibility_off,
+                  size: 18,
+                  color: _showBadges ? const Color(0xFF00E5FF) : const Color(0xFF7E8B9E),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _showBadges = !_showBadges;
+                  });
+                  widget.onToggleShowKeyBadges?.call(_showBadges);
+                },
+              ),
+              const SizedBox(width: 4.0),
+
+              // Open QWERTY Keymap Visualizer Button
+              if (widget.onOpenKeymapVisualizer != null) ...[
+                TextButton.icon(
+                  key: const Key('open_qwerty_visualizer_btn'),
+                  onPressed: widget.onOpenKeymapVisualizer,
+                  icon: const Icon(Icons.keyboard, size: 15, color: Color(0xFF00E5FF)),
+                  label: const Text(
+                    'Teclado QWERTY',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF00E5FF)),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    backgroundColor: const Color(0xFF1E283C),
+                  ),
+                ),
+                const SizedBox(width: 8.0),
+              ],
+
+              // Toggle Learn Mode Button
               TextButton.icon(
                 key: const Key('toggle_learn_mode_btn'),
-                onPressed: onToggleLearnMode,
+                onPressed: widget.onToggleLearnMode,
                 icon: Icon(
-                  isLearnModeActive ? Icons.check_circle : Icons.tune,
+                  widget.isLearnModeActive ? Icons.check_circle : Icons.tune,
                   size: 16,
-                  color: isLearnModeActive ? const Color(0xFF00E676) : const Color(0xFFB0B0C0),
+                  color: widget.isLearnModeActive ? const Color(0xFF00E676) : const Color(0xFFB0B0C0),
                 ),
                 label: Text(
-                  isLearnModeActive ? 'Terminar' : 'Modo Mapeo',
+                  widget.isLearnModeActive ? 'Terminar' : 'Modo Mapeo',
                   style: TextStyle(
                     fontSize: 12,
-                    color: isLearnModeActive ? const Color(0xFF00E676) : const Color(0xFFB0B0C0),
+                    color: widget.isLearnModeActive ? const Color(0xFF00E676) : const Color(0xFFB0B0C0),
                   ),
                 ),
                 style: TextButton.styleFrom(
@@ -115,7 +215,7 @@ class DjVisualMappingOverlay extends StatelessWidget {
 
         // Responsive Console Canvas
         AspectRatio(
-          aspectRatio: skin.aspectRatio,
+          aspectRatio: widget.skin.aspectRatio,
           child: LayoutBuilder(
             builder: (context, constraints) {
               return GestureDetector(
@@ -125,23 +225,25 @@ class DjVisualMappingOverlay extends StatelessWidget {
                   final nx = localPos.dx / constraints.maxWidth;
                   final ny = localPos.dy / constraints.maxHeight;
 
-                  final hitZone = skin.findZoneAt(nx, ny);
+                  final hitZone = widget.skin.findZoneAt(nx, ny);
                   if (hitZone != null) {
-                    if (isLearnModeActive) {
-                      onZoneSelected?.call(hitZone);
+                    if (widget.isLearnModeActive) {
+                      widget.onZoneSelected?.call(hitZone);
                     } else {
-                      onActionTriggered?.call(hitZone.action);
+                      widget.onActionTriggered?.call(hitZone.action);
                     }
                   }
                 },
                 child: CustomPaint(
                   size: Size(constraints.maxWidth, constraints.maxHeight),
                   painter: DjHardwareConsolePainter(
-                    skin: skin,
-                    selectedZone: selectedZone,
-                    isLearnModeActive: isLearnModeActive,
-                    jogRotationA: jogRotationA,
-                    jogRotationB: jogRotationB,
+                    skin: widget.skin,
+                    selectedZone: widget.selectedZone,
+                    isLearnModeActive: widget.isLearnModeActive,
+                    jogRotationA: widget.jogRotationA,
+                    jogRotationB: widget.jogRotationB,
+                    keymapProfile: widget.keymapProfile,
+                    showKeyBadges: _showBadges,
                   ),
                 ),
               );

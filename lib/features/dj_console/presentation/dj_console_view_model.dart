@@ -42,6 +42,7 @@ class DjConsoleViewModel extends ChangeNotifier {
   DjHardwareSkinEntity _activeSkin = DjHardwareCatalog.ddjFlx4();
   bool _isHardwareViewActive = false;
   bool _isProWorkstationActive = false;
+  bool _showKeyBadges = true;
   bool _isLearnModeActive = false;
   DjSkinZoneEntity? _selectedZoneForMapping;
   String? _lastCapturedInputToken;
@@ -94,6 +95,7 @@ class DjConsoleViewModel extends ChangeNotifier {
   DjHardwareSkinEntity get activeSkin => _activeSkin.withActiveActions(activeLitActions);
   bool get isHardwareViewActive => _isHardwareViewActive;
   bool get isProWorkstationActive => _isProWorkstationActive;
+  bool get showKeyBadges => _showKeyBadges;
   bool get isLearnModeActive => _isLearnModeActive;
   DjSkinZoneEntity? get selectedZoneForMapping => _selectedZoneForMapping;
   String? get lastCapturedInputToken => _lastCapturedInputToken;
@@ -183,6 +185,21 @@ class DjConsoleViewModel extends ChangeNotifier {
     });
   }
 
+  void toggleShowKeyBadges([bool? val]) {
+    _showKeyBadges = val ?? !_showKeyBadges;
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void setKeymapProfile(DjKeymapProfileEntity profile) {
+    _orchestrator.setKeymapProfile(profile);
+    _persistenceService.saveProfile(profile);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  bool handleKeyEvent(KeyEvent event) {
+    return _handleHardwareKeyEvent(event);
+  }
+
   bool _handleHardwareKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
 
@@ -200,7 +217,8 @@ class DjConsoleViewModel extends ChangeNotifier {
       return true;
     }
 
-    final action = _orchestrator.keymapProfile.keyBindings[keyLabel];
+    final action = _orchestrator.keymapProfile.resolveAction(keyLabel) ??
+        _orchestrator.keymapProfile.keyBindings[keyLabel];
     if (action != null) {
       executeAction(action);
       return true;

@@ -13,6 +13,7 @@ import '../domain/dj_channel_fx_entity.dart';
 import '../domain/dj_crossfader_entity.dart';
 import '../domain/dj_deck_entity.dart';
 import 'dj_console_view_model.dart';
+import 'dj_interactive_keymap_visualizer_modal.dart';
 import 'dj_keymap_editor_modal.dart';
 import 'dj_pro_workstation_panel.dart';
 import 'dj_track_loader_modal.dart';
@@ -47,6 +48,8 @@ class DjConsoleModal extends StatefulWidget {
 class _DjConsoleModalState extends State<DjConsoleModal> {
   late final MediaVaultViewModel _mediaVaultViewModel;
 
+  final FocusNode _focusNode = FocusNode();
+
   @override
   void initState() {
     super.initState();
@@ -68,10 +71,14 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
         }
       },
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
   }
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _mediaVaultViewModel.dispose();
     super.dispose();
   }
@@ -86,7 +93,16 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
       builder: (context, _) {
         final vm = widget.viewModel;
 
-        return Container(
+        return Focus(
+          focusNode: _focusNode,
+          autofocus: true,
+          onKeyEvent: (node, event) {
+            if (vm.handleKeyEvent(event)) {
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: Container(
           height: MediaQuery.of(context).size.height,
           decoration: BoxDecoration(
             color: tokens.canvasBackground,
@@ -333,9 +349,13 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                           lastCapturedInput: vm.lastCapturedInputToken,
                           jogRotationA: vm.rotationAngleA,
                           jogRotationB: vm.rotationAngleB,
+                          keymapProfile: vm.keymapProfile,
+                          showKeyBadges: vm.showKeyBadges,
+                          onSkinSelected: (id) => vm.selectSkin(id),
                           onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
                           onActionTriggered: (action) => vm.executeAction(action),
                           onToggleLearnMode: () => vm.toggleLearnMode(),
+                          onOpenKeymapVisualizer: () => DjInteractiveKeymapVisualizerModal.show(context, vm, palette),
                         ),
                         const SizedBox(height: 12),
 
@@ -382,9 +402,10 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
               ),
             ],
           ),
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
   }
 
   Widget _buildGamepadSimulatorBar(DjConsoleViewModel vm, TunnerThemePalette palette) {

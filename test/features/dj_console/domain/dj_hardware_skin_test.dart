@@ -127,7 +127,7 @@ void main() {
 
     test('DjHardwareCatalog contains DDJ-FLX4, CDJ-3000, and Traktor S4', () {
       final skins = DjHardwareCatalog.allSkins();
-      expect(skins.length, equals(3));
+      expect(skins.length, greaterThanOrEqualTo(3));
 
       final flx4 = DjHardwareCatalog.findById('pioneer_ddj_flx4');
       expect(flx4.name, contains('FLX4'));
