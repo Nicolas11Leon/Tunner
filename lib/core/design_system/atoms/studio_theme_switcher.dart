@@ -4,7 +4,7 @@ import '../studio_design_tokens.dart';
 import '../studio_theme_provider.dart';
 
 /// Feature-agnostic skin selector allowing instant switching between
-/// Adobe Spectrum studio palettes without affecting any functional state.
+/// Tunner Studio palettes without affecting any functional state.
 class StudioThemeSwitcher extends StatelessWidget {
   const StudioThemeSwitcher({super.key});
 

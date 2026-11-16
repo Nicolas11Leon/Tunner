@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../studio_theme_provider.dart';
 
-/// Compact horizontal Adobe-style option/transport bar with 1px bottom hairline.
+/// Compact horizontal studio option/transport bar with 1px bottom hairline.
 class StudioToolbar extends StatelessWidget {
   final List<Widget> children;
   final double? height;

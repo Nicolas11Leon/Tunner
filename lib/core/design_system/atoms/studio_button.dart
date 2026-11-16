@@ -9,7 +9,7 @@ enum StudioButtonVariant {
   danger,
 }
 
-/// Crisp, sharp-cornered Adobe Spectrum style button without Material bloat.
+/// Crisp, sharp-cornered Tunner Studio style button without Material bloat.
 class StudioButton extends StatelessWidget {
   final String label;
   final IconData? icon;

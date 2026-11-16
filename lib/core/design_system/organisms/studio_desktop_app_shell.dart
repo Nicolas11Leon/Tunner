@@ -10,7 +10,7 @@ import '../molecules/studio_command_prompt_bar.dart';
 /// Organismo de UI: Estación de Trabajo Desktop Profesional (StudioDesktopAppShell).
 ///
 /// Implementa la arquitectura visual de tres niveles idéntica a Antigravity IDE,
-/// VS Code y Adobe Creative Cloud (Audition / Premiere):
+/// VS Code y consolas profesionales de audio digital (DAWs):
 /// 1. Top Window & Menu Bar (Menús nativos, versión, breadcrumbs y acciones de panel).
 /// 2. Left Hierarchical Sidebar (Accesos directos a Automations/Customizations,
 ///    árbol jerárquico de proyectos con carpetas y pie con Settings fijo).

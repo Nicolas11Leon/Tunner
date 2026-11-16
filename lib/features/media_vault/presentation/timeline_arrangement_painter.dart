@@ -17,7 +17,7 @@ class TimelineArrangementPainter extends CustomPainter {
     required this.pixelsPerSecond,
     required this.playheadMs,
     required this.snapToBeatgrid,
-    this.tokens = StudioDesignTokens.adobeSpectrumDark,
+    this.tokens = StudioDesignTokens.studioDark,
   });
 
   @override

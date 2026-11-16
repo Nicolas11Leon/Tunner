@@ -77,7 +77,7 @@ class StudioTreeSection {
 /// Molécula de UI: Árbol Jerárquico de Navegación de Estudio (StudioTreeView).
 ///
 /// Inspirado con exactitud en la barra lateral de proyectos de Antigravity IDE,
-/// VS Code y Adobe Creative Cloud (Audition / Premiere).
+/// VS Code y estaciones DAW profesionales de audio.
 /// Proporciona estructura de carpetas colapsables con chevron animado, iconos de carpeta,
 /// drag handles, dots de estado en vivo, timestamps relativos y badges técnicos.
 class StudioTreeView extends StatefulWidget {

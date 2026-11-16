@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../studio_theme_provider.dart';
 
-/// Docked Adobe-style matte panel with crisp 1px hairline border and optional
+/// Docked studio matte panel with crisp 1px hairline border and optional
 /// uppercase technical header strip.
 class StudioPanel extends StatelessWidget {
   final String? title;

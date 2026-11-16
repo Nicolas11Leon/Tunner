@@ -5,8 +5,7 @@ import '../atoms/studio_toolbar.dart';
 
 /// Organismo de UI: Armazón de Estación de Trabajo Pro-Studio (StudioWorkbenchShell).
 ///
-/// Implementa la estructura ergonómica y modular estándar de Adobe Creative Cloud
-/// (Audition / Premiere Pro):
+/// Implementa la estructura ergonómica y modular estándar de estaciones de audio digital (DAWs):
 /// - Barra de herramientas superior compacta (38px).
 /// - Área de trabajo principal enmarcada por bordes hairline de 1px.
 /// - Barra de estado y transporte inferior (Status / Transport Dock).

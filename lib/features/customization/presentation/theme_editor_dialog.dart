@@ -196,7 +196,7 @@ class _ThemeEditorDialogState extends State<ThemeEditorDialog> {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  _buildBaseChip("dark", "Adobe Dark Slate", preview),
+                  _buildBaseChip("dark", "Studio Dark Slate", preview),
                   _buildBaseChip("oled", "OLED Deep Black", preview),
                   _buildBaseChip("wood", "Madera Acústica", preview),
                   _buildBaseChip("light", "Luz de Día", preview),

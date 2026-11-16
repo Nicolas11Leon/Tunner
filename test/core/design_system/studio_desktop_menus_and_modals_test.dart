@@ -66,6 +66,7 @@ void main() {
       await tester.tap(find.text('Nueva Partitura...'));
       await tester.pumpAndSettle();
       expect(newScoreFired, isTrue);
+      expect(importFired, isFalse);
 
       // 2. Abrir menú Window y navegar a Afinador
       await tester.tap(find.text('Window'));

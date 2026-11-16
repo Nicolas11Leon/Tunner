@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Immutable, feature-agnostic Design Token specification inspired by
-/// Adobe Creative Cloud (Photoshop / Audition / Premiere Pro) and Pro-DAW
-/// desktop workstations.
+/// Immutable, feature-agnostic Design Token specification for the
+/// Tunner Studio Workstation and Pro-DAW audio environments.
 ///
 /// Swapping a [StudioDesignTokens] instance updates the entire visual skin
 /// independently of any domain logic or ViewModel state.
@@ -24,7 +23,7 @@ class StudioDesignTokens {
   final Color borderSubtle;
   final Color borderFocus;
 
-  // Functional Accents (Adobe Spectrum inspired)
+  // Functional Accents
   final Color accentPrimary;
   final Color accentSecondary;
   final Color accentSuccess;
@@ -71,10 +70,10 @@ class StudioDesignTokens {
     this.toolbarHeight = 38.0,
   });
 
-  /// Default: Adobe Spectrum Dark (Photoshop / Audition / Premiere CC).
-  static const StudioDesignTokens adobeSpectrumDark = StudioDesignTokens(
-    id: 'adobe_spectrum_dark',
-    displayName: 'Adobe Dark',
+  /// Default: Tunner Studio Dark.
+  static const StudioDesignTokens studioDark = StudioDesignTokens(
+    id: 'studio_dark',
+    displayName: 'Studio Dark',
     brightness: Brightness.dark,
     canvasBackground: Color(0xFF1E1E1E),
     panelBackground: Color(0xFF252526),
@@ -96,10 +95,10 @@ class StudioDesignTokens {
     textOnAccent: Color(0xFFFFFFFF),
   );
 
-  /// Ultra-deep studio mastering slate (Audition Darkest).
-  static const StudioDesignTokens adobeSpectrumDarkest = StudioDesignTokens(
-    id: 'adobe_spectrum_darkest',
-    displayName: 'Adobe Darkest',
+  /// Ultra-deep studio mastering slate (Studio Obsidian).
+  static const StudioDesignTokens studioObsidian = StudioDesignTokens(
+    id: 'studio_obsidian',
+    displayName: 'Studio Obsidian',
     brightness: Brightness.dark,
     canvasBackground: Color(0xFF141414),
     panelBackground: Color(0xFF1B1B1D),
@@ -121,10 +120,10 @@ class StudioDesignTokens {
     textOnAccent: Color(0xFFFFFFFF),
   );
 
-  /// Clean daylight studio theme (Photoshop / Spectrum Light).
-  static const StudioDesignTokens adobeSpectrumLight = StudioDesignTokens(
-    id: 'adobe_spectrum_light',
-    displayName: 'Adobe Light',
+  /// Clean daylight studio theme (Studio Light).
+  static const StudioDesignTokens studioLight = StudioDesignTokens(
+    id: 'studio_light',
+    displayName: 'Studio Light',
     brightness: Brightness.light,
     canvasBackground: Color(0xFFF5F5F5),
     panelBackground: Color(0xFFFFFFFF),
@@ -147,8 +146,8 @@ class StudioDesignTokens {
   );
 
   static const List<StudioDesignTokens> presets = <StudioDesignTokens>[
-    adobeSpectrumDark,
-    adobeSpectrumDarkest,
-    adobeSpectrumLight,
+    studioDark,
+    studioObsidian,
+    studioLight,
   ];
 }

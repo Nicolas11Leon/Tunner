@@ -18,7 +18,7 @@ import 'media_vault_viewmodel.dart';
 import 'timeline_arrangement_painter.dart';
 
 /// Full-featured Multimedia Vault, Synchronized Multi-Track Timeline (Drag & Drop),
-/// and Universal Import/Export Studio Modal styled with the atomized Adobe Spectrum
+/// and Universal Import/Export Studio Modal styled with the atomized Tunner Studio
 /// Design System.
 class MediaVaultWorkspaceModal extends StatefulWidget {
   final MediaVaultViewModel viewModel;

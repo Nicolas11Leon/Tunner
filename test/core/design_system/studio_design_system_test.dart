@@ -12,7 +12,7 @@ void main() {
     testWidgets('StudioThemeSwitcher swaps tokens independently of functional state',
         (tester) async {
       final controller = StudioThemeController(
-        initialTokens: StudioDesignTokens.adobeSpectrumDark,
+        initialTokens: StudioDesignTokens.studioDark,
       );
       addTearDown(controller.dispose);
 
@@ -54,15 +54,15 @@ void main() {
       await tester.pumpAndSettle();
 
       Container probe = tester.widget(find.byKey(const Key('canvas_probe')));
-      expect(probe.color, StudioDesignTokens.adobeSpectrumDark.canvasBackground);
+      expect(probe.color, StudioDesignTokens.studioDark.canvasBackground);
 
       await tester.tap(find.byKey(const Key('studio_theme_switcher_dropdown')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Adobe Light').last);
+      await tester.tap(find.text('Studio Light').last);
       await tester.pumpAndSettle();
 
       probe = tester.widget(find.byKey(const Key('canvas_probe')));
-      expect(probe.color, StudioDesignTokens.adobeSpectrumLight.canvasBackground);
+      expect(probe.color, StudioDesignTokens.studioLight.canvasBackground);
       expect(functionalCounter, 42);
     });
   });

@@ -17,7 +17,7 @@ class StudioSegment<T> {
 /// Molécula de UI: Selector Segmentado Compacto (StudioSegmentedControl).
 ///
 /// Selector de opciones mutualmente excluyentes inspirado en las barras de herramientas
-/// de Adobe Audition y Premiere Pro. Geometría plana, bordes 1px y feedback táctil claro.
+/// de consolas y suites profesionales de audio digital. Geometría plana, bordes 1px y feedback táctil claro.
 class StudioSegmentedControl<T> extends StatelessWidget {
   final List<StudioSegment<T>> segments;
   final T selectedValue;
