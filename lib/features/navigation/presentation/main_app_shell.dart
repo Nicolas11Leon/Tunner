@@ -17,6 +17,8 @@ import '../../guided_lessons/presentation/task_quick_jump_modal.dart';
 import '../../../core/design_system/studio_design_system.dart';
 import '../../acoustic_lab/presentation/harmonic_spectrogram_modal.dart';
 import '../../drone/presentation/harmonic_drone_modal.dart';
+import '../../song_library/presentation/studio_assets_modals.dart';
+import '../../song_library/domain/song_package_entity.dart';
 
 /// Intenciones para el sistema de atajos de teclado de grado profesional y memoria muscular (DAWs).
 class TogglePlayIntent extends Intent {
@@ -129,11 +131,23 @@ class MainAppShell extends StatefulWidget {
 
 class _MainAppShellState extends State<MainAppShell> {
   late int _currentIndex;
+  final List<SongPackage> _userCustomScores = [];
+  final List<Map<String, dynamic>> _userCustomPresets = [];
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+  }
+
+  void _onNewPresetSaved(String name, double pitchHz) {
+    setState(() {
+      _userCustomPresets.insert(0, {
+        'id': 'preset_${DateTime.now().millisecondsSinceEpoch}',
+        'name': name,
+        'pitchHz': pitchHz,
+      });
+    });
   }
 
   void _navigateToTab(int index) {
@@ -621,9 +635,10 @@ class _MainAppShellState extends State<MainAppShell> {
       StudioTreeSection(
         title: 'Projects & Documentos',
         folders: [
+          // 1. Suite Central de Afinación
           StudioTreeFolder(
             id: 'folder_tunner',
-            title: 'tunner / Afinación & Acústica',
+            title: 'tunner / Suite de Afinación',
             accentColor: palette.primaryAccent,
             items: [
               StudioTreeItem(
@@ -636,63 +651,95 @@ class _MainAppShellState extends State<MainAppShell> {
                 onSelect: () => _navigateToTab(1),
               ),
               StudioTreeItem(
-                id: 'doc_baroque',
-                title: 'Sesión Afinación Barroca A4=415Hz',
-                icon: Icons.history_edu_outlined,
-                timestamp: '415 Hz',
-                onSelect: () {
-                  viewModel.setReferencePitch(415.0);
-                  _navigateToTab(1);
-                },
-              ),
-              StudioTreeItem(
                 id: 'item_drone',
-                title: 'Dron Armónico & Afinación Justa',
+                title: 'Dron Armónico & Temperamentos',
                 icon: Icons.volume_up_outlined,
                 timestamp: 'En vivo',
                 onSelect: () => HarmonicDroneModal.show(context, viewModel),
               ),
               StudioTreeItem(
                 id: 'item_home',
-                title: 'Dashboard de Telemetría DSP',
+                title: 'Dashboard de Rendimiento',
                 icon: Icons.dashboard_outlined,
-                timestamp: '1h ago',
+                timestamp: 'DSP Ready',
                 hasDragHandle: _currentIndex == 0,
                 onSelect: () => _navigateToTab(0),
               ),
             ],
           ),
+
+          // 2. Biblioteca de Partituras (Inicia Vacía con Creación e Importación)
           StudioTreeFolder(
             id: 'folder_scores',
-            title: 'Biblioteca de Partituras MusicXML',
-            items: [
+            title: 'Partituras & Notación (${_userCustomScores.length})',
+            headerAction: IconButton(
+              icon: Icon(Icons.add, size: 13, color: palette.primaryAccent),
+              tooltip: 'Crear nueva partitura',
+              splashRadius: 10,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              onPressed: () => StudioAssetsModals.showNewScoreDialog(
+                context: context,
+                viewModel: viewModel,
+                onNavigateToTab: _navigateToTab,
+              ),
+            ),
+            items: _userCustomScores
+                .map(
+                  (score) => StudioTreeItem(
+                    id: score.id,
+                    title: score.title,
+                    icon: Icons.article_outlined,
+                    timestamp: '${score.defaultBpm} BPM',
+                    onSelect: () {
+                      viewModel.loadSongPackage(score);
+                      _navigateToTab(4);
+                    },
+                  ),
+                )
+                .toList(),
+            emptyActions: [
               StudioTreeItem(
-                id: 'doc_bach',
-                title: 'Bach - Minuet en Sol Mayor (MusicXML)',
-                icon: Icons.article_outlined,
-                timestamp: '3/4',
-                hasDragHandle: _currentIndex == 4,
-                onSelect: () => _navigateToTab(4),
+                id: 'act_new_score',
+                title: '[+] Nueva Partitura en Blanco...',
+                icon: Icons.note_add_outlined,
+                onSelect: () => StudioAssetsModals.showNewScoreDialog(
+                  context: context,
+                  viewModel: viewModel,
+                  onNavigateToTab: _navigateToTab,
+                ),
               ),
               StudioTreeItem(
-                id: 'doc_beethoven',
-                title: 'Beethoven - Himno a la Alegría (4/4)',
-                icon: Icons.article_outlined,
-                timestamp: '4/4',
-                onSelect: () => _navigateToTab(4),
-              ),
-              StudioTreeItem(
-                id: 'doc_arpeggios',
-                title: 'Estudio Técnico #3 - Arpegios',
-                icon: Icons.article_outlined,
-                timestamp: '6/8',
-                onSelect: () => _navigateToTab(4),
+                id: 'act_imp_score',
+                title: '[⬇] Importar MusicXML / Catálogo...',
+                icon: Icons.file_download_outlined,
+                onSelect: () => StudioAssetsModals.showImportScoreDialog(
+                  context: context,
+                  viewModel: viewModel,
+                  onNavigateToTab: _navigateToTab,
+                ),
               ),
             ],
           ),
+
+          // 3. Grabaciones y Tomas de Audio WAV (Inicia Vacía)
           StudioTreeFolder(
             id: 'folder_studio',
-            title: 'Estudio, Tomas & Grabaciones',
+            title: 'Tomas de Audio & WAV (${viewModel.recordingHistory.length})',
+            headerAction: IconButton(
+              icon: Icon(Icons.fiber_manual_record, size: 12, color: Colors.redAccent),
+              tooltip: viewModel.isRecording ? 'Detener toma' : 'Iniciar nueva toma',
+              splashRadius: 10,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              onPressed: () {
+                if (viewModel.isRecording) {
+                  viewModel.stopPracticeRecording();
+                } else {
+                  viewModel.startPracticeRecording();
+                }
+              },
+            ),
             items: [
               StudioTreeItem(
                 id: 'item_rack',
@@ -703,25 +750,21 @@ class _MainAppShellState extends State<MainAppShell> {
                 hasDragHandle: _currentIndex == 3,
                 onSelect: () => _navigateToTab(3),
               ),
-              StudioTreeItem(
-                id: 'doc_take_1',
-                title: 'Toma #1 - Solo de Violín (WAV)',
-                icon: Icons.audio_file_outlined,
-                timestamp: '2m 14s',
-                onSelect: () => _navigateToTab(3),
+              ...viewModel.recordingHistory.map(
+                (rec) => StudioTreeItem(
+                  id: rec.id,
+                  title: rec.songTitle,
+                  icon: Icons.audio_file_outlined,
+                  timestamp: '${rec.duration.inSeconds}s',
+                  onSelect: () => _navigateToTab(3),
+                ),
               ),
+            ],
+            emptyActions: [
               StudioTreeItem(
-                id: 'doc_take_2',
-                title: 'Toma #2 - Ensayo en Compás Compuesto',
-                icon: Icons.audio_file_outlined,
-                timestamp: '1m 45s',
-                onSelect: () => _navigateToTab(3),
-              ),
-              StudioTreeItem(
-                id: 'item_recording',
-                title: 'Grabadora de Pistas en Vivo',
-                icon: Icons.graphic_eq_rounded,
-                timestamp: viewModel.isRecording ? 'Grabando' : 'Listo',
+                id: 'act_new_rec',
+                title: viewModel.isRecording ? 'Detener Grabación WAV' : '[+] Iniciar Nueva Toma WAV...',
+                icon: Icons.fiber_manual_record_outlined,
                 badge: viewModel.isRecording ? 'REC' : null,
                 badgeColor: Colors.redAccent,
                 onSelect: () {
@@ -734,34 +777,52 @@ class _MainAppShellState extends State<MainAppShell> {
               ),
             ],
           ),
+
+          // 4. Presets de Afinación Personalizados (Inicia Vacía)
           StudioTreeFolder(
-            id: 'folder_conservatory',
-            title: 'Conservatorio & Lecciones',
-            items: [
-              StudioTreeItem(
-                id: 'item_learning',
-                title: 'Lección 1: Precisión Rítmica en 4/4',
-                icon: Icons.school_outlined,
-                timestamp: '${viewModel.bpm.round()} BPM',
-                hasDragHandle: _currentIndex == 2,
-                onSelect: () => _navigateToTab(2),
+            id: 'folder_tunings',
+            title: 'Presets de Afinación (${_userCustomPresets.length})',
+            headerAction: IconButton(
+              icon: Icon(Icons.add, size: 13, color: palette.secondaryAccent),
+              tooltip: 'Guardar preset',
+              splashRadius: 10,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              onPressed: () => StudioAssetsModals.showNewTuningPresetDialog(
+                context: context,
+                viewModel: viewModel,
+                onSavePreset: _onNewPresetSaved,
               ),
+            ),
+            items: _userCustomPresets
+                .map(
+                  (preset) => StudioTreeItem(
+                    id: preset['id'] as String,
+                    title: preset['name'] as String,
+                    icon: Icons.bookmark_outline_rounded,
+                    timestamp: '${(preset['pitchHz'] as double).toInt()} Hz',
+                    onSelect: () {
+                      viewModel.setReferencePitch(preset['pitchHz'] as double);
+                      _navigateToTab(1);
+                    },
+                  ),
+                )
+                .toList(),
+            emptyActions: [
               StudioTreeItem(
-                id: 'doc_lesson_intonation',
-                title: 'Lección 2: Control de Afinación Escalas',
-                icon: Icons.school_outlined,
-                timestamp: 'Nivel 2',
-                onSelect: () => _navigateToTab(2),
-              ),
-              StudioTreeItem(
-                id: 'item_ear',
-                title: 'Entrenador Auditivo a Ciegas',
-                icon: Icons.hearing_outlined,
-                timestamp: 'Shift+E',
-                onSelect: () => BlindEarTrainerModal.show(context, viewModel),
+                id: 'act_new_preset',
+                title: '[+] Guardar Calibración A4 Actual...',
+                icon: Icons.bookmark_add_outlined,
+                onSelect: () => StudioAssetsModals.showNewTuningPresetDialog(
+                  context: context,
+                  viewModel: viewModel,
+                  onSavePreset: _onNewPresetSaved,
+                ),
               ),
             ],
           ),
+
+          // 5. Herramientas de Laboratorio Acústico FFT
           StudioTreeFolder(
             id: 'folder_acoustics',
             title: 'Laboratorio Acústico FFT',
@@ -779,6 +840,29 @@ class _MainAppShellState extends State<MainAppShell> {
                 icon: Icons.stacked_bar_chart_rounded,
                 timestamp: 'Shift+C',
                 onSelect: () => ChordAnalyzerModal.show(context, viewModel),
+              ),
+            ],
+          ),
+
+          // 6. Conservatorio y Lecciones
+          StudioTreeFolder(
+            id: 'folder_conservatory',
+            title: 'Conservatorio & Lecciones',
+            items: [
+              StudioTreeItem(
+                id: 'item_learning',
+                title: 'Tutor de Compás y Detección Rushing',
+                icon: Icons.school_outlined,
+                timestamp: '${viewModel.bpm.round()} BPM',
+                hasDragHandle: _currentIndex == 2,
+                onSelect: () => _navigateToTab(2),
+              ),
+              StudioTreeItem(
+                id: 'item_ear',
+                title: 'Entrenador Auditivo a Ciegas',
+                icon: Icons.hearing_outlined,
+                timestamp: 'Shift+E',
+                onSelect: () => BlindEarTrainerModal.show(context, viewModel),
               ),
             ],
           ),

@@ -39,6 +39,8 @@ class StudioTreeFolder {
   final IconData icon;
   final IconData expandedIcon;
   final List<StudioTreeItem> items;
+  final List<StudioTreeItem>? emptyActions;
+  final Widget? headerAction;
   final bool initiallyExpanded;
   final Color? accentColor;
 
@@ -48,6 +50,8 @@ class StudioTreeFolder {
     this.icon = Icons.folder_outlined,
     this.expandedIcon = Icons.folder_open_outlined,
     required this.items,
+    this.emptyActions,
+    this.headerAction,
     this.initiallyExpanded = true,
     this.accentColor,
   });
@@ -231,16 +235,38 @@ class _StudioTreeViewState extends State<StudioTreeView> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (folder.headerAction != null) ...[
+                  const SizedBox(width: 4),
+                  folder.headerAction!,
+                ],
               ],
             ),
           ),
         ),
 
         // Nodos Hijos de la Carpeta (Indentados con sangría técnica)
-        if (isFolderExpanded)
-          ...folder.items.map(
-            (item) => _buildItemWidget(item, tokens, indentLevel: 1),
-          ),
+        if (isFolderExpanded) ...[
+          if (folder.items.isNotEmpty)
+            ...folder.items.map(
+              (item) => _buildItemWidget(item, tokens, indentLevel: 1),
+            )
+          else if (folder.emptyActions != null && folder.emptyActions!.isNotEmpty)
+            ...folder.emptyActions!.map(
+              (item) => _buildItemWidget(item, tokens, indentLevel: 1),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(left: 28.0, top: 4.0, bottom: 4.0),
+              child: Text(
+                '(Carpeta vacía)',
+                style: TextStyle(
+                  color: tokens.textMuted.withValues(alpha: 0.6),
+                  fontSize: 10.0,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+        ],
       ],
     );
   }
