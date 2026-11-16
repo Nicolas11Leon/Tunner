@@ -10,12 +10,14 @@ export 'atoms/studio_metric_display.dart';
 export 'atoms/studio_panel.dart';
 export 'atoms/studio_status_led.dart';
 export 'atoms/studio_toolbar.dart';
+export 'atoms/studio_splitter.dart';
 
 // Moléculas
 export 'molecules/studio_command_prompt_bar.dart';
 export 'molecules/studio_segmented_control.dart';
 export 'molecules/studio_tree_view.dart';
 export 'molecules/studio_vu_meter.dart';
+export 'molecules/studio_workspace_tab_bar.dart';
 
 // Organismos
 export 'organisms/studio_desktop_app_shell.dart';

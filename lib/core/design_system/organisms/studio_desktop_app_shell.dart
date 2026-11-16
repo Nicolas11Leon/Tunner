@@ -4,25 +4,30 @@ import '../studio_design_tokens.dart';
 import '../atoms/studio_hairline.dart';
 import '../atoms/studio_status_led.dart';
 import '../atoms/studio_theme_switcher.dart';
+import '../atoms/studio_splitter.dart';
 import '../molecules/studio_tree_view.dart';
 import '../molecules/studio_command_prompt_bar.dart';
+import '../molecules/studio_workspace_tab_bar.dart';
 
 /// Organismo de UI: Estación de Trabajo Desktop Profesional (StudioDesktopAppShell).
 ///
-/// Implementa la arquitectura visual de tres niveles idéntica a Antigravity IDE,
-/// VS Code y consolas profesionales de audio digital (DAWs):
-/// 1. Top Window & Menu Bar (Menús nativos, versión, breadcrumbs y acciones de panel).
-/// 2. Left Hierarchical Sidebar (Accesos directos a Automations/Customizations,
-///    árbol jerárquico de proyectos con carpetas y pie con Settings fijo).
-/// 3. Central Canvas Viewport con Barra de Comandos / Prompt Acústico integrado.
-/// 4. Bottom Telemetry Status Bar (Lecturas DSP, latencia, tono de concierto y BPM).
-class StudioDesktopAppShell extends StatelessWidget {
+/// Implementa la arquitectura visual y ergonómica de software de audio comercial de alta gama (DAW / IDE):
+/// 1. Top Window & Menu Bar: Menús nativos estilizados, selector de espacios de trabajo fijado,
+///    breadcrumbs contextuales, conmutadores de paneles y temas.
+/// 2. Left Hierarchical Sidebar: Explorador de proyectos ajustable con splitter táctil,
+///    accesos directos a utilidades y pie con ajustes del estudio.
+/// 3. Central Canvas Viewport: Sistema de división dual interactivo (Split Dual View)
+///    para trabajar en múltiples herramientas a la vez con divisores arrastrables.
+/// 4. Bottom Telemetry Status Bar: Lecturas de audio en tiempo real, latencia y DSP en línea.
+class StudioDesktopAppShell extends StatefulWidget {
   final String appTitle;
   final String appVersion;
   final String currentBreadcrumb;
   final List<StudioTreeSection> navigationSections;
   final String activeItemId;
+  final int currentTabIndex;
   final Widget activeView;
+  final Widget? secondaryView;
   final Widget? sidebarFooter;
   final VoidCallback onOpenSearch;
   final VoidCallback onOpenShortcuts;
@@ -52,7 +57,9 @@ class StudioDesktopAppShell extends StatelessWidget {
     required this.currentBreadcrumb,
     required this.navigationSections,
     required this.activeItemId,
+    this.currentTabIndex = 0,
     required this.activeView,
+    this.secondaryView,
     this.sidebarFooter,
     required this.onOpenSearch,
     required this.onOpenShortcuts,
@@ -77,6 +84,42 @@ class StudioDesktopAppShell extends StatelessWidget {
   });
 
   @override
+  State<StudioDesktopAppShell> createState() => _StudioDesktopAppShellState();
+}
+
+class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
+  double _sidebarWidth = 260.0;
+  bool _isSidebarVisible = true;
+  bool _isDualSplitActive = false;
+  double _dualSplitRatio = 0.50;
+
+  void _toggleSidebar() {
+    setState(() {
+      _isSidebarVisible = !_isSidebarVisible;
+    });
+  }
+
+  void _toggleDualSplit() {
+    setState(() {
+      _isDualSplitActive = !_isDualSplitActive;
+    });
+  }
+
+  void _onResizeSidebar(double delta) {
+    setState(() {
+      _sidebarWidth = (_sidebarWidth + delta).clamp(180.0, 520.0);
+    });
+  }
+
+  void _onResizeSplit(double delta, double totalWidth) {
+    if (totalWidth <= 0) return;
+    setState(() {
+      final deltaRatio = delta / totalWidth;
+      _dualSplitRatio = (_dualSplitRatio + deltaRatio).clamp(0.20, 0.80);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final tokens = StudioThemeScope.tokensOf(context);
 
@@ -85,7 +128,7 @@ class StudioDesktopAppShell extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // 1. Barra de Menú Superior (Top App Bar & Menus estilo Antigravity IDE)
+            // 1. Barra de Menú Superior de Alta Gama (Top App Bar & Menus estilo DAW / IDE Pro)
             Container(
               height: 38.0,
               padding: const EdgeInsets.symmetric(horizontal: 10.0),
@@ -98,44 +141,80 @@ class StudioDesktopAppShell extends StatelessWidget {
                   ),
                 ),
               ),
-              child: Row(
-                children: [
-                  // Menús de Aplicación de Escritorio
-                  _buildTunnerMenu(context, tokens),
-                  _buildWorkspaceMenu(context, tokens),
-                  _buildViewMenu(context, tokens),
-                  _buildWindowMenu(context, tokens),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Row(
+                    children: [
+                      // Menús de Aplicación de Escritorio
+                      _buildTunnerMenu(context, tokens),
+                      _buildWorkspaceMenu(context, tokens),
+                      _buildViewMenu(context, tokens),
+                      _buildWindowMenu(context, tokens),
 
-                  const SizedBox(width: 8),
-                  const StudioHairline(orientation: Axis.vertical, length: 14),
-                  const SizedBox(width: 8),
+                      const SizedBox(width: 8),
+                      const StudioHairline(orientation: Axis.vertical, length: 14),
+                      const SizedBox(width: 8),
 
-                  // Versión / Badge
-                  Text(
-                    'Version $appVersion',
-                    style: TextStyle(
-                      color: tokens.textMuted,
-                      fontSize: 10.0,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-
-                  const SizedBox(width: 12),
-                  const StudioHairline(orientation: Axis.vertical, length: 14),
-                  const SizedBox(width: 12),
-
-                  // Breadcrumb del módulo activo
-                  Expanded(
-                    child: Text(
-                      currentBreadcrumb,
-                      style: TextStyle(
-                        color: tokens.textSecondary,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
+                      // Versión / Badge
+                      Text(
+                        'Version ${widget.appVersion}',
+                        style: TextStyle(
+                          color: tokens.textMuted,
+                          fontSize: 10.0,
+                          fontFamily: 'monospace',
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
+
+                      const SizedBox(width: 12),
+                      const StudioHairline(orientation: Axis.vertical, length: 14),
+                      const SizedBox(width: 12),
+
+                      // Breadcrumb del módulo activo
+                      Expanded(
+                        child: Text(
+                          widget.currentBreadcrumb,
+                          style: TextStyle(
+                            color: tokens.textSecondary,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+
+                  // Controles de Gestión de Paneles y Ventanas
+                  IconButton(
+                    icon: Icon(
+                      _isSidebarVisible ? Icons.view_sidebar_rounded : Icons.view_sidebar_outlined,
+                      size: 16,
+                      color: _isSidebarVisible ? tokens.accentPrimary : tokens.textSecondary,
                     ),
+                    tooltip: _isSidebarVisible ? 'Ocultar Barra Lateral (Ctrl+B)' : 'Mostrar Barra Lateral (Ctrl+B)',
+                    splashRadius: 14,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    onPressed: _toggleSidebar,
                   ),
+                  if (widget.secondaryView != null) ...[
+                    IconButton(
+                      icon: Icon(
+                        _isDualSplitActive ? Icons.vertical_split_rounded : Icons.splitscreen_rounded,
+                        size: 16,
+                        color: _isDualSplitActive ? tokens.accentPrimary : tokens.textSecondary,
+                      ),
+                      tooltip: _isDualSplitActive
+                          ? 'Desactivar Vista Dividida Dual (Ctrl+Shift+D)'
+                          : 'Activar Vista Dividida Dual (Ctrl+Shift+D)',
+                      splashRadius: 14,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                      onPressed: _toggleDualSplit,
+                    ),
+                  ],
+
+                  const SizedBox(width: 4),
+                  const StudioHairline(orientation: Axis.vertical, length: 14),
+                  const SizedBox(width: 4),
 
                   // Acciones rápidas (Buscador, Atajos, Tema)
                   IconButton(
@@ -144,7 +223,7 @@ class StudioDesktopAppShell extends StatelessWidget {
                     splashRadius: 14,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                    onPressed: onOpenSearch,
+                    onPressed: widget.onOpenSearch,
                   ),
                   IconButton(
                     icon: Icon(Icons.keyboard_outlined, size: 16, color: tokens.textSecondary),
@@ -152,7 +231,7 @@ class StudioDesktopAppShell extends StatelessWidget {
                     splashRadius: 14,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                    onPressed: onOpenShortcuts,
+                    onPressed: widget.onOpenShortcuts,
                   ),
                   const SizedBox(width: 4),
                   const StudioThemeSwitcher(),
@@ -168,10 +247,10 @@ class StudioDesktopAppShell extends StatelessWidget {
                       side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
                     ),
                     onSelected: (val) {
-                      if (val == 'settings') onOpenSettings?.call();
-                      if (val == 'shortcuts') onOpenShortcuts();
-                      if (val == 'automations') onOpenAutomations?.call();
-                      if (val == 'customizations') onOpenCustomizations?.call();
+                      if (val == 'settings') widget.onOpenSettings?.call();
+                      if (val == 'shortcuts') widget.onOpenShortcuts();
+                      if (val == 'automations') widget.onOpenAutomations?.call();
+                      if (val == 'customizations') widget.onOpenCustomizations?.call();
                       if (val == 'about') _showAboutTunnerDialog(context, tokens);
                     },
                     itemBuilder: (ctx) => [
@@ -184,157 +263,196 @@ class StudioDesktopAppShell extends StatelessWidget {
                     ],
                   ),
                 ],
-              ),
-            ),
+              );
+            },
+          ),
+        ),
 
-            // 2. Área Central (Sidebar + Viewport con Prompt)
+            // 2. Área Central (Sidebar Ajustable + Viewport con Splitter Interactivo)
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Barra Lateral Izquierda (Hierarchical Treeview Sidebar estilo Antigravity)
-                  Container(
-                    width: 260.0,
-                    color: tokens.panelBackground,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Accesos directos superiores de nivel de sistema
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                  // Barra Lateral Izquierda (Ajustable con Splitter)
+                  if (_isSidebarVisible) ...[
+                    SizedBox(
+                      width: _sidebarWidth,
+                      child: Container(
+                        color: tokens.panelBackground,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Accesos directos superiores de nivel de sistema
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _buildSidebarUtilityItem(
+                                    icon: Icons.access_time_rounded,
+                                    title: 'Automations',
+                                    tokens: tokens,
+                                    onTap: widget.onOpenAutomations ?? () {},
+                                  ),
+                                  _buildSidebarUtilityItem(
+                                    icon: Icons.tune_rounded,
+                                    title: 'Customizations',
+                                    tokens: tokens,
+                                    onTap: widget.onOpenCustomizations ?? () {},
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const StudioHairline(orientation: Axis.horizontal),
+
+                            // Árbol Jerárquico de Proyectos y Carpetas
+                            Expanded(
+                              child: StudioTreeView(
+                                sections: widget.navigationSections,
+                                selectedItemId: widget.activeItemId,
+                              ),
+                            ),
+
+                            // Instrumento Activo
+                            if (widget.sidebarFooter != null) ...[
+                              const StudioHairline(orientation: Axis.horizontal),
+                              widget.sidebarFooter!,
+                            ],
+
+                            // Pie Fijo de la Barra Lateral: Settings
+                            const StudioHairline(orientation: Axis.horizontal),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                              child: _buildSidebarUtilityItem(
+                                icon: Icons.settings_outlined,
+                                title: 'Settings',
+                                tokens: tokens,
+                                onTap: widget.onOpenSettings ?? () {},
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Divisor interactivo de redimensionamiento de sidebar
+                    StudioSplitter(
+                      orientation: Axis.horizontal,
+                      onDelta: _onResizeSidebar,
+                      onDoubleTapReset: () => setState(() => _sidebarWidth = 260.0),
+                    ),
+                  ],
+
+                  // Viewport Principal (con soporte para División Dual)
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (ctx, constraints) {
+                        return Container(
+                          color: tokens.canvasBackground,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _buildSidebarUtilityItem(
-                                icon: Icons.access_time_rounded,
-                                title: 'Automations',
-                                tokens: tokens,
-                                onTap: onOpenAutomations ?? () {},
-                              ),
-                              _buildSidebarUtilityItem(
-                                icon: Icons.tune_rounded,
-                                title: 'Customizations',
-                                tokens: tokens,
-                                onTap: onOpenCustomizations ?? () {},
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const StudioHairline(orientation: Axis.horizontal),
-
-                        // Árbol Jerárquico de Proyectos y Carpetas
-                        Expanded(
-                          child: StudioTreeView(
-                            sections: navigationSections,
-                            selectedItemId: activeItemId,
-                          ),
-                        ),
-
-                        // Instrumento Activo
-                        if (sidebarFooter != null) ...[
-                          const StudioHairline(orientation: Axis.horizontal),
-                          sidebarFooter!,
-                        ],
-
-                        // Pie Fijo de la Barra Lateral: Settings (idéntico a Antigravity)
-                        const StudioHairline(orientation: Axis.horizontal),
-                        InkWell(
-                          onTap: onOpenSettings ?? () {},
-                          child: Container(
-                            height: 38.0,
-                            padding: const EdgeInsets.symmetric(horizontal: 14.0),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.settings_outlined,
-                                  size: 15,
-                                  color: tokens.textSecondary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Settings',
-                                  style: TextStyle(
-                                    color: tokens.textSecondary,
-                                    fontSize: 12.0,
-                                    fontWeight: FontWeight.w500,
+                              // Barra de Espacios de Trabajo estilo DAW comercial
+                              Container(
+                                height: 34.0,
+                                padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                                decoration: BoxDecoration(
+                                  color: tokens.panelHeaderBackground,
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: tokens.borderHairline,
+                                      width: tokens.borderWidth,
+                                    ),
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Divisor vertical hairline entre sidebar y viewport
-                  const StudioHairline(orientation: Axis.vertical),
-
-                  // Área Principal de Trabajo (Canvas Viewport + Prompt Bar)
-                  Expanded(
-                    child: Column(
-                      children: [
-                        // Cabecera de Contexto del Workspace
-                        Container(
-                          height: 34.0,
-                          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                          decoration: BoxDecoration(
-                            color: tokens.panelBackground.withValues(alpha: 0.5),
-                            border: Border(
-                              bottom: BorderSide(
-                                color: tokens.borderHairline,
-                                width: tokens.borderWidth,
+                                child: LayoutBuilder(
+                                  builder: (ctx, headerConstraints) {
+                                    return Row(
+                                      children: [
+                                        // Pestañas de Espacios de Trabajo (Workspace Tabs adaptativas)
+                                        Expanded(
+                                          child: StudioWorkspaceTabBar(
+                                            activeIndex: widget.currentTabIndex,
+                                            onTabSelected: (idx) => widget.onNavigateToTabIndex?.call(idx),
+                                          ),
+                                        ),
+                                        if (headerConstraints.maxWidth >= 640) ...[
+                                          const SizedBox(width: 8),
+                                          if (_isDualSplitActive && widget.secondaryView != null) ...[
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+                                              decoration: BoxDecoration(
+                                                color: tokens.accentPrimary.withValues(alpha: 0.15),
+                                                borderRadius: BorderRadius.circular(3.0),
+                                                border: Border.all(color: tokens.accentPrimary.withValues(alpha: 0.3)),
+                                              ),
+                                              child: Text(
+                                                'MODO DUAL SPLIT ACTIVO',
+                                                style: TextStyle(
+                                                  color: tokens.accentPrimary,
+                                                  fontSize: 9.0,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 0.4,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                          ],
+                                          Text(
+                                            'Workspace: ${widget.currentBreadcrumb.split("/").last.trim()}',
+                                            style: TextStyle(
+                                              color: tokens.textMuted,
+                                              fontSize: 10.0,
+                                              fontFamily: 'monospace',
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
+
+                              // Viewport central interactivo (Individual o Split Dual)
                               Expanded(
-                                child: Text(
-                                  currentBreadcrumb,
-                                  style: TextStyle(
-                                    color: tokens.textPrimary,
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                child: (_isDualSplitActive && widget.secondaryView != null)
+                                    ? Row(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          SizedBox(
+                                            width: (constraints.maxWidth * _dualSplitRatio)
+                                                .clamp(200.0, constraints.maxWidth - 200.0),
+                                            child: widget.activeView,
+                                          ),
+                                          StudioSplitter(
+                                            orientation: Axis.horizontal,
+                                            onDelta: (d) => _onResizeSplit(d, constraints.maxWidth),
+                                            onDoubleTapReset: () => setState(() => _dualSplitRatio = 0.50),
+                                          ),
+                                          Expanded(
+                                            child: widget.secondaryView!,
+                                          ),
+                                        ],
+                                      )
+                                    : widget.activeView,
                               ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                Icons.more_horiz_rounded,
-                                size: 16,
-                                color: tokens.textMuted,
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                Icons.view_sidebar_outlined,
-                                size: 15,
-                                color: tokens.textMuted,
-                              ),
+
+                              // Barra de Comandos / Prompt Acústico estilo Antigravity IDE
+                              if (widget.promptSuggestions != null && widget.promptSuggestions!.isNotEmpty)
+                                StudioCommandPromptBar(
+                                  suggestions: widget.promptSuggestions!,
+                                  onOpenHelp: widget.onOpenHelp ?? widget.onOpenShortcuts,
+                                  onCommandExecuted: widget.onCommandSubmitted,
+                                  engineName: widget.engineName,
+                                  isRecording: widget.isRecording,
+                                  onToggleRecording: widget.onToggleRecording,
+                                )
+                              else
+                                _buildStudioPromptBar(tokens),
                             ],
                           ),
-                        ),
-
-                        // Contenido del Viewport
-                        Expanded(
-                          child: activeView,
-                        ),
-
-                        // Barra de Comandos / Prompt Acústico estilo Antigravity IDE
-                        if (promptSuggestions != null && promptSuggestions!.isNotEmpty)
-                          StudioCommandPromptBar(
-                            suggestions: promptSuggestions!,
-                            onOpenHelp: onOpenHelp ?? onOpenShortcuts,
-                            onCommandExecuted: onCommandSubmitted,
-                            engineName: engineName,
-                            isRecording: isRecording,
-                            onToggleRecording: onToggleRecording,
-                          )
-                        else
-                          _buildStudioPromptBar(tokens),
-                      ],
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -382,14 +500,14 @@ class StudioDesktopAppShell extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  if (customStatusItems != null) ...[
-                    for (int i = 0; i < customStatusItems!.length; i++) ...[
+                  if (widget.customStatusItems != null) ...[
+                    for (int i = 0; i < widget.customStatusItems!.length; i++) ...[
                       if (i > 0) ...[
                         const SizedBox(width: 8),
                         const StudioHairline(orientation: Axis.vertical, length: 12),
                         const SizedBox(width: 8),
                       ],
-                      customStatusItems![i],
+                      widget.customStatusItems![i],
                     ],
                   ],
                 ],
@@ -409,8 +527,8 @@ class StudioDesktopAppShell extends StatelessWidget {
       isBrand: true,
       onSelected: (val) {
         if (val == 'about') _showAboutTunnerDialog(context, tokens);
-        if (val == 'shortcuts') onOpenShortcuts();
-        if (val == 'settings') onOpenSettings?.call();
+        if (val == 'shortcuts') widget.onOpenShortcuts();
+        if (val == 'settings') widget.onOpenSettings?.call();
         if (val == 'updates') {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -436,11 +554,11 @@ class StudioDesktopAppShell extends StatelessWidget {
       label: 'Workspace',
       tokens: tokens,
       onSelected: (val) {
-        if (val == 'new_score') onMenuNewScore?.call();
-        if (val == 'import_file') onMenuImportFile?.call();
-        if (val == 'new_preset') onMenuNewPreset?.call();
-        if (val == 'save_workspace') onMenuSaveWorkspace?.call();
-        if (val == 'reset_workspace') onMenuResetWorkspace?.call();
+        if (val == 'new_score') widget.onMenuNewScore?.call();
+        if (val == 'import_file') widget.onMenuImportFile?.call();
+        if (val == 'new_preset') widget.onMenuNewPreset?.call();
+        if (val == 'save_workspace') widget.onMenuSaveWorkspace?.call();
+        if (val == 'reset_workspace') widget.onMenuResetWorkspace?.call();
       },
       items: [
         _buildPopupMenuItem('new_score', 'Nueva Partitura...', Icons.post_add_rounded, tokens, shortcut: 'Ctrl+N'),
@@ -459,15 +577,20 @@ class StudioDesktopAppShell extends StatelessWidget {
       label: 'View',
       tokens: tokens,
       onSelected: (val) {
-        if (val == 'toggle_rack') onMenuToggleRack?.call();
-        if (val == 'search') onOpenSearch();
-        if (val == 'automations') onOpenAutomations?.call();
-        if (val == 'customizations') onOpenCustomizations?.call();
-        if (val == 'spectrogram') onOpenSpectrogram?.call();
+        if (val == 'toggle_sidebar') _toggleSidebar();
+        if (val == 'toggle_dual_split') _toggleDualSplit();
+        if (val == 'toggle_rack') widget.onMenuToggleRack?.call();
+        if (val == 'search') widget.onOpenSearch();
+        if (val == 'automations') widget.onOpenAutomations?.call();
+        if (val == 'customizations') widget.onOpenCustomizations?.call();
+        if (val == 'spectrogram') widget.onOpenSpectrogram?.call();
       },
       items: [
+        _buildPopupMenuItem('toggle_sidebar', 'Alternar Barra Lateral', Icons.view_sidebar_rounded, tokens, shortcut: 'Ctrl+B'),
+        _buildPopupMenuItem('toggle_dual_split', 'Alternar Vista Dividida Dual', Icons.vertical_split_rounded, tokens, shortcut: 'Ctrl+Shift+D'),
+        const PopupMenuDivider(height: 8),
         _buildPopupMenuItem('search', 'Búsqueda Rápida Omnibox', Icons.search_rounded, tokens, shortcut: 'Ctrl+K'),
-        _buildPopupMenuItem('toggle_rack', 'Alternar Rack Modular', Icons.dashboard_customize_outlined, tokens, shortcut: 'Tab'),
+        _buildPopupMenuItem('toggle_rack', 'Rack Modular de Estudio', Icons.developer_board_rounded, tokens, shortcut: 'F2'),
         _buildPopupMenuItem('spectrogram', 'Espectrograma FFT Pantalla Completa', Icons.graphic_eq_rounded, tokens),
         const PopupMenuDivider(height: 8),
         _buildPopupMenuItem('automations', 'Panel de Automatizaciones', Icons.access_time_rounded, tokens),
@@ -482,11 +605,11 @@ class StudioDesktopAppShell extends StatelessWidget {
       label: 'Window',
       tokens: tokens,
       onSelected: (val) {
-        if (val == 'tuner') onNavigateToTabIndex?.call(1);
-        if (val == 'metronome') onNavigateToTabIndex?.call(0);
-        if (val == 'learning') onNavigateToTabIndex?.call(2);
-        if (val == 'studio') onNavigateToTabIndex?.call(3);
-        if (val == 'library') onNavigateToTabIndex?.call(4);
+        if (val == 'tuner') widget.onNavigateToTabIndex?.call(1);
+        if (val == 'metronome') widget.onNavigateToTabIndex?.call(0);
+        if (val == 'learning') widget.onNavigateToTabIndex?.call(2);
+        if (val == 'studio') widget.onNavigateToTabIndex?.call(3);
+        if (val == 'library') widget.onNavigateToTabIndex?.call(4);
       },
       items: [
         _buildPopupMenuItem('tuner', '1. Afinador Estroboscópico Pro', Icons.tune_rounded, tokens, shortcut: 'Alt+1'),
@@ -604,73 +727,75 @@ class StudioDesktopAppShell extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      width: 28,
+                      height: 28,
                       decoration: BoxDecoration(
-                        color: tokens.elevatedSurface,
+                        color: tokens.accentPrimary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(tokens.radiusSmall),
-                        border: Border.all(color: tokens.borderHairline, width: 0.5),
+                        border: Border.all(color: tokens.accentPrimary.withValues(alpha: 0.3)),
                       ),
-                      child: Icon(Icons.waves_rounded, size: 22, color: tokens.accentPrimary),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'T',
+                        style: TextStyle(
+                          color: tokens.accentPrimary,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Tunner Audio Workstation',
+                          'Tunner Studio Workstation',
                           style: TextStyle(
                             color: tokens.textPrimary,
-                            fontSize: 14,
                             fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
                         ),
                         Text(
-                          'Version $appVersion (Offline-First Pro Suite)',
+                          'Version ${widget.appVersion} • Licencia Libre y Abierta',
                           style: TextStyle(
                             color: tokens.textMuted,
-                            fontSize: 10.5,
-                            fontFamily: 'monospace',
+                            fontSize: 10,
                           ),
                         ),
                       ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 const StudioHairline(orientation: Axis.horizontal),
                 const SizedBox(height: 14),
                 Text(
-                  'Estación de trabajo acústica modular y conservatorio digital. Diseñada para pedagogía musical avanzada, entonación pura, transcriptor en tiempo real y análisis acústico sin latencia.',
+                  'Tunner es una estación de trabajo acústica y pedagógica de alta fidelidad, construida bajo Clean Architecture para educación musical y producción de audio profesional.',
                   style: TextStyle(
                     color: tokens.textSecondary,
-                    fontSize: 11,
+                    fontSize: 11.5,
                     height: 1.4,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '• Motor DSP: $engineName\n• Precisión: ±0.1 cents (MPM/NSDF)\n• Estándar Notación: SMuFL 1.4\n• Arquitectura: Monolito Modular Limpio',
+                  'Diseñada con rendimiento determinista, sin bucles activos de CPU y operando 100% offline.',
                   style: TextStyle(
                     color: tokens.textMuted,
-                    fontSize: 10,
-                    height: 1.5,
-                    fontFamily: 'monospace',
+                    fontSize: 10.5,
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
                 const SizedBox(height: 18),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: ElevatedButton(
+                  child: TextButton(
                     onPressed: () => Navigator.of(ctx).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: tokens.accentPrimary,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(tokens.radiusSmall),
-                      ),
+                    child: Text(
+                      'Cerrar',
+                      style: TextStyle(color: tokens.accentPrimary, fontSize: 12),
                     ),
-                    child: const Text('Entendido', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -691,10 +816,10 @@ class StudioDesktopAppShell extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(tokens.radiusSmall),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 4.5),
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 5.0),
         child: Row(
           children: [
-            Icon(icon, size: 14, color: tokens.textSecondary),
+            Icon(icon, size: 14, color: tokens.textMuted),
             const SizedBox(width: 8),
             Text(
               title,
@@ -712,67 +837,46 @@ class StudioDesktopAppShell extends StatelessWidget {
 
   Widget _buildStudioPromptBar(StudioDesignTokens tokens) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+      height: 38.0,
+      margin: const EdgeInsets.all(10.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0),
       decoration: BoxDecoration(
-        color: tokens.panelBackground,
-        border: Border(
-          top: BorderSide(
-            color: tokens.borderHairline,
-            width: tokens.borderWidth,
-          ),
-        ),
+        color: tokens.panelHeaderBackground,
+        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+        border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
       ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
-        decoration: BoxDecoration(
-          color: tokens.inputSurface,
-          borderRadius: BorderRadius.circular(tokens.radiusMedium),
-          border: Border.all(
-            color: tokens.borderHairline,
-            width: tokens.borderWidth,
+      child: Row(
+        children: [
+          Icon(Icons.terminal_rounded, size: 15, color: tokens.textMuted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Escribe un comando acústico o presiona "/" para acciones rápidas...',
+              style: TextStyle(
+                color: tokens.textMuted,
+                fontSize: 11.0,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Comandos de audio (@ para módulos, / para afinación, tempo)...',
-                style: TextStyle(
-                  color: tokens.textMuted,
-                  fontSize: 11.5,
-                ),
-                overflow: TextOverflow.ellipsis,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+            decoration: BoxDecoration(
+              color: tokens.canvasBackground,
+              borderRadius: BorderRadius.circular(3.0),
+              border: Border.all(color: tokens.borderHairline),
+            ),
+            child: Text(
+              widget.engineName,
+              style: TextStyle(
+                color: tokens.accentPrimary,
+                fontSize: 9.0,
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
-              decoration: BoxDecoration(
-                color: tokens.elevatedSurface,
-                borderRadius: BorderRadius.circular(tokens.radiusSmall),
-                border: Border.all(color: tokens.borderHairline, width: 0.5),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Tartini DSP 2.1',
-                    style: TextStyle(
-                      color: tokens.textSecondary,
-                      fontSize: 10.0,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.keyboard_arrow_down_rounded, size: 12, color: tokens.textMuted),
-                ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            Icon(Icons.mic_none_rounded, size: 15, color: tokens.accentPrimary),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
