@@ -102,40 +102,38 @@ class _ModularStudioRackBody extends StatelessWidget {
                       title: Text(
                         type.displayName,
                         style: TextStyle(
-                          color: isAlreadyActive ? tokens.textMuted : tokens.textPrimary,
+                          color: tokens.textPrimary,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      trailing: isAlreadyActive
+                      subtitle: isAlreadyActive
                           ? Text(
-                              'ACTIVO',
-                              style: TextStyle(
-                                color: tokens.accentSuccess,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'monospace',
-                              ),
+                              'Ya montado en el rack. Puedes crear otra instancia.',
+                              style: TextStyle(color: tokens.textMuted, fontSize: 10),
                             )
-                          : ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: tokens.accentPrimary,
-                                foregroundColor: Colors.black,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                minimumSize: Size.zero,
-                              ),
-                              onPressed: () {
-                                viewModel.addModule(type);
-                                Navigator.pop(context);
-                              },
-                              child: const Text('+ AGREGAR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                            ),
-                      onTap: isAlreadyActive
-                          ? null
-                          : () {
-                              viewModel.addModule(type);
-                              Navigator.pop(context);
-                            },
+                          : null,
+                      trailing: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isAlreadyActive ? tokens.elevatedSurface : tokens.accentPrimary,
+                          foregroundColor: isAlreadyActive ? tokens.accentPrimary : Colors.black,
+                          side: isAlreadyActive ? BorderSide(color: tokens.accentPrimary.withValues(alpha: 0.5)) : null,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          minimumSize: Size.zero,
+                        ),
+                        onPressed: () {
+                          viewModel.addModule(type);
+                          Navigator.pop(context);
+                        },
+                        child: Text(
+                          isAlreadyActive ? '+ NUEVA INSTANCIA' : '+ AGREGAR',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      onTap: () {
+                        viewModel.addModule(type);
+                        Navigator.pop(context);
+                      },
                     );
                   },
                 ),

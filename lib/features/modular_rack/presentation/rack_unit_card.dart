@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../domain/rack_module_entity.dart';
 import '../domain/port_id.dart';
 import 'modular_rack_viewmodel.dart';
+import 'studio_patchbay_modal.dart';
 import '../../instrument/presentation/instrument_emulation_surface_widget.dart';
 import '../../navigation/presentation/contextual_help_sheet.dart';
 import '../../../core/theme/tunner_theme.dart';
@@ -105,17 +106,39 @@ class RackUnitCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
 
-                // Título del módulo
+                // Título del módulo interactivo (Tap para renombrar)
                 Expanded(
-                  child: Text(
-                    module.title.toUpperCase(),
-                    style: TextStyle(
-                      color: isPowered ? Colors.white : Colors.white38,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.1,
+                  child: InkWell(
+                    onTap: () => _showRenameDialog(context),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            module.title.toUpperCase(),
+                            style: TextStyle(
+                              color: isPowered ? Colors.white : Colors.white38,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.1,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.edit_outlined, color: Colors.white24, size: 12),
+                      ],
                     ),
                   ),
+                ),
+
+                // Botón Exportar Herramienta (.tnt)
+                IconButton(
+                  icon: const Icon(Icons.save_alt, color: Colors.white38, size: 16),
+                  tooltip: 'Guardar Herramienta como Preset (.tnt)',
+                  onPressed: () => _exportToolPreset(context),
                 ),
 
                 // Insignia de ayuda contextual (?)
@@ -192,12 +215,12 @@ class RackUnitCard extends StatelessWidget {
                 children: [
                   if (module.inputPorts.isNotEmpty) ...[
                     const Text('IN: ', style: TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold)),
-                    ...module.inputPorts.map((p) => _buildPortBadge(p, isInput: true)),
+                    ...module.inputPorts.map((p) => _buildPortBadge(context, p, isInput: true)),
                   ],
                   const Spacer(),
                   if (module.outputPorts.isNotEmpty) ...[
                     const Text('OUT: ', style: TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold)),
-                    ...module.outputPorts.map((p) => _buildPortBadge(p, isInput: false)),
+                    ...module.outputPorts.map((p) => _buildPortBadge(context, p, isInput: false)),
                   ],
                 ],
               ),
@@ -223,7 +246,80 @@ class RackUnitCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPortBadge(PortId port, {required bool isInput}) {
+  void _showRenameDialog(BuildContext context) {
+    final controller = TextEditingController(text: module.title);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text(
+          'RENOMBRAR HERRAMIENTA',
+          style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+          decoration: InputDecoration(
+            labelText: 'Nombre Personalizado',
+            labelStyle: const TextStyle(color: Colors.white60, fontSize: 12),
+            enabledBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Colors.white24),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Color(0xFF38BDF8)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CANCELAR', style: TextStyle(color: Colors.white54, fontSize: 11)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF38BDF8),
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                viewModel.renameModule(module.moduleId, controller.text.trim());
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('GUARDAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _exportToolPreset(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final safeName = module.title.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+      final path = '/tmp/${safeName}_preset.tnt';
+      await viewModel.exportToolPresetToFile(module.moduleId, path);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Herramienta "${module.title}" exportada como preset (.tnt)'),
+          backgroundColor: const Color(0xFF10B981),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Error al exportar: $e'),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
+    }
+  }
+
+  Widget _buildPortBadge(BuildContext context, PortId port, {required bool isInput}) {
     // Verificar si el puerto tiene una conexión activa en el bus
     final hasActiveConn = viewModel.signalBus.activeConnections.any((c) =>
         (isInput ? c.destinationPort == port : c.sourcePort == port));
@@ -232,31 +328,35 @@ class RackUnitCard extends StatelessWidget {
         ? const Color(0xFF10B981)
         : (isInput ? const Color(0xFF38BDF8) : const Color(0xFFA855F7));
 
-    return Container(
-      margin: const EdgeInsets.only(right: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: badgeColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 5,
-            height: 5,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: hasActiveConn ? const Color(0xFF10B981) : Colors.white38,
+    return InkWell(
+      onTap: () => StudioPatchbayModal.show(context, viewModel, focusPort: port),
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        margin: const EdgeInsets.only(right: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: badgeColor.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 5,
+              height: 5,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: hasActiveConn ? const Color(0xFF10B981) : Colors.white38,
+              ),
             ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            port.id,
-            style: TextStyle(color: badgeColor, fontSize: 9, fontWeight: FontWeight.bold),
-          ),
-        ],
+            const SizedBox(width: 4),
+            Text(
+              port.id,
+              style: TextStyle(color: badgeColor, fontSize: 9, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ),
     );
   }
