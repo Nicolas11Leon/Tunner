@@ -340,6 +340,246 @@ class _MainAppShellState extends State<MainAppShell> {
     );
   }
 
+  void _parseAndSetBpm(String rawInput, TunerViewModel viewModel) {
+    final parts = rawInput.trim().split(RegExp(r'\s+'));
+    if (parts.length > 1) {
+      final val = int.tryParse(parts[1]);
+      if (val != null && val >= 30 && val <= 300) {
+        viewModel.updateBpm(val);
+        return;
+      }
+    }
+    viewModel.toggleMetronome();
+  }
+
+  void _parseAndSetPitch(String rawInput, TunerViewModel viewModel) {
+    final parts = rawInput.trim().split(RegExp(r'\s+'));
+    if (parts.length > 1) {
+      final val = double.tryParse(parts[1]);
+      if (val != null && val >= 380 && val <= 480) {
+        viewModel.setReferencePitch(val);
+      }
+    }
+  }
+
+  List<PromptSuggestion> _buildPromptSuggestions(TunerViewModel viewModel) {
+    return [
+      PromptSuggestion(
+        id: 'cmd_tuner',
+        trigger: '/',
+        command: '/afinar',
+        title: 'Afinador Estroboscópico de Precisión',
+        description: 'Afinación en tiempo real con aguja centesimal ±0.1c',
+        category: 'Afinación',
+        shortcut: 'A',
+        icon: Icons.tune_rounded,
+        onExecute: (_) => _navigateToTab(1),
+      ),
+      PromptSuggestion(
+        id: 'cmd_metro',
+        trigger: '/',
+        command: '/metro',
+        title: viewModel.isMetronomeActive ? 'Pausar Metrónomo' : 'Iniciar Metrónomo Continuo',
+        description: 'Alternar pulso rítmico acústico a ${viewModel.bpm.round()} BPM',
+        category: 'Transporte',
+        shortcut: 'Espacio',
+        icon: Icons.access_time_rounded,
+        onExecute: (_) => viewModel.toggleMetronome(),
+      ),
+      PromptSuggestion(
+        id: 'cmd_bpm',
+        trigger: '/',
+        command: '/bpm',
+        title: 'Ajustar Tempo (BPM)',
+        description: 'Establecer tempo del metrónomo (ej. /bpm 120)',
+        category: 'Metrónomo',
+        shortcut: '[ / ]',
+        icon: Icons.speed_rounded,
+        onExecute: (raw) => _parseAndSetBpm(raw, viewModel),
+      ),
+      PromptSuggestion(
+        id: 'cmd_calibrar',
+        trigger: '/',
+        command: '/calibrar',
+        title: 'Calibrar Tono A4 (Hz)',
+        description: 'Calibrar frecuencia de referencia (ej. /calibrar 442)',
+        category: 'Afinación',
+        shortcut: 'Alt+↑',
+        icon: Icons.waves_rounded,
+        onExecute: (raw) => _parseAndSetPitch(raw, viewModel),
+      ),
+      PromptSuggestion(
+        id: 'cmd_record',
+        trigger: '/',
+        command: '/grabar',
+        title: viewModel.isRecording ? 'Detener Grabación WAV' : 'Grabar Toma de Práctica',
+        description: 'Capturar audio en vivo para autoevaluación',
+        category: 'Grabación',
+        shortcut: 'R',
+        icon: Icons.fiber_manual_record_rounded,
+        onExecute: (_) {
+          if (viewModel.isRecording) {
+            viewModel.stopPracticeRecording();
+          } else {
+            viewModel.startPracticeRecording();
+          }
+        },
+      ),
+      PromptSuggestion(
+        id: 'cmd_spectrogram',
+        trigger: '/',
+        command: '/espectrograma',
+        title: 'Espectrograma FFT en Vivo',
+        description: 'Distribución armónica y densidad espectral',
+        category: 'Laboratorio',
+        icon: Icons.analytics_outlined,
+        onExecute: (_) => HarmonicSpectrogramModal.show(context),
+      ),
+      PromptSuggestion(
+        id: 'cmd_drone',
+        trigger: '/',
+        command: '/dron',
+        title: 'Dron Armónico & Temperamentos',
+        description: 'Tono sinusoidal continuo para práctica pura',
+        category: 'Afinación',
+        icon: Icons.volume_up_outlined,
+        onExecute: (_) => HarmonicDroneModal.show(context, viewModel),
+      ),
+      PromptSuggestion(
+        id: 'cmd_chords',
+        trigger: '/',
+        command: '/acordes',
+        title: 'Analizador Polifónico de Acordes',
+        description: 'Detección simultánea de tríadas y extensiones',
+        category: 'Laboratorio',
+        shortcut: 'Shift+C',
+        icon: Icons.stacked_bar_chart_rounded,
+        onExecute: (_) => ChordAnalyzerModal.show(context, viewModel),
+      ),
+      PromptSuggestion(
+        id: 'cmd_ear',
+        trigger: '/',
+        command: '/oido',
+        title: 'Entrenador Auditivo a Ciegas',
+        description: 'Discriminación de intervalos armónicos',
+        category: 'Conservatorio',
+        shortcut: 'Shift+E',
+        icon: Icons.hearing_outlined,
+        onExecute: (_) => BlindEarTrainerModal.show(context, viewModel),
+      ),
+      PromptSuggestion(
+        id: 'cmd_rack',
+        trigger: '/',
+        command: '/rack',
+        title: 'Rack Modular de Pedales DSP',
+        description: 'Estudio de efectos encadenados en tiempo real',
+        category: 'Estudio',
+        shortcut: '4',
+        icon: Icons.view_agenda_outlined,
+        onExecute: (_) => _navigateToTab(3),
+      ),
+      PromptSuggestion(
+        id: 'cmd_scores',
+        trigger: '/',
+        command: '/partituras',
+        title: 'Biblioteca & Notación MusicXML',
+        description: 'Lector, visor interactivo y stems de obras',
+        category: 'Composición',
+        shortcut: '5',
+        icon: Icons.menu_book_outlined,
+        onExecute: (_) => _navigateToTab(4),
+      ),
+      PromptSuggestion(
+        id: 'cmd_instrument',
+        trigger: '/',
+        command: '/instrumento',
+        title: 'Seleccionar Instrumento Musical',
+        description: 'Cambiar familia, clave y transposición',
+        category: 'Configuración',
+        shortcut: 'Ctrl+I',
+        icon: Icons.music_note_rounded,
+        onExecute: (_) => _openInstrumentSelector(viewModel),
+      ),
+      PromptSuggestion(
+        id: 'cmd_mute',
+        trigger: '/',
+        command: '/mute',
+        title: 'Silencio de Pánico (Panic Mute)',
+        description: 'Detener metrónomo y grabación de inmediato',
+        category: 'Transporte',
+        shortcut: '0',
+        icon: Icons.volume_off_rounded,
+        onExecute: (_) {
+          if (viewModel.isMetronomeActive) viewModel.toggleMetronome();
+          if (viewModel.isRecording) viewModel.stopPracticeRecording();
+        },
+      ),
+      PromptSuggestion(
+        id: 'cmd_help',
+        trigger: '/',
+        command: '/help',
+        title: 'Ayuda Universal & Matriz de Comandos',
+        description: 'Catálogo exhaustivo de comandos y atajos de memoria muscular',
+        category: 'Sistema',
+        shortcut: '?',
+        icon: Icons.help_outline_rounded,
+        onExecute: (_) => _openShortcutsGuide(viewModel),
+      ),
+
+      // Accesos a Módulos con @
+      PromptSuggestion(
+        id: 'mod_tuner',
+        trigger: '@',
+        command: '@tunner',
+        title: 'Espacio de Afinación Orquestal',
+        description: 'Navegar al afinador estroboscópico',
+        category: 'Módulos',
+        icon: Icons.tune_rounded,
+        onExecute: (_) => _navigateToTab(1),
+      ),
+      PromptSuggestion(
+        id: 'mod_studio',
+        trigger: '@',
+        command: '@estudio',
+        title: 'Espacio de Producción & Rack DSP',
+        description: 'Navegar al rack modular de efectos',
+        category: 'Módulos',
+        icon: Icons.view_agenda_outlined,
+        onExecute: (_) => _navigateToTab(3),
+      ),
+      PromptSuggestion(
+        id: 'mod_conservatory',
+        trigger: '@',
+        command: '@conservatorio',
+        title: 'Espacio de Aprendizaje & Tutor',
+        description: 'Navegar al tutor guiado de compás',
+        category: 'Módulos',
+        icon: Icons.school_outlined,
+        onExecute: (_) => _navigateToTab(2),
+      ),
+      PromptSuggestion(
+        id: 'mod_scores',
+        trigger: '@',
+        command: '@partituras',
+        title: 'Espacio de Biblioteca & Partituras',
+        description: 'Navegar al visor de notación musical',
+        category: 'Módulos',
+        icon: Icons.menu_book_outlined,
+        onExecute: (_) => _navigateToTab(4),
+      ),
+      PromptSuggestion(
+        id: 'mod_acoustics',
+        trigger: '@',
+        command: '@laboratorio',
+        title: 'Espacio de Laboratorio Acústico',
+        description: 'Abrir espectrograma FFT armónico',
+        category: 'Módulos',
+        icon: Icons.analytics_outlined,
+        onExecute: (_) => HarmonicSpectrogramModal.show(context),
+      ),
+    ];
+  }
+
   String _buildCurrentBreadcrumb() {
     switch (_currentIndex) {
       case 0:
@@ -379,11 +619,11 @@ class _MainAppShellState extends State<MainAppShell> {
 
     return [
       StudioTreeSection(
-        title: 'Projects',
+        title: 'Projects & Documentos',
         folders: [
           StudioTreeFolder(
             id: 'folder_tunner',
-            title: 'tunner',
+            title: 'tunner / Afinación & Acústica',
             accentColor: palette.primaryAccent,
             items: [
               StudioTreeItem(
@@ -396,15 +636,25 @@ class _MainAppShellState extends State<MainAppShell> {
                 onSelect: () => _navigateToTab(1),
               ),
               StudioTreeItem(
+                id: 'doc_baroque',
+                title: 'Sesión Afinación Barroca A4=415Hz',
+                icon: Icons.history_edu_outlined,
+                timestamp: '415 Hz',
+                onSelect: () {
+                  viewModel.setReferencePitch(415.0);
+                  _navigateToTab(1);
+                },
+              ),
+              StudioTreeItem(
                 id: 'item_drone',
-                title: 'Dron Armónico & Afinación',
+                title: 'Dron Armónico & Afinación Justa',
                 icon: Icons.volume_up_outlined,
                 timestamp: 'En vivo',
                 onSelect: () => HarmonicDroneModal.show(context, viewModel),
               ),
               StudioTreeItem(
                 id: 'item_home',
-                title: 'Dashboard de Rendimiento',
+                title: 'Dashboard de Telemetría DSP',
                 icon: Icons.dashboard_outlined,
                 timestamp: '1h ago',
                 hasDragHandle: _currentIndex == 0,
@@ -413,8 +663,36 @@ class _MainAppShellState extends State<MainAppShell> {
             ],
           ),
           StudioTreeFolder(
+            id: 'folder_scores',
+            title: 'Biblioteca de Partituras MusicXML',
+            items: [
+              StudioTreeItem(
+                id: 'doc_bach',
+                title: 'Bach - Minuet en Sol Mayor (MusicXML)',
+                icon: Icons.article_outlined,
+                timestamp: '3/4',
+                hasDragHandle: _currentIndex == 4,
+                onSelect: () => _navigateToTab(4),
+              ),
+              StudioTreeItem(
+                id: 'doc_beethoven',
+                title: 'Beethoven - Himno a la Alegría (4/4)',
+                icon: Icons.article_outlined,
+                timestamp: '4/4',
+                onSelect: () => _navigateToTab(4),
+              ),
+              StudioTreeItem(
+                id: 'doc_arpeggios',
+                title: 'Estudio Técnico #3 - Arpegios',
+                icon: Icons.article_outlined,
+                timestamp: '6/8',
+                onSelect: () => _navigateToTab(4),
+              ),
+            ],
+          ),
+          StudioTreeFolder(
             id: 'folder_studio',
-            title: 'Estudio & Grabación',
+            title: 'Estudio, Tomas & Grabaciones',
             items: [
               StudioTreeItem(
                 id: 'item_rack',
@@ -426,8 +704,22 @@ class _MainAppShellState extends State<MainAppShell> {
                 onSelect: () => _navigateToTab(3),
               ),
               StudioTreeItem(
+                id: 'doc_take_1',
+                title: 'Toma #1 - Solo de Violín (WAV)',
+                icon: Icons.audio_file_outlined,
+                timestamp: '2m 14s',
+                onSelect: () => _navigateToTab(3),
+              ),
+              StudioTreeItem(
+                id: 'doc_take_2',
+                title: 'Toma #2 - Ensayo en Compás Compuesto',
+                icon: Icons.audio_file_outlined,
+                timestamp: '1m 45s',
+                onSelect: () => _navigateToTab(3),
+              ),
+              StudioTreeItem(
                 id: 'item_recording',
-                title: 'Tomas de Práctica & WAV Stems',
+                title: 'Grabadora de Pistas en Vivo',
                 icon: Icons.graphic_eq_rounded,
                 timestamp: viewModel.isRecording ? 'Grabando' : 'Listo',
                 badge: viewModel.isRecording ? 'REC' : null,
@@ -443,35 +735,22 @@ class _MainAppShellState extends State<MainAppShell> {
             ],
           ),
           StudioTreeFolder(
-            id: 'folder_acoustics',
-            title: 'Laboratorio Acústico',
-            items: [
-              StudioTreeItem(
-                id: 'item_spectrogram',
-                title: 'Espectrograma FFT en Vivo',
-                icon: Icons.analytics_outlined,
-                timestamp: '4096 bins',
-                onSelect: () => HarmonicSpectrogramModal.show(context),
-              ),
-              StudioTreeItem(
-                id: 'item_chords',
-                title: 'Analizador Polifónico',
-                icon: Icons.stacked_bar_chart_rounded,
-                timestamp: 'Shift+C',
-                onSelect: () => ChordAnalyzerModal.show(context, viewModel),
-              ),
-            ],
-          ),
-          StudioTreeFolder(
             id: 'folder_conservatory',
             title: 'Conservatorio & Lecciones',
             items: [
               StudioTreeItem(
                 id: 'item_learning',
-                title: 'Tutor de Tempo & Rushing',
+                title: 'Lección 1: Precisión Rítmica en 4/4',
                 icon: Icons.school_outlined,
                 timestamp: '${viewModel.bpm.round()} BPM',
                 hasDragHandle: _currentIndex == 2,
+                onSelect: () => _navigateToTab(2),
+              ),
+              StudioTreeItem(
+                id: 'doc_lesson_intonation',
+                title: 'Lección 2: Control de Afinación Escalas',
+                icon: Icons.school_outlined,
+                timestamp: 'Nivel 2',
                 onSelect: () => _navigateToTab(2),
               ),
               StudioTreeItem(
@@ -484,16 +763,22 @@ class _MainAppShellState extends State<MainAppShell> {
             ],
           ),
           StudioTreeFolder(
-            id: 'folder_scores',
-            title: 'Biblioteca de Partituras',
+            id: 'folder_acoustics',
+            title: 'Laboratorio Acústico FFT',
             items: [
               StudioTreeItem(
-                id: 'item_composition',
-                title: 'Notación MusicXML & Stems',
-                icon: Icons.menu_book_outlined,
-                timestamp: '4/4',
-                hasDragHandle: _currentIndex == 4,
-                onSelect: () => _navigateToTab(4),
+                id: 'item_spectrogram',
+                title: 'Espectrograma FFT en Vivo',
+                icon: Icons.analytics_outlined,
+                timestamp: '4096 bins',
+                onSelect: () => HarmonicSpectrogramModal.show(context),
+              ),
+              StudioTreeItem(
+                id: 'item_chords',
+                title: 'Analizador Polifónico de Acordes',
+                icon: Icons.stacked_bar_chart_rounded,
+                timestamp: 'Shift+C',
+                onSelect: () => ChordAnalyzerModal.show(context, viewModel),
               ),
             ],
           ),
@@ -681,9 +966,19 @@ class _MainAppShellState extends State<MainAppShell> {
                   activeView: viewportContent,
                   onOpenSearch: () => _openCommandPalette(viewModel),
                   onOpenShortcuts: () => _openShortcutsGuide(viewModel),
+                  onOpenHelp: () => _openShortcutsGuide(viewModel),
                   onOpenAutomations: () => viewModel.toggleMetronome(),
                   onOpenCustomizations: () => _openInstrumentSelector(viewModel),
                   onOpenSettings: () => _openInstrumentSelector(viewModel),
+                  promptSuggestions: _buildPromptSuggestions(viewModel),
+                  isRecording: viewModel.isRecording,
+                  onToggleRecording: () {
+                    if (viewModel.isRecording) {
+                      viewModel.stopPracticeRecording();
+                    } else {
+                      viewModel.startPracticeRecording();
+                    }
+                  },
                   customStatusItems: [
                     Text(
                       'A4 = ${viewModel.referencePitch.toInt()} Hz',

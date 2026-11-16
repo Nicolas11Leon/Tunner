@@ -12,6 +12,7 @@ export 'atoms/studio_status_led.dart';
 export 'atoms/studio_toolbar.dart';
 
 // Moléculas
+export 'molecules/studio_command_prompt_bar.dart';
 export 'molecules/studio_segmented_control.dart';
 export 'molecules/studio_tree_view.dart';
 export 'molecules/studio_vu_meter.dart';

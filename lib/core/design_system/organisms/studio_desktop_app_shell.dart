@@ -5,6 +5,7 @@ import '../atoms/studio_hairline.dart';
 import '../atoms/studio_status_led.dart';
 import '../atoms/studio_theme_switcher.dart';
 import '../molecules/studio_tree_view.dart';
+import '../molecules/studio_command_prompt_bar.dart';
 
 /// Organismo de UI: Estación de Trabajo Desktop Profesional (StudioDesktopAppShell).
 ///
@@ -30,6 +31,11 @@ class StudioDesktopAppShell extends StatelessWidget {
   final VoidCallback? onOpenCustomizations;
   final List<Widget>? customStatusItems;
   final ValueChanged<String>? onCommandSubmitted;
+  final List<PromptSuggestion>? promptSuggestions;
+  final VoidCallback? onOpenHelp;
+  final bool isRecording;
+  final VoidCallback? onToggleRecording;
+  final String engineName;
 
   const StudioDesktopAppShell({
     super.key,
@@ -47,6 +53,11 @@ class StudioDesktopAppShell extends StatelessWidget {
     this.onOpenCustomizations,
     this.customStatusItems,
     this.onCommandSubmitted,
+    this.promptSuggestions,
+    this.onOpenHelp,
+    this.isRecording = false,
+    this.onToggleRecording,
+    this.engineName = 'Tartini DSP 2.1',
   });
 
   @override
@@ -275,7 +286,17 @@ class StudioDesktopAppShell extends StatelessWidget {
                         ),
 
                         // Barra de Comandos / Prompt Acústico estilo Antigravity IDE
-                        _buildStudioPromptBar(tokens),
+                        if (promptSuggestions != null && promptSuggestions!.isNotEmpty)
+                          StudioCommandPromptBar(
+                            suggestions: promptSuggestions!,
+                            onOpenHelp: onOpenHelp ?? onOpenShortcuts,
+                            onCommandExecuted: onCommandSubmitted,
+                            engineName: engineName,
+                            isRecording: isRecording,
+                            onToggleRecording: onToggleRecording,
+                          )
+                        else
+                          _buildStudioPromptBar(tokens),
                       ],
                     ),
                   ),
