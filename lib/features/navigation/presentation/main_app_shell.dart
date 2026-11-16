@@ -18,7 +18,7 @@ import '../../../core/design_system/studio_design_system.dart';
 import '../../acoustic_lab/presentation/harmonic_spectrogram_modal.dart';
 import '../../drone/presentation/harmonic_drone_modal.dart';
 import '../../song_library/presentation/studio_assets_modals.dart';
-import '../../song_library/domain/song_package_entity.dart';
+import '../../song_library/presentation/song_decomposer_modal.dart';
 
 /// Intenciones para el sistema de atajos de teclado de grado profesional y memoria muscular (DAWs).
 class TogglePlayIntent extends Intent {
@@ -131,23 +131,11 @@ class MainAppShell extends StatefulWidget {
 
 class _MainAppShellState extends State<MainAppShell> {
   late int _currentIndex;
-  final List<SongPackage> _userCustomScores = [];
-  final List<Map<String, dynamic>> _userCustomPresets = [];
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
-  }
-
-  void _onNewPresetSaved(String name, double pitchHz) {
-    setState(() {
-      _userCustomPresets.insert(0, {
-        'id': 'preset_${DateTime.now().millisecondsSinceEpoch}',
-        'name': name,
-        'pitchHz': pitchHz,
-      });
-    });
   }
 
   void _navigateToTab(int index) {
@@ -671,7 +659,7 @@ class _MainAppShellState extends State<MainAppShell> {
           // 2. Biblioteca de Partituras (Inicia Vacía con Creación e Importación)
           StudioTreeFolder(
             id: 'folder_scores',
-            title: 'Partituras & Notación (${_userCustomScores.length})',
+            title: 'Partituras & Notación (${viewModel.workspaceScores.length})',
             headerAction: IconButton(
               icon: Icon(Icons.add, size: 13, color: palette.primaryAccent),
               tooltip: 'Crear nueva partitura',
@@ -684,7 +672,7 @@ class _MainAppShellState extends State<MainAppShell> {
                 onNavigateToTab: _navigateToTab,
               ),
             ),
-            items: _userCustomScores
+            items: viewModel.workspaceScores
                 .map(
                   (score) => StudioTreeItem(
                     id: score.id,
@@ -711,7 +699,7 @@ class _MainAppShellState extends State<MainAppShell> {
               ),
               StudioTreeItem(
                 id: 'act_imp_score',
-                title: '[⬇] Importar MusicXML / Catálogo...',
+                title: '[⬇] Importar MusicXML / Archivo...',
                 icon: Icons.file_download_outlined,
                 onSelect: () => StudioAssetsModals.showImportScoreDialog(
                   context: context,
@@ -781,7 +769,7 @@ class _MainAppShellState extends State<MainAppShell> {
           // 4. Presets de Afinación Personalizados (Inicia Vacía)
           StudioTreeFolder(
             id: 'folder_tunings',
-            title: 'Presets de Afinación (${_userCustomPresets.length})',
+            title: 'Presets de Afinación (${viewModel.customTuningPresets.length})',
             headerAction: IconButton(
               icon: Icon(Icons.add, size: 13, color: palette.secondaryAccent),
               tooltip: 'Guardar preset',
@@ -791,18 +779,17 @@ class _MainAppShellState extends State<MainAppShell> {
               onPressed: () => StudioAssetsModals.showNewTuningPresetDialog(
                 context: context,
                 viewModel: viewModel,
-                onSavePreset: _onNewPresetSaved,
               ),
             ),
-            items: _userCustomPresets
+            items: viewModel.customTuningPresets
                 .map(
                   (preset) => StudioTreeItem(
-                    id: preset['id'] as String,
-                    title: preset['name'] as String,
+                    id: preset.id,
+                    title: preset.name,
                     icon: Icons.bookmark_outline_rounded,
-                    timestamp: '${(preset['pitchHz'] as double).toInt()} Hz',
+                    timestamp: '${preset.referencePitchHz.toInt()} Hz',
                     onSelect: () {
-                      viewModel.setReferencePitch(preset['pitchHz'] as double);
+                      viewModel.applyTuningPreset(preset);
                       _navigateToTab(1);
                     },
                   ),
@@ -816,7 +803,6 @@ class _MainAppShellState extends State<MainAppShell> {
                 onSelect: () => StudioAssetsModals.showNewTuningPresetDialog(
                   context: context,
                   viewModel: viewModel,
-                  onSavePreset: _onNewPresetSaved,
                 ),
               ),
             ],
@@ -1036,8 +1022,12 @@ class _MainAppShellState extends State<MainAppShell> {
                   CompositionNotationWorkspaceView(
                     viewModel: viewModel,
                     palette: palette,
-                    onOpenLibraryModal: () {},
-                    onOpenMixerModal: () {},
+                    onOpenLibraryModal: () => StudioAssetsModals.showImportScoreDialog(
+                      context: context,
+                      viewModel: viewModel,
+                      onNavigateToTab: _navigateToTab,
+                    ),
+                    onOpenMixerModal: () => SongDecomposerModal.show(context, viewModel),
                   ),
                 ],
               );

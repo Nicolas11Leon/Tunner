@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/design_system/studio_design_system.dart';
 import '../../tuner_viewmodel.dart';
 import '../../sheet_music/domain/score_tree.dart';
+import '../../tuner/domain/tuning_preset_entity.dart';
 import '../domain/song_package_entity.dart';
 import '../data/song_decomposer_service.dart';
 
@@ -47,7 +48,7 @@ class StudioAssetsModals {
   static Future<void> showNewTuningPresetDialog({
     required BuildContext context,
     required TunerViewModel viewModel,
-    required void Function(String name, double pitchHz) onSavePreset,
+    void Function(TuningPresetEntity preset)? onSavePreset,
   }) {
     return showDialog<void>(
       context: context,
@@ -91,43 +92,16 @@ class _StudioNewScoreDialogState extends State<_StudioNewScoreDialog> {
     final parts = _selectedTimeSig.split('/');
     final numBeats = int.tryParse(parts[0]) ?? 4;
     final beatUnit = int.tryParse(parts[1]) ?? 4;
-
     final initialTimeSignature = TimeSignature(numBeats, beatUnit);
 
-    // Crea un SongPackage canónico con 4 compases iniciales de silencio válido
-    final emptyMeasures = List.generate(
-      4,
-      (idx) => MeasureEntity(
-        index: idx,
-        timeSignature: initialTimeSignature,
-        notes: [
-          HierarchicalNote.rest(
-            startTick: 0,
-            durationTicks: initialTimeSignature.totalTicks,
-          ),
-        ],
-      ),
-    );
-
-    final score = HierarchicalScore(
+    final pkg = widget.viewModel.createWorkspaceScore(
       title: title,
-      baseBpm: _selectedBpm,
-      measures: emptyMeasures,
+      bpm: _selectedBpm,
+      timeSignature: initialTimeSignature,
+      initialMeasures: 4,
     );
 
-    final newPkg = SongPackage(
-      id: 'pkg_${DateTime.now().millisecondsSinceEpoch}',
-      title: title,
-      composer: 'Compositor Tunner',
-      genre: MusicGenre.classical,
-      difficulty: SongDifficulty.beginner,
-      defaultBpm: _selectedBpm,
-      score: score,
-      tracks: const [],
-    );
-
-    widget.viewModel.addSongPackage(newPkg);
-    widget.onScoreCreated?.call(newPkg);
+    widget.onScoreCreated?.call(pkg);
     Navigator.of(context).pop();
     widget.onNavigateToTab(4); // Navega a biblioteca/partituras
   }
@@ -327,9 +301,18 @@ class _StudioImportScoreDialog extends StatelessWidget {
     this.onScoreImported,
   });
 
+  Future<void> _pickFileFromDisk(BuildContext context) async {
+    final result = await viewModel.importScoreFromFilePicker();
+    if (result != null && context.mounted) {
+      onScoreImported?.call(result.package);
+      Navigator.of(context).pop();
+      onNavigateToTab(4);
+    }
+  }
+
   void _importPreset(BuildContext context, SongPackage preset) {
-    viewModel.addSongPackage(preset);
-    onScoreImported?.call(preset);
+    final imported = viewModel.importPresetToWorkspace(preset);
+    onScoreImported?.call(imported);
     Navigator.of(context).pop();
     onNavigateToTab(4);
   }
@@ -357,7 +340,7 @@ class _StudioImportScoreDialog extends StatelessWidget {
                 Icon(Icons.file_download_outlined, size: 18, color: tokens.accentPrimary),
                 const SizedBox(width: 8),
                 Text(
-                  'IMPORTAR PARTITURA DEL CANON MAESTRO',
+                  'IMPORTAR PARTITURA / ARCHIVO',
                   style: TextStyle(
                     color: tokens.textPrimary,
                     fontSize: 12,
@@ -374,6 +357,48 @@ class _StudioImportScoreDialog extends StatelessWidget {
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
+            ),
+            const SizedBox(height: 14),
+
+            // Ingesta Directa desde Archivo Local en Disco
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: tokens.accentPrimary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                border: Border.all(color: tokens.accentPrimary.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.folder_open_outlined, color: tokens.accentPrimary, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Examinar Archivo en Disco',
+                          style: TextStyle(color: tokens.textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'MusicXML (.xml, .mxl), MIDI (.mid), ABC, PDF o WAV',
+                          style: TextStyle(color: tokens.textMuted, fontSize: 10),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _pickFileFromDisk(context),
+                    icon: const Icon(Icons.upload_file, size: 14),
+                    label: const Text('Examinar...', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: tokens.accentPrimary,
+                      foregroundColor: tokens.textOnAccent,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 14),
 
@@ -435,11 +460,11 @@ class _StudioImportScoreDialog extends StatelessWidget {
 
 class _StudioNewTuningPresetDialog extends StatefulWidget {
   final TunerViewModel viewModel;
-  final void Function(String name, double pitchHz) onSavePreset;
+  final void Function(TuningPresetEntity preset)? onSavePreset;
 
   const _StudioNewTuningPresetDialog({
     required this.viewModel,
-    required this.onSavePreset,
+    this.onSavePreset,
   });
 
   @override
@@ -463,9 +488,18 @@ class _StudioNewTuningPresetDialogState extends State<_StudioNewTuningPresetDial
   }
 
   void _savePreset() {
-    final name = _nameCtrl.text.trim().isEmpty ? 'Preset A4' : _nameCtrl.text.trim();
-    widget.onSavePreset(name, _selectedHz);
-    widget.viewModel.setReferencePitch(_selectedHz);
+    final name = _nameCtrl.text.trim().isEmpty ? 'Calibración A4' : _nameCtrl.text.trim();
+    final preset = TuningPresetEntity(
+      id: 'preset_${DateTime.now().millisecondsSinceEpoch}',
+      name: name,
+      referencePitchHz: _selectedHz,
+      temperamentId: widget.viewModel.selectedTemperament.id,
+      rootKey: widget.viewModel.temperamentRootKey,
+      createdAt: DateTime.now(),
+    );
+    widget.viewModel.saveCustomTuningPreset(preset);
+    widget.viewModel.applyTuningPreset(preset);
+    widget.onSavePreset?.call(preset);
     Navigator.of(context).pop();
   }
 

@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 
+import 'tuner/domain/tuning_preset_entity.dart';
 import '../core/theme/tunner_theme.dart';
 import 'tuner/domain/note_entity.dart';
 import 'tuner/domain/i_pitch_detector_service.dart';
@@ -142,6 +144,12 @@ class TunerViewModel extends ChangeNotifier {
   // Catálogo de canciones descompuestas canónicas
   final List<SongPackage> _curatedLibrary = SongDecomposerService.getCuratedLibrary();
   late SongPackage _activePackage;
+
+  // Documentos de trabajo de partituras (inicia vacío por defecto)
+  final List<SongPackage> _workspaceScores = [];
+
+  // Presets de afinación acústica personalizados (inicia vacío por defecto)
+  final List<TuningPresetEntity> _tuningPresets = [];
 
   HierarchicalNote? _expectedNote;
   HierarchicalNote? _lastEvaluatedNote;
@@ -466,6 +474,8 @@ class TunerViewModel extends ChangeNotifier {
 
   MixerConsoleEntity get mixerConsole => _mixerConsole;
   List<SongPackage> get curatedLibrary => _curatedLibrary;
+  List<SongPackage> get workspaceScores => List.unmodifiable(_workspaceScores);
+  List<TuningPresetEntity> get customTuningPresets => List.unmodifiable(_tuningPresets);
   SongPackage get activePackage => _activePackage;
   InstrumentProfileEntity get activeInstrument => _activeInstrument;
 
@@ -1513,12 +1523,142 @@ class TunerViewModel extends ChangeNotifier {
         fileName: fileName,
       );
       addSongPackage(result.package);
+      _workspaceScores.removeWhere((p) => p.id == result.package.id);
+      _workspaceScores.insert(0, result.package);
+      _triggerAutoSave();
       notifyListeners();
       return result;
     } catch (e) {
       debugPrint("Error al importar partitura: $e");
       return null;
     }
+  }
+
+  /// Crea una nueva partitura en blanco de conservatorio y la agrega al espacio de trabajo.
+  SongPackage createWorkspaceScore({
+    required String title,
+    required int bpm,
+    required TimeSignature timeSignature,
+    int initialMeasures = 4,
+  }) {
+    final validMeasures = List.generate(
+      math.max(1, initialMeasures),
+      (idx) => MeasureEntity(
+        index: idx,
+        timeSignature: timeSignature,
+        notes: [
+          HierarchicalNote.rest(
+            startTick: 0,
+            durationTicks: timeSignature.totalTicks,
+          ),
+        ],
+      ),
+    );
+
+    final score = HierarchicalScore(
+      title: title,
+      baseBpm: bpm,
+      measures: validMeasures,
+    );
+
+    final pkg = SongPackage(
+      id: 'pkg_${DateTime.now().microsecondsSinceEpoch}',
+      title: title,
+      composer: 'Compositor Tunner',
+      genre: MusicGenre.classical,
+      difficulty: SongDifficulty.beginner,
+      defaultBpm: bpm,
+      score: score,
+      tracks: const [],
+    );
+
+    _workspaceScores.removeWhere((s) => s.id == pkg.id);
+    _workspaceScores.insert(0, pkg);
+    addSongPackage(pkg);
+    _triggerAutoSave();
+    notifyListeners();
+    return pkg;
+  }
+
+  /// Importa una obra maestra canónica directamente al espacio de trabajo activo.
+  SongPackage importPresetToWorkspace(SongPackage preset) {
+    final cloned = preset.copyWith(
+      id: 'score_${DateTime.now().microsecondsSinceEpoch}',
+    );
+    _workspaceScores.removeWhere((s) => s.id == cloned.id);
+    _workspaceScores.insert(0, cloned);
+    addSongPackage(cloned);
+    _triggerAutoSave();
+    notifyListeners();
+    return cloned;
+  }
+
+  /// Elimina una partitura del espacio de trabajo del usuario.
+  void deleteWorkspaceScore(String id) {
+    _workspaceScores.removeWhere((s) => s.id == id);
+    _triggerAutoSave();
+    notifyListeners();
+  }
+
+  /// Abre el selector nativo del sistema de archivos para importar partituras MusicXML, MIDI, etc.
+  Future<ParsedScoreResult?> importScoreFromFilePicker() async {
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['musicxml', 'xml', 'mxl', 'mid', 'midi', 'abc', 'pdf', 'wav'],
+      );
+
+      if (files.isEmpty) {
+        return null;
+      }
+
+      final file = files.first;
+      final bytes = await file.readAsBytes();
+
+      if (bytes.isEmpty) {
+        return null;
+      }
+
+      final parsed = await importScoreFromBytes(bytes, file.name);
+      return parsed;
+    } catch (e) {
+      debugPrint("Error al seleccionar archivo en FilePicker: $e");
+      return null;
+    }
+  }
+
+  /// Guarda un nuevo preset de afinación acústica y lo persiste offline.
+  void saveCustomTuningPreset(TuningPresetEntity preset) {
+    _tuningPresets.removeWhere((p) => p.id == preset.id);
+    _tuningPresets.insert(0, preset);
+    _triggerAutoSave();
+    notifyListeners();
+  }
+
+  /// Elimina un preset de afinación del usuario.
+  void deleteCustomTuningPreset(String id) {
+    _tuningPresets.removeWhere((p) => p.id == id);
+    _triggerAutoSave();
+    notifyListeners();
+  }
+
+  /// Aplica de forma inmediata la calibración y temperamento de un preset.
+  void applyTuningPreset(TuningPresetEntity preset) {
+    setReferencePitch(preset.referencePitchHz);
+    if (preset.temperamentId.isNotEmpty) {
+      setTemperament(preset.temperamentId);
+    }
+    setTemperamentRoot(preset.rootKey);
+  }
+
+  /// Elimina una grabación de práctica y actualiza la persistencia offline.
+  void deletePracticeRecording(String id) {
+    _recordingHistory.removeWhere((r) => r.id == id);
+    if (_activeRecording?.id == id) {
+      _activeRecording = _recordingHistory.isNotEmpty ? _recordingHistory.first : null;
+    }
+    _triggerAutoSave();
+    notifyListeners();
   }
 
   void addSongPackage(SongPackage package) {
@@ -1693,9 +1833,9 @@ class TunerViewModel extends ChangeNotifier {
     }
     try {
       final dir = await getApplicationDocumentsDirectory();
-      return '${dir.path}/take_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      return '${dir.path}/take_${DateTime.now().millisecondsSinceEpoch}.wav';
     } catch (_) {
-      return '/tmp/tunner_take_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      return '/tmp/tunner_take_${DateTime.now().millisecondsSinceEpoch}.wav';
     }
   }
 
@@ -2016,6 +2156,16 @@ class TunerViewModel extends ChangeNotifier {
         _activeRecording = _recordingHistory.first;
       }
 
+      if (settings.tuningPresets.isNotEmpty) {
+        _tuningPresets.clear();
+        _tuningPresets.addAll(settings.tuningPresets);
+      }
+
+      if (settings.workspaceScores.isNotEmpty) {
+        _workspaceScores.clear();
+        _workspaceScores.addAll(settings.workspaceScores);
+      }
+
       _micProfile = settings.micCalibrationProfile;
       _acousticRigorProfile = settings.acousticRigorProfile;
       _isInstrumentIsolationActive = _acousticRigorProfile.enableInstrumentIsolation;
@@ -2050,6 +2200,8 @@ class TunerViewModel extends ChangeNotifier {
         customPalettes: _customPalettes,
         sessionHistory: _sessionHistory,
         recordingHistory: _recordingHistory,
+        tuningPresets: _tuningPresets,
+        workspaceScores: _workspaceScores,
         learnerProfile: _learnerProfile,
         activeWorkspace: _activeWorkspace,
         micCalibrationProfile: _micProfile,
