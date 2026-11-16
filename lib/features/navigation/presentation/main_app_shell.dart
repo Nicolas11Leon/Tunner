@@ -620,46 +620,15 @@ class _MainAppShellState extends State<MainAppShell> {
     final palette = viewModel.currentPalette;
 
     return [
+      // SECCIÓN 1: DOCUMENTOS DEL PROYECTO (100% PURO PARA ASSETS DEL USUARIO)
       StudioTreeSection(
-        title: 'Projects & Documentos',
+        title: 'Documentos del Proyecto',
         folders: [
-          // 1. Suite Central de Afinación
-          StudioTreeFolder(
-            id: 'folder_tunner',
-            title: 'tunner / Suite de Afinación',
-            accentColor: palette.primaryAccent,
-            items: [
-              StudioTreeItem(
-                id: 'item_tuner',
-                title: 'Afinador Estroboscópico',
-                icon: Icons.tune_rounded,
-                timestamp: '${viewModel.referencePitch.toInt()} Hz',
-                statusDotColor: Colors.blueAccent,
-                hasDragHandle: _currentIndex == 1,
-                onSelect: () => _navigateToTab(1),
-              ),
-              StudioTreeItem(
-                id: 'item_drone',
-                title: 'Dron Armónico & Temperamentos',
-                icon: Icons.volume_up_outlined,
-                timestamp: 'En vivo',
-                onSelect: () => HarmonicDroneModal.show(context, viewModel),
-              ),
-              StudioTreeItem(
-                id: 'item_home',
-                title: 'Dashboard de Rendimiento',
-                icon: Icons.dashboard_outlined,
-                timestamp: 'DSP Ready',
-                hasDragHandle: _currentIndex == 0,
-                onSelect: () => _navigateToTab(0),
-              ),
-            ],
-          ),
-
-          // 2. Biblioteca de Partituras (Inicia Vacía con Creación e Importación)
+          // 1. Partituras del Proyecto
           StudioTreeFolder(
             id: 'folder_scores',
             title: 'Partituras & Notación (${viewModel.workspaceScores.length})',
+            accentColor: palette.primaryAccent,
             headerAction: IconButton(
               icon: Icon(Icons.add, size: 13, color: palette.primaryAccent),
               tooltip: 'Crear nueva partitura',
@@ -710,10 +679,11 @@ class _MainAppShellState extends State<MainAppShell> {
             ],
           ),
 
-          // 3. Grabaciones y Tomas de Audio WAV (Inicia Vacía)
+          // 2. Tomas de Grabación WAV (Solo audios y tomas grabadas)
           StudioTreeFolder(
             id: 'folder_studio',
             title: 'Tomas de Audio & WAV (${viewModel.recordingHistory.length})',
+            accentColor: Colors.redAccent,
             headerAction: IconButton(
               icon: Icon(Icons.fiber_manual_record, size: 12, color: Colors.redAccent),
               tooltip: viewModel.isRecording ? 'Detener toma' : 'Iniciar nueva toma',
@@ -728,26 +698,17 @@ class _MainAppShellState extends State<MainAppShell> {
                 }
               },
             ),
-            items: [
-              StudioTreeItem(
-                id: 'item_rack',
-                title: 'Rack Modular de Pedales DSP',
-                icon: Icons.view_agenda_outlined,
-                timestamp: '4 pedales',
-                statusDotColor: Colors.purpleAccent,
-                hasDragHandle: _currentIndex == 3,
-                onSelect: () => _navigateToTab(3),
-              ),
-              ...viewModel.recordingHistory.map(
-                (rec) => StudioTreeItem(
-                  id: rec.id,
-                  title: rec.songTitle,
-                  icon: Icons.audio_file_outlined,
-                  timestamp: '${rec.duration.inSeconds}s',
-                  onSelect: () => _navigateToTab(3),
-                ),
-              ),
-            ],
+            items: viewModel.recordingHistory
+                .map(
+                  (rec) => StudioTreeItem(
+                    id: rec.id,
+                    title: rec.songTitle,
+                    icon: Icons.audio_file_outlined,
+                    timestamp: '${rec.duration.inSeconds}s',
+                    onSelect: () => _navigateToTab(3),
+                  ),
+                )
+                .toList(),
             emptyActions: [
               StudioTreeItem(
                 id: 'act_new_rec',
@@ -766,10 +727,11 @@ class _MainAppShellState extends State<MainAppShell> {
             ],
           ),
 
-          // 4. Presets de Afinación Personalizados (Inicia Vacía)
+          // 3. Presets de Afinación Personalizados
           StudioTreeFolder(
             id: 'folder_tunings',
             title: 'Presets de Afinación (${viewModel.customTuningPresets.length})',
+            accentColor: palette.secondaryAccent,
             headerAction: IconButton(
               icon: Icon(Icons.add, size: 13, color: palette.secondaryAccent),
               tooltip: 'Guardar preset',
@@ -807,11 +769,51 @@ class _MainAppShellState extends State<MainAppShell> {
               ),
             ],
           ),
+        ],
+      ),
 
-          // 5. Herramientas de Laboratorio Acústico FFT
+      // SECCIÓN 2: SUITE DE HERRAMIENTAS (CLASIFICADAS POR DISCIPLINA TÉCNICA)
+      StudioTreeSection(
+        title: 'Suite de Herramientas',
+        folders: [
+          // 1. Afinación & Entonación
+          StudioTreeFolder(
+            id: 'folder_tuning_tools',
+            title: 'Afinación & Entonación',
+            accentColor: Colors.blueAccent,
+            items: [
+              StudioTreeItem(
+                id: 'item_tuner',
+                title: 'Afinador Estroboscópico Pro',
+                icon: Icons.tune_rounded,
+                timestamp: '${viewModel.referencePitch.toInt()} Hz',
+                statusDotColor: Colors.blueAccent,
+                hasDragHandle: _currentIndex == 1,
+                onSelect: () => _navigateToTab(1),
+              ),
+              StudioTreeItem(
+                id: 'item_drone',
+                title: 'Dron Armónico & Temperamentos',
+                icon: Icons.volume_up_outlined,
+                timestamp: 'Tono puro',
+                onSelect: () => HarmonicDroneModal.show(context, viewModel),
+              ),
+              StudioTreeItem(
+                id: 'item_home',
+                title: 'Dashboard de Rendimiento',
+                icon: Icons.dashboard_outlined,
+                timestamp: 'DSP Ready',
+                hasDragHandle: _currentIndex == 0,
+                onSelect: () => _navigateToTab(0),
+              ),
+            ],
+          ),
+
+          // 2. Análisis Acústico & Laboratorio
           StudioTreeFolder(
             id: 'folder_acoustics',
-            title: 'Laboratorio Acústico FFT',
+            title: 'Análisis Acústico & Laboratorio',
+            accentColor: Colors.amberAccent,
             items: [
               StudioTreeItem(
                 id: 'item_spectrogram',
@@ -830,14 +832,15 @@ class _MainAppShellState extends State<MainAppShell> {
             ],
           ),
 
-          // 6. Conservatorio y Lecciones
+          // 3. Pedagogía & Conservatorio
           StudioTreeFolder(
             id: 'folder_conservatory',
-            title: 'Conservatorio & Lecciones',
+            title: 'Pedagogía & Conservatorio',
+            accentColor: Colors.tealAccent,
             items: [
               StudioTreeItem(
                 id: 'item_learning',
-                title: 'Tutor de Compás y Detección Rushing',
+                title: 'Tutor de Compás y Rushing',
                 icon: Icons.school_outlined,
                 timestamp: '${viewModel.bpm.round()} BPM',
                 hasDragHandle: _currentIndex == 2,
@@ -849,6 +852,24 @@ class _MainAppShellState extends State<MainAppShell> {
                 icon: Icons.hearing_outlined,
                 timestamp: 'Shift+E',
                 onSelect: () => BlindEarTrainerModal.show(context, viewModel),
+              ),
+            ],
+          ),
+
+          // 4. Producción & Enrutamiento
+          StudioTreeFolder(
+            id: 'folder_production',
+            title: 'Producción & Enrutamiento',
+            accentColor: Colors.purpleAccent,
+            items: [
+              StudioTreeItem(
+                id: 'item_rack',
+                title: 'Rack Modular de Pedales DSP',
+                icon: Icons.view_agenda_outlined,
+                timestamp: 'DSP Rack',
+                statusDotColor: Colors.purpleAccent,
+                hasDragHandle: _currentIndex == 3,
+                onSelect: () => _navigateToTab(3),
               ),
             ],
           ),

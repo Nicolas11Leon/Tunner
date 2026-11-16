@@ -147,16 +147,18 @@ class _StudioTreeViewState extends State<StudioTreeView> {
                     padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 4.0),
                     child: Row(
                       children: [
-                        Text(
-                          section.title,
-                          style: TextStyle(
-                            color: tokens.textMuted,
-                            fontSize: 11.0,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.2,
+                        Expanded(
+                          child: Text(
+                            section.title,
+                            style: TextStyle(
+                              color: tokens.textMuted,
+                              fontSize: 11.0,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.2,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const Spacer(),
                         if (section.headerAction != null)
                           section.headerAction!
                         else ...[
