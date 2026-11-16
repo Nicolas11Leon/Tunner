@@ -551,6 +551,30 @@ class DjConsoleViewModel extends ChangeNotifier {
     return estimatedBpm;
   }
 
+  /// Carga directa de pista con metadatos de canal (Score, WAV, Mic) y síntesis espectral reactiva.
+  void loadTrackSimple(
+    String deckId, {
+    required String title,
+    required double bpm,
+    String camelotKey = '8B',
+    String artist = 'Estudio',
+  }) {
+    _orchestrator.loadTrack(
+      deckId,
+      title: title,
+      artist: artist,
+      bpm: bpm,
+      durationMs: 180000,
+      camelotKey: camelotKey,
+    );
+    if (deckId == 'A') {
+      _waveformA = DjTransitionSfxSynthesizer.generateSyntheticTrackWaveform(bpm: bpm);
+    } else {
+      _waveformB = DjTransitionSfxSynthesizer.generateSyntheticTrackWaveform(bpm: bpm);
+    }
+    if (!_isDisposed) notifyListeners();
+  }
+
   void scratchDeck(String deckId, double deltaRadians) {
     if (deckId == 'A') {
       _rotationAngleA += deltaRadians;

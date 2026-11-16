@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../core/channels/data/studio_patchbay_routing_service.dart';
+import '../../../core/channels/domain/studio_modular_plug.dart';
+import '../../../core/channels/domain/studio_plug_type.dart';
+import '../../../core/channels/presentation/studio_channel_patchbay_bar_widget.dart';
+import '../../../core/channels/presentation/studio_modular_plug_widget.dart';
 import '../../../core/design_system/studio_theme_provider.dart';
 import '../../../core/theme/tunner_theme.dart';
 import '../domain/dj_action.dart';
@@ -42,6 +47,11 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
   late final FocusNode _focusNode;
   late String _workstationViewMode;
 
+  late final StudioPatchbayRoutingService _patchbayService;
+  late final StudioModularPlug _deckAPlug;
+  late final StudioModularPlug _deckBPlug;
+  late final StudioModularPlug _masterOutPlug;
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +63,49 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
       _viewModel = DjConsoleViewModel();
       _internalVm = true;
     }
+
+    _patchbayService = StudioPatchbayRoutingService();
+    _deckAPlug = const StudioModularPlug(
+      id: 'plug_dj_deck_a_in',
+      label: 'IN DECK A',
+      toolId: 'dj_console',
+      type: StudioPlugType.audioInput,
+      connectedChannelId: 'canal_a',
+    );
+    _deckBPlug = const StudioModularPlug(
+      id: 'plug_dj_deck_b_in',
+      label: 'IN DECK B',
+      toolId: 'dj_console',
+      type: StudioPlugType.audioInput,
+      connectedChannelId: 'canal_b',
+    );
+    _masterOutPlug = const StudioModularPlug(
+      id: 'plug_dj_master_out',
+      label: 'OUT MASTER',
+      toolId: 'dj_console',
+      type: StudioPlugType.audioOutput,
+      connectedChannelId: 'canal_d',
+    );
+
+    _patchbayService.registerPlug(_deckAPlug);
+    _patchbayService.registerPlug(_deckBPlug);
+    _patchbayService.registerPlug(_masterOutPlug);
+
+    // Escuchas para inyección de señales a Decks
+    _patchbayService.registerSinkListener('plug_dj_deck_a_in', (sourceId, channelId, payload) {
+      final title = payload['title'] as String? ?? 'Melodía Partitura Canal A';
+      final bpm = (payload['bpm'] as num?)?.toDouble() ?? 120.0;
+      final key = payload['key'] as String? ?? '8B';
+      _viewModel.loadTrackSimple('A', title: title, bpm: bpm, camelotKey: key);
+    });
+
+    _patchbayService.registerSinkListener('plug_dj_deck_b_in', (sourceId, channelId, payload) {
+      final title = payload['title'] as String? ?? 'Pista Externa Canal B';
+      final bpm = (payload['bpm'] as num?)?.toDouble() ?? 126.0;
+      final key = payload['key'] as String? ?? '9A';
+      _viewModel.loadTrackSimple('B', title: title, bpm: bpm, camelotKey: key);
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focusNode.requestFocus();
     });
@@ -60,6 +113,8 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
 
   @override
   void dispose() {
+    _patchbayService.unregisterSinkListener('plug_dj_deck_a_in');
+    _patchbayService.unregisterSinkListener('plug_dj_deck_b_in');
     _focusNode.dispose();
     if (_internalVm) {
       _viewModel.dispose();
@@ -93,7 +148,10 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                   // 1. Barra de Control Superior (Master Header & Transporte Global)
                   _buildMasterHeader(context, vm, tokens),
 
-                  // 2. Visor Central Condicional según Modo de Vista
+                  // 2. Barra Modular de Parcheo Troncal (Canal A, B, C, D)
+                  StudioChannelPatchbayBarWidget(routingService: _patchbayService),
+
+                  // 3. Visor Central Condicional según Modo de Vista
                   Expanded(
                     child: _buildCentralContent(context, vm, tokens),
                   ),
@@ -503,6 +561,45 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                 TunnerThemePalette.obsidianStudio,
               ),
             ),
+            const SizedBox(width: 8),
+
+            // Botón Modular Enviar Partitura (Canal A)
+            ElevatedButton.icon(
+              key: const Key('inject_score_melody_btn'),
+              icon: const Icon(Icons.music_note, size: 14),
+              label: const Text('ENVIAR PARTITURA (CH A)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+                foregroundColor: const Color(0xFFA78BFA),
+                side: const BorderSide(color: Color(0xFF8B5CF6)),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                minimumSize: Size.zero,
+              ),
+              onPressed: () {
+                const scorePlug = StudioModularPlug(
+                  id: 'plug_score_melody_out',
+                  label: 'OUT PARTITURA',
+                  toolId: 'score_editor',
+                  type: StudioPlugType.audioOutput,
+                  connectedChannelId: 'canal_a',
+                );
+                _patchbayService.registerPlug(scorePlug);
+                _patchbayService.dispatchSignalFromPlug(
+                  sourcePlugId: 'plug_score_melody_out',
+                  payload: {
+                    'title': 'Partitura: Sonata No. 1 en C Mayor',
+                    'bpm': 120.0,
+                    'key': '8B',
+                  },
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Partitura enviada por CANAL A y sincronizada en Deck A'),
+                    backgroundColor: Color(0xFF00E5FF),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -547,6 +644,16 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                 ),
               ),
               const SizedBox(width: 8),
+
+              // Plug Modular Interactivo de Entrada
+              StudioModularPlugWidget(
+                plug: deckId == 'A' ? _deckAPlug : _deckBPlug,
+                routingService: _patchbayService,
+                showLabel: false,
+                size: 24.0,
+              ),
+              const SizedBox(width: 8),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

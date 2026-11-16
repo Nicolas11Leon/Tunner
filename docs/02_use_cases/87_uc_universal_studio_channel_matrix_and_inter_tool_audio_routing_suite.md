@@ -1,36 +1,37 @@
-# Caso de Uso 87: Matriz Universal de Canales de Estudio y Enrutamiento Inter-Herramientas (Score-to-DJ-to-DSP)
+# Caso de Uso 87: Suite Modular de Plugs Interactivos, Canales de Parcheo (A, B, C, D) y Enrutamiento Inter-Herramientas
 
-Este documento define la especificación canónica, diagramas de flujo y casos de uso para la interconexión modular y atomizada de herramientas a través de canales de estudio en **Tunner**.
+Este documento define la especificación canónica, diagramas de flujo y casos de uso para la interconexión tangible y atomizada de herramientas a través de plugs modulares y buses de canales troncales (Canal A, B, C, D) en **Tunner**.
 
 ---
 
 ## 1. Metadatos del Caso de Uso
 
-- **ID del Caso de Uso:** `UC-87-UNIVERSAL-STUDIO-CHANNEL-MATRIX-ROUTING`
-- **Nombre:** Matriz Universal de Canales de Estudio y Enrutamiento Inter-Herramientas
+- **ID del Caso de Uso:** `UC-87-MODULAR-PLUGS-CHANNELS-ROUTING`
+- **Nombre:** Plugs Modulares Interactivos y Enrutamiento Inter-Herramientas mediante Canales A, B, C, D
 - **Actor Principal:** Estudiante de Música / Productor Musical / DJ
 - **Fase:** Fase 2 (Instrumentación, Consola DJ y Estaciones de Trabajo)
 - **Componentes Afectados:**
-  - `lib/core/channels/domain/studio_channel_entity.dart`
-  - `lib/core/channels/data/studio_channel_routing_bus.dart`
-  - `lib/core/channels/presentation/studio_channel_strip_widget.dart`
+  - `lib/core/channels/domain/studio_modular_plug.dart`
+  - `lib/core/channels/domain/studio_channel_bus.dart`
+  - `lib/core/channels/data/studio_patchbay_routing_service.dart`
+  - `lib/core/channels/presentation/studio_modular_plug_widget.dart`
+  - `lib/core/channels/presentation/studio_channel_patchbay_bar_widget.dart`
   - `lib/features/dj_console/presentation/dj_studio_workstation_view.dart`
-  - `lib/features/dj_console/presentation/dj_console_view_model.dart`
-  - `lib/features/score_editor/` (Interconexión de partituras a decks)
 - **ADR Relacionado:** [ADR 0077](../04_adrs/0077_universal_studio_channel_matrix_and_inter_tool_audio_routing_suite.md)
 
 ---
 
 ## 2. Descripción General
 
-En las estaciones de trabajo tradicionales (DAWs), conectar una partitura musical con un sintetizador, una consola de directo o herramientas de análisis acústico exige configurar manualmente complejas pistas de retorno, buses MIDI, puertos virtuales y ruteos matriciales abrumadores que confunden a estudiantes y ralentizan a profesionales.
-
-El **Caso de Uso 87** resuelve este problema mediante un **Sistema de Canales de Estudio Basado en Ergonomía Cognitiva y Divulgación Progresiva**:
-1. Cada fuente musical (una partitura MusicXML, un archivo WAV de la bóveda, un stem vocal, una señal de micrófono o un sintetizador Soundfont) reside en un **Canal de Estudio Nombrado y Coloreado**.
-2. Cualquier canal puede ser **arrastrado o asignado directamente** a cualquier herramienta de destino:
-   - Enviar una melodía de partitura a **Deck A** de la Consola DJ: el motor genera las muestras de audio y forma de onda en tiempo real, permitiendo hacer scratching, aplicar EQ de 3 bandas, filtrar frecuencias o sincronizar tempo BPM contra un beat comercial.
-   - Enviar la salida del Deck DJ al **Afinador Estroboscópico** o **Espectrograma FFT**: permite visualizar la entonación y armónicos de una pista en tiempo real.
-3. El usuario interactúa a través de conmutadores intuitivos y visuales en lugar de tablas complejas de enrutamiento.
+Para que el usuario experimente una verdadera sensación de estudio físico modular con interactividad intuitiva y respuesta inmediata:
+1. **Plugs Modulares Virtuales:** Cada herramienta de la plataforma expone conectores Jack tipo hardware (plugs de Entrada `[IN]` y Salida `[OUT]`).
+2. **Sistema Troncal de Canales (Canal A, B, C, D):** 
+   - **Canal A (Cian #00E5FF):** Canal primario de melodías y partituras.
+   - **Canal B (Ámbar #FFAB00):** Canal secundario de percusión y bases.
+   - **Canal C (Esmeralda #10B981):** Canal de procesamiento vocal y micrófono.
+   - **Canal D (Púrpura #8B5CF6):** Canal auxiliar de efectos y mezcla master.
+3. **Conexión Tangible en 1 Clic:** Al pulsar sobre cualquier plug, un selector circular o menú emergente permite al usuario enchufar el conector a cualquiera de los canales o dejarlo desconectado.
+4. **Sincronización Total de Melodías y Consola DJ:** Si el plug de salida de una partitura y el plug de entrada de Deck A están conectados al `Canal A`, la partitura sintetiza su señal y la inyecta de forma continua y reactiva en Deck A de la consola DJ.
 
 ---
 
@@ -40,15 +41,15 @@ El **Caso de Uso 87** resuelve este problema mediante un **Sistema de Canales de
 
 ```mermaid
 flowchart TD
-    User([Músico / Estudiante / DJ])
+    User([Músico / Productor / DJ])
 
-    subgraph Studio_Channel_Matrix ["Matriz de Canales y Enrutamiento Inter-Herramientas"]
-        UC87_1["Crear o Configurar Canal de Estudio"]
-        UC87_2["Asignar Fuente Musical (Partitura / WAV / Mic / SF2)"]
-        UC87_3["Enrutar Canal a Consola DJ (Deck A / Deck B)"]
-        UC87_4["Enrutar Canal a Herramienta Acústica (Afinador / Espectro)"]
-        UC87_5["Ajustar Fader, Mute, Solo y Paneo de Canal"]
-        UC87_6["Sincronización Automática de BPM y Clave Camelot"]
+    subgraph Modular_Patchbay_System ["Sistema de Plugs y Canales Troncales"]
+        UC87_1["Visualizar Plugs de Entrada y Salida en Herramientas"]
+        UC87_2["Conectar Plug a Canal (A, B, C o D) en 1 Clic"]
+        UC87_3["Transmitir Melodía de Partitura a Deck DJ mediante Canal A"]
+        UC87_4["Enrutar Salida DJ a Herramientas de Análisis mediante Canal B"]
+        UC87_5["Ajustar Ganancia y Silenciar Canales en Barra Patchbay"]
+        UC87_6["Generar Instrucciones DSP para Futuro Lenguaje de Bajo Nivel"]
     end
 
     User --> UC87_1
@@ -56,31 +57,32 @@ flowchart TD
     User --> UC87_3
     User --> UC87_4
     User --> UC87_5
-    UC87_3 --> UC87_6
+    UC87_2 --> UC87_6
 ```
 
-### 3.2 Diagrama de Secuencia y Flujo de Señal (Mermaid)
+### 3.2 Diagrama de Flujo y Secuencia (Mermaid)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Musician as Músico / Productor
-    participant ScoreView as Visor de Partituras / Bóveda
-    participant ChannelBus as StudioChannelRoutingBus
+    actor DJ as Usuario DJ / Músico
+    participant PlugScore as StudioModularPlug (Score OUT)
+    participant PatchService as StudioPatchbayRoutingService
+    participant BusA as StudioChannelBus (Canal A)
+    participant PlugDeckA as StudioModularPlug (Deck A IN)
     participant DJViewModel as DjConsoleViewModel
-    participant DJDeck as DjDeckEntity (Deck A)
-    participant AudioEngine as DSP Audio Pipeline
 
-    Musician->>ScoreView: Clic en "Enviar Melodía a Deck DJ A"
-    ScoreView->>ChannelBus: routeSourceToDestination(channelId, source: Score, dest: DjDeckA)
-    ChannelBus->>ScoreView: Renderiza PCM o sintetiza con Soundfont SF2
-    ChannelBus->>DJViewModel: loadTrackFromChannel(channelInfo, pcmBuffer, detectedBpm, key)
-    DJViewModel->>DJDeck: Actualiza título, BPM, forma de onda RGB y tonalidad
-    DJViewModel-->>Musician: Notificación visual inmediata "Melodía cargada en Deck A"
-    
-    Musician->>DJViewModel: Presiona PLAY (o tecla W)
-    DJViewModel->>AudioEngine: Inicia reproducción sincronizada de la partitura en Deck A
-    AudioEngine-->>Musician: Audio fluido sin latencia (<10ms)
+    DJ->>PlugScore: Clic en plug [OUT] -> Selecciona "Conectar a Canal A"
+    PlugScore->>PatchService: connectPlugToBus(plug_score_out, canal_a)
+    PatchService->>BusA: Registra emisor de señal en Canal A
+    PlugScore-->>DJ: Anillo LED se ilumina en color Cian (#00E5FF)
+
+    DJ->>PlugDeckA: Clic en plug [IN A] -> Selecciona "Conectar a Canal A"
+    PlugDeckA->>PatchService: connectPlugToBus(plug_deck_a_in, canal_a)
+    PatchService->>BusA: Registra receptor de señal en Canal A
+    PatchService->>DJViewModel: notifyAudioBufferAvailable(canal_a, streamSource)
+    DJViewModel->>DJViewModel: Carga melodía con BPM y Camelot en Deck A
+    PlugDeckA-->>DJ: Anillo LED se ilumina en Cian y muestra pulso de audio activo
 ```
 
 ---
@@ -88,26 +90,26 @@ sequenceDiagram
 ## 4. Precondiciones y Postcondiciones
 
 ### Precondiciones:
-- El proyecto contiene al menos una partitura, stem o archivo de audio disponible en la sesión local.
-- La aplicación se encuentra en ejecución offline sin requerir servicios externos.
+- El usuario se encuentra en el entorno de trabajo con herramientas abiertas (p. ej. Consola DJ y Partituras).
+- El servicio de parcheo `StudioPatchbayRoutingService` está inicializado en memoria local.
 
 ### Postcondiciones:
-- El canal queda enlazado de forma reactiva al receptor seleccionado.
-- La consola DJ puede manipular la partitura como si fuese un disco de vinilo o archivo WAV nativo.
-- El rendimiento del sistema se mantiene a 60/120 FPS sin bloqueos de memoria ni picos de CPU.
+- Los plugs conectados reflejan visualmente el color característico del canal asignado.
+- El flujo de señal de audio se transmite en tiempo real (<5ms de latencia) entre el emisor y los receptores.
+- Los faders del canal troncal modulan uniformemente la señal distribuida.
 
 ---
 
 ## 5. Flujos de Operación
 
 ### 5.1 Flujo Principal (Happy Path)
-1. El usuario abre una partitura o melodía en el espacio de trabajo.
-2. En la cabecera de la herramienta o menú contextual, selecciona `"Enrutar a Canal -> Deck A"`.
-3. El bus `StudioChannelRoutingBus` procesa las notas musicales, calcula su tempo nativo (p. ej. 120 BPM) y su centro tonal.
-4. Deck A de la Consola DJ se actualiza automáticamente con la onda espectral de la melodía y el título correspondiente.
-5. El usuario puede accionar el jog wheel para hacer scratch sobre la melodía o pulsar el botón `SYNC` para emparejarla con una base rítmica cargada en Deck B.
-6. El fader de volumen del canal modula la ganancia sin distorsión ni saltos audibles.
+1. El usuario visualiza el conector `[OUT]` en el visor de partituras y hace clic sobre él.
+2. Selecciona `CANAL A` en el menú rápido. El conector se ilumina en cian brillante.
+3. En la Consola DJ, hace clic en el conector `[IN]` de Deck A y selecciona `CANAL A`.
+4. El servicio de parcheo detecta la ruta activa y transfiere la melodía al Deck A.
+5. Deck A muestra la forma de onda espectral generada, el BPM y el título de la melodía.
+6. El usuario presiona `PLAY` en Deck A para reproducir la partitura como si fuese un vinilo interactivo.
 
 ### 5.2 Flujos Alternativos y Excepciones
-- **Desconexión de Canal:** Si el usuario desconecta el canal de Deck A, el deck retiene el último estado seguro o se limpia sin interrumpir la reproducción en Deck B.
-- **Formato Desconocido o Corrupto:** Si la fuente de audio o partitura presenta anomalías, el sistema notifica el error de forma no invasiva mediante un `SnackBar` y mantiene la ruta anterior sin colapsar el motor.
+- **Desconexión Rápida:** Al hacer clic en un plug y elegir `Desconectar`, el aro LED pasa a color gris oscuro y el flujo de audio se corta de forma limpia sin clics sonoros ni excepciones de punto flotante.
+- **Múltiples Receptores:** Si el usuario conecta tanto Deck A como el Afinador Estroboscópico a `CANAL A`, ambos reciben la señal simultáneamente en modo paralelo (multicast in-memory) con cero copia innecesaria de memoria.

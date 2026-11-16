@@ -8,6 +8,7 @@ import 'package:tunner/features/dj_console/domain/dj_keymap_profile_entity.dart'
 import 'package:tunner/features/dj_console/presentation/dj_console_view_model.dart';
 import 'package:tunner/features/dj_console/presentation/dj_interactive_keymap_visualizer_modal.dart';
 import 'package:tunner/features/dj_console/presentation/dj_studio_workstation_view.dart';
+import 'package:tunner/features/dj_console/presentation/dj_vertical_channel_strip.dart';
 import 'package:tunner/features/dj_console/presentation/dj_visual_mapping_overlay.dart';
 
 void main() {
@@ -184,8 +185,8 @@ void main() {
       // Switch to 'Modular DAW' mode
       await tester.tap(find.text('Modular DAW'));
       await tester.pumpAndSettle();
-      expect(find.text('CH A'), findsOneWidget);
-      expect(find.text('CH B'), findsOneWidget);
+      expect(find.descendant(of: find.byType(DjVerticalChannelStrip), matching: find.text('CH A')), findsOneWidget);
+      expect(find.descendant(of: find.byType(DjVerticalChannelStrip), matching: find.text('CH B')), findsOneWidget);
 
       vm.dispose();
     });

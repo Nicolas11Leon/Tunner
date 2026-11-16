@@ -1,0 +1,240 @@
+import 'package:flutter/material.dart';
+import '../data/studio_patchbay_routing_service.dart';
+import '../domain/studio_modular_plug.dart';
+
+/// Widget visual que simula un Jack/Plug modular tipo hardware interactivo.
+class StudioModularPlugWidget extends StatelessWidget {
+  final StudioModularPlug plug;
+  final StudioPatchbayRoutingService routingService;
+  final double size;
+  final bool showLabel;
+
+  const StudioModularPlugWidget({
+    super.key,
+    required this.plug,
+    required this.routingService,
+    this.size = 28.0,
+    this.showLabel = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: routingService,
+      builder: (context, _) {
+        final currentPlug = routingService.plugs[plug.id] ?? plug;
+        final colorHex = routingService.getColorForPlug(currentPlug);
+        final plugColor = Color(colorHex);
+        final isPulsing = routingService.activePulsePlugId == currentPlug.id;
+
+        return Tooltip(
+          message: currentPlug.isConnected
+              ? '${currentPlug.label} -> Conectado a ${currentPlug.connectedChannelId?.replaceAll('_', ' ').toUpperCase()}'
+              : '${currentPlug.label} (Clic para conectar a un canal)',
+          child: InkWell(
+            onTap: () => _showChannelSelectorMenu(context, currentPlug),
+            borderRadius: BorderRadius.circular(size),
+            child: Padding(
+              padding: const EdgeInsets.all(4.0),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Conector Jack Circular Vectorial
+                  Container(
+                    width: size,
+                    height: size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF141720),
+                      border: Border.all(
+                        color: isPulsing ? Colors.white : plugColor,
+                        width: isPulsing ? 2.5 : 1.8,
+                      ),
+                      boxShadow: currentPlug.isConnected
+                          ? [
+                              BoxShadow(
+                                color: (isPulsing ? Colors.white : plugColor).withValues(alpha: isPulsing ? 0.9 : 0.45),
+                                blurRadius: isPulsing ? 12 : 6,
+                                spreadRadius: isPulsing ? 2 : 0,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: size * 0.45,
+                        height: size * 0.45,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF07080C),
+                          border: Border.all(color: const Color(0xFF2E3548), width: 1.0),
+                        ),
+                        child: Center(
+                          child: Container(
+                            width: size * 0.2,
+                            height: size * 0.2,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: currentPlug.isConnected ? plugColor : const Color(0xFF161922),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  if (showLabel) ...[
+                    const SizedBox(width: 6),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          currentPlug.label,
+                          style: TextStyle(
+                            color: currentPlug.isConnected ? Colors.white : const Color(0xFF8E9BAE),
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        Text(
+                          currentPlug.isConnected
+                              ? currentPlug.connectedChannelId!.replaceAll('_', ' ').toUpperCase()
+                              : 'DESCONECTADO',
+                          style: TextStyle(
+                            color: currentPlug.isConnected ? plugColor : const Color(0xFF556075),
+                            fontSize: 8.0,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showChannelSelectorMenu(BuildContext context, StudioModularPlug targetPlug) {
+    final channels = routingService.channels;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF10131D),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.cable, color: Color(0xFF00E5FF), size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'CONECTAR PLUG: ${targetPlug.label}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white60, size: 18),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Selecciona el canal de audio/evento donde deseas enchufar esta herramienta:',
+                  style: TextStyle(color: Color(0xFF8E9BAE), fontSize: 11),
+                ),
+                const SizedBox(height: 12),
+
+                // Lista de Canales A, B, C, D
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: channels.map((channel) {
+                    final isSelected = targetPlug.connectedChannelId == channel.id;
+                    final chColor = Color(channel.colorHex);
+
+                    return InkWell(
+                      onTap: () {
+                        routingService.connectPlugToChannel(targetPlug.id, channel.id);
+                        Navigator.of(ctx).pop();
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? chColor.withValues(alpha: 0.25) : const Color(0xFF161C2A),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected ? chColor : const Color(0xFF283248),
+                            width: isSelected ? 2.0 : 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: chColor,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              channel.name,
+                              style: TextStyle(
+                                color: isSelected ? Colors.white : const Color(0xFFB0B9C6),
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+
+                const SizedBox(height: 16),
+                // Botón Desconectar Plug
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.power_off, size: 14, color: Color(0xFFFF5252)),
+                  label: const Text('Desconectar Plug (Mute de Enlace)', style: TextStyle(fontSize: 11, color: Color(0xFFFF5252))),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFFF5252)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  onPressed: () {
+                    routingService.disconnectPlug(targetPlug.id);
+                    Navigator.of(ctx).pop();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}

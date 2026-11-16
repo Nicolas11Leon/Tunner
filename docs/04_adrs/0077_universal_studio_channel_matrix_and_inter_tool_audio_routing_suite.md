@@ -1,33 +1,35 @@
-# ADR 0077: Matriz Universal de Canales de Estudio y Enrutamiento Inter-Herramientas (Score-to-DJ-to-DSP)
+# ADR 0077: Suite Modular de Plugs Interactivos, Canales de Parcheo (A, B, C, D) y Enrutamiento Inter-Herramientas
 
 ## Estado
 Aprobado
 
 ## Contexto
-El usuario requiere un ecosistema integrado donde las herramientas individuales de la plataforma (reproductor de partituras/notación, consola DJ profesional, sintetizador Soundfont, afinador de precisión y bóveda de audio) no funcionen como silos aislados, sino que puedan conectarse entre sí a través de un **sistema canónico de canales de audio y eventos**.
-
-El desafío de diseño radica en dos factores críticos:
-1. **Velocidad y Rendimiento Técnico:** La interconexión debe operar con latencia imperceptible (<10ms) en memoria local, sin dependencias de red ni sobrecarga en el hilo principal de Flutter.
-2. **Ergonomía Cognitiva y Facilidad de Uso:** Las matrices de enrutamiento convencionales de DAWs de escritorio abruman al estudiante con cientos de opciones de buses y ruteos pre/post. Se requiere un modelo basado en **Divulgación Progresiva (Progressive Disclosure)** y **Reducción de Carga Cognitiva Extraña (Cognitive Load Theory)** que permita asignar fuentes a destinos con un solo clic o arrastrar-y-soltar.
+El usuario ha definido una visión clara y tangible para la interconexión de herramientas en **Tunner**:
+1. En lugar de tablas de configuración abstractas, cada herramienta (Consola DJ, Partituras, Sintetizador Soundfont, Afinador, Grabador de tomas) debe exponer **Plugs modulares interactivos** (como conectores Jack 1/4" físicos virtuales).
+2. Los plugs se interconectan mediante un sistema troncal de canales (**Canal A, Canal B, Canal C, Canal D**), simulando una verdadera consola de audio modular con sincronización reactiva en tiempo real.
+3. El diseño debe ser atomizado, visualmente responsivo (LEDs neón por canal) y **arquitectónicamente escalable para permitir en el futuro la ejecución mediante un lenguaje de bajo nivel o máquina virtual DSP nativa (`dart:ffi` en C/Rust)** sin reescribir la interfaz de usuario.
 
 ## Decisión
-Se implementa una arquitectura desacoplada basada en Clean Architecture e In-Process Event Bus:
+Se implementa una arquitectura modular limpia e in-process:
 1. **Capa de Dominio (`lib/core/channels/domain`):**
-   - `StudioChannelEntity`: Entidad inmutable que representa un canal de audio/evento con identificador único, nombre, color temático, fuente asignada (`ChannelSourceType`: Partitura, MIDI, WAV, Micrófono, Sintetizador SF2), destino de enrutamiento (`ChannelDestinationType`: Master, DjDeckA, DjDeckB, StrobeTuner, Autotune, StemProcessor), ganancia, balance estéreo, mute y solo.
-   - `StudioChannelMatrixState`: Colección inmutable de canales y topología de conexiones activas.
-2. **Capa de Datos / Infraestructura (`lib/core/channels/data`):**
-   - `StudioChannelRoutingBus`: Bus de orquestación en memoria local (offline-first). Convierte y transfiere búferes de audio o eventos sintetizados de partituras directamente hacia los reproductores de la Consola DJ (`DjConsoleViewModel`), sincronizando automáticamente metadatos de BPM y clave armónica Camelot.
+   - `StudioPlugType`: Enumeración de tipos de puerto (`audioInput`, `audioOutput`, `midiInput`, `midiOutput`, `clockSyncInput`, `clockSyncOutput`).
+   - `StudioModularPlug`: Entidad inmutable que representa un puerto Jack interactivo con identificación única, herramienta propietaria, dirección de flujo, canal asignado y estado de señal activa.
+   - `StudioChannelBus`: Modelo de canal troncal (Canales A, B, C, D) con color hexadecimal, nombre, ganancia, mute y listas de plugs emisores y receptores.
+   - `StudioPatchbayMatrixEntity`: Matriz global inmutable de parcheo. Incluye el método `toDspOpcodeSequence()` que genera un flujo de instrucciones de bajo nivel (`StudioDspInstruction`), garantizando que la topología de ruteo pueda ser compilada y ejecutada en un futuro motor C++/Rust o compilador JIT/AOT.
+2. **Capa de Datos e Infraestructura (`lib/core/channels/data`):**
+   - `StudioPatchbayRoutingService`: Orquestador de parcheo in-memory offline-first. Despacha búferes de audio `Float32List` y eventos MIDI entre plugs conectados al mismo canal con latencia sub-5ms y cero duplicación innecesaria en memoria.
 3. **Capa de Presentación (`lib/core/channels/presentation`):**
-   - Controles atómicos de canal: `StudioChannelStripWidget` con faders verticales, medidores de nivel estéreo, botones de silencio/solo y menús de asignación rápida ("1-Click Routing").
-   - Integración directa en la Consola DJ y el Visor de Partituras para permitir cargar cualquier composición musical directamente en Deck A o Deck B como una pista de reproducción en vivo.
+   - `StudioModularPlugWidget`: Componente visual táctil con bisel metálico skeuomórfico, aro LED reactivo al color del canal (Cian, Ámbar, Esmeralda, Púrpura) y menú de 1 clic para conmutar canal o desconectar.
+   - `StudioChannelPatchbayBarWidget`: Barra superior horizontal que expone los faders, vúmetros y estados de los 4 canales A, B, C, D.
+   - Integración nativa en `DjStudioWorkstationView` (plugs `[IN A]`, `[IN B]`, `[OUT MASTER]`) y en el visor de partituras/melodías (`[OUT MELODÍA]`).
 
 ## Consecuencias
 
 ### Positivas
-- Interoperabilidad total entre el mundo de la notación musical tradicional (partituras) y el mundo de la producción moderna/DJ.
-- Experiencia de usuario limpia y pedagógica: el usuario solo interactúa con el canal que le interesa sin navegar laberintos de configuración.
-- Máximo rendimiento: cero serializaciones pesadas sobre la red, uso de búferes `Float32List` nativos y 60 FPS estables.
-- Cero microservicios y funcionamiento 100% desconectado (Offline-First).
+- Facilidad de uso e intuitividad instantánea: la metáfora física de enchufar un plug a un canal es universalmente entendida por cualquier músico o aficionado.
+- Totalmente preparado para escalar a un lenguaje de bajo nivel (DSL/DSP) gracias a la separación estricta mediante opcodes en la entidad de dominio.
+- Latencia sub-5ms en memoria local, respetando el principio Offline-First y la regla de Cero Microservicios de Tunner.
+- Renderizado desacoplado a 60/120 FPS con microanimaciones e iluminación neón reactiva.
 
 ### Negativas / Mitigaciones
-- Gestión del ciclo de vida de los búferes de sintetizador: se mitiga liberando automáticamente la memoria de pistas inactivas y utilizando referencias eficientes en Dart.
+- Necesidad de coordinar el ciclo de vida de los búferes de audio entre herramientas: se mitiga mediante buffers de anillo circulares (ring buffers) inmutables y recolección de memoria determinista.
