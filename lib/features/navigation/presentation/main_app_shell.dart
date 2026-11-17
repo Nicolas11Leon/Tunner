@@ -31,6 +31,11 @@ import '../../../core/file_system/domain/studio_file_type.dart';
 import '../../../core/file_system/presentation/studio_vscode_explorer_widget.dart';
 import '../../../core/terminal/domain/tunner_os_kernel.dart';
 import '../../../core/terminal/presentation/tunner_os_terminal_drawer.dart';
+import '../../../core/audio/domain/studio_master_clock_service.dart';
+import '../../../core/audio/infrastructure/studio_audio_device_matrix_service.dart';
+import '../../../core/audio/infrastructure/studio_audio_engine.dart';
+import '../../../core/audio/infrastructure/studio_audio_input_engine.dart';
+import '../../../core/audio/presentation/studio_master_hardware_console_widget.dart';
 
 /// Intenciones para el sistema de atajos de teclado de grado profesional y memoria muscular (DAWs).
 class TogglePlayIntent extends Intent {
@@ -129,6 +134,10 @@ class SwitchTabIntent extends Intent {
   const SwitchTabIntent(this.tabIndex);
 }
 
+class OpenMasterConsoleIntent extends Intent {
+  const OpenMasterConsoleIntent();
+}
+
 /// Contenedor principal de navegación de Tunner (MainAppShell).
 /// Gestiona la transición limpia entre el Dashboard de Inicio, el Afinador,
 /// el Tutor de Aprendizaje, el Estudio de Grabación y la Biblioteca de Canciones,
@@ -150,6 +159,8 @@ class _MainAppShellState extends State<MainAppShell> {
   late final ModularRackViewModel _modularRackViewModel;
   late final DjConsoleViewModel _djConsoleViewModel;
   late final StudioWorkspaceFileSystemService _fileSystemService;
+  late final StudioAudioDeviceMatrixService _audioMatrixService;
+  late final StudioMasterClockService _masterClockService;
   bool _isTerminalOpen = false;
   late final TunnerOsKernel _terminalKernel;
 
@@ -162,6 +173,14 @@ class _MainAppShellState extends State<MainAppShell> {
     _fileSystemService = StudioWorkspaceFileSystemService();
     _fileSystemService.onOpenFile = _handleOpenFile;
     _fileSystemService.initializeWorkspace();
+
+    final audioEngine = StudioAudioEngine();
+    final audioInput = StudioAudioInputEngine();
+    _audioMatrixService = StudioAudioDeviceMatrixService(
+      outputEngine: audioEngine,
+      inputEngine: audioInput,
+    );
+    _masterClockService = StudioMasterClockService(initialBpm: 120.0);
 
     _terminalKernel = TunnerOsKernel(
       onNavigateTab: _navigateToTab,
@@ -265,7 +284,17 @@ class _MainAppShellState extends State<MainAppShell> {
   void dispose() {
     _modularRackViewModel.dispose();
     _djConsoleViewModel.dispose();
+    _audioMatrixService.dispose();
+    _masterClockService.dispose();
     super.dispose();
+  }
+
+  void _openMasterConsole() {
+    StudioMasterHardwareConsoleWidget.show(
+      context,
+      matrixService: _audioMatrixService,
+      clockService: _masterClockService,
+    );
   }
 
   void _navigateToTab(int index) {
@@ -1195,6 +1224,8 @@ class _MainAppShellState extends State<MainAppShell> {
             const SingleActivator(LogicalKeyboardKey.keyF, meta: true): const OpenCommandPaletteIntent(),
             const SingleActivator(LogicalKeyboardKey.keyI, control: true): const OpenInstrumentSelectorIntent(),
             const SingleActivator(LogicalKeyboardKey.keyI, meta: true): const OpenInstrumentSelectorIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyI, control: true, shift: true): const OpenMasterConsoleIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyI, meta: true, shift: true): const OpenMasterConsoleIntent(),
             const SingleActivator(LogicalKeyboardKey.slash, shift: true): const OpenShortcutsGuideIntent(),
             const SingleActivator(LogicalKeyboardKey.backquote, control: true): const ToggleTerminalIntent(),
             const SingleActivator(LogicalKeyboardKey.keyE, shift: true): const OpenEarTrainerIntent(),
@@ -1279,6 +1310,12 @@ class _MainAppShellState extends State<MainAppShell> {
           OpenInstrumentSelectorIntent: CallbackAction<OpenInstrumentSelectorIntent>(
             onInvoke: (_) => _openInstrumentSelector(viewModel),
           ),
+          OpenMasterConsoleIntent: CallbackAction<OpenMasterConsoleIntent>(
+            onInvoke: (_) {
+              _openMasterConsole();
+              return null;
+            },
+          ),
           OpenCommandPaletteIntent: CallbackAction<OpenCommandPaletteIntent>(
             onInvoke: (_) => _openCommandPalette(viewModel),
           ),
@@ -1354,6 +1391,7 @@ class _MainAppShellState extends State<MainAppShell> {
                       onOpenAutomations: () => StudioAutomationsModal.show(context, viewModel),
                       onOpenCustomizations: () => StudioCustomizationsModal.show(context, viewModel),
                       onOpenSettings: () => StudioSettingsModal.show(context, viewModel),
+                      onOpenMasterConsole: _openMasterConsole,
                       onMenuNewScore: () => StudioAssetsModals.showNewScoreDialog(
                         context: context,
                         viewModel: viewModel,

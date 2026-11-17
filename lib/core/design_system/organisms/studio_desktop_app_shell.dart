@@ -32,6 +32,7 @@ class StudioDesktopAppShell extends StatefulWidget {
   final VoidCallback onOpenSearch;
   final VoidCallback onOpenShortcuts;
   final VoidCallback? onOpenSettings;
+  final VoidCallback? onOpenMasterConsole;
   final VoidCallback? onOpenAutomations;
   final VoidCallback? onOpenCustomizations;
   final List<Widget>? customStatusItems;
@@ -66,6 +67,7 @@ class StudioDesktopAppShell extends StatefulWidget {
     required this.onOpenSearch,
     required this.onOpenShortcuts,
     this.onOpenSettings,
+    this.onOpenMasterConsole,
     this.onOpenAutomations,
     this.onOpenCustomizations,
     this.customStatusItems,
@@ -162,9 +164,9 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                       _buildViewMenu(context, tokens),
                       _buildWindowMenu(context, tokens),
 
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 4),
                       const StudioHairline(orientation: Axis.vertical, length: 14),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 4),
 
                       // Versión / Badge
                       Text(
@@ -176,9 +178,9 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                         ),
                       ),
 
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 4),
                       const StudioHairline(orientation: Axis.vertical, length: 14),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 4),
 
                       // Breadcrumb del módulo activo
                       Expanded(
@@ -223,9 +225,9 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                     ),
                   ],
 
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
                   const StudioHairline(orientation: Axis.vertical, length: 14),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
 
                   // Acciones rápidas (Buscador, Atajos, Tema)
                   IconButton(
@@ -244,6 +246,15 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                     constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                     onPressed: widget.onOpenShortcuts,
                   ),
+                  IconButton(
+                    key: const Key('open_master_console_header_btn'),
+                    icon: Icon(Icons.tune_rounded, size: 16, color: tokens.accentPrimary),
+                    tooltip: 'Consola Maestra de E/S & Reloj (Ctrl+Shift+I)',
+                    splashRadius: 14,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    onPressed: widget.onOpenMasterConsole,
+                  ),
                   const SizedBox(width: 4),
                   const StudioThemeSwitcher(),
                   const SizedBox(width: 4),
@@ -258,6 +269,7 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                       side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
                     ),
                     onSelected: (val) {
+                      if (val == 'master_console') widget.onOpenMasterConsole?.call();
                       if (val == 'settings') widget.onOpenSettings?.call();
                       if (val == 'shortcuts') widget.onOpenShortcuts();
                       if (val == 'automations') widget.onOpenAutomations?.call();
@@ -265,6 +277,7 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                       if (val == 'about') _showAboutTunnerDialog(context, tokens);
                     },
                     itemBuilder: (ctx) => [
+                      _buildPopupMenuItem('master_console', 'Consola Maestra de E/S', Icons.tune_rounded, tokens, shortcut: 'Ctrl+Shift+I'),
                       _buildPopupMenuItem('settings', 'Ajustes del Estudio', Icons.settings_outlined, tokens),
                       _buildPopupMenuItem('shortcuts', 'Atajos de Teclado', Icons.keyboard_outlined, tokens, shortcut: '?'),
                       _buildPopupMenuItem('automations', 'Automatizaciones', Icons.access_time_rounded, tokens),
