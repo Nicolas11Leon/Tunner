@@ -34,8 +34,10 @@ import '../../../core/terminal/presentation/tunner_os_terminal_drawer.dart';
 import '../../../core/audio/domain/studio_master_clock_service.dart';
 import '../../../core/audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../../../core/audio/infrastructure/studio_audio_engine.dart';
+import '../../../core/audio/infrastructure/studio_audio_hardware_persistence_service.dart';
 import '../../../core/audio/infrastructure/studio_audio_input_engine.dart';
 import '../../../core/audio/presentation/studio_master_hardware_console_widget.dart';
+import '../../../core/audio/presentation/studio_master_meter_mini_pill_widget.dart';
 
 /// Intenciones para el sistema de atajos de teclado de grado profesional y memoria muscular (DAWs).
 class TogglePlayIntent extends Intent {
@@ -176,9 +178,11 @@ class _MainAppShellState extends State<MainAppShell> {
 
     final audioEngine = StudioAudioEngine();
     final audioInput = StudioAudioInputEngine();
+    final audioPersistence = StudioAudioHardwarePersistenceService();
     _audioMatrixService = StudioAudioDeviceMatrixService(
       outputEngine: audioEngine,
       inputEngine: audioInput,
+      persistenceService: audioPersistence,
     );
     _masterClockService = StudioMasterClockService(initialBpm: 120.0);
 
@@ -1432,6 +1436,10 @@ class _MainAppShellState extends State<MainAppShell> {
                         }
                       },
                       customStatusItems: [
+                        StudioMasterMeterMiniPillWidget(
+                          matrixService: _audioMatrixService,
+                          onTap: _openMasterConsole,
+                        ),
                         Text(
                           'A4 = ${viewModel.referencePitch.toInt()} Hz',
                           style: TextStyle(

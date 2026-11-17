@@ -58,47 +58,47 @@ Construir una **Consola Maestra de E/S de Hardware y Reloj de Estudio Global** a
 ### ÉPICA 1: Hardware I/O Engine & Dynamic Device Matrix (Fase 1: Dominio e Infraestructura de Hardware)
 - **Objetivo:** Orquestar la detección, configuración de latencia y estado de los transductores físicos.
 - **Entregables:**
-  - [ ] `StudioMasterAudioMixer`: Bus maestro que centraliza todos los canales de salida, aplica ganancia maestra y realiza limitación suave.
-  - [ ] `AudioDeviceMatrixEntity`: Estructura inmutable que mapea canales virtuales de estudio hacia endpoints físicos de entrada y salida.
-  - [ ] Conmutación en caliente de dispositivos sin bloquear el hilo de ejecución principal ni detener la reproducción activa.
-  - [ ] Pruebas unitarias de mezcla estéreo, atenuación DIM y cálculo de dB RMS.
+  - [x] `StudioMasterAudioMixer`: Bus maestro que centraliza todos los canales de salida, aplica ganancia maestra y realiza limitación suave.
+  - [x] `AudioDeviceMatrixEntity`: Estructura inmutable que mapea canales virtuales de estudio hacia endpoints físicos de entrada y salida.
+  - [x] Conmutación en caliente de dispositivos sin bloquear el hilo de ejecución principal ni detener la reproducción activa.
+  - [x] Pruebas unitarias de mezcla estéreo, atenuación DIM y cálculo de dB RMS.
 
 ### ÉPICA 2: Consola Maestra de E/S Flotante y Dockable (Fase 2: Presentación Táctil Pro)
 - **Objetivo:** Proporcionar la interfaz de usuario de control de audio profesional.
 - **Entregables:**
-  - [ ] `StudioMasterHardwareConsoleWidget`: Panel de consola con estética de rack de estudio profesional.
-  - [ ] `StudioStereoMasterVuMeter`: Vúmetro dual estéreo L/R con balística de caída rápida (*peak-hold decay*), marcas de escala de -60 dB a +3 dB y alerta roja de clipping.
-  - [ ] Fader maestro vertical con indicador numérico de ganancia ($-\infty$ a $+6\text{ dB}$).
-  - [ ] Botones táctiles de utilidad de estudio:
+  - [x] `StudioMasterHardwareConsoleWidget`: Panel de consola con estética de rack de estudio profesional.
+  - [x] `StudioStereoMasterVuMeter`: Vúmetro dual estéreo L/R con balística de caída rápida (*peak-hold decay*), marcas de escala de -60 dB a +3 dB y alerta roja de clipping.
+  - [x] Fader maestro vertical con indicador numérico de ganancia ($-\infty$ a $+6\text{ dB}$).
+  - [x] Botones táctiles de utilidad de estudio:
     - `MUTE`: Silenciado instantáneo del bus maestro.
     - `DIM`: Atenuación rápida de $-20\text{ dB}$ para escucha de referencia.
     - `MONO`: Suma monoaural $M = \frac{L + R}{2}$ para comprobación de cancelación de fase acústica.
-  - [ ] Atajo de teclado global `Ctrl+Shift+I` para invocar la consola desde cualquier pestaña de Tunner.
+  - [x] Atajo de teclado global `Ctrl+Shift+I` para invocar la consola desde cualquier pestaña de Tunner.
 
 ### ÉPICA 3: Matriz Universal de Enrutamiento y Patchbay Visual (Fase 3: Ruteo Inter-Herramientas)
 - **Objetivo:** Interconectar cualquier fuente de audio con cualquier destino de análisis o reproducción.
 - **Entregables:**
-  - [ ] Tabla de conexiones matricial: permite asignar qué módulos suenan en auriculares y cuáles en altavoces principales.
-  - [ ] Aislamiento de monitoreo CUE para DJs: pre-escucha de Deck B en auriculares mientras Deck A suena en el Master sin contaminar la audiencia.
-  - [ ] Enrutamiento del micrófono de entrada hacia el Transcriptor Polifónico o hacia el Afinador Strobe sin duplicar procesamiento DSP.
+  - [x] Tabla de conexiones matricial: permite asignar qué módulos suenan en auriculares y cuáles en altavoces principales.
+  - [x] Aislamiento de monitoreo CUE para DJs: pre-escucha de Deck B en auriculares mientras Deck A suena en el Master sin contaminar la audiencia.
+  - [x] Enrutamiento del micrófono de entrada hacia el Transcriptor Polifónico o hacia el Afinador Strobe sin duplicar procesamiento DSP.
 
 ### ÉPICA 4: Reloj Maestro de Transporte Unificado (Fase 4: Sincronización Global de Tempo y Fase)
 - **Objetivo:** Sincronizar todos los componentes rítmicos y temporales del estudio.
 - **Entregables:**
-  - [ ] `StudioMasterClock`: Motor de transporte central con control de tempo (BPM: 20 a 300), compás (2/4, 3/4, 4/4, 6/8) y subdivisión.
-  - [ ] Sincronización de transporte unificado:
+  - [x] `StudioMasterClock`: Motor de transporte central con control de tempo (BPM: 20 a 300), compás (2/4, 3/4, 4/4, 6/8) y subdivisión.
+  - [x] Sincronización de transporte unificado:
     - Botón `PLAY ALL`: Inicia simultáneamente el metrónomo, la pista activa de la consola DJ y el cursor de partitura.
     - Botón `STOP ALL`: Detiene deterministamente todos los generadores y retorna los cursores a cero.
-  - [ ] Tap Tempo Global: Algoritmo de detección de tempo por promedio ponderado de intervalos entre pulsaciones táctiles.
+  - [x] Tap Tempo Global: Algoritmo de detección de tempo por promedio ponderado de intervalos entre pulsaciones táctiles.
 
 ### ÉPICA 5: Integración, Persistencia y Verificación Exhaustiva (Fase 5: Calidad y CI)
 - **Objetivo:** Validación integral sin regresiones y persistencia de configuración.
 - **Entregables:**
-  - [ ] Persistencia local de la configuración de audio (dispositivo seleccionado, buffer size, ganancia maestra).
-  - [ ] Suite de pruebas unitarias y de widgets con cobertura total para todos los componentes nuevos.
-  - [ ] Validación con `flutter analyze --no-fatal-infos` (0 advertencias).
-  - [ ] Validación con `flutter test` (100% pruebas pasando).
-  - [ ] Compilación y verificación del binario nativo de Linux.
+  - [x] Persistencia local de la configuración de audio (dispositivo seleccionado, buffer size, ganancia maestra).
+  - [x] Suite de pruebas unitarias y de widgets con cobertura total para todos los componentes nuevos.
+  - [x] Validación con `flutter analyze --no-fatal-infos` (0 advertencias).
+  - [x] Validación con `flutter test` (100% pruebas pasando).
+  - [x] Compilación y verificación del binario nativo de Linux.
 
 ---
 
@@ -112,9 +112,9 @@ Construir una **Consola Maestra de E/S de Hardware y Reloj de Estudio Global** a
 
 ## 5. Criterios de Aceptación (Definition of Done)
 
-- [ ] Código adherido estrictamente a las reglas de [AGENTS.md](../../AGENTS.md).
-- [ ] Cero busy-waiting loops en el reloj maestro y procesadores de vúmetro.
-- [ ] Latencia objetivo inferior a 10 ms en buffers configurables.
-- [ ] Vúmetros balísticos funcionando fluidamente a 60/120 FPS sin degradar la UI.
-- [ ] 100% de la suite de pruebas pasando en local y en GitHub Actions CI.
-- [ ] Documentación técnica completa: Caso de Uso formal y ADR aprobados.
+- [x] Código adherido estrictamente a las reglas de [AGENTS.md](../../AGENTS.md).
+- [x] Cero busy-waiting loops en el reloj maestro y procesadores de vúmetro.
+- [x] Latencia objetivo inferior a 10 ms en buffers configurables.
+- [x] Vúmetros balísticos funcionando fluidamente a 60/120 FPS sin degradar la UI.
+- [x] 100% de la suite de pruebas pasando en local y en GitHub Actions CI.
+- [x] Documentación técnica completa: Caso de Uso formal y ADR aprobados.

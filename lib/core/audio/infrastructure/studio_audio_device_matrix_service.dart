@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../domain/audio_device_entity.dart';
 import '../domain/audio_device_matrix_entity.dart';
 import '../domain/i_studio_audio_engine.dart';
+import '../domain/i_studio_audio_hardware_persistence_service.dart';
 import '../domain/i_studio_audio_input_engine.dart';
 import '../domain/studio_master_audio_mixer.dart';
 
@@ -11,6 +12,7 @@ import '../domain/studio_master_audio_mixer.dart';
 class StudioAudioDeviceMatrixService extends ChangeNotifier {
   final IStudioAudioEngine _outputEngine;
   final IStudioAudioInputEngine _inputEngine;
+  final IStudioAudioHardwarePersistenceService? _persistenceService;
 
   AudioDeviceMatrixEntity _matrix;
   StudioStereoLevelMeterData _masterMeterData = StudioStereoLevelMeterData.zero;
@@ -22,9 +24,11 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
   StudioAudioDeviceMatrixService({
     required IStudioAudioEngine outputEngine,
     required IStudioAudioInputEngine inputEngine,
+    IStudioAudioHardwarePersistenceService? persistenceService,
     AudioDeviceMatrixEntity? initialMatrix,
   })  : _outputEngine = outputEngine,
         _inputEngine = inputEngine,
+        _persistenceService = persistenceService,
         _matrix = initialMatrix ?? AudioDeviceMatrixEntity.defaultConfiguration() {
     _initHardwareEndpoints();
     _startMeterLoop();
@@ -36,9 +40,28 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
 
   IStudioAudioEngine get outputEngine => _outputEngine;
   IStudioAudioInputEngine get inputEngine => _inputEngine;
+  IStudioAudioHardwarePersistenceService? get persistenceService => _persistenceService;
 
   Future<void> _initHardwareEndpoints() async {
     try {
+      final persistence = _persistenceService;
+      if (persistence != null) {
+        final saved = await persistence.loadMatrix();
+        _matrix = _matrix.copyWith(
+          bufferSize: saved.bufferSize,
+          sampleRate: saved.sampleRate,
+          masterGain: saved.masterGain,
+          isMuted: saved.isMuted,
+          isDimmed: saved.isDimmed,
+          isMono: saved.isMono,
+          channelRoutings: saved.channelRoutings,
+          activeInputDevice: saved.activeInputDevice,
+          activeOutputDevice: saved.activeOutputDevice,
+          cueOutputDevice: saved.cueOutputDevice,
+        );
+        _applyMasterGainToOutputs();
+      }
+
       final inputDevices = await _inputEngine.listInputDevices();
       final outputDevices = _getAvailableOutputs();
 
@@ -84,6 +107,10 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
     ];
   }
 
+  void _persistState() {
+    _persistenceService?.saveMatrix(_matrix);
+  }
+
   /// Conmuta el dispositivo físico de captura de audio (Micrófono / Entrada de línea).
   Future<void> selectInputDevice(String deviceId) async {
     final dev = _matrix.availableInputs.firstWhere(
@@ -97,6 +124,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
 
     await _inputEngine.setInputDevice(deviceId);
     _matrix = _matrix.copyWith(activeInputDevice: dev);
+    _persistState();
     notifyListeners();
   }
 
@@ -112,6 +140,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
     );
 
     _matrix = _matrix.copyWith(activeOutputDevice: dev);
+    _persistState();
     notifyListeners();
   }
 
@@ -120,6 +149,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
     final clamped = gain.clamp(0.0, 1.5);
     _matrix = _matrix.copyWith(masterGain: clamped);
     _applyMasterGainToOutputs();
+    _persistState();
     notifyListeners();
   }
 
@@ -133,6 +163,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
   void toggleMute() {
     _matrix = _matrix.copyWith(isMuted: !_matrix.isMuted);
     _applyMasterGainToOutputs();
+    _persistState();
     notifyListeners();
   }
 
@@ -140,12 +171,14 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
   void toggleDim() {
     _matrix = _matrix.copyWith(isDimmed: !_matrix.isDimmed);
     _applyMasterGainToOutputs();
+    _persistState();
     notifyListeners();
   }
 
   /// Conmuta el colapso de fase monoaural (MONO).
   void toggleMono() {
     _matrix = _matrix.copyWith(isMono: !_matrix.isMono);
+    _persistState();
     notifyListeners();
   }
 
@@ -153,6 +186,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
   void setBufferSize(int bufferSize) {
     final validSize = [128, 256, 512, 1024].contains(bufferSize) ? bufferSize : 512;
     _matrix = _matrix.copyWith(bufferSize: validSize);
+    _persistState();
     notifyListeners();
   }
 
@@ -162,6 +196,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
     currentRoutings[channelId] = destinationBus;
     _matrix = _matrix.copyWith(channelRoutings: currentRoutings);
     _applyMasterGainToOutputs();
+    _persistState();
     notifyListeners();
   }
 
