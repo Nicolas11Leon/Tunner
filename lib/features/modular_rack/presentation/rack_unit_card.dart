@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../domain/rack_module_entity.dart';
 import '../domain/port_id.dart';
 import 'modular_rack_viewmodel.dart';
+import 'studio_patchbay_modal.dart';
 import '../../instrument/presentation/instrument_emulation_surface_widget.dart';
 import '../../navigation/presentation/contextual_help_sheet.dart';
 import '../../../core/theme/tunner_theme.dart';
+import '../../tuner_viewmodel.dart';
+import '../../metronome/presentation/tap_tempo_modal.dart';
+import '../../vocal_autotune/presentation/vocal_autotune_modal.dart';
+import '../../vocal_autotune/domain/autotune_config_entity.dart';
+import '../../drone/presentation/harmonic_drone_modal.dart';
+import '../../drone/domain/harmonic_drone_config.dart';
+import '../../acoustic_lab/presentation/harmonic_spectrogram_modal.dart';
+import '../../chord_analyzer/presentation/chord_analyzer_modal.dart';
+import '../../guided_lessons/presentation/guided_lessons_modal.dart';
+import '../../ear_training/presentation/blind_ear_trainer_modal.dart';
+import '../../score_editor/presentation/score_editor_modal.dart';
+import '../../practice_recorder/presentation/practice_recording_player_modal.dart';
+import '../../song_library/presentation/studio_assets_modals.dart';
 
 /// Tarjeta contenedora de una unidad de módulo montada en el Rack de Estudio.
 /// Soporta reordenamiento por arrastre, colapso compacto, apagado y puertos In/Out.
@@ -68,21 +83,62 @@ class RackUnitCard extends StatelessWidget {
                   ),
                 ),
 
-                // Icono del tipo de módulo
-                Text(module.moduleType.icon, style: const TextStyle(fontSize: 16)),
-                const SizedBox(width: 8),
-
-                // Título del módulo
-                Expanded(
-                  child: Text(
-                    module.title.toUpperCase(),
-                    style: TextStyle(
-                      color: isPowered ? Colors.white : Colors.white38,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.1,
+                // Insignia técnica del módulo (Studio Code)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(
+                      color: primaryColor.withValues(alpha: 0.35),
+                      width: 1.0,
                     ),
                   ),
+                  child: Text(
+                    module.moduleType.icon,
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Título del módulo interactivo (Tap para renombrar)
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _showRenameDialog(context),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            module.title.toUpperCase(),
+                            style: TextStyle(
+                              color: isPowered ? Colors.white : Colors.white38,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.1,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.edit_outlined, color: Colors.white24, size: 12),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Botón Exportar Herramienta (.tnt)
+                IconButton(
+                  icon: const Icon(Icons.save_alt, color: Colors.white38, size: 16),
+                  tooltip: 'Guardar Herramienta como Preset (.tnt)',
+                  onPressed: () => _exportToolPreset(context),
                 ),
 
                 // Insignia de ayuda contextual (?)
@@ -159,12 +215,12 @@ class RackUnitCard extends StatelessWidget {
                 children: [
                   if (module.inputPorts.isNotEmpty) ...[
                     const Text('IN: ', style: TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold)),
-                    ...module.inputPorts.map((p) => _buildPortBadge(p, isInput: true)),
+                    ...module.inputPorts.map((p) => _buildPortBadge(context, p, isInput: true)),
                   ],
                   const Spacer(),
                   if (module.outputPorts.isNotEmpty) ...[
                     const Text('OUT: ', style: TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold)),
-                    ...module.outputPorts.map((p) => _buildPortBadge(p, isInput: false)),
+                    ...module.outputPorts.map((p) => _buildPortBadge(context, p, isInput: false)),
                   ],
                 ],
               ),
@@ -190,7 +246,80 @@ class RackUnitCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPortBadge(PortId port, {required bool isInput}) {
+  void _showRenameDialog(BuildContext context) {
+    final controller = TextEditingController(text: module.title);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text(
+          'RENOMBRAR HERRAMIENTA',
+          style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+          decoration: InputDecoration(
+            labelText: 'Nombre Personalizado',
+            labelStyle: const TextStyle(color: Colors.white60, fontSize: 12),
+            enabledBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Colors.white24),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Color(0xFF38BDF8)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CANCELAR', style: TextStyle(color: Colors.white54, fontSize: 11)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF38BDF8),
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                viewModel.renameModule(module.moduleId, controller.text.trim());
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('GUARDAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _exportToolPreset(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final safeName = module.title.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+      final path = '/tmp/${safeName}_preset.tnt';
+      await viewModel.exportToolPresetToFile(module.moduleId, path);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Herramienta "${module.title}" exportada como preset (.tnt)'),
+          backgroundColor: const Color(0xFF10B981),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Error al exportar: $e'),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
+    }
+  }
+
+  Widget _buildPortBadge(BuildContext context, PortId port, {required bool isInput}) {
     // Verificar si el puerto tiene una conexión activa en el bus
     final hasActiveConn = viewModel.signalBus.activeConnections.any((c) =>
         (isInput ? c.destinationPort == port : c.sourcePort == port));
@@ -199,64 +328,96 @@ class RackUnitCard extends StatelessWidget {
         ? const Color(0xFF10B981)
         : (isInput ? const Color(0xFF38BDF8) : const Color(0xFFA855F7));
 
-    return Container(
-      margin: const EdgeInsets.only(right: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: badgeColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 5,
-            height: 5,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: hasActiveConn ? const Color(0xFF10B981) : Colors.white38,
+    return InkWell(
+      onTap: () => StudioPatchbayModal.show(context, viewModel, focusPort: port),
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        margin: const EdgeInsets.only(right: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: badgeColor.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 5,
+              height: 5,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: hasActiveConn ? const Color(0xFF10B981) : Colors.white38,
+              ),
             ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            port.id,
-            style: TextStyle(color: badgeColor, fontSize: 9, fontWeight: FontWeight.bold),
-          ),
-        ],
+            const SizedBox(width: 4),
+            Text(
+              port.id,
+              style: TextStyle(color: badgeColor, fontSize: 9, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  static TunerViewModel? _staticFallbackViewModel;
+  static TunerViewModel get _fallbackViewModel => _staticFallbackViewModel ??= TunerViewModel();
+
+  TunerViewModel _resolveTunerViewModel(BuildContext context) {
+    try {
+      final vm = Provider.of<TunerViewModel>(context, listen: true);
+      return vm;
+    } catch (_) {
+      return _fallbackViewModel;
+    }
+  }
+
   Widget _buildModuleContent(BuildContext context) {
+    final tunerViewModel = _resolveTunerViewModel(context);
     switch (module.moduleType) {
       case RackModuleType.strobeTuner:
-        return _buildStrobeTunerContent();
+        return _buildStrobeTunerContent(tunerViewModel);
       case RackModuleType.metronome:
-        return _buildMetronomeContent();
+        return _buildMetronomeContent(tunerViewModel, context);
       case RackModuleType.scoreNotation:
-        return _buildScoreNotationContent();
+        return _buildScoreNotationContent(tunerViewModel, context);
       case RackModuleType.practiceRecorder:
-        return _buildRecorderContent();
+        return _buildRecorderContent(tunerViewModel, context);
       case RackModuleType.vocalAutoTune:
-        return _buildAutoTuneContent();
+        return _buildAutoTuneContent(tunerViewModel, context);
       case RackModuleType.harmonicDrone:
-        return _buildDroneContent();
+        return _buildDroneContent(tunerViewModel, context);
       case RackModuleType.spectrogram:
-        return _buildSpectrogramContent();
+        return _buildSpectrogramContent(tunerViewModel, context);
       case RackModuleType.chordAnalyzer:
-        return _buildChordAnalyzerContent();
+        return _buildChordAnalyzerContent(tunerViewModel, context);
       case RackModuleType.guidedLessons:
-        return _buildGuidedLessonsContent();
+        return _buildGuidedLessonsContent(tunerViewModel, context);
       case RackModuleType.earTrainer:
-        return _buildEarTrainerContent();
+        return _buildEarTrainerContent(tunerViewModel, context);
     }
   }
 
   // --- SUB-VISTAS INTERACTIVAS POR MÓDULO ---
 
-  Widget _buildStrobeTunerContent() {
+  Widget _buildStrobeTunerContent(TunerViewModel tuner) {
     final instrument = viewModel.activeInstrument;
+    final hasPitch = tuner.frequency > 20.0;
+    final displayNote = hasPitch
+        ? tuner.writtenNoteName
+        : (instrument.acousticRange.standardTuningNoteNames.isNotEmpty
+            ? instrument.acousticRange.standardTuningNoteNames.first
+            : 'A4');
+    final cents = tuner.cents;
+    final isInTune = hasPitch && cents.abs() <= tuner.centsTolerance;
+    final deviationText = hasPitch
+        ? '${cents >= 0 ? "+" : ""}${cents.toStringAsFixed(1)} ¢ (${isInTune ? "EN TONO" : (cents > 0 ? "ALTO" : "BAJO")})'
+        : 'EN ESPERA DE SEÑAL';
+    final deviationColor = hasPitch
+        ? (isInTune ? const Color(0xFF10B981) : (cents.abs() < 15 ? const Color(0xFFF59E0B) : const Color(0xFFEF4444)))
+        : Colors.white38;
+
     return Column(
       children: [
         Row(
@@ -264,11 +425,9 @@ class RackUnitCard extends StatelessWidget {
           children: [
             Column(
               children: [
-                const Text('NOTA CANÓNICA', style: TextStyle(color: Colors.white38, fontSize: 9)),
+                const Text('NOTA ACTIVA', style: TextStyle(color: Colors.white38, fontSize: 9, letterSpacing: 0.5)),
                 Text(
-                  instrument.acousticRange.standardTuningNoteNames.isNotEmpty
-                      ? instrument.acousticRange.standardTuningNoteNames.first
-                      : 'A4',
+                  displayNote,
                   style: TextStyle(
                     color: instrument.visualProfile.primaryAccentColor,
                     fontSize: 32,
@@ -279,17 +438,19 @@ class RackUnitCard extends StatelessWidget {
             ),
             Column(
               children: [
-                const Text('DESVIACIÓN EN CENTS', style: TextStyle(color: Colors.white38, fontSize: 9)),
-                const Text(
-                  '+0.2 ¢ (EN TONO)',
+                const Text('DESVIACIÓN EN CENTS', style: TextStyle(color: Colors.white38, fontSize: 9, letterSpacing: 0.5)),
+                Text(
+                  deviationText,
                   style: TextStyle(
-                    color: Color(0xFF10B981),
-                    fontSize: 16,
+                    color: deviationColor,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  '${instrument.acousticRange.minFrequencyHz.toStringAsFixed(1)} Hz',
+                  hasPitch
+                      ? '${tuner.frequency.toStringAsFixed(1)} Hz'
+                      : '${instrument.acousticRange.minFrequencyHz.toStringAsFixed(1)} Hz (Ref Min)',
                   style: const TextStyle(color: Colors.white54, fontSize: 11),
                 ),
               ],
@@ -297,171 +458,471 @@ class RackUnitCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        // Superficie táctil interactiva adaptada al instrumento
         InstrumentEmulationSurfaceWidget(instrument: instrument),
       ],
     );
   }
 
-  Widget _buildMetronomeContent() {
+  Widget _buildMetronomeContent(TunerViewModel tuner, BuildContext context) {
+    final sig = tuner.currentMeasureTimeSignature;
+    final isPlaying = tuner.isMetronomePlaying;
+
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'TEMPO: 120 BPM • 4/4',
-              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+            Text(
+              'TEMPO: ${tuner.bpm} BPM • ${sig.numerator}/${sig.denominator}',
+              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
             ),
             Row(
               children: [
                 ActionChip(
                   label: const Text('TAP TEMPO'),
-                  labelStyle: const TextStyle(color: Colors.white, fontSize: 10),
+                  labelStyle: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                   backgroundColor: Colors.white12,
-                  onPressed: () {},
+                  onPressed: () => TapTempoModal.show(context, tuner),
                 ),
                 const SizedBox(width: 6),
                 IconButton(
-                  icon: const Icon(Icons.play_circle_fill, color: Color(0xFF10B981), size: 28),
-                  onPressed: () {},
+                  tooltip: isPlaying ? 'Pausar Metrónomo' : 'Iniciar Metrónomo',
+                  icon: Icon(
+                    isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
+                    color: isPlaying ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                    size: 28,
+                  ),
+                  onPressed: tuner.toggleMetronome,
                 ),
               ],
             ),
           ],
         ),
         const SizedBox(height: 8),
-        Slider(
-          value: 120,
-          min: 40,
-          max: 240,
-          activeColor: const Color(0xFF10B981),
-          inactiveColor: Colors.white12,
-          onChanged: (_) {},
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 3,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+          ),
+          child: Slider(
+            value: tuner.bpm.clamp(40, 240).toDouble(),
+            min: 40,
+            max: 240,
+            activeColor: const Color(0xFF10B981),
+            inactiveColor: Colors.white12,
+            onChanged: (val) => tuner.updateBpm(val.round()),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildScoreNotationContent() {
+  Widget _buildScoreNotationContent(TunerViewModel tuner, BuildContext context) {
+    final title = tuner.activePackage.title;
+    final currentMeasure = tuner.currentMeasureIndex + 1;
+    final totalMeasures = tuner.totalMeasures;
+
     return Container(
-      height: 100,
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.white12),
       ),
-      padding: const EdgeInsets.all(12),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('𝄞', style: TextStyle(fontSize: 40, color: Colors.amber)),
-          SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              'Escuchando entrada en vivo... Transcribiendo notas al pentagrama',
-              style: TextStyle(color: Colors.white54, fontSize: 11),
-            ),
+          Row(
+            children: [
+              const Text('𝄞', style: TextStyle(fontSize: 28, color: Color(0xFFF59E0B))),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title.isNotEmpty ? title : 'Partitura de Estudio',
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      'Compás $currentMeasure de $totalMeasures • Clave de Sol',
+                      style: const TextStyle(color: Colors.white54, fontSize: 10),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Editar en Editor Canónico SMuFL',
+                icon: const Icon(Icons.edit_note, color: Colors.white70, size: 20),
+                onPressed: () => ScoreEditorModal.show(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  side: const BorderSide(color: Colors.white24),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: const Icon(Icons.add, size: 14, color: Colors.white70),
+                label: const Text('NUEVA', style: TextStyle(color: Colors.white70, fontSize: 10)),
+                onPressed: () => StudioAssetsModals.showNewScoreDialog(
+                  context: context,
+                  viewModel: tuner,
+                  onNavigateToTab: (_) {},
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  side: const BorderSide(color: Colors.white24),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: const Icon(Icons.file_download, size: 14, color: Colors.white70),
+                label: const Text('IMPORTAR', style: TextStyle(color: Colors.white70, fontSize: 10)),
+                onPressed: () => StudioAssetsModals.showImportScoreDialog(
+                  context: context,
+                  viewModel: tuner,
+                  onNavigateToTab: (_) {},
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRecorderContent() {
+  String _formatDuration(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  Widget _buildRecorderContent(TunerViewModel tuner, BuildContext context) {
+    final isRecording = tuner.isAudioRecording;
+    final hasHistory = tuner.recordingHistory.isNotEmpty;
+    final lastRecording = hasHistory ? tuner.recordingHistory.last : null;
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Icon(Icons.graphic_eq, color: Color(0xFFEF4444), size: 36),
-        const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Row(
           children: [
-            Text('TOMA 01 (00:45)', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-            Text('44.1 kHz • 24-bit PCM Flotante', style: TextStyle(color: Colors.white38, fontSize: 10)),
+            Icon(
+              isRecording ? Icons.radio_button_checked : Icons.graphic_eq,
+              color: isRecording ? const Color(0xFFEF4444) : const Color(0xFF38BDF8),
+              size: 32,
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isRecording
+                      ? 'GRABANDO: ${_formatDuration(tuner.recordingDuration)}'
+                      : (lastRecording != null
+                          ? '${lastRecording.songTitle} (${_formatDuration(lastRecording.duration)})'
+                          : 'GRABADOR DE ESTUDIO EN ESPERA'),
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  isRecording ? '44.1 kHz • 24-bit PCM Flotante' : '${tuner.recordingHistory.length} tomas en sesión',
+                  style: const TextStyle(color: Colors.white38, fontSize: 10),
+                ),
+              ],
+            ),
           ],
         ),
-        IconButton(
-          icon: const Icon(Icons.play_arrow, color: Colors.white, size: 24),
-          onPressed: () {},
+        Row(
+          children: [
+            IconButton(
+              tooltip: isRecording ? 'Detener Grabación' : 'Iniciar Grabación de Práctica',
+              icon: Icon(
+                isRecording ? Icons.stop_circle : Icons.fiber_manual_record,
+                color: const Color(0xFFEF4444),
+                size: 26,
+              ),
+              onPressed: () {
+                if (isRecording) {
+                  tuner.stopPracticeRecording();
+                } else {
+                  tuner.startPracticeRecording();
+                }
+              },
+            ),
+            IconButton(
+              tooltip: hasHistory ? 'Abrir Reproductor de Auto-Escucha' : 'Sin grabaciones en sesión',
+              icon: Icon(
+                Icons.play_arrow,
+                color: hasHistory ? Colors.white : Colors.white24,
+                size: 26,
+              ),
+              onPressed: hasHistory ? () => PracticeRecordingPlayerModal.show(context) : null,
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildAutoTuneContent() {
+  Widget _buildAutoTuneContent(TunerViewModel tuner, BuildContext context) {
+    final config = tuner.autoTuneConfig;
+    final isActive = tuner.isAutoTuneActive;
+
     return Column(
       children: [
-        const Row(
+        Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('VELOCIDAD DE CORRECCIÓN: 20 ms', style: TextStyle(color: Colors.white70, fontSize: 11)),
-            Text('ESCALA: CROMÁTICA NATURAL', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.bold)),
+            Text(
+              'VELOCIDAD: ${config.retuneSpeedMs.toStringAsFixed(0)} ms',
+              style: const TextStyle(color: Colors.white70, fontSize: 11),
+            ),
+            Text(
+              'ESCALA: ${config.scaleType.displayName.toUpperCase()}',
+              style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
-        const SizedBox(height: 6),
-        LinearProgressIndicator(
-          value: 0.75,
-          color: const Color(0xFF38BDF8),
-          backgroundColor: Colors.white12,
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFF38BDF8)),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                ),
+                icon: const Icon(Icons.tune, size: 14, color: Color(0xFF38BDF8)),
+                label: const Text('CONFIGURAR AUTOTUNE', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11)),
+                onPressed: () => VocalAutoTuneModal.show(context, tuner),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Switch(
+              value: isActive,
+              activeThumbColor: const Color(0xFF38BDF8),
+              onChanged: (_) => tuner.toggleAutoTune(),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildDroneContent() {
-    return const Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
+  Widget _buildDroneContent(TunerViewModel tuner, BuildContext context) {
+    final cfg = tuner.droneConfig;
+    final rootName = HarmonicDroneConfig.chromaticNoteNames[cfg.rootNoteIndex];
+    final isPlaying = tuner.isDronePlaying;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('FUNDAMENTAL: A4 (440 Hz)', style: TextStyle(color: Colors.white70, fontSize: 12)),
-        Text('+ QUINTA JUSTA: E5', style: TextStyle(color: Color(0xFFA855F7), fontSize: 12, fontWeight: FontWeight.bold)),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'FUNDAMENTAL: $rootName${cfg.octave}',
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              cfg.includeFifth ? '+ Quinta Justa • Timbre ${cfg.timbre.name}' : 'Tono simple • Timbre ${cfg.timbre.name}',
+              style: const TextStyle(color: Color(0xFFA855F7), fontSize: 10),
+            ),
+          ],
+        ),
+        Row(
+          children: [
+            IconButton(
+              tooltip: isPlaying ? 'Detener Tono Pedal' : 'Activar Tono Pedal',
+              icon: Icon(
+                isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                color: isPlaying ? const Color(0xFFEF4444) : const Color(0xFFA855F7),
+                size: 26,
+              ),
+              onPressed: () => tuner.toggleDrone(),
+            ),
+            IconButton(
+              tooltip: 'Configuración Avanzada de Dron',
+              icon: const Icon(Icons.settings, color: Colors.white70, size: 20),
+              onPressed: () => HarmonicDroneModal.show(context, tuner),
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _buildSpectrogramContent() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: List.generate(12, (i) {
-        final height = (20 + (i * 7) % 50).toDouble();
-        return Container(
-          width: 8,
-          height: height,
-          decoration: BoxDecoration(
-            color: const Color(0xFF38BDF8).withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(3),
-          ),
-        );
-      }),
-    );
-  }
+  Widget _buildSpectrogramContent(TunerViewModel tuner, BuildContext context) {
+    final hasSignal = tuner.frequency > 20.0;
+    final chroma = tuner.activeChromaVector;
 
-  Widget _buildChordAnalyzerContent() {
-    return const Center(
-      child: Text(
-        'ACORDE DETECTADO: Cmaj7 (Do - Mi - Sol - Si)',
-        style: TextStyle(color: Color(0xFFF59E0B), fontSize: 13, fontWeight: FontWeight.bold),
+    return InkWell(
+      onTap: () => HarmonicSpectrogramModal.show(context),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(12, (i) {
+                final energy = hasSignal && chroma.length > i ? chroma[i] : 0.05;
+                final barHeight = (8.0 + (energy * 42.0)).clamp(6.0, 50.0);
+                return Container(
+                  width: 8,
+                  height: barHeight,
+                  decoration: BoxDecoration(
+                    color: hasSignal
+                        ? const Color(0xFF38BDF8).withValues(alpha: (0.4 + energy * 0.6).clamp(0.2, 1.0))
+                        : Colors.white12,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Toca para abrir Laboratorio Acústico y Análisis de Armónicos',
+              style: TextStyle(color: Colors.white38, fontSize: 9),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildGuidedLessonsContent() {
-    return const Row(
+  Widget _buildChordAnalyzerContent(TunerViewModel tuner, BuildContext context) {
+    final chord = tuner.recognizedChord;
+    final isActive = tuner.isChordRecognitionActive;
+    final chordName = chord.displayName.isNotEmpty ? chord.displayName : 'Sin acordes detectados';
+
+    return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('LECCIÓN 04: ESCALA MAYOR DIATÓNICA', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-        Text('PRECISIÓN: 98% (GRADO S)', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ACORDE: $chordName',
+                style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 13, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                isActive ? 'Escuchando polifonía en vivo' : 'Detector en standby',
+                style: const TextStyle(color: Colors.white38, fontSize: 10),
+              ),
+            ],
+          ),
+        ),
+        Row(
+          children: [
+            IconButton(
+              tooltip: isActive ? 'Pausar Reconocimiento' : 'Activar Reconocimiento',
+              icon: Icon(
+                isActive ? Icons.graphic_eq : Icons.mic_off,
+                color: isActive ? const Color(0xFFF59E0B) : Colors.white38,
+                size: 22,
+              ),
+              onPressed: tuner.toggleChordRecognition,
+            ),
+            IconButton(
+              tooltip: 'Abrir Radar y Voicing Polifónico',
+              icon: const Icon(Icons.open_in_new, color: Colors.white70, size: 20),
+              onPressed: () => ChordAnalyzerModal.show(context, tuner),
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _buildEarTrainerContent() {
-    return const Row(
+  Widget _buildGuidedLessonsContent(TunerViewModel tuner, BuildContext context) {
+    final hasLesson = tuner.hasActiveGuidedLesson;
+    final progress = tuner.activeLessonProgress;
+    final lessonTitle = hasLesson && progress != null ? progress.lesson.title : 'SIN LECCIÓN ACTIVA';
+    final accuracy = hasLesson && progress != null ? '${(progress.totalAccumulatedAccuracy * 100).toStringAsFixed(0)}%' : '--%';
+
+    return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('ENTRENAMIENTO A CIEGAS: MODO AUDITIVO ACTIVO',
-            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-        Text('RACHA: 5 🔥 (GRADO S)',
-            style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                lessonTitle,
+                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                'PRECISIÓN ACÚSTICA: $accuracy',
+                style: const TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: Color(0xFF10B981)),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          icon: const Icon(Icons.school, size: 14, color: Color(0xFF10B981)),
+          label: Text(
+            hasLesson ? 'VER GUÍA' : 'ELEGIR',
+            style: const TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold),
+          ),
+          onPressed: () => GuidedLessonsModal.show(context, tuner),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEarTrainerContent(TunerViewModel tuner, BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'ENTRENAMIENTO A CIEGAS',
+              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'Identificación de intervalos auditivos',
+              style: TextStyle(color: Colors.white38, fontSize: 10),
+            ),
+          ],
+        ),
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF8B5CF6),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          icon: const Icon(Icons.hearing, size: 14),
+          label: const Text('ENTRENAR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+          onPressed: () => BlindEarTrainerModal.show(context, tuner),
+        ),
       ],
     );
   }

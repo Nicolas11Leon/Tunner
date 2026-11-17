@@ -8,6 +8,15 @@ import '../../tuner_viewmodel.dart';
 class PracticeRecordingPlayerModal extends StatelessWidget {
   const PracticeRecordingPlayerModal({super.key});
 
+  static void show(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => const PracticeRecordingPlayerModal(),
+    );
+  }
+
   String _formatDuration(Duration d) {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');

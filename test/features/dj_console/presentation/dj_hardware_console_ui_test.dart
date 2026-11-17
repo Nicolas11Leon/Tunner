@@ -122,7 +122,7 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('gamepad_chip_Xbox_Select')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('gamepad_chip_Xbox_Select')));
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
       expect(viewModel.crossfader.position, closeTo(0.0, 1e-4));
     });
 

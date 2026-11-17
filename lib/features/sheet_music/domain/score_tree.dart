@@ -99,6 +99,22 @@ class HierarchicalNote {
       isRest: isRest ?? this.isRest,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+        'startTick': startTick,
+        'durationTicks': durationTicks,
+        'noteName': noteName,
+        'isRest': isRest,
+      };
+
+  factory HierarchicalNote.fromMap(Map<String, dynamic> map) {
+    return HierarchicalNote(
+      startTick: (map['startTick'] as num?)?.toInt() ?? 0,
+      durationTicks: (map['durationTicks'] as num?)?.toInt() ?? 4,
+      noteName: map['noteName'] as String? ?? '',
+      isRest: map['isRest'] as bool? ?? false,
+    );
+  }
 }
 
 /// Compás individual dentro de la obra musical.
@@ -139,6 +155,27 @@ class MeasureEntity {
       notes: notes ?? this.notes,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+        'index': index,
+        'timeSignature': timeSignature.toString(),
+        'notes': notes.map((n) => n.toMap()).toList(),
+      };
+
+  factory MeasureEntity.fromMap(Map<String, dynamic> map) {
+    final rawNotes = map['notes'] as List<dynamic>? ?? [];
+    final sigStr = map['timeSignature'] as String? ?? '4/4';
+    final parts = sigStr.split('/');
+    final sig = TimeSignature(
+      int.tryParse(parts[0]) ?? 4,
+      parts.length > 1 ? (int.tryParse(parts[1]) ?? 4) : 4,
+    );
+    return MeasureEntity(
+      index: (map['index'] as num?)?.toInt() ?? 0,
+      timeSignature: sig,
+      notes: rawNotes.map((n) => HierarchicalNote.fromMap(n as Map<String, dynamic>)).toList(),
+    );
+  }
 }
 
 /// Obra musical o estudio pedagógico completo.
@@ -166,6 +203,21 @@ class HierarchicalScore {
       title: title ?? this.title,
       baseBpm: baseBpm ?? this.baseBpm,
       measures: measures ?? this.measures,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'title': title,
+        'baseBpm': baseBpm,
+        'measures': measures.map((m) => m.toMap()).toList(),
+      };
+
+  factory HierarchicalScore.fromMap(Map<String, dynamic> map) {
+    final rawMeasures = map['measures'] as List<dynamic>? ?? [];
+    return HierarchicalScore(
+      title: map['title'] as String? ?? '',
+      baseBpm: (map['baseBpm'] as num?)?.toInt() ?? 120,
+      measures: rawMeasures.map((m) => MeasureEntity.fromMap(m as Map<String, dynamic>)).toList(),
     );
   }
 

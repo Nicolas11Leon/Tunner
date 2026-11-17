@@ -1,13 +1,28 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import '../../../core/channels/data/studio_patchbay_routing_service.dart';
+import '../../../core/channels/domain/studio_modular_plug.dart';
+import '../../../core/channels/domain/studio_plug_type.dart';
+import '../../../core/channels/presentation/studio_channel_patchbay_bar_widget.dart';
+import '../../../core/channels/presentation/studio_modular_plug_widget.dart';
+import '../../../core/design_system/atoms/studio_theme_switcher.dart';
+import '../../../core/design_system/studio_theme_provider.dart';
 import '../../../core/theme/tunner_theme.dart';
-import '../data/dj_audio_processor.dart';
+import '../../media_vault/domain/media_asset_entity.dart';
+import '../../media_vault/domain/media_synergy_target.dart';
+import '../../media_vault/presentation/media_vault_viewmodel.dart';
+import '../../media_vault/presentation/media_vault_workspace_modal.dart';
 import '../data/dj_hardware_catalog.dart';
 import '../domain/dj_channel_fx_entity.dart';
 import '../domain/dj_crossfader_entity.dart';
 import '../domain/dj_deck_entity.dart';
 import 'dj_console_view_model.dart';
+import 'dj_interactive_keymap_visualizer_modal.dart';
 import 'dj_keymap_editor_modal.dart';
 import 'dj_pro_workstation_panel.dart';
+import 'dj_track_loader_modal.dart';
+import 'dj_vertical_channel_strip.dart';
 import 'dj_visual_mapping_overlay.dart';
 import 'vector_jog_wheel.dart';
 
@@ -26,6 +41,10 @@ class DjConsoleModal extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width,
+        maxHeight: MediaQuery.of(context).size.height,
+      ),
       backgroundColor: Colors.transparent,
       builder: (ctx) => DjConsoleModal(viewModel: viewModel, palette: palette),
     );
@@ -36,76 +55,227 @@ class DjConsoleModal extends StatefulWidget {
 }
 
 class _DjConsoleModalState extends State<DjConsoleModal> {
+  late final MediaVaultViewModel _mediaVaultViewModel;
+  late final StudioPatchbayRoutingService _patchbayService;
+  late final StudioModularPlug _deckAPlug;
+  late final StudioModularPlug _deckBPlug;
+
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _patchbayService = StudioPatchbayRoutingService();
+    _deckAPlug = const StudioModularPlug(
+      id: 'plug_dj_deck_a_in',
+      label: 'IN DECK A',
+      toolId: 'dj_console',
+      type: StudioPlugType.audioInput,
+      connectedChannelId: 'canal_a',
+    );
+    _deckBPlug = const StudioModularPlug(
+      id: 'plug_dj_deck_b_in',
+      label: 'IN DECK B',
+      toolId: 'dj_console',
+      type: StudioPlugType.audioInput,
+      connectedChannelId: 'canal_b',
+    );
+    _patchbayService.registerPlug(_deckAPlug);
+    _patchbayService.registerPlug(_deckBPlug);
+
+    // Escuchas para sincronización de parámetros a Decks
+    _patchbayService.registerSinkListener('plug_dj_deck_a_in', (sourceId, channelId, payload) {
+      if (sourceId == 'plug_dj_deck_a_in') return;
+      final title = payload['title'] as String?;
+      final bpm = (payload['bpm'] as num?)?.toDouble();
+      final key = payload['key'] as String?;
+      if (title != null || bpm != null || key != null) {
+        widget.viewModel.loadTrackSimple(
+          'A',
+          title: title ?? widget.viewModel.deckA.trackTitle,
+          bpm: bpm ?? widget.viewModel.deckA.bpm,
+          camelotKey: key ?? widget.viewModel.deckA.camelotKey,
+        );
+      }
+      final isPlaying = payload['isPlaying'] as bool?;
+      if (isPlaying != null && isPlaying != widget.viewModel.deckA.isPlaying) {
+        widget.viewModel.togglePlay('A');
+      }
+    });
+
+    _patchbayService.registerSinkListener('plug_dj_deck_b_in', (sourceId, channelId, payload) {
+      if (sourceId == 'plug_dj_deck_b_in') return;
+      final title = payload['title'] as String?;
+      final bpm = (payload['bpm'] as num?)?.toDouble();
+      final key = payload['key'] as String?;
+      if (title != null || bpm != null || key != null) {
+        widget.viewModel.loadTrackSimple(
+          'B',
+          title: title ?? widget.viewModel.deckB.trackTitle,
+          bpm: bpm ?? widget.viewModel.deckB.bpm,
+          camelotKey: key ?? widget.viewModel.deckB.camelotKey,
+        );
+      }
+      final isPlaying = payload['isPlaying'] as bool?;
+      if (isPlaying != null && isPlaying != widget.viewModel.deckB.isPlaying) {
+        widget.viewModel.togglePlay('B');
+      }
+    });
+
+    widget.viewModel.addListener(_syncDecksToChannels);
+
+    _mediaVaultViewModel = MediaVaultViewModel(
+      onDispatchToTool: (asset, target) {
+        if (target == MediaSynergyTarget.djDeckA ||
+            target == MediaSynergyTarget.djDeckB) {
+          final deckId = target == MediaSynergyTarget.djDeckA ? 'A' : 'B';
+          final samples = (asset.pcmSamples != null && asset.pcmSamples!.isNotEmpty)
+              ? Float32List.fromList(asset.pcmSamples!)
+              : Float32List(4410);
+          widget.viewModel.loadTrackWithBeatTracking(
+            deckId,
+            title: asset.title,
+            artist: asset.kind.displayName,
+            audioSamples: samples,
+            sampleRate: asset.sampleRate,
+          );
+        }
+      },
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
+
+  void _syncDecksToChannels() {
+    final plugA = _patchbayService.plugs['plug_dj_deck_a_in'];
+    if (plugA != null && plugA.isConnected) {
+      _patchbayService.publishChannelParameters(
+        plugA.connectedChannelId!,
+        title: widget.viewModel.deckA.trackTitle,
+        bpm: widget.viewModel.deckA.effectiveBpm,
+        key: widget.viewModel.deckA.effectiveCamelotKey.code,
+        isPlaying: widget.viewModel.deckA.isPlaying,
+        positionMs: widget.viewModel.deckA.currentPositionMs,
+        initiatorPlugId: 'plug_dj_deck_a_in',
+      );
+    }
+
+    final plugB = _patchbayService.plugs['plug_dj_deck_b_in'];
+    if (plugB != null && plugB.isConnected) {
+      _patchbayService.publishChannelParameters(
+        plugB.connectedChannelId!,
+        title: widget.viewModel.deckB.trackTitle,
+        bpm: widget.viewModel.deckB.effectiveBpm,
+        key: widget.viewModel.deckB.effectiveCamelotKey.code,
+        isPlaying: widget.viewModel.deckB.isPlaying,
+        positionMs: widget.viewModel.deckB.currentPositionMs,
+        initiatorPlugId: 'plug_dj_deck_b_in',
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.viewModel.removeListener(_syncDecksToChannels);
+    _patchbayService.unregisterSinkListener('plug_dj_deck_a_in');
+    _patchbayService.unregisterSinkListener('plug_dj_deck_b_in');
+    _focusNode.dispose();
+    _mediaVaultViewModel.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = widget.palette;
+    final tokens = StudioThemeScope.of(context);
 
     return ListenableBuilder(
       listenable: widget.viewModel,
       builder: (context, _) {
         final vm = widget.viewModel;
 
-        return Container(
+        return Focus(
+          focusNode: _focusNode,
+          autofocus: true,
+          onKeyEvent: (node, event) {
+            if (vm.handleKeyEvent(event)) {
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: Container(
           height: MediaQuery.of(context).size.height,
           decoration: BoxDecoration(
-            color: palette.scaffoldBackground,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.25)),
+            color: tokens.canvasBackground,
+            border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
           ),
           child: Column(
             children: [
-              // 1. Header Bar with Skin selector, View Toggle, REC button and Keymap editor
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              // 1. Studio Header Bar with Skin selector, Theme Switcher, View Toggle, REC & Keymap
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: tokens.panelHeaderBackground,
+                  border: Border(
+                    bottom: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
+                  ),
+                ),
                 child: Row(
                   children: [
-                    Icon(Icons.album, color: palette.primaryAccent, size: 24),
+                    Icon(Icons.album, color: tokens.accentPrimary, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
+                      flex: 2,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Consola de DJ Virtual',
+                            'CONSOLA DJ STUDIO',
                             style: TextStyle(
-                              color: palette.textColor,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
+                              color: tokens.textPrimary,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
-                            'Stems, Camelot, Hardware Skins, Gamepad y WAV',
-                            style: TextStyle(color: palette.textMutedColor, fontSize: 10.5),
+                            'Stems | Camelot | Hardware | Gamepad | WAV',
+                            style: TextStyle(color: tokens.textMuted, fontSize: 10),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Flexible(
-                      flex: 0,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                    Expanded(
+                      flex: 5,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          alignment: WrapAlignment.end,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
+                            const StudioThemeSwitcher(),
 
                     // Skin Selector Dropdown
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E28),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF383848)),
+                        color: tokens.inputSurface,
+                        borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
+                        border: Border.all(color: tokens.borderHairline),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           key: const Key('skin_selector_dropdown'),
                           value: vm.activeSkin.id,
-                          dropdownColor: const Color(0xFF1E1E28),
-                          style: TextStyle(color: palette.textColor, fontSize: 11),
-                          icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF00E5FF), size: 16),
+                          dropdownColor: tokens.panelBackground,
+                          style: TextStyle(color: tokens.textPrimary, fontSize: 11),
+                          icon: Icon(Icons.arrow_drop_down, color: tokens.accentPrimary, size: 16),
                           items: DjHardwareCatalog.allSkins().map((s) {
                             final shortName = s.name.split('(').first.trim();
                             return DropdownMenuItem<String>(
@@ -121,6 +291,33 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                     ),
                     const SizedBox(width: 8),
 
+                    // Multimedia Vault & Timeline Studio Button
+                    OutlinedButton.icon(
+                      key: const Key('open_media_vault_btn'),
+                      onPressed: () => MediaVaultWorkspaceModal.show(
+                        context,
+                        viewModel: _mediaVaultViewModel,
+                      ),
+                      icon: Icon(
+                        Icons.library_music_outlined,
+                        size: 16,
+                        color: tokens.accentPrimary,
+                      ),
+                      label: Text(
+                        'Boveda / I/O',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: tokens.textPrimary,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: tokens.borderHairline),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
                     // Pro Workstation Toggle (4-Stems, Camelot, RGB Waveforms, Sampler, Split-Cue)
                     OutlinedButton.icon(
                       key: const Key('toggle_pro_workstation_btn'),
@@ -128,19 +325,19 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                       icon: Icon(
                         Icons.auto_graph,
                         size: 16,
-                        color: vm.isProWorkstationActive ? const Color(0xFFFFD700) : palette.textColor,
+                        color: vm.isProWorkstationActive ? tokens.accentSecondary : tokens.textSecondary,
                       ),
                       label: Text(
                         vm.isProWorkstationActive ? 'Pro: ON' : 'Pro Studio',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: vm.isProWorkstationActive ? const Color(0xFFFFD700) : palette.textColor,
+                          color: vm.isProWorkstationActive ? tokens.accentSecondary : tokens.textSecondary,
                         ),
                       ),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(
-                          color: vm.isProWorkstationActive ? const Color(0xFFFFD700) : const Color(0xFF383848),
+                          color: vm.isProWorkstationActive ? tokens.accentSecondary : tokens.borderHairline,
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       ),
@@ -154,18 +351,18 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                       icon: Icon(
                         vm.isHardwareViewActive ? Icons.videogame_asset : Icons.view_quilt,
                         size: 16,
-                        color: vm.isHardwareViewActive ? const Color(0xFF00E5FF) : palette.textColor,
+                        color: vm.isHardwareViewActive ? tokens.accentPrimary : tokens.textSecondary,
                       ),
                       label: Text(
                         vm.isHardwareViewActive ? 'Hardware: ON' : 'Hardware: OFF',
                         style: TextStyle(
                           fontSize: 11,
-                          color: vm.isHardwareViewActive ? const Color(0xFF00E5FF) : palette.textColor,
+                          color: vm.isHardwareViewActive ? tokens.accentPrimary : tokens.textSecondary,
                         ),
                       ),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(
-                          color: vm.isHardwareViewActive ? const Color(0xFF00E5FF) : const Color(0xFF383848),
+                          color: vm.isHardwareViewActive ? tokens.accentPrimary : tokens.borderHairline,
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       ),
@@ -192,17 +389,17 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                       icon: Icon(
                         vm.recorder.isRecording ? Icons.stop : Icons.fiber_manual_record,
                         size: 16,
-                        color: vm.recorder.isRecording ? Colors.white : Colors.redAccent,
+                        color: vm.recorder.isRecording ? Colors.white : tokens.statusError,
                       ),
                       label: Text(
                         vm.recorder.isRecording ? 'REC ${vm.recorder.durationSeconds}s' : 'REC',
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: vm.recorder.isRecording ? Colors.redAccent : const Color(0xFF2A2A38),
+                        backgroundColor: vm.recorder.isRecording ? tokens.statusError : tokens.inputSurface,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.borderRadiusSmall)),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -212,10 +409,10 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                       icon: const Icon(Icons.keyboard, size: 16),
                       label: const Text('Mapear Teclado', style: TextStyle(fontSize: 12)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: palette.primaryAccent,
+                        backgroundColor: tokens.accentPrimary,
                         foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.borderRadiusSmall)),
                       ),
                     ),
                           ],
@@ -224,13 +421,16 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                     ),
                     const SizedBox(width: 4),
                     IconButton(
-                      icon: Icon(Icons.close, color: palette.textColor),
+                      icon: Icon(Icons.close, color: tokens.textSecondary, size: 18),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
                 ),
               ),
               Divider(height: 1, color: palette.staffLinesColor.withValues(alpha: 0.2)),
+
+              // Barra Troncal y Personalizada de Canales Modulares
+              StudioChannelPatchbayBarWidget(routingService: _patchbayService),
 
               // 2. Main Mixing Workspace
               Expanded(
@@ -254,9 +454,13 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                           lastCapturedInput: vm.lastCapturedInputToken,
                           jogRotationA: vm.rotationAngleA,
                           jogRotationB: vm.rotationAngleB,
+                          keymapProfile: vm.keymapProfile,
+                          showKeyBadges: vm.showKeyBadges,
+                          onSkinSelected: (id) => vm.selectSkin(id),
                           onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
                           onActionTriggered: (action) => vm.executeAction(action),
                           onToggleLearnMode: () => vm.toggleLearnMode(),
+                          onOpenKeymapVisualizer: () => DjInteractiveKeymapVisualizerModal.show(context, vm, palette),
                         ),
                         const SizedBox(height: 12),
 
@@ -303,9 +507,10 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
               ),
             ],
           ),
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
   }
 
   Widget _buildGamepadSimulatorBar(DjConsoleViewModel vm, TunnerThemePalette palette) {
@@ -399,6 +604,13 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
             // Track Info & BPM
             Row(
               children: [
+                StudioModularPlugWidget(
+                  plug: deckId == 'A' ? _deckAPlug : _deckBPlug,
+                  routingService: _patchbayService,
+                  size: 26,
+                  showLabel: false,
+                ),
+                const SizedBox(width: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -449,31 +661,13 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
             OutlinedButton.icon(
               key: Key('deck_${deckId}_load_stem_btn'),
               icon: const Icon(Icons.graphic_eq, size: 14),
-              label: const Text('Cargar Stem & Detectar BPM', style: TextStyle(fontSize: 10)),
+              label: const Text('Cargar Pista / Stem de Estudio', style: TextStyle(fontSize: 10)),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: accentColor.withValues(alpha: 0.3)),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 minimumSize: const Size(0, 28),
               ),
-              onPressed: () {
-                final demoGroove = DjAudioProcessor().generateDemoGroove(
-                  bpm: deckId == 'A' ? 124.0 : 128.0,
-                  frequencyHz: deckId == 'A' ? 55.0 : 65.0,
-                  durationMs: 4000,
-                );
-                final detectedBpm = vm.loadTrackWithBeatTracking(
-                  deckId,
-                  title: 'Stem Groove $deckId',
-                  artist: 'Algorithmic Tracker',
-                  audioSamples: demoGroove,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Stem cargado en Deck $deckId - BPM detectado: ${detectedBpm.toStringAsFixed(1)}'),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              },
+              onPressed: () => DjTrackLoaderModal.show(context, deckId: deckId, viewModel: vm),
             ),
             const SizedBox(height: 6),
 
@@ -674,44 +868,31 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
         child: Column(
           children: [
             Text(
-              'MEZCLADOR',
+              'MEZCLADOR DUAL CLUB',
               style: TextStyle(color: palette.textColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
 
-            // Dual EQ Controls
+            // Tiras de Canales Verticales (CH A y CH B)
             Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Deck A EQ
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text('HIGH', style: TextStyle(color: palette.textMutedColor, fontSize: 10)),
-                      _buildEqSlider('A', 'high', vm.deckA.gainHigh, vm.deckA.isKillHigh, vm),
-                      Text('MID', style: TextStyle(color: palette.textMutedColor, fontSize: 10)),
-                      _buildEqSlider('A', 'mid', vm.deckA.gainMid, vm.deckA.isKillMid, vm),
-                      Text('LOW', style: TextStyle(color: palette.textMutedColor, fontSize: 10)),
-                      _buildEqSlider('A', 'low', vm.deckA.gainLow, vm.deckA.isKillLow, vm),
-                    ],
-                  ),
+                DjVerticalChannelStrip(
+                  deckId: 'A',
+                  deck: vm.deckA,
+                  viewModel: vm,
+                  accentColor: palette.primaryAccent,
                 ),
-                Container(width: 1, height: 140, color: palette.staffLinesColor.withValues(alpha: 0.2)),
-                // Deck B EQ
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text('HIGH', style: TextStyle(color: palette.textMutedColor, fontSize: 10)),
-                      _buildEqSlider('B', 'high', vm.deckB.gainHigh, vm.deckB.isKillHigh, vm),
-                      Text('MID', style: TextStyle(color: palette.textMutedColor, fontSize: 10)),
-                      _buildEqSlider('B', 'mid', vm.deckB.gainMid, vm.deckB.isKillMid, vm),
-                      Text('LOW', style: TextStyle(color: palette.textMutedColor, fontSize: 10)),
-                      _buildEqSlider('B', 'low', vm.deckB.gainLow, vm.deckB.isKillLow, vm),
-                    ],
-                  ),
+                const SizedBox(width: 8),
+                DjVerticalChannelStrip(
+                  deckId: 'B',
+                  deck: vm.deckB,
+                  viewModel: vm,
+                  accentColor: palette.secondaryAccent,
                 ),
               ],
             ),
-            const Divider(height: 10),
+            const SizedBox(height: 10),
 
             // Master Volume
             Row(
@@ -719,12 +900,20 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                 Icon(Icons.volume_up, size: 16, color: palette.textColor),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Slider(
-                    value: vm.masterVolume,
-                    min: 0.0,
-                    max: 1.5,
-                    activeColor: palette.primaryAccent,
-                    onChanged: (val) => vm.setMasterVolume(val),
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3,
+                      activeTrackColor: palette.primaryAccent,
+                      inactiveTrackColor: Colors.white12,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    ),
+                    child: Slider(
+                      value: vm.masterVolume,
+                      min: 0.0,
+                      max: 1.5,
+                      activeColor: palette.primaryAccent,
+                      onChanged: (val) => vm.setMasterVolume(val),
+                    ),
                   ),
                 ),
                 Text(
@@ -736,43 +925,6 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildEqSlider(String deckId, String band, double gain, bool isKilled, DjConsoleViewModel vm) {
-    final palette = widget.palette;
-
-    return Row(
-      children: [
-        IconButton(
-          key: Key('kill_${deckId}_$band'),
-          icon: Icon(Icons.flash_off, size: 14, color: isKilled ? Colors.redAccent : palette.textMutedColor),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
-          tooltip: 'Kill $band',
-          onPressed: () => vm.toggleEqKill(deckId, band),
-        ),
-        Expanded(
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 2,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-            ),
-            child: Slider(
-              value: gain.clamp(0.0, 1.5),
-              min: 0.0,
-              max: 1.5,
-              activeColor: isKilled ? Colors.redAccent : palette.primaryAccent,
-              inactiveColor: Colors.white10,
-              onChanged: (val) {
-                if (band == 'low') vm.setEqGains(deckId, low: val);
-                if (band == 'mid') vm.setEqGains(deckId, mid: val);
-                if (band == 'high') vm.setEqGains(deckId, high: val);
-              },
-            ),
-          ),
-        ),
-      ],
     );
   }
 
