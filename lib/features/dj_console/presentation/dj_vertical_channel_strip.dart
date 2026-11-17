@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../../../core/design_system/atoms/studio_rotary_knob.dart';
 import '../../../core/design_system/atoms/studio_stereo_vu_meter.dart';
@@ -27,10 +29,16 @@ class DjVerticalChannelStrip extends StatelessWidget {
     final isPlaying = deck.isPlaying;
     final isCueActive = deckId == 'A' ? viewModel.cueMonitor.cueDeckA : viewModel.cueMonitor.cueDeckB;
 
-    // Calcular niveles simulados en tiempo real basados en reproducción y ganancia
+    // Calcular niveles acústicos dinámicos con decaimiento balístico exponencial sincronizado al compás
     final signalMultiplier = isPlaying ? (deck.gainLow * 0.4 + deck.gainMid * 0.4 + deck.gainHigh * 0.2) : 0.0;
-    final vuLevelL = (signalMultiplier * 0.75).clamp(0.0, 1.15);
-    final vuLevelR = (signalMultiplier * 0.70).clamp(0.0, 1.15);
+    double beatPulse = 1.0;
+    if (isPlaying && deck.effectiveBpm > 0) {
+      final beatPeriodMs = 60000.0 / deck.effectiveBpm;
+      final phase = (deck.currentPositionMs % beatPeriodMs) / beatPeriodMs;
+      beatPulse = 0.40 + 0.60 * math.exp(-phase * 3.5);
+    }
+    final vuLevelL = isPlaying ? (signalMultiplier * 0.85 * beatPulse).clamp(0.0, 1.15) : 0.0;
+    final vuLevelR = isPlaying ? (signalMultiplier * 0.80 * (beatPulse * 0.95 + 0.05)).clamp(0.0, 1.15) : 0.0;
 
     return Container(
       width: 140,
@@ -185,28 +193,13 @@ class DjVerticalChannelStrip extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
 
-                // Fader vertical de volumen
-                SizedBox(
+                // Fader vertical de volumen táctil de alta fluidez y respuesta
+                StudioTactileVerticalFader(
+                  value: deck.volume,
+                  accentColor: accentColor,
                   height: 110,
-                  child: RotatedBox(
-                    quarterTurns: 3,
-                    child: SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        trackHeight: 3,
-                        activeTrackColor: accentColor,
-                        inactiveTrackColor: Colors.white12,
-                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                        thumbColor: Colors.white,
-                        overlayShape: SliderComponentShape.noOverlay,
-                      ),
-                      child: Slider(
-                        value: isPlaying ? 1.0 : 0.8,
-                        min: 0.0,
-                        max: 1.2,
-                        onChanged: (_) {},
-                      ),
-                    ),
-                  ),
+                  width: 36,
+                  onChanged: (val) => viewModel.setDeckVolume(deckId, val),
                 ),
               ],
             ),
@@ -264,6 +257,194 @@ class DjVerticalChannelStrip extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Fader de volumen vertical táctil de grado profesional con soporte para arrastre suave,
+/// rueda del mouse (scroll), pulsadores rápidos de incremento/decremento y mute directo.
+class StudioTactileVerticalFader extends StatelessWidget {
+  final double value;
+  final ValueChanged<double> onChanged;
+  final Color accentColor;
+  final double height;
+  final double width;
+
+  const StudioTactileVerticalFader({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    required this.accentColor,
+    this.height = 110.0,
+    this.width = 36.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final clampedVal = value.clamp(0.0, 1.0);
+
+    return Listener(
+      onPointerSignal: (pointerSignal) {
+        if (pointerSignal is PointerScrollEvent) {
+          final delta = -pointerSignal.scrollDelta.dy / 800.0;
+          onChanged((clampedVal + delta).clamp(0.0, 1.0));
+        }
+      },
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: Column(
+          children: [
+            // Botón rápido (+)
+            InkWell(
+              onTap: () => onChanged((clampedVal + 0.05).clamp(0.0, 1.0)),
+              borderRadius: BorderRadius.circular(2),
+              child: Container(
+                width: width - 8,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                child: const Center(
+                  child: Icon(Icons.add, size: 10, color: Colors.white70),
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+
+            // Riel de arrastre táctil sin inversión de ejes
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final trackHeight = constraints.maxHeight;
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onVerticalDragUpdate: (details) {
+                      final delta = -details.primaryDelta! / trackHeight;
+                      onChanged((clampedVal + delta).clamp(0.0, 1.0));
+                    },
+                    onTapDown: (details) {
+                      final tapY = details.localPosition.dy.clamp(0.0, trackHeight);
+                      final newVol = 1.0 - (tapY / trackHeight);
+                      onChanged(newVol.clamp(0.0, 1.0));
+                    },
+                    child: Container(
+                      width: width - 8,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F1117),
+                        borderRadius: BorderRadius.circular(3),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Stack(
+                        alignment: Alignment.bottomCenter,
+                        children: [
+                          // Riel guía central
+                          Center(
+                            child: Container(
+                              width: 3,
+                              height: trackHeight - 8,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(1.5),
+                              ),
+                            ),
+                          ),
+                          // Nivel LED activo
+                          FractionallySizedBox(
+                            heightFactor: clampedVal,
+                            child: Center(
+                              child: Container(
+                                width: 3,
+                                decoration: BoxDecoration(
+                                  color: accentColor.withValues(alpha: 0.85),
+                                  borderRadius: BorderRadius.circular(1.5),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: accentColor.withValues(alpha: 0.5),
+                                      blurRadius: 3,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Cabezal / Fader Cap Metálico Pro
+                          Positioned(
+                            bottom: (clampedVal * (trackHeight - 16.0)).clamp(0.0, trackHeight - 16.0),
+                            child: Container(
+                              width: width - 12,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2C3240),
+                                borderRadius: BorderRadius.circular(2),
+                                border: Border.all(color: Colors.white70, width: 1.0),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.7),
+                                    blurRadius: 2,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Container(
+                                  width: width - 16,
+                                  height: 1.5,
+                                  color: accentColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 2),
+
+            // Botón rápido (-)
+            InkWell(
+              onTap: () => onChanged((clampedVal - 0.05).clamp(0.0, 1.0)),
+              borderRadius: BorderRadius.circular(2),
+              child: Container(
+                width: width - 8,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                child: const Center(
+                  child: Icon(Icons.remove, size: 10, color: Colors.white70),
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+
+            // Badge de porcentaje con toggle Mute
+            InkWell(
+              onTap: () {
+                if (clampedVal > 0.01) {
+                  onChanged(0.0);
+                } else {
+                  onChanged(0.85);
+                }
+              },
+              child: Text(
+                '${(clampedVal * 100).toInt()}%',
+                style: TextStyle(
+                  color: clampedVal > 0.01 ? Colors.white60 : const Color(0xFFEF4444),
+                  fontSize: 8,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

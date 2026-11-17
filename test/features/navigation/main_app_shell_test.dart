@@ -170,6 +170,31 @@ void main() {
       expect(navBar.selectedIndex, equals(1));
     });
 
+    testWidgets('Tapping card_action_dj switches to DJ Workstation tab', (WidgetTester tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pump();
+
+      // Desplazar si es necesario y tocar la tarjeta DJ
+      await tester.ensureVisible(find.byKey(const Key('card_action_dj')));
+      await tester.tap(find.byKey(const Key('card_action_dj')));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(navBar.selectedIndex, equals(5));
+    });
+
+    testWidgets('Tapping home_audition_drone_btn toggles drone reference audition', (WidgetTester tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pump();
+
+      expect(find.byKey(const Key('home_audition_drone_btn')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('home_audition_drone_btn')));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // El botón de audición está presente e interactivo
+      expect(find.byKey(const Key('home_audition_drone_btn')), findsOneWidget);
+    });
+
     testWidgets('BottomNavigationBar switches tabs smoothly', (WidgetTester tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pump();

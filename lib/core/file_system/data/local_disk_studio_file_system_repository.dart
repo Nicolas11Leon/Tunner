@@ -1,0 +1,252 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
+import '../../../../features/dj_console/data/dj_audio_processor.dart';
+import '../../../../features/instrument/data/procedural_instrument_synthesizer.dart';
+import '../../../../features/instrument/domain/universal_instrument_definition.dart';
+import '../domain/studio_file_system_node.dart';
+import '../domain/studio_file_system_repository.dart';
+import '../domain/studio_file_type.dart';
+
+/// Implementación de producción para la persistencia real del sistema de archivos en disco (`dart:io`).
+/// Permite almacenar, escanear, leer, escribir, mover y renombrar físicamente archivos
+/// y carpetas en el almacenamiento local del usuario (`~/Documents/TunnerProjects`).
+class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository {
+  final String? _customRootPath;
+  String? _resolvedRootPath;
+
+  LocalDiskStudioFileSystemRepository({String? customRootPath})
+      : _customRootPath = customRootPath;
+
+  /// Obtiene la ruta física absoluta de la carpeta raíz del espacio de trabajo.
+  Future<String> getRootPath() async {
+    if (_resolvedRootPath != null) return _resolvedRootPath!;
+    if (_customRootPath != null && _customRootPath.isNotEmpty) {
+      _resolvedRootPath = _customRootPath;
+      return _resolvedRootPath!;
+    }
+
+    // Entorno de prueba unitaria sin plugin nativo de path_provider
+    if (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')) {
+      final tempDir = Directory.systemTemp.createTempSync('tunner_workspace_');
+      _resolvedRootPath = tempDir.path;
+      return _resolvedRootPath!;
+    }
+
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      _resolvedRootPath = '${docDir.path}/TunnerProjects';
+    } catch (_) {
+      final fallbackDir = Directory.systemTemp.createTempSync('tunner_projects_fallback_');
+      _resolvedRootPath = fallbackDir.path;
+    }
+    return _resolvedRootPath!;
+  }
+
+  /// Limpia la ruta relativa eliminando barras iniciales duplicadas.
+  String _normalizeRelativePath(String relPath) {
+    if (relPath.startsWith('/')) {
+      return relPath.substring(1);
+    }
+    return relPath;
+  }
+
+  @override
+  Future<StudioFolderEntity> loadRootWorkspace() async {
+    final rootPath = await getRootPath();
+    final rootDir = Directory(rootPath);
+
+    if (!await rootDir.exists()) {
+      await rootDir.create(recursive: true);
+      await _seedDefaultWorkspaceStructure(rootDir);
+    } else {
+      // Si el directorio existe pero está completamente vacío, sembramos la plantilla base
+      final entries = await rootDir.list().toList();
+      if (entries.isEmpty) {
+        await _seedDefaultWorkspaceStructure(rootDir);
+      }
+    }
+
+    return _scanDirectoryRecursively(rootDir, rootPath);
+  }
+
+  /// Sembrado inicial de directorios y archivos canónicos de estudio.
+  Future<void> _seedDefaultWorkspaceStructure(Directory rootDir) async {
+    final scoresDir = Directory('${rootDir.path}/Partituras & Notación');
+    final audioDir = Directory('${rootDir.path}/Tomas de Audio & WAV');
+    final tuningsDir = Directory('${rootDir.path}/Presets de Afinación');
+    final djDir = Directory('${rootDir.path}/Modelos Consola DJ');
+
+    await scoresDir.create(recursive: true);
+    await audioDir.create(recursive: true);
+    await tuningsDir.create(recursive: true);
+    await djDir.create(recursive: true);
+
+    // Archivos semilla
+    final demoScore = File('${scoresDir.path}/Sonata No. 1 en C Mayor.musicxml');
+    await demoScore.writeAsString(
+      '<?xml version="1.0" encoding="UTF-8"?>\n<score-partwise version="3.1"><work><work-title>Sonata No. 1</work-title></work></score-partwise>',
+      flush: true,
+    );
+
+    // Archivo de afinación pura A4 (440 Hz) con envolvente procedural
+    final a4Samples = ProceduralInstrumentSynthesizer.synthesizeNote(
+      instrument: UniversalInstrumentDefinition.fluteConcert,
+      frequencyHz: 440.0,
+      durationSeconds: 2.5,
+    );
+    final a4WavBytes = ProceduralInstrumentSynthesizer.floatBufferToWavBytes(a4Samples);
+    final demoTake = File('${audioDir.path}/Toma_Acustica_440Hz.wav');
+    await demoTake.writeAsBytes(a4WavBytes, flush: true);
+
+    // Archivo de bucle rítmico Club Groove 124 BPM
+    final grooveSamples = DjAudioProcessor().generateDemoGroove(
+      bpm: 124.0,
+      frequencyHz: 55.0,
+      durationMs: 7740,
+    );
+    final grooveWavBytes = ProceduralInstrumentSynthesizer.floatBufferToWavBytes(grooveSamples);
+    final demoGroove = File('${audioDir.path}/Loop_Club_Groove_124BPM.wav');
+    await demoGroove.writeAsBytes(grooveWavBytes, flush: true);
+
+    final demoPreset = File('${tuningsDir.path}/Temperamento_Pitagorico.tpreset');
+    await demoPreset.writeAsString('{"presetName": "Pitagórico", "referenceA4": 440.0}', flush: true);
+
+    final demoDj = File('${djDir.path}/Pioneer_DDJ_FLX4.djblueprint');
+    await demoDj.writeAsString('{"model": "DDJ-FLX4", "decks": 2}', flush: true);
+  }
+
+  /// Escanea recursivamente un directorio y construye la jerarquía inmutable de dominio.
+  Future<StudioFolderEntity> _scanDirectoryRecursively(Directory dir, String rootPath) async {
+    final now = DateTime.now().microsecondsSinceEpoch;
+    final dirPath = dir.path;
+    final relativePath = dirPath == rootPath ? '/' : dirPath.replaceFirst('$rootPath/', '/');
+    final folderName = dirPath == rootPath ? 'PROYECTO TUNNER' : dirPath.split(Platform.pathSeparator).last;
+    final folderId = 'folder_${relativePath.hashCode.abs()}';
+
+    final children = <StudioFileSystemNode>[];
+
+    try {
+      final entities = await dir.list(followLinks: false).toList();
+      // Ordenar: primero carpetas alfabéticamente, luego archivos alfabéticamente
+      entities.sort((a, b) {
+        if (a is Directory && b is! Directory) return -1;
+        if (a is! Directory && b is Directory) return 1;
+        return a.path.toLowerCase().compareTo(b.path.toLowerCase());
+      });
+
+      for (final entity in entities) {
+        if (entity is Directory) {
+          final subFolder = await _scanDirectoryRecursively(entity, rootPath);
+          children.add(subFolder);
+        } else if (entity is File) {
+          final fileName = entity.path.split(Platform.pathSeparator).last;
+          final fileRelPath = entity.path.replaceFirst('$rootPath/', '/');
+          final fileType = StudioFileType.fromFileName(fileName);
+          int size = 0;
+          int modified = now;
+          try {
+            size = await entity.length();
+            modified = (await entity.lastModified()).microsecondsSinceEpoch;
+          } catch (_) {}
+
+          children.add(
+            StudioFileEntity(
+              id: 'file_${fileRelPath.hashCode.abs()}',
+              name: fileName,
+              relativePath: fileRelPath,
+              modifiedAtMicros: modified,
+              extension: fileType.extension,
+              fileType: fileType,
+              sizeBytes: size,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('LocalDiskStudioFileSystemRepository: Error escaneando ${dir.path}: $e');
+    }
+
+    return StudioFolderEntity(
+      id: folderId,
+      name: folderName,
+      relativePath: relativePath,
+      modifiedAtMicros: now,
+      isExpanded: true,
+      children: children,
+    );
+  }
+
+  @override
+  Future<void> saveFile({required String relativePath, required Uint8List bytes}) async {
+    final rootPath = await getRootPath();
+    final cleanRel = _normalizeRelativePath(relativePath);
+    final file = File('$rootPath/$cleanRel');
+    await file.parent.create(recursive: true);
+    await file.writeAsBytes(bytes, flush: true);
+  }
+
+  @override
+  Future<Uint8List> readFile(String relativePath) async {
+    final rootPath = await getRootPath();
+    final cleanRel = _normalizeRelativePath(relativePath);
+    final file = File('$rootPath/$cleanRel');
+    if (!await file.exists()) {
+      throw FileSystemException('El archivo físico no existe', file.path);
+    }
+    return file.readAsBytes();
+  }
+
+  @override
+  Future<void> createFolder(String relativePath) async {
+    final rootPath = await getRootPath();
+    final cleanRel = _normalizeRelativePath(relativePath);
+    final dir = Directory('$rootPath/$cleanRel');
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+  }
+
+  @override
+  Future<void> deletePath(String relativePath) async {
+    final rootPath = await getRootPath();
+    final cleanRel = _normalizeRelativePath(relativePath);
+    final absPath = '$rootPath/$cleanRel';
+
+    final file = File(absPath);
+    if (await file.exists()) {
+      await file.delete();
+      return;
+    }
+
+    final dir = Directory(absPath);
+    if (await dir.exists()) {
+      await dir.delete(recursive: true);
+    }
+  }
+
+  @override
+  Future<void> movePath({required String oldRelativePath, required String newRelativePath}) async {
+    final rootPath = await getRootPath();
+    final cleanOld = _normalizeRelativePath(oldRelativePath);
+    final cleanNew = _normalizeRelativePath(newRelativePath);
+
+    final oldPath = '$rootPath/$cleanOld';
+    final newPath = '$rootPath/$cleanNew';
+
+    final oldFile = File(oldPath);
+    if (await oldFile.exists()) {
+      final newFile = File(newPath);
+      await newFile.parent.create(recursive: true);
+      await oldFile.rename(newPath);
+      return;
+    }
+
+    final oldDir = Directory(oldPath);
+    if (await oldDir.exists()) {
+      final newDir = Directory(newPath);
+      await newDir.parent.create(recursive: true);
+      await oldDir.rename(newPath);
+    }
+  }
+}

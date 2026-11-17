@@ -15,7 +15,7 @@ void main() {
 
     setUp(() {
       rackViewModel = ModularRackViewModel();
-      tunerViewModel = TunerViewModel();
+      tunerViewModel = TunerViewModel(seedDefaults: false);
     });
 
     tearDown(() {

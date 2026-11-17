@@ -42,6 +42,7 @@ void main() {
       recorderService: mockRecorder,
       playbackService: mockPlayback,
       persistenceService: MemoryPersistenceService(),
+      seedDefaults: false,
     );
   });
 

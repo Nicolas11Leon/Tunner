@@ -283,7 +283,9 @@ class TunerViewModel extends ChangeNotifier {
     VocalAutoTuneProcessor? autoTuneProcessor,
     SoundFontSynthesizerService? soundFontSynthesizer,
     Future<String> Function()? recordingPathProvider,
-  })  : _pitchService = pitchService ?? PitchDetectorService(),
+    bool seedDefaults = false,
+  })  : _shouldSeedDefaults = seedDefaults,
+        _pitchService = pitchService ?? PitchDetectorService(),
         _metronomeService = metronomeService ?? MetronomeService(),
         _evaluatorService = evaluatorService ?? const PracticeEvaluatorService(),
         _transpositionService = transpositionService ?? const InstrumentTranspositionService(),
@@ -311,8 +313,13 @@ class TunerViewModel extends ChangeNotifier {
     _initListeners();
     _syncInstrumentAcousticFilter();
     _initDefaultMultiTrackSession();
+    if (_shouldSeedDefaults) {
+      _seedDefaultWorkspaceIfEmpty();
+    }
     loadPersistedState();
   }
+
+  final bool _shouldSeedDefaults;
 
   // --- Getters del Estado ---
   AcousticRigorProfile get acousticRigorProfile => _acousticRigorProfile;
@@ -1743,6 +1750,18 @@ class TunerViewModel extends ChangeNotifier {
     _triggerAutoSave();
   }
 
+  /// Activa una paleta cromática de la aplicación a partir de su ID o nombre descriptivo.
+  void setPaletteById(String paletteId) {
+    final query = paletteId.toLowerCase();
+    for (final palette in TunnerThemePalette.allPresets) {
+      if (palette.id.toLowerCase() == query ||
+          palette.displayName.toLowerCase().contains(query)) {
+        setPalette(palette);
+        return;
+      }
+    }
+  }
+
   void addCustomPalette(TunnerThemePalette palette) {
     _customPalettes.removeWhere((p) => p.id == palette.id);
     _customPalettes.add(palette);
@@ -2166,6 +2185,10 @@ class TunerViewModel extends ChangeNotifier {
         _workspaceScores.addAll(settings.workspaceScores);
       }
 
+      if (_shouldSeedDefaults) {
+        _seedDefaultWorkspaceIfEmpty();
+      }
+
       _micProfile = settings.micCalibrationProfile;
       _acousticRigorProfile = settings.acousticRigorProfile;
       _isInstrumentIsolationActive = _acousticRigorProfile.enableInstrumentIsolation;
@@ -2179,6 +2202,59 @@ class TunerViewModel extends ChangeNotifier {
       if (!_initCompleter.isCompleted) {
         _initCompleter.complete();
       }
+    }
+  }
+
+  /// Inicializa semillas por defecto en el espacio de trabajo local para garantizar
+  /// que la interfaz de usuario no muestre contadores vacíos al arrancar el estudio.
+  void _seedDefaultWorkspaceIfEmpty() {
+    if (_workspaceScores.isEmpty && _curatedLibrary.isNotEmpty) {
+      _workspaceScores.addAll(_curatedLibrary.take(3));
+    }
+    if (_recordingHistory.isEmpty) {
+      _recordingHistory.addAll([
+        PracticeRecordingEntity(
+          id: 'rec_acoustic_demo_a440',
+          filePath: 'Toma_Acustica_440Hz.wav',
+          recordedAt: DateTime.now().subtract(const Duration(minutes: 45)),
+          duration: const Duration(seconds: 4),
+          songTitle: 'Toma Acústica de Calibración A4 (440 Hz)',
+          bpm: 120,
+          waveformPeaks: const [0.1, 0.4, 0.8, 0.95, 0.85, 0.7, 0.5, 0.3, 0.1],
+        ),
+        PracticeRecordingEntity(
+          id: 'rec_club_groove_124bpm',
+          filePath: 'Loop_Club_Groove_124BPM.wav',
+          recordedAt: DateTime.now().subtract(const Duration(hours: 2)),
+          duration: const Duration(seconds: 8),
+          songTitle: 'Loop Club Groove Master (124 BPM)',
+          bpm: 124,
+          waveformPeaks: const [0.9, 0.7, 0.85, 0.95, 0.6, 0.8, 0.9, 0.75, 0.6],
+        ),
+      ]);
+      _activeRecording = _recordingHistory.first;
+    }
+    if (_tuningPresets.isEmpty) {
+      _tuningPresets.addAll([
+        TuningPresetEntity(
+          id: 'preset_philharmonic_442',
+          name: 'Afinación Filarmónica',
+          referencePitchHz: 442.0,
+          temperamentId: 'equal',
+          rootKey: 0,
+          description: 'Estándar orquestal europeo moderno (442 Hz)',
+          createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        ),
+        TuningPresetEntity(
+          id: 'preset_baroque_415',
+          name: 'Afinación Barroca',
+          referencePitchHz: 415.0,
+          temperamentId: 'werckmeister',
+          rootKey: 0,
+          description: 'Afinación historicista barroca a 415 Hz en Werckmeister III',
+          createdAt: DateTime.now().subtract(const Duration(days: 2)),
+        ),
+      ]);
     }
   }
 

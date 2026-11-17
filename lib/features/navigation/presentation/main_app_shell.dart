@@ -29,6 +29,13 @@ import '../../../core/file_system/data/studio_workspace_file_system_service.dart
 import '../../../core/file_system/domain/studio_file_system_node.dart';
 import '../../../core/file_system/domain/studio_file_type.dart';
 import '../../../core/file_system/presentation/studio_vscode_explorer_widget.dart';
+import '../../../core/terminal/domain/tunner_os_kernel.dart';
+import '../../../core/terminal/presentation/tunner_os_terminal_drawer.dart';
+import '../../../core/audio/domain/studio_master_clock_service.dart';
+import '../../../core/audio/infrastructure/studio_audio_device_matrix_service.dart';
+import '../../../core/audio/infrastructure/studio_audio_engine.dart';
+import '../../../core/audio/infrastructure/studio_audio_input_engine.dart';
+import '../../../core/audio/presentation/studio_master_hardware_console_widget.dart';
 
 /// Intenciones para el sistema de atajos de teclado de grado profesional y memoria muscular (DAWs).
 class TogglePlayIntent extends Intent {
@@ -102,6 +109,10 @@ class OpenShortcutsGuideIntent extends Intent {
   const OpenShortcutsGuideIntent();
 }
 
+class ToggleTerminalIntent extends Intent {
+  const ToggleTerminalIntent();
+}
+
 class OpenInstrumentSelectorIntent extends Intent {
   const OpenInstrumentSelectorIntent();
 }
@@ -121,6 +132,10 @@ class JumpToTaskIntent extends Intent {
 class SwitchTabIntent extends Intent {
   final int tabIndex;
   const SwitchTabIntent(this.tabIndex);
+}
+
+class OpenMasterConsoleIntent extends Intent {
+  const OpenMasterConsoleIntent();
 }
 
 /// Contenedor principal de navegación de Tunner (MainAppShell).
@@ -144,6 +159,10 @@ class _MainAppShellState extends State<MainAppShell> {
   late final ModularRackViewModel _modularRackViewModel;
   late final DjConsoleViewModel _djConsoleViewModel;
   late final StudioWorkspaceFileSystemService _fileSystemService;
+  late final StudioAudioDeviceMatrixService _audioMatrixService;
+  late final StudioMasterClockService _masterClockService;
+  bool _isTerminalOpen = false;
+  late final TunnerOsKernel _terminalKernel;
 
   @override
   void initState() {
@@ -153,6 +172,32 @@ class _MainAppShellState extends State<MainAppShell> {
     _djConsoleViewModel = DjConsoleViewModel();
     _fileSystemService = StudioWorkspaceFileSystemService();
     _fileSystemService.onOpenFile = _handleOpenFile;
+    _fileSystemService.initializeWorkspace();
+
+    final audioEngine = StudioAudioEngine();
+    final audioInput = StudioAudioInputEngine();
+    _audioMatrixService = StudioAudioDeviceMatrixService(
+      outputEngine: audioEngine,
+      inputEngine: audioInput,
+    );
+    _masterClockService = StudioMasterClockService(initialBpm: 120.0);
+
+    _terminalKernel = TunnerOsKernel(
+      onNavigateTab: _navigateToTab,
+      onDjLoadTrack: (deckId, track) {
+        if (track.toLowerCase().contains('elisa')) {
+          _djConsoleViewModel.loadCuratedSong(deckId, 'elisa');
+        } else {
+          _djConsoleViewModel.loadPresetTrack(deckId, track);
+        }
+      },
+      onDjTogglePlay: (deckId) => _djConsoleViewModel.togglePlay(deckId),
+      onDjSetCrossfader: (val) => _djConsoleViewModel.setCrossfaderPosition(val),
+      onSetTheme: (themeId) {
+        final vm = context.read<TunerViewModel>();
+        vm.setPaletteById(themeId);
+      },
+    );
   }
 
   void _handleOpenFile(StudioFileEntity file) {
@@ -169,7 +214,13 @@ class _MainAppShellState extends State<MainAppShell> {
         break;
       case StudioFileType.audioWav:
         _navigateToTab(5);
-        _djConsoleViewModel.loadTrackSimple('A', title: file.name, bpm: 124.0, camelotKey: '8B');
+        _djConsoleViewModel.loadDeckTrack(
+          deckId: 'A',
+          filePath: file.relativePath,
+          wavBytes: file.payload is Uint8List ? file.payload as Uint8List : null,
+          title: file.name,
+          bpm: 124.0,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Audio cargado en Deck A de la Consola DJ: ${file.name}'),
@@ -233,7 +284,17 @@ class _MainAppShellState extends State<MainAppShell> {
   void dispose() {
     _modularRackViewModel.dispose();
     _djConsoleViewModel.dispose();
+    _audioMatrixService.dispose();
+    _masterClockService.dispose();
     super.dispose();
+  }
+
+  void _openMasterConsole() {
+    StudioMasterHardwareConsoleWidget.show(
+      context,
+      matrixService: _audioMatrixService,
+      clockService: _masterClockService,
+    );
   }
 
   void _navigateToTab(int index) {
@@ -658,6 +719,27 @@ class _MainAppShellState extends State<MainAppShell> {
         ),
       ),
       PromptSuggestion(
+        id: 'cmd_dj',
+        trigger: '/',
+        command: '/dj',
+        title: 'Consola DJ Pro Workstation',
+        description: 'Mezclador de 2 Decks, jog scratch, stems isolator y sampler',
+        category: 'Producción',
+        shortcut: 'Alt+6',
+        icon: Icons.album_rounded,
+        onExecute: (_) => _navigateToTab(5),
+      ),
+      PromptSuggestion(
+        id: 'cmd_consola',
+        trigger: '/',
+        command: '/consola',
+        title: 'Consola DJ & Mezclador en Vivo',
+        description: 'Abrir mesa de mezclas para directo y performance',
+        category: 'Producción',
+        icon: Icons.album_rounded,
+        onExecute: (_) => _navigateToTab(5),
+      ),
+      PromptSuggestion(
         id: 'cmd_help',
         trigger: '/',
         command: '/help',
@@ -724,6 +806,17 @@ class _MainAppShellState extends State<MainAppShell> {
         shortcut: 'Alt+5',
         icon: Icons.menu_book_outlined,
         onExecute: (_) => _navigateToTab(4),
+      ),
+      PromptSuggestion(
+        id: 'mod_dj',
+        trigger: '@',
+        command: '@dj',
+        title: 'Consola DJ Pro Workstation',
+        description: 'Navegar al espacio de DJ y mezcla 2-Decks',
+        category: 'Módulos',
+        shortcut: 'Alt+6',
+        icon: Icons.album_rounded,
+        onExecute: (_) => _navigateToTab(5),
       ),
       PromptSuggestion(
         id: 'mod_acoustics',
@@ -875,7 +968,22 @@ class _MainAppShellState extends State<MainAppShell> {
                     title: rec.songTitle,
                     icon: Icons.audio_file_outlined,
                     timestamp: '${rec.duration.inSeconds}s',
-                    onSelect: () => _navigateToTab(3),
+                    onSelect: () {
+                      _navigateToTab(5);
+                      _djConsoleViewModel.loadDeckTrack(
+                        deckId: 'A',
+                        filePath: rec.filePath,
+                        title: rec.songTitle,
+                        bpm: rec.bpm.toDouble(),
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Toma cargada en Deck A de la Consola DJ: ${rec.songTitle}'),
+                          backgroundColor: const Color(0xFF00E5FF),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
                   ),
                 )
                 .toList(),
@@ -1061,60 +1169,82 @@ class _MainAppShellState extends State<MainAppShell> {
   Widget build(BuildContext context) {
     final viewModel = context.watch<TunerViewModel>();
     final palette = viewModel.currentPalette;
+    final bool isDjActive = _currentIndex == 5;
+
+    final Map<ShortcutActivator, Intent> activeShortcuts = isDjActive
+        ? <ShortcutActivator, Intent>{
+            // En modo DJ Pro, aislamos el teclado para que todas las teclas de mezcla (W, Q, E, A, S, D, I, U, O, J, K, L, Z, X, C, B, N, V, 1..4, 7..0, Space)
+            // se transmitan al motor DJ sin ser secuestradas por el transporte global.
+            const SingleActivator(LogicalKeyboardKey.keyK, control: true): const OpenCommandPaletteIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyK, meta: true): const OpenCommandPaletteIntent(),
+            const SingleActivator(LogicalKeyboardKey.slash, shift: true): const OpenShortcutsGuideIntent(),
+            const SingleActivator(LogicalKeyboardKey.backquote, control: true): const ToggleTerminalIntent(),
+            const SingleActivator(LogicalKeyboardKey.digit1, alt: true): const SwitchTabIntent(0),
+            const SingleActivator(LogicalKeyboardKey.digit2, alt: true): const SwitchTabIntent(1),
+            const SingleActivator(LogicalKeyboardKey.digit3, alt: true): const SwitchTabIntent(2),
+            const SingleActivator(LogicalKeyboardKey.digit4, alt: true): const SwitchTabIntent(3),
+            const SingleActivator(LogicalKeyboardKey.digit5, alt: true): const SwitchTabIntent(4),
+            const SingleActivator(LogicalKeyboardKey.digit6, alt: true): const SwitchTabIntent(5),
+          }
+        : <ShortcutActivator, Intent>{
+            // Transporte Universal (Ableton / Logic / Pro Tools)
+            const SingleActivator(LogicalKeyboardKey.space): const TogglePlayIntent(),
+            const SingleActivator(LogicalKeyboardKey.enter): const RewindToStartIntent(),
+            const SingleActivator(LogicalKeyboardKey.numpadEnter): const RewindToStartIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyC): const ToggleCycleLoopIntent(),
+            const SingleActivator(LogicalKeyboardKey.comma): const NudgeMeasureBackIntent(),
+            const SingleActivator(LogicalKeyboardKey.period): const NudgeMeasureForwardIntent(),
+
+            // Grabación y Tap Tempo
+            const SingleActivator(LogicalKeyboardKey.keyR): const ToggleRecordIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyT): const TapTempoIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyB): const TapTempoIntent(),
+
+            // Incremento y decremento fino de tempo
+            const SingleActivator(LogicalKeyboardKey.bracketRight): const IncrementBpmIntent(1),
+            const SingleActivator(LogicalKeyboardKey.bracketLeft): const DecrementBpmIntent(1),
+            const SingleActivator(LogicalKeyboardKey.bracketRight, shift: true): const IncrementBpmIntent(5),
+            const SingleActivator(LogicalKeyboardKey.bracketLeft, shift: true): const DecrementBpmIntent(5),
+
+            // Herramientas directas (Single Key Select)
+            const SingleActivator(LogicalKeyboardKey.keyA): const FocusTunerIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyM): const FocusMetronomeIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyS): const FocusScoreIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyL): const FocusLessonsIntent(),
+            const SingleActivator(LogicalKeyboardKey.digit0): const PanicMuteIntent(),
+
+            // Calibración de Hz
+            const SingleActivator(LogicalKeyboardKey.arrowUp, alt: true): const CalibrateReferencePitchIntent(1.0),
+            const SingleActivator(LogicalKeyboardKey.arrowDown, alt: true): const CalibrateReferencePitchIntent(-1.0),
+
+            // Modales de sistema y búsqueda global (Cmd+K y Cmd+F)
+            const SingleActivator(LogicalKeyboardKey.keyK, control: true): const OpenCommandPaletteIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyK, meta: true): const OpenCommandPaletteIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyF, control: true): const OpenCommandPaletteIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyF, meta: true): const OpenCommandPaletteIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyI, control: true): const OpenInstrumentSelectorIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyI, meta: true): const OpenInstrumentSelectorIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyI, control: true, shift: true): const OpenMasterConsoleIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyI, meta: true, shift: true): const OpenMasterConsoleIntent(),
+            const SingleActivator(LogicalKeyboardKey.slash, shift: true): const OpenShortcutsGuideIntent(),
+            const SingleActivator(LogicalKeyboardKey.backquote, control: true): const ToggleTerminalIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyE, shift: true): const OpenEarTrainerIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyC, shift: true): const OpenChordAnalyzerIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyJ): const JumpToTaskIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyJ, control: true): const JumpToTaskIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyJ, meta: true): const JumpToTaskIntent(),
+
+            // Pestañas directas
+            const SingleActivator(LogicalKeyboardKey.digit1): const SwitchTabIntent(0),
+            const SingleActivator(LogicalKeyboardKey.digit2): const SwitchTabIntent(1),
+            const SingleActivator(LogicalKeyboardKey.digit3): const SwitchTabIntent(2),
+            const SingleActivator(LogicalKeyboardKey.digit4): const SwitchTabIntent(3),
+            const SingleActivator(LogicalKeyboardKey.digit5): const SwitchTabIntent(4),
+            const SingleActivator(LogicalKeyboardKey.digit6): const SwitchTabIntent(5),
+          };
 
     return Shortcuts(
-      shortcuts: <ShortcutActivator, Intent>{
-        // Transporte Universal (Ableton / Logic / Pro Tools)
-        const SingleActivator(LogicalKeyboardKey.space): const TogglePlayIntent(),
-        const SingleActivator(LogicalKeyboardKey.enter): const RewindToStartIntent(),
-        const SingleActivator(LogicalKeyboardKey.numpadEnter): const RewindToStartIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyC): const ToggleCycleLoopIntent(),
-        const SingleActivator(LogicalKeyboardKey.comma): const NudgeMeasureBackIntent(),
-        const SingleActivator(LogicalKeyboardKey.period): const NudgeMeasureForwardIntent(),
-
-        // Grabación y Tap Tempo
-        const SingleActivator(LogicalKeyboardKey.keyR): const ToggleRecordIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyT): const TapTempoIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyB): const TapTempoIntent(),
-
-        // Incremento y decremento fino de tempo
-        const SingleActivator(LogicalKeyboardKey.bracketRight): const IncrementBpmIntent(1),
-        const SingleActivator(LogicalKeyboardKey.bracketLeft): const DecrementBpmIntent(1),
-        const SingleActivator(LogicalKeyboardKey.bracketRight, shift: true): const IncrementBpmIntent(5),
-        const SingleActivator(LogicalKeyboardKey.bracketLeft, shift: true): const DecrementBpmIntent(5),
-
-        // Herramientas directas (Single Key Select)
-        const SingleActivator(LogicalKeyboardKey.keyA): const FocusTunerIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyM): const FocusMetronomeIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyS): const FocusScoreIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyL): const FocusLessonsIntent(),
-        const SingleActivator(LogicalKeyboardKey.digit0): const PanicMuteIntent(),
-
-        // Calibración de Hz
-        const SingleActivator(LogicalKeyboardKey.arrowUp, alt: true): const CalibrateReferencePitchIntent(1.0),
-        const SingleActivator(LogicalKeyboardKey.arrowDown, alt: true): const CalibrateReferencePitchIntent(-1.0),
-
-        // Modales de sistema y búsqueda global (Cmd+K y Cmd+F)
-        const SingleActivator(LogicalKeyboardKey.keyK, control: true): const OpenCommandPaletteIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyK, meta: true): const OpenCommandPaletteIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyF, control: true): const OpenCommandPaletteIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyF, meta: true): const OpenCommandPaletteIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyI, control: true): const OpenInstrumentSelectorIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyI, meta: true): const OpenInstrumentSelectorIntent(),
-        const SingleActivator(LogicalKeyboardKey.slash, shift: true): const OpenShortcutsGuideIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyE, shift: true): const OpenEarTrainerIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyC, shift: true): const OpenChordAnalyzerIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyJ): const JumpToTaskIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyJ, control: true): const JumpToTaskIntent(),
-        const SingleActivator(LogicalKeyboardKey.keyJ, meta: true): const JumpToTaskIntent(),
-
-        // Pestañas directas
-        const SingleActivator(LogicalKeyboardKey.digit1): const SwitchTabIntent(0),
-        const SingleActivator(LogicalKeyboardKey.digit2): const SwitchTabIntent(1),
-        const SingleActivator(LogicalKeyboardKey.digit3): const SwitchTabIntent(2),
-        const SingleActivator(LogicalKeyboardKey.digit4): const SwitchTabIntent(3),
-        const SingleActivator(LogicalKeyboardKey.digit5): const SwitchTabIntent(4),
-      },
+      shortcuts: activeShortcuts,
       child: Actions(
         actions: <Type, Action<Intent>>{
           TogglePlayIntent: CallbackAction<TogglePlayIntent>(
@@ -1180,11 +1310,20 @@ class _MainAppShellState extends State<MainAppShell> {
           OpenInstrumentSelectorIntent: CallbackAction<OpenInstrumentSelectorIntent>(
             onInvoke: (_) => _openInstrumentSelector(viewModel),
           ),
+          OpenMasterConsoleIntent: CallbackAction<OpenMasterConsoleIntent>(
+            onInvoke: (_) {
+              _openMasterConsole();
+              return null;
+            },
+          ),
           OpenCommandPaletteIntent: CallbackAction<OpenCommandPaletteIntent>(
             onInvoke: (_) => _openCommandPalette(viewModel),
           ),
           OpenShortcutsGuideIntent: CallbackAction<OpenShortcutsGuideIntent>(
             onInvoke: (_) => _openShortcutsGuide(viewModel),
+          ),
+          ToggleTerminalIntent: CallbackAction<ToggleTerminalIntent>(
+            onInvoke: (_) => setState(() => _isTerminalOpen = !_isTerminalOpen),
           ),
           OpenEarTrainerIntent: CallbackAction<OpenEarTrainerIntent>(
             onInvoke: (_) => BlindEarTrainerModal.show(context, viewModel),
@@ -1211,7 +1350,10 @@ class _MainAppShellState extends State<MainAppShell> {
               final viewportContent = IndexedStack(
                 index: _currentIndex,
                 children: [
-                  HomeDashboardScreen(onNavigateToTab: _navigateToTab),
+                  HomeDashboardScreen(
+                    onNavigateToTab: _navigateToTab,
+                    onOpenTerminal: () => setState(() => _isTerminalOpen = !_isTerminalOpen),
+                  ),
                   const TunerScreen(),
                   LearningPracticeWorkspaceView(
                     viewModel: viewModel,
@@ -1234,222 +1376,261 @@ class _MainAppShellState extends State<MainAppShell> {
               );
 
               if (isDesktop) {
-                return StudioDesktopAppShell(
-                  currentBreadcrumb: _buildCurrentBreadcrumb(),
-                  navigationSections: _buildNavigationSections(viewModel),
-                  activeItemId: _buildCurrentActiveItemId(),
-                  currentTabIndex: _currentIndex,
-                  activeView: viewportContent,
-                  secondaryView: ModularStudioRackView(viewModel: _modularRackViewModel),
-                  onOpenSearch: () => _openCommandPalette(viewModel),
-                  onOpenShortcuts: () => _openShortcutsGuide(viewModel),
-                  onOpenHelp: () => _openShortcutsGuide(viewModel),
-                  onOpenAutomations: () => StudioAutomationsModal.show(context, viewModel),
-                  onOpenCustomizations: () => StudioCustomizationsModal.show(context, viewModel),
-                  onOpenSettings: () => StudioSettingsModal.show(context, viewModel),
-                  onMenuNewScore: () => StudioAssetsModals.showNewScoreDialog(
-                    context: context,
-                    viewModel: viewModel,
-                    onNavigateToTab: _navigateToTab,
-                  ),
-                  onMenuImportFile: () => StudioAssetsModals.showImportScoreDialog(
-                    context: context,
-                    viewModel: viewModel,
-                    onNavigateToTab: _navigateToTab,
-                  ),
-                  onMenuNewPreset: () => StudioAssetsModals.showNewTuningPresetDialog(
-                    context: context,
-                    viewModel: viewModel,
-                  ),
-                  onMenuSaveWorkspace: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Espacio de trabajo guardado correctamente en almacenamiento local.'),
-                        duration: Duration(seconds: 2),
+                return Stack(
+                  children: [
+                    StudioDesktopAppShell(
+                      currentBreadcrumb: _buildCurrentBreadcrumb(),
+                      navigationSections: _buildNavigationSections(viewModel),
+                      activeItemId: _buildCurrentActiveItemId(),
+                      currentTabIndex: _currentIndex,
+                      activeView: viewportContent,
+                      secondaryView: ModularStudioRackView(viewModel: _modularRackViewModel),
+                      onOpenSearch: () => _openCommandPalette(viewModel),
+                      onOpenShortcuts: () => _openShortcutsGuide(viewModel),
+                      onOpenHelp: () => _openShortcutsGuide(viewModel),
+                      onOpenAutomations: () => StudioAutomationsModal.show(context, viewModel),
+                      onOpenCustomizations: () => StudioCustomizationsModal.show(context, viewModel),
+                      onOpenSettings: () => StudioSettingsModal.show(context, viewModel),
+                      onOpenMasterConsole: _openMasterConsole,
+                      onMenuNewScore: () => StudioAssetsModals.showNewScoreDialog(
+                        context: context,
+                        viewModel: viewModel,
+                        onNavigateToTab: _navigateToTab,
                       ),
-                    );
-                  },
-                  onMenuResetWorkspace: () => viewModel.resetSongState(),
-                  onMenuToggleRack: () => _navigateToTab(3),
-                  onNavigateToTabIndex: (idx) => _navigateToTab(idx),
-                  onOpenSpectrogram: () => HarmonicSpectrogramModal.show(context),
-                  promptSuggestions: _buildPromptSuggestions(viewModel),
-                  isRecording: viewModel.isRecording,
-                  onToggleRecording: () {
-                    if (viewModel.isRecording) {
-                      viewModel.stopPracticeRecording();
-                    } else {
-                      viewModel.startPracticeRecording();
-                    }
-                  },
-                  customStatusItems: [
-                    Text(
-                      'A4 = ${viewModel.referencePitch.toInt()} Hz',
-                      style: TextStyle(
-                        color: palette.textMutedColor,
-                        fontSize: 9.0,
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.w700,
+                      onMenuImportFile: () => StudioAssetsModals.showImportScoreDialog(
+                        context: context,
+                        viewModel: viewModel,
+                        onNavigateToTab: _navigateToTab,
                       ),
-                    ),
-                    Text(
-                      'TEMPO: ${viewModel.bpm.round()} BPM',
-                      style: TextStyle(
-                        color: palette.textMutedColor,
-                        fontSize: 9.0,
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.w700,
+                      onMenuNewPreset: () => StudioAssetsModals.showNewTuningPresetDialog(
+                        context: context,
+                        viewModel: viewModel,
                       ),
-                    ),
-                    Text(
-                      'INSTRUMENTO: ${viewModel.activeInstrument.name.toUpperCase()}',
-                      style: TextStyle(
-                        color: palette.primaryAccent,
-                        fontSize: 9.0,
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                  sidebarFooter: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            color: palette.cardBackground,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: palette.primaryAccent.withValues(alpha: 0.3),
-                            ),
+                      onMenuSaveWorkspace: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Espacio de trabajo guardado correctamente en almacenamiento local.'),
+                            duration: Duration(seconds: 2),
                           ),
-                          child: Text(
-                            viewModel.activeInstrument.clef.symbol,
-                            style: TextStyle(
-                              color: palette.primaryAccent,
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        );
+                      },
+                      onMenuResetWorkspace: () => viewModel.resetSongState(),
+                      onMenuToggleRack: () => _navigateToTab(3),
+                      onNavigateToTabIndex: (idx) => _navigateToTab(idx),
+                      onOpenSpectrogram: () => HarmonicSpectrogramModal.show(context),
+                      promptSuggestions: _buildPromptSuggestions(viewModel),
+                      onCommandSubmitted: (cmd) {
+                        _terminalKernel.execute(cmd);
+                        setState(() => _isTerminalOpen = true);
+                      },
+                      isRecording: viewModel.isRecording,
+                      onToggleRecording: () {
+                        if (viewModel.isRecording) {
+                          viewModel.stopPracticeRecording();
+                        } else {
+                          viewModel.startPracticeRecording();
+                        }
+                      },
+                      customStatusItems: [
+                        Text(
+                          'A4 = ${viewModel.referencePitch.toInt()} Hz',
+                          style: TextStyle(
+                            color: palette.textMutedColor,
+                            fontSize: 9.0,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                viewModel.activeInstrument.name,
-                                style: TextStyle(
-                                  color: palette.textColor,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                '${viewModel.activeInstrument.family.displayName} • ${viewModel.activeInstrument.key.displayName}',
-                                style: TextStyle(
-                                  color: palette.textMutedColor,
-                                  fontSize: 9,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
+                        Text(
+                          'TEMPO: ${viewModel.bpm.round()} BPM',
+                          style: TextStyle(
+                            color: palette.textMutedColor,
+                            fontSize: 9.0,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        OutlinedButton(
-                          onPressed: () => _openInstrumentSelector(viewModel),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: palette.primaryAccent,
-                            side: BorderSide(
-                              color: palette.primaryAccent.withValues(alpha: 0.3),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
+                        Text(
+                          'INSTRUMENTO: ${viewModel.activeInstrument.name.toUpperCase()}',
+                          style: TextStyle(
+                            color: palette.primaryAccent,
+                            fontSize: 9.0,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w700,
                           ),
-                          child: const Text('Cambiar', style: TextStyle(fontSize: 10)),
                         ),
                       ],
+                      sidebarFooter: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: palette.cardBackground,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: palette.primaryAccent.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Text(
+                                viewModel.activeInstrument.clef.symbol,
+                                style: TextStyle(
+                                  color: palette.primaryAccent,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    viewModel.activeInstrument.name,
+                                    style: TextStyle(
+                                      color: palette.textColor,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    '${viewModel.activeInstrument.family.displayName} • ${viewModel.activeInstrument.key.displayName}',
+                                    style: TextStyle(
+                                      color: palette.textMutedColor,
+                                      fontSize: 9,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            OutlinedButton(
+                              onPressed: () => _openInstrumentSelector(viewModel),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: palette.primaryAccent,
+                                side: BorderSide(
+                                  color: palette.primaryAccent.withValues(alpha: 0.3),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                              child: const Text('Cambiar', style: TextStyle(fontSize: 10)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      customSidebarExplorer: StudioVsCodeExplorerWidget(
+                        service: _fileSystemService,
+                      ),
                     ),
-                  ),
-                  customSidebarExplorer: StudioVsCodeExplorerWidget(
-                    service: _fileSystemService,
-                  ),
+                    if (_isTerminalOpen)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: TunnerOsTerminalDrawer(
+                          kernel: _terminalKernel,
+                          onClose: () => setState(() => _isTerminalOpen = false),
+                        ),
+                      ),
+                  ],
                 );
               }
 
               // Vista móvil / compacta
-              return Scaffold(
-                backgroundColor: palette.scaffoldBackground,
-                body: Stack(
-                  children: [
-                    viewportContent,
-                    QuickActionDockWidget(
-                      viewModel: viewModel,
-                      palette: palette,
-                      onOpenCommandPalette: () => _openCommandPalette(viewModel),
-                      onOpenShortcutsGuide: () => _openShortcutsGuide(viewModel),
-                      onOpenTunerTab: () => _navigateToTab(1),
-                    ),
-                  ],
-                ),
-                bottomNavigationBar: Container(
-                  decoration: BoxDecoration(
-                    color: palette.scaffoldBackground,
-                    border: Border(
-                      top: BorderSide(
-                        color: palette.staffLinesColor.withValues(alpha: 0.2),
-                        width: 1.0,
-                      ),
-                    ),
-                  ),
-                  child: NavigationBar(
-                    selectedIndex: _currentIndex,
-                    onDestinationSelected: _navigateToTab,
+              return Stack(
+                children: [
+                  Scaffold(
                     backgroundColor: palette.scaffoldBackground,
-                    indicatorColor: palette.primaryAccent.withValues(alpha: 0.18),
-                    elevation: 0,
-                    labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                    destinations: [
-                      NavigationDestination(
-                        key: const Key('nav_tab_home'),
-                        icon: Icon(Icons.home_outlined, color: palette.textMutedColor),
-                        selectedIcon: Icon(Icons.home, color: palette.primaryAccent),
-                        label: 'Inicio',
+                    body: Stack(
+                      children: [
+                        viewportContent,
+                        QuickActionDockWidget(
+                          viewModel: viewModel,
+                          palette: palette,
+                          onOpenCommandPalette: () => _openCommandPalette(viewModel),
+                          onOpenShortcutsGuide: () => _openShortcutsGuide(viewModel),
+                          onOpenTunerTab: () => _navigateToTab(1),
+                        ),
+                      ],
+                    ),
+                    bottomNavigationBar: Container(
+                      decoration: BoxDecoration(
+                        color: palette.scaffoldBackground,
+                        border: Border(
+                          top: BorderSide(
+                            color: palette.staffLinesColor.withValues(alpha: 0.2),
+                            width: 1.0,
+                          ),
+                        ),
                       ),
-                      NavigationDestination(
-                        key: const Key('nav_tab_tuner'),
-                        icon: Icon(Icons.tune_outlined, color: palette.textMutedColor),
-                        selectedIcon: Icon(Icons.tune, color: palette.primaryAccent),
-                        label: 'Afinador',
+                      child: NavigationBar(
+                        selectedIndex: _currentIndex.clamp(0, 5),
+                        onDestinationSelected: _navigateToTab,
+                        backgroundColor: palette.scaffoldBackground,
+                        indicatorColor: palette.primaryAccent.withValues(alpha: 0.18),
+                        elevation: 0,
+                        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                        destinations: [
+                          NavigationDestination(
+                            key: const Key('nav_tab_home'),
+                            icon: Icon(Icons.home_outlined, color: palette.textMutedColor),
+                            selectedIcon: Icon(Icons.home, color: palette.primaryAccent),
+                            label: 'Inicio',
+                          ),
+                          NavigationDestination(
+                            key: const Key('nav_tab_tuner'),
+                            icon: Icon(Icons.tune_outlined, color: palette.textMutedColor),
+                            selectedIcon: Icon(Icons.tune, color: palette.primaryAccent),
+                            label: 'Afinador',
+                          ),
+                          NavigationDestination(
+                            key: const Key('nav_tab_learning'),
+                            icon: Icon(Icons.school_outlined, color: palette.textMutedColor),
+                            selectedIcon: Icon(Icons.school, color: palette.correctPitchColor),
+                            label: 'Aprender',
+                          ),
+                          NavigationDestination(
+                            key: const Key('nav_tab_studio'),
+                            icon: Icon(Icons.fiber_manual_record_outlined, color: palette.textMutedColor),
+                            selectedIcon: Icon(Icons.fiber_manual_record, color: palette.secondaryAccent),
+                            label: 'Estudio',
+                          ),
+                          NavigationDestination(
+                            key: const Key('nav_tab_library'),
+                            icon: Icon(Icons.menu_book_outlined, color: palette.textMutedColor),
+                            selectedIcon: Icon(Icons.menu_book, color: palette.primaryAccent),
+                            label: 'Partituras',
+                          ),
+                          NavigationDestination(
+                            key: const Key('nav_tab_dj'),
+                            icon: Icon(Icons.album_outlined, color: palette.textMutedColor),
+                            selectedIcon: Icon(Icons.album, color: const Color(0xFF00E5FF)),
+                            label: 'Mesa DJ',
+                          ),
+                        ],
                       ),
-                      NavigationDestination(
-                        key: const Key('nav_tab_learning'),
-                        icon: Icon(Icons.school_outlined, color: palette.textMutedColor),
-                        selectedIcon: Icon(Icons.school, color: palette.correctPitchColor),
-                        label: 'Aprender',
-                      ),
-                      NavigationDestination(
-                        key: const Key('nav_tab_studio'),
-                        icon: Icon(Icons.fiber_manual_record_outlined, color: palette.textMutedColor),
-                        selectedIcon: Icon(Icons.fiber_manual_record, color: palette.secondaryAccent),
-                        label: 'Estudio',
-                      ),
-                      NavigationDestination(
-                        key: const Key('nav_tab_library'),
-                        icon: Icon(Icons.menu_book_outlined, color: palette.textMutedColor),
-                        selectedIcon: Icon(Icons.menu_book, color: palette.primaryAccent),
-                        label: 'Canciones',
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  if (_isTerminalOpen)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: TunnerOsTerminalDrawer(
+                        kernel: _terminalKernel,
+                        onClose: () => setState(() => _isTerminalOpen = false),
+                      ),
+                    ),
+                ],
               );
             },
           ),

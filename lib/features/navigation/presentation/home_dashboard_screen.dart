@@ -14,10 +14,12 @@ import '../../instrument/presentation/instrument_selector_modal.dart';
 /// según la intención del músico, eliminando la sobrecarga cognitiva.
 class HomeDashboardScreen extends StatelessWidget {
   final void Function(int tabIndex) onNavigateToTab;
+  final VoidCallback? onOpenTerminal;
 
   const HomeDashboardScreen({
     super.key,
     required this.onNavigateToTab,
+    this.onOpenTerminal,
   });
 
   @override
@@ -32,6 +34,7 @@ class HomeDashboardScreen extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isDesktop = constraints.maxWidth >= 720;
+            final isWideGrid = constraints.maxWidth >= 950;
             final cardRadius = isDesktop ? 6.0 : 16.0;
 
             final cards = [
@@ -86,6 +89,19 @@ class HomeDashboardScreen extends StatelessWidget {
                 actionLabel: 'Explorar Obras',
                 borderRadius: cardRadius,
                 onTap: () => onNavigateToTab(4),
+              ),
+              _DashboardActionCard(
+                key: const Key('card_action_dj'),
+                title: 'Consola DJ Pro Workstation',
+                subtitle: 'Mezcla profesional de 2 Decks, Jog Wheels con Scratch, 4-Stems Isolator, Sampler de 8 pads y grabación en vivo.',
+                badge: 'Club Mixer 2-Decks',
+                badgeColor: const Color(0xFF00E5FF),
+                icon: Icons.album,
+                accentColor: const Color(0xFF00E5FF),
+                palette: palette,
+                actionLabel: 'Abrir Mesa DJ',
+                borderRadius: cardRadius,
+                onTap: () => onNavigateToTab(5),
               ),
             ];
 
@@ -265,21 +281,117 @@ class HomeDashboardScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        OutlinedButton(
-                          key: const Key('home_change_instrument_btn'),
-                          onPressed: () => InstrumentSelectorModal.show(context, viewModel),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: palette.primaryAccent,
-                            side: BorderSide(color: palette.primaryAccent.withValues(alpha: 0.4)),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              key: const Key('home_audition_drone_btn'),
+                              tooltip: viewModel.isDronePlaying
+                                  ? 'Detener Tono Diapasón'
+                                  : 'Audicionar Tono Diapasón (${viewModel.referencePitch.toInt()} Hz)',
+                              icon: Icon(
+                                viewModel.isDronePlaying ? Icons.volume_up_rounded : Icons.hearing_rounded,
+                                color: viewModel.isDronePlaying ? palette.correctPitchColor : palette.secondaryAccent,
+                                size: 20,
+                              ),
+                              onPressed: () => viewModel.toggleDrone(),
+                            ),
+                            const SizedBox(width: 4),
+                            OutlinedButton(
+                              key: const Key('home_change_instrument_btn'),
+                              onPressed: () => InstrumentSelectorModal.show(context, viewModel),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: palette.primaryAccent,
+                                side: BorderSide(color: palette.primaryAccent.withValues(alpha: 0.4)),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                              child: const Text('Cambiar', style: TextStyle(fontSize: 11)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // HUD de Telemetría Core Audio en Vivo
+                  Container(
+                    key: const Key('home_core_audio_hud'),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: palette.cardBackground,
+                      borderRadius: BorderRadius.circular(cardRadius),
+                      border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF10B981),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'CORE AUDIO DSP:',
+                          style: TextStyle(
+                            color: palette.textColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'monospace',
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            '48.0 kHz • 24-bit • Buffer: 1024 (< 8 ms) • RingBuffer: 16k lock-free',
+                            style: TextStyle(
+                              color: palette.secondaryAccent,
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (onOpenTerminal != null)
+                          InkWell(
+                            key: const Key('home_open_terminal_hud_btn'),
+                            onTap: onOpenTerminal,
+                            borderRadius: BorderRadius.circular(4),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF00E5FF).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.35)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.terminal, size: 12, color: Color(0xFF00E5FF)),
+                                  SizedBox(width: 5),
+                                  Text(
+                                    'Terminal OS (Ctrl+~)',
+                                    style: TextStyle(
+                                      color: Color(0xFF00E5FF),
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: 'monospace',
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          child: const Text('Cambiar', style: TextStyle(fontSize: 11)),
-                        ),
                       ],
                     ),
                   ),
@@ -296,13 +408,111 @@ class HomeDashboardScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
 
-                  // Tarjetas Principales
-                  Column(
-                    children: [
-                      for (int i = 0; i < cards.length; i++) ...[
-                        if (i > 0) const SizedBox(height: 12),
-                        cards[i],
+                  // Tarjetas Principales (Grid de 2 Columnas con Hero Card para DJ Console)
+                  if (isWideGrid) ...[
+                    LayoutBuilder(
+                      builder: (context, gridConstraints) {
+                        final cardWidth = (gridConstraints.maxWidth - 16) / 2;
+                        return Column(
+                          children: [
+                            // Fila 1: Afinador y Lecciones
+                            Row(
+                              children: [
+                                SizedBox(width: cardWidth, child: cards[0]),
+                                const SizedBox(width: 16),
+                                SizedBox(width: cardWidth, child: cards[1]),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            // Fila 2: Rack Modular y Biblioteca de Partituras
+                            Row(
+                              children: [
+                                SizedBox(width: cardWidth, child: cards[2]),
+                                const SizedBox(width: 16),
+                                SizedBox(width: cardWidth, child: cards[3]),
+                              ],
+                            ),
+                            if (cards.length > 4) ...[
+                              const SizedBox(height: 16),
+                              // Fila 3: Consola DJ Pro Workstation (Hero Card que abarca el ancho completo)
+                              SizedBox(width: gridConstraints.maxWidth, child: cards[4]),
+                            ],
+                          ],
+                        );
+                      },
+                    ),
+                  ] else ...[
+                    Column(
+                      children: [
+                        for (int i = 0; i < cards.length; i++) ...[
+                          if (i > 0) const SizedBox(height: 12),
+                          cards[i],
+                        ],
                       ],
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+
+                  // Plantillas Canónicas de Inicio Rápido
+                  Text(
+                    'Plantillas de Creación Rápida & Proyectos Canónicos',
+                    style: TextStyle(
+                      color: palette.textColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _TemplateCard(
+                        key: const Key('template_score_bach'),
+                        title: 'Bach: Suite No. 1 Preludio',
+                        extension: '.tunner',
+                        subtitle: 'Partitura polifónica & stems',
+                        icon: Icons.menu_book,
+                        accentColor: palette.primaryAccent,
+                        palette: palette,
+                        onTap: () {
+                          if (viewModel.workspaceScores.isNotEmpty) {
+                            viewModel.loadSongPackage(viewModel.workspaceScores.first);
+                          }
+                          onNavigateToTab(4);
+                        },
+                      ),
+                      _TemplateCard(
+                        key: const Key('template_dj_elisa'),
+                        title: 'Para Elisa Club Mix (126 BPM)',
+                        extension: '.tndj',
+                        subtitle: 'Sesión DJ 2-Decks & Beats',
+                        icon: Icons.album,
+                        accentColor: const Color(0xFF00E5FF),
+                        palette: palette,
+                        onTap: () => onNavigateToTab(5),
+                      ),
+                      _TemplateCard(
+                        key: const Key('template_take_acoustic'),
+                        title: 'Toma Acústica 440 Hz',
+                        extension: '.wav',
+                        subtitle: 'Audio estéreo 24-bit',
+                        icon: Icons.graphic_eq,
+                        accentColor: const Color(0xFF10B981),
+                        palette: palette,
+                        onTap: () => onNavigateToTab(3),
+                      ),
+                      _TemplateCard(
+                        key: const Key('template_preset_philharmonic'),
+                        title: 'Afinación Filarmónica (442 Hz)',
+                        extension: '.tnpreset',
+                        subtitle: 'Estándar orquestal sinfónico',
+                        icon: Icons.tune,
+                        accentColor: const Color(0xFFF59E0B),
+                        palette: palette,
+                        onTap: () => onNavigateToTab(1),
+                      ),
                     ],
                   ),
 
@@ -395,9 +605,26 @@ class _DashboardActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: palette.cardBackground,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            palette.cardBackground,
+            Color.alphaBlend(accentColor.withValues(alpha: 0.05), palette.cardBackground),
+          ],
+        ),
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.18)),
+        border: Border.all(
+          color: accentColor.withValues(alpha: 0.22),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -412,8 +639,12 @@ class _DashboardActionCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14),
+                    color: accentColor.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: accentColor.withValues(alpha: 0.35),
+                      width: 1,
+                    ),
                   ),
                   child: Icon(icon, color: accentColor, size: 26),
                 ),
@@ -436,6 +667,7 @@ class _DashboardActionCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
@@ -464,13 +696,17 @@ class _DashboardActionCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            actionLabel,
-                            style: TextStyle(
-                              color: accentColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                          Flexible(
+                            child: Text(
+                              actionLabel,
+                              style: TextStyle(
+                                color: accentColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(width: 4),
@@ -528,6 +764,94 @@ class _QuickChip extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Tarjeta de plantilla de inicio rápido (.tunner, .tndj, .wav, .tnpreset).
+class _TemplateCard extends StatelessWidget {
+  final String title;
+  final String extension;
+  final String subtitle;
+  final IconData icon;
+  final Color accentColor;
+  final TunnerThemePalette palette;
+  final VoidCallback onTap;
+
+  const _TemplateCard({
+    super.key,
+    required this.title,
+    required this.extension,
+    required this.subtitle,
+    required this.icon,
+    required this.accentColor,
+    required this.palette,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: palette.cardBackground,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: accentColor),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: palette.textColor,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Text(
+                        extension,
+                        style: TextStyle(
+                          color: accentColor,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: palette.textMutedColor,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

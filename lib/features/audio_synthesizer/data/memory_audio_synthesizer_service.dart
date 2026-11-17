@@ -35,6 +35,7 @@ class MemoryAudioSynthesizerService implements IAudioSynthesizerService {
   }
 
   final List<({double frequency, Duration duration, double volume})> playedNotes = [];
+  final List<({Uint8List wavBytes, double volume})> playedPcmWavs = [];
 
   @override
   Future<void> playNoteTone({
@@ -43,6 +44,11 @@ class MemoryAudioSynthesizerService implements IAudioSynthesizerService {
     double volume = 0.8,
   }) async {
     playedNotes.add((frequency: frequency, duration: duration, volume: volume));
+  }
+
+  @override
+  Future<void> playPcmWav(Uint8List wavBytes, {double volume = 0.8}) async {
+    playedPcmWavs.add((wavBytes: wavBytes, volume: volume));
   }
 
   bool _isDroneLoopPlaying = false;

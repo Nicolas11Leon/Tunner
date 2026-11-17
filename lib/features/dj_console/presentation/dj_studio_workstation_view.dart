@@ -1,4 +1,7 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../song_library/data/song_decomposer_service.dart';
+import '../data/dj_audio_processor.dart';
 import '../../../core/channels/data/studio_patchbay_routing_service.dart';
 import '../../../core/channels/domain/studio_modular_plug.dart';
 import '../../../core/channels/domain/studio_plug_type.dart';
@@ -46,6 +49,7 @@ class DjStudioWorkstationView extends StatefulWidget {
 class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
   late final DjConsoleViewModel _viewModel;
   bool _internalVm = false;
+  bool _showHudBar = true;
   late final FocusNode _focusNode;
   late String _workstationViewMode;
 
@@ -96,10 +100,20 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
     // Escuchas para sincronización reactiva bidireccional hacia los Decks
     _patchbayService.registerSinkListener('plug_dj_deck_a_in', (sourceId, channelId, payload) {
       if (sourceId == 'plug_dj_deck_a_in') return;
+      final wavBytes = payload['wavBytes'] as Uint8List?;
+      final filePath = payload['filePath'] as String?;
       final title = payload['title'] as String?;
       final bpm = (payload['bpm'] as num?)?.toDouble();
       final key = payload['key'] as String?;
-      if (title != null || bpm != null || key != null) {
+      if (wavBytes != null || filePath != null) {
+        _viewModel.loadDeckTrack(
+          deckId: 'A',
+          wavBytes: wavBytes,
+          filePath: filePath,
+          title: title,
+          bpm: bpm,
+        );
+      } else if (title != null || bpm != null || key != null) {
         _viewModel.loadTrackSimple(
           'A',
           title: title ?? _viewModel.deckA.trackTitle,
@@ -115,10 +129,20 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
 
     _patchbayService.registerSinkListener('plug_dj_deck_b_in', (sourceId, channelId, payload) {
       if (sourceId == 'plug_dj_deck_b_in') return;
+      final wavBytes = payload['wavBytes'] as Uint8List?;
+      final filePath = payload['filePath'] as String?;
       final title = payload['title'] as String?;
       final bpm = (payload['bpm'] as num?)?.toDouble();
       final key = payload['key'] as String?;
-      if (title != null || bpm != null || key != null) {
+      if (wavBytes != null || filePath != null) {
+        _viewModel.loadDeckTrack(
+          deckId: 'B',
+          wavBytes: wavBytes,
+          filePath: filePath,
+          title: title,
+          bpm: bpm,
+        );
+      } else if (title != null || bpm != null || key != null) {
         _viewModel.loadTrackSimple(
           'B',
           title: title ?? _viewModel.deckB.trackTitle,
@@ -197,22 +221,33 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
             }
             return KeyEventResult.ignored;
           },
-          child: Scaffold(
-            backgroundColor: tokens.canvasBackground,
-            body: SafeArea(
-              child: Column(
-                children: [
-                  // 1. Barra de Control Superior (Master Header & Transporte Global)
-                  _buildMasterHeader(context, vm, tokens),
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTapDown: (_) {
+              if (!_focusNode.hasFocus) {
+                _focusNode.requestFocus();
+              }
+            },
+            child: Scaffold(
+              backgroundColor: tokens.canvasBackground,
+              body: SafeArea(
+                child: Column(
+                  children: [
+                    // 1. Barra de Control Superior (Master Header & Transporte Global)
+                    _buildMasterHeader(context, vm, tokens),
 
-                  // 2. Barra Modular de Parcheo Troncal (Canal A, B, C, D)
-                  StudioChannelPatchbayBarWidget(routingService: _patchbayService),
+                    // 2. HUD de Atajos Rápidos
+                    _buildShortcutsHud(context, tokens),
 
-                  // 3. Visor Central Condicional según Modo de Vista
-                  Expanded(
-                    child: _buildCentralContent(context, vm, tokens),
-                  ),
-                ],
+                    // 3. Barra Modular de Parcheo Troncal (Canal A, B, C, D)
+                    StudioChannelPatchbayBarWidget(routingService: _patchbayService),
+
+                    // 4. Visor Central Condicional según Modo de Vista
+                    Expanded(
+                      child: _buildCentralContent(context, vm, tokens),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -444,6 +479,99 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
     );
   }
 
+  Widget _buildShortcutsHud(BuildContext context, dynamic tokens) {
+    if (!_showHudBar) {
+      return Container(
+        height: 20,
+        color: const Color(0xFF0F131C),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        alignment: Alignment.centerLeft,
+        child: InkWell(
+          onTap: () => setState(() => _showHudBar = true),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.white54),
+              SizedBox(width: 4),
+              Text(
+                'MOSTRAR HUD DE ATAJOS RAPIDOS',
+                style: TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0F131C),
+        border: Border(bottom: BorderSide(color: Colors.white10)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.bolt, size: 14, color: Color(0xFF00E5FF)),
+          const SizedBox(width: 6),
+          const Text(
+            'HUD EN VIVO:',
+            style: TextStyle(color: Color(0xFF00E5FF), fontSize: 9.5, fontWeight: FontWeight.w900, letterSpacing: 0.8),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildHudBadge('[ESPACIO]', 'Play/Pause A'),
+                  _buildHudBadge('[ENTER]', 'Play/Pause B'),
+                  _buildHudBadge('[1..4]', 'Hot Cues A'),
+                  _buildHudBadge('[5..8]', 'Hot Cues B'),
+                  _buildHudBadge('[C / V]', 'CUE A / B'),
+                  _buildHudBadge('[PADS 1..8]', 'Sampler Club'),
+                  _buildHudBadge('[FLECHAS IZQ/DER]', 'Scratch / Nudge'),
+                  _buildHudBadge('[FLECHAS ARRIBA/ABAJO]', 'Pitch Fader'),
+                ],
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.keyboard_arrow_up, size: 14, color: Colors.white54),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Ocultar HUD',
+            onPressed: () => setState(() => _showHudBar = false),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHudBadge(String keyText, String desc) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            keyText,
+            style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 9, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            desc,
+            style: const TextStyle(color: Colors.white70, fontSize: 9),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMasterHeader(BuildContext context, DjConsoleViewModel vm, dynamic tokens) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -472,7 +600,7 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                   ),
                 ),
                 Text(
-                  'Modelos Fieles • Mapeo QWERTY • 4-Stems DSP',
+                  'Modelos Fieles • Mapeo QWERTY • Club 4-Band Isolator',
                   style: TextStyle(color: tokens.textMuted, fontSize: 10),
                 ),
               ],
@@ -657,6 +785,31 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                 );
               },
             ),
+            const SizedBox(width: 8),
+
+            // Botón Showcase Auto (15s)
+            ElevatedButton.icon(
+              key: const Key('dj_showcase_routine_btn'),
+              icon: Icon(
+                vm.isShowcaseRunning ? Icons.stop_circle_outlined : Icons.play_circle_filled,
+                size: 14,
+                color: vm.isShowcaseRunning ? Colors.white : const Color(0xFFF59E0B),
+              ),
+              label: Text(
+                vm.isShowcaseRunning ? 'SHOWCASE ACTIVO (${15 - vm.showcaseStep}s)' : 'SHOWCASE DEMO (15S)',
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: vm.isShowcaseRunning
+                    ? const Color(0xFFF59E0B).withValues(alpha: 0.35)
+                    : const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                foregroundColor: vm.isShowcaseRunning ? Colors.white : const Color(0xFFF59E0B),
+                side: const BorderSide(color: Color(0xFFF59E0B)),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                minimumSize: Size.zero,
+              ),
+              onPressed: () => vm.runShowcaseRoutine(),
+            ),
             if (widget.onClose != null) ...[
               const SizedBox(width: 8),
               IconButton(
@@ -752,20 +905,203 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
           ),
           const SizedBox(height: 8),
 
-          // Botón Real Cargar Pista / Stem
-          OutlinedButton.icon(
-            icon: const Icon(Icons.music_note, size: 14),
-            label: const Text('CARGAR PISTA / STEM DE ESTUDIO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: accentColor,
-              side: BorderSide(color: accentColor.withValues(alpha: 0.4)),
-              padding: const EdgeInsets.symmetric(vertical: 8),
+          // Fila de Carga de Pistas: Modal Completo + Carga Rápida de Géneros (Lightning)
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.music_note, size: 14),
+                  label: const Text('CARGAR PISTA / STEM', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: accentColor,
+                    side: BorderSide(color: accentColor.withValues(alpha: 0.4)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                  onPressed: () => DjTrackLoaderModal.show(context, deckId: deckId, viewModel: _viewModel),
+                ),
+              ),
+              const SizedBox(width: 6),
+              PopupMenuButton<DjStudioPresetTrack>(
+                key: Key('quick_genre_selector_$deckId'),
+                tooltip: 'Carga Rápida de Géneros de Estudio',
+                icon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: accentColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Icon(Icons.flash_on, size: 14, color: accentColor),
+                ),
+                padding: EdgeInsets.zero,
+                color: const Color(0xFF1E2433),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                onSelected: (track) {
+                  final samples = DjAudioProcessor().generateDemoGroove(
+                    bpm: track.bpm,
+                    frequencyHz: deckId == 'A' ? 55.0 : 65.0,
+                    durationMs: 8000,
+                  );
+                  _viewModel.loadTrackWithBeatTracking(
+                    deckId,
+                    title: track.title,
+                    artist: track.artist,
+                    audioSamples: samples,
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Pista rápida en Deck $deckId: "${track.title}" (${track.bpm} BPM)'),
+                      backgroundColor: const Color(0xFF10B981),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                itemBuilder: (ctx) => DjTrackLoaderModal.studioLibrary.map((track) {
+                  return PopupMenuItem<DjStudioPresetTrack>(
+                    value: track,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          track.title,
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          '${track.bpm} BPM • ${track.genre}',
+                          style: TextStyle(color: accentColor, fontSize: 9.5, fontFamily: 'monospace'),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Chips rápidos de un solo toque para carga instantánea de repertorio curado
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _QuickLoadChip(
+                  label: 'Elisa 126',
+                  color: accentColor,
+                  onTap: () {
+                    final curated = SongDecomposerService.getCuratedLibrary();
+                    final furElise = curated.firstWhere(
+                      (s) => s.id == 'beethoven_fur_elise' || s.title.toLowerCase().contains('elisa'),
+                      orElse: () => curated.first,
+                    );
+                    final samples = DjAudioProcessor().synthesizeSongPackageTrack(
+                      furElise,
+                      deckId: deckId,
+                      durationMs: 16000,
+                    );
+                    _viewModel.loadTrackWithBeatTracking(
+                      deckId,
+                      title: furElise.title,
+                      artist: furElise.composer,
+                      audioSamples: samples,
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Para Elisa cargada en Deck $deckId (126 BPM)'),
+                        backgroundColor: const Color(0xFF10B981),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 4),
+                _QuickLoadChip(
+                  label: 'Canon 68',
+                  color: accentColor,
+                  onTap: () {
+                    final curated = SongDecomposerService.getCuratedLibrary();
+                    final canon = curated.firstWhere(
+                      (s) => s.id == 'pachelbel_canon' || s.title.toLowerCase().contains('canon'),
+                      orElse: () => curated.first,
+                    );
+                    final samples = DjAudioProcessor().synthesizeSongPackageTrack(
+                      canon,
+                      deckId: deckId,
+                      durationMs: 16000,
+                    );
+                    _viewModel.loadTrackWithBeatTracking(
+                      deckId,
+                      title: canon.title,
+                      artist: canon.composer,
+                      audioSamples: samples,
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Canon en Re cargado en Deck $deckId (68 BPM)'),
+                        backgroundColor: const Color(0xFF10B981),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 4),
+                _QuickLoadChip(
+                  label: 'House 124',
+                  color: accentColor,
+                  onTap: () {
+                    final samples = DjAudioProcessor().synthesizePresetTrack(
+                      'Deep Horizon House & Groove',
+                      bpm: 124.0,
+                      deckId: deckId,
+                      durationMs: 16000,
+                    );
+                    _viewModel.loadTrackWithBeatTracking(
+                      deckId,
+                      title: 'Deep Horizon House & Groove',
+                      artist: 'Klub Monolith',
+                      audioSamples: samples,
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Deep House cargado en Deck $deckId (124 BPM)'),
+                        backgroundColor: const Color(0xFF10B981),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 4),
+                _QuickLoadChip(
+                  label: 'Cyber 128',
+                  color: accentColor,
+                  onTap: () {
+                    final samples = DjAudioProcessor().synthesizePresetTrack(
+                      'Midnight Cyber Synthwave',
+                      bpm: 128.0,
+                      deckId: deckId,
+                      durationMs: 16000,
+                    );
+                    _viewModel.loadTrackWithBeatTracking(
+                      deckId,
+                      title: 'Midnight Cyber Synthwave',
+                      artist: 'Tunner Studio',
+                      audioSamples: samples,
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Cyber Synthwave cargado en Deck $deckId (128 BPM)'),
+                        backgroundColor: const Color(0xFF10B981),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-            onPressed: () => DjTrackLoaderModal.show(context, deckId: deckId, viewModel: _viewModel),
           ),
           const SizedBox(height: 8),
 
-          // Jog Wheel Vectorial con Física de Scratch
+          // Jog Wheel Vectorial con Física de Scratch y Scroll de Rueda
           Center(
             child: VectorJogWheel(
               deckLabel: deckId,
@@ -774,6 +1110,129 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
               rotationAngle: rotationAngle,
               onScratch: (delta) => _viewModel.scratchDeck(deckId, delta),
               onTap: () => _viewModel.togglePlay(deckId),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Barra Rápida de Rebobinado y Salto de Compás (Quick Scrub & Rewind)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF141720),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _QuickScrubChip(
+                    label: '-10s',
+                    icon: Icons.replay_10,
+                    tooltip: 'Rebobinar 10 segundos',
+                    onTap: () => _viewModel.rewindDeck(deckId, milliseconds: 10000),
+                  ),
+                  const SizedBox(width: 4),
+                  _QuickScrubChip(
+                    label: '-5s',
+                    icon: Icons.replay_5,
+                    tooltip: 'Rebobinar 5 segundos',
+                    onTap: () => _viewModel.rewindDeck(deckId, milliseconds: 5000),
+                  ),
+                  const SizedBox(width: 4),
+                  _QuickScrubChip(
+                    label: '0:00',
+                    icon: Icons.first_page,
+                    tooltip: 'Ir al inicio absoluto',
+                    color: const Color(0xFFF59E0B),
+                    onTap: () => _viewModel.jumpToStart(deckId),
+                  ),
+                  const SizedBox(width: 4),
+                  _QuickScrubChip(
+                    label: '+5s',
+                    icon: Icons.forward_5,
+                    tooltip: 'Avanzar 5 segundos',
+                    onTap: () => _viewModel.fastForwardDeck(deckId, milliseconds: 5000),
+                  ),
+                  const SizedBox(width: 4),
+                  _QuickScrubChip(
+                    label: '+10s',
+                    icon: Icons.forward_10,
+                    tooltip: 'Avanzar 10 segundos',
+                    onTap: () => _viewModel.fastForwardDeck(deckId, milliseconds: 10000),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Control Rápido de Volumen de Deck con Pulsadores e Indicador
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF141720),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: Row(
+              children: [
+                InkWell(
+                  onTap: () => _viewModel.adjustDeckVolume(deckId, -0.05),
+                  borderRadius: BorderRadius.circular(3),
+                  child: const Padding(
+                    padding: EdgeInsets.all(2),
+                    child: Icon(Icons.volume_down, size: 16, color: Colors.white60),
+                  ),
+                ),
+                Expanded(
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3,
+                      activeTrackColor: accentColor,
+                      inactiveTrackColor: Colors.white12,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                      thumbColor: accentColor,
+                    ),
+                    child: Slider(
+                      value: deck.volume.clamp(0.0, 1.0),
+                      min: 0.0,
+                      max: 1.0,
+                      onChanged: (val) => _viewModel.setDeckVolume(deckId, val),
+                    ),
+                  ),
+                ),
+                InkWell(
+                  onTap: () => _viewModel.adjustDeckVolume(deckId, 0.05),
+                  borderRadius: BorderRadius.circular(3),
+                  child: const Padding(
+                    padding: EdgeInsets.all(2),
+                    child: Icon(Icons.volume_up, size: 16, color: Colors.white60),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                InkWell(
+                  onTap: () => _viewModel.setDeckVolume(deckId, deck.volume > 0.01 ? 0.0 : 1.0),
+                  borderRadius: BorderRadius.circular(3),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white10,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: Text(
+                      '${(deck.volume * 100).toInt()}%',
+                      style: TextStyle(
+                        color: deck.volume > 0.01 ? accentColor : const Color(0xFFEF4444),
+                        fontSize: 10,
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 8),
@@ -818,62 +1277,57 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
           ),
           const SizedBox(height: 8),
 
-          // Botones de Transporte Táctiles con Retroalimentación LED (CUE y PLAY/PAUSE)
+          // Botones de Transporte Táctiles de Alta Respuesta (CUE y PLAY/PAUSE)
           Row(
             children: [
               Expanded(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 100),
-                  child: ElevatedButton(
-                    onPressed: () => _viewModel.triggerCue(deckId),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isCueActive ? const Color(0xFFF59E0B) : const Color(0xFF78350F),
-                      foregroundColor: Colors.white,
-                      side: BorderSide(
-                        color: isCueActive ? const Color(0xFFFCD34D) : const Color(0xFFD97706),
-                        width: isCueActive ? 2.0 : 1.0,
-                      ),
-                      shadowColor: isCueActive ? const Color(0xFFF59E0B) : Colors.transparent,
-                      elevation: isCueActive ? 8.0 : 1.0,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                child: ElevatedButton(
+                  onPressed: () => _viewModel.triggerCue(deckId),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isCueActive ? const Color(0xFFF59E0B) : const Color(0xFF78350F),
+                    foregroundColor: Colors.white,
+                    side: BorderSide(
+                      color: isCueActive ? const Color(0xFFFCD34D) : const Color(0xFFD97706),
+                      width: isCueActive ? 2.0 : 1.0,
                     ),
-                    child: const Text('CUE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    shadowColor: isCueActive ? const Color(0xFFF59E0B) : Colors.transparent,
+                    elevation: isCueActive ? 6.0 : 1.0,
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                   ),
+                  child: const Text('CUE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.0)),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 flex: 2,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 100),
-                  child: ElevatedButton.icon(
-                    onPressed: () => _viewModel.togglePlay(deckId),
-                    icon: Icon(
-                      deck.isPlaying ? Icons.pause : Icons.play_arrow,
-                      size: 16,
+                child: ElevatedButton.icon(
+                  onPressed: () => _viewModel.togglePlay(deckId),
+                  icon: Icon(
+                    deck.isPlaying ? Icons.pause : Icons.play_arrow,
+                    size: 18,
+                    color: deck.isPlaying ? Colors.white : Colors.black,
+                  ),
+                  label: Text(
+                    deck.isPlaying ? 'PAUSE' : 'PLAY',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      letterSpacing: 1.0,
                       color: deck.isPlaying ? Colors.white : Colors.black,
                     ),
-                    label: Text(
-                      deck.isPlaying ? 'PAUSE' : 'PLAY',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: deck.isPlaying ? Colors.white : Colors.black,
-                      ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: deck.isPlaying ? const Color(0xFF059669) : accentColor,
+                    foregroundColor: deck.isPlaying ? Colors.white : Colors.black,
+                    side: BorderSide(
+                      color: deck.isPlaying ? const Color(0xFF34D399) : Colors.transparent,
+                      width: deck.isPlaying ? 2.0 : 0.0,
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: deck.isPlaying ? const Color(0xFF059669) : accentColor,
-                      foregroundColor: deck.isPlaying ? Colors.white : Colors.black,
-                      side: BorderSide(
-                        color: deck.isPlaying ? const Color(0xFF34D399) : Colors.transparent,
-                        width: deck.isPlaying ? 2.0 : 0.0,
-                      ),
-                      shadowColor: deck.isPlaying ? const Color(0xFF10B981) : Colors.transparent,
-                      elevation: deck.isPlaying ? 8.0 : 2.0,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    ),
+                    shadowColor: deck.isPlaying ? const Color(0xFF10B981) : Colors.transparent,
+                    elevation: deck.isPlaying ? 6.0 : 2.0,
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                   ),
                 ),
               ),
@@ -975,6 +1429,52 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
           ),
           const SizedBox(height: 12),
 
+          // Master Output Volume
+          Container(
+            width: 288,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF141720),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.volume_up, size: 14, color: Color(0xFF10B981)),
+                const SizedBox(width: 6),
+                const Text(
+                  'MASTER',
+                  style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3,
+                      activeTrackColor: const Color(0xFF10B981),
+                      inactiveTrackColor: Colors.white12,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                      thumbColor: const Color(0xFF10B981),
+                      overlayShape: SliderComponentShape.noOverlay,
+                    ),
+                    child: Slider(
+                      value: vm.masterVolume.clamp(0.0, 1.0),
+                      min: 0.0,
+                      max: 1.0,
+                      onChanged: (val) => vm.setMasterVolume(val),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '${(vm.masterVolume * 100).toInt()}%',
+                  style: const TextStyle(color: Colors.white60, fontSize: 9, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+
           // Crossfader Horizontal
           Container(
             width: 288,
@@ -1032,16 +1532,19 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
             children: [
               Icon(Icons.grain, color: tokens.accentPrimary, size: 16),
               const SizedBox(width: 8),
-              Text(
-                'AISLAMIENTO DE 4-STEMS EN TIEMPO REAL & BANCO DE SAMPLER (8 PADS)',
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.8,
+              Expanded(
+                child: Text(
+                  'AISLAMIENTO DE 4-STEMS (CLUB ISOLATOR) EN TIEMPO REAL & BANCO DE SAMPLER (8 PADS)',
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               // Smart Automix Button
               ElevatedButton.icon(
                 icon: Icon(Icons.swap_horiz, size: 14, color: vm.automix.isActive ? Colors.black : Colors.white),
@@ -1172,6 +1675,93 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickLoadChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickLoadChip({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 9.0,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'monospace',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickScrubChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final Color color;
+
+  const _QuickScrubChip({
+    required this.label,
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.color = Colors.white70,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 12, color: color),
+              const SizedBox(width: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 9.5,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
         ),
       ),

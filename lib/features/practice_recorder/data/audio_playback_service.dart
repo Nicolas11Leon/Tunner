@@ -1,80 +1,76 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
+import '../../../core/audio/domain/i_studio_audio_channel.dart';
+import '../../../core/audio/domain/i_studio_audio_engine.dart';
+import '../../../core/audio/infrastructure/memory_studio_audio_engine.dart';
+import '../../../core/audio/infrastructure/studio_audio_channel.dart';
+import '../../../core/audio/infrastructure/studio_audio_engine.dart';
 import '../domain/i_audio_playback_service.dart';
 
-/// Implementación de infraestructura para la reproducción de tomas de práctica con [AudioPlayer].
-/// Inicializa AudioPlayer de forma diferida (lazy) para evitar invocar canales de plataforma prematuramente.
+/// Implementación de infraestructura para la reproducción de tomas de práctica
+/// conectada al motor canónico de audio central [IStudioAudioEngine].
 class AudioPlaybackService implements IAudioPlaybackService {
-  AudioPlayer? _player;
-  bool _isPlaying = false;
-  final List<StreamSubscription<dynamic>> _subscriptions = [];
+  final IStudioAudioEngine _audioEngine;
+  final IStudioAudioChannel _channel;
+  StreamSubscription<dynamic>? _stateSub;
 
   final StreamController<Duration> _positionController = StreamController<Duration>.broadcast();
   final StreamController<Duration> _durationController = StreamController<Duration>.broadcast();
   final StreamController<void> _completeController = StreamController<void>.broadcast();
 
-  AudioPlaybackService({AudioPlayer? player}) : _player = player {
-    if (player != null) {
-      _bindPlayer(player);
-    }
+  static bool get _isTestEnvironment =>
+      !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
+
+  AudioPlaybackService({
+    IStudioAudioEngine? audioEngine,
+    AudioPlayer? player,
+  })  : _audioEngine = audioEngine ??
+            (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine()),
+        _channel = player != null
+            ? StudioAudioChannel(channelId: 'practice_take', injectedPlayer: player)
+            : (audioEngine ?? (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine()))
+                .getChannel('practice_take') {
+    _stateSub = _channel.stateStream.listen((state) {
+      _positionController.add(Duration(milliseconds: state.currentPositionMs));
+      _durationController.add(Duration(milliseconds: state.durationMs));
+      if (state.isStopped && state.currentPositionMs == 0) {
+        _completeController.add(null);
+      }
+    });
   }
 
-  void _bindPlayer(AudioPlayer p) {
-    _subscriptions.add(p.onPlayerStateChanged.listen((state) {
-      _isPlaying = (state == PlayerState.playing);
-    }));
-    _subscriptions.add(p.onPositionChanged.listen(_positionController.add));
-    _subscriptions.add(p.onDurationChanged.listen(_durationController.add));
-    _subscriptions.add(p.onPlayerComplete.listen((_) => _completeController.add(null)));
-  }
-
-  AudioPlayer _getOrCreatePlayer() {
-    if (_player == null) {
-      final p = AudioPlayer();
-      _player = p;
-      _bindPlayer(p);
-    }
-    return _player!;
-  }
+  /// Retorna la instancia del motor de audio central que reproduce las tomas de práctica.
+  IStudioAudioEngine get audioEngine => _audioEngine;
 
   @override
-  bool get isPlaying => _isPlaying;
+  bool get isPlaying => _channel.isPlaying;
 
   @override
   Future<void> play(String filePath) async {
-    final player = _getOrCreatePlayer();
-    await player.stop();
-    await player.play(DeviceFileSource(filePath));
+    await _channel.loadSource(filePath: filePath, loop: false, title: 'Practice Take');
+    await _channel.play();
   }
 
   @override
   Future<void> pause() async {
-    if (_player != null) {
-      await _player!.pause();
-    }
-    _isPlaying = false;
+    await _channel.pause();
   }
 
   @override
   Future<void> stop() async {
-    if (_player != null) {
-      await _player!.stop();
-    }
-    _isPlaying = false;
+    await _channel.stop();
   }
 
   @override
   Future<void> seek(Duration position) async {
-    if (_player != null) {
-      await _player!.seek(position);
-    }
+    await _channel.seek(position);
   }
 
   @override
   Future<void> setPlaybackRate(double rate) async {
-    if (_player != null) {
-      await _player!.setPlaybackRate(rate);
-    }
+    await _channel.setPlaybackRate(rate);
   }
 
   @override
@@ -88,13 +84,10 @@ class AudioPlaybackService implements IAudioPlaybackService {
 
   @override
   void dispose() {
-    for (final s in _subscriptions) {
-      s.cancel();
-    }
-    _subscriptions.clear();
+    _stateSub?.cancel();
     _positionController.close();
     _durationController.close();
     _completeController.close();
-    _player?.dispose();
+    _channel.dispose();
   }
 }

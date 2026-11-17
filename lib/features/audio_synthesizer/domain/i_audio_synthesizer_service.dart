@@ -35,6 +35,9 @@ abstract class IAudioSynthesizerService {
   /// Inicia la reproducción en bucle continuo del buffer WAV sintetizado para el estudio de dron.
   Future<void> startDroneLoop(Uint8List wavBytes, {double volume = 0.7});
 
+  /// Reproduce un buffer de audio WAV PCM de forma inmediata con baja latencia.
+  Future<void> playPcmWav(Uint8List wavBytes, {double volume = 0.8});
+
   /// Detiene la reproducción del dron continuo.
   Future<void> stopDroneLoop();
 

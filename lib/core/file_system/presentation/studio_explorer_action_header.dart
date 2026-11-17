@@ -58,6 +58,8 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.8,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
 
@@ -119,6 +121,7 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
                 onPressed: () {
                   _searchController.clear();
                   widget.service.setSearchQuery('');
+                  widget.service.refreshFromDisk();
                 },
               ),
 
