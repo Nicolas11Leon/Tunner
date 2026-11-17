@@ -11,6 +11,7 @@ import 'package:tunner/features/persistence/domain/i_local_persistence_service.d
 import 'package:tunner/features/persistence/domain/app_user_settings_entity.dart';
 import 'package:tunner/features/navigation/presentation/main_app_shell.dart';
 import 'package:tunner/features/navigation/presentation/tool_search_modal.dart';
+import 'package:tunner/core/audio/presentation/studio_master_hardware_console_widget.dart';
 
 // Fakes para inyección segura en tests
 class _FakePitchService extends IPitchDetectorService {
@@ -219,6 +220,24 @@ void main() {
 
       navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
       expect(navBar.selectedIndex, equals(0));
+    });
+
+    testWidgets('Tapping master_meter_mini_pill opens StudioMasterHardwareConsoleWidget modal on Desktop', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(createTestWidget());
+      await tester.pump();
+
+      expect(find.byKey(const Key('master_meter_mini_pill')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('master_meter_mini_pill')));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(StudioMasterHardwareConsoleWidget), findsOneWidget);
     });
   });
 }

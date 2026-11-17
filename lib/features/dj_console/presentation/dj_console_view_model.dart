@@ -616,6 +616,12 @@ class DjConsoleViewModel extends ChangeNotifier {
     if (!_isDisposed) notifyListeners();
   }
 
+  /// Detiene la reproducción en todos los platos activos (Deck A y Deck B).
+  void stopAll() {
+    if (deckA.isPlaying) togglePlay('A');
+    if (deckB.isPlaying) togglePlay('B');
+  }
+
   void triggerCue(String deckId) {
     _triggerMomentaryPulse(deckId == 'A' ? DjAction.deckACue : DjAction.deckBCue);
     _orchestrator.triggerCue(deckId);
@@ -646,6 +652,16 @@ class DjConsoleViewModel extends ChangeNotifier {
   void resetPitch(String deckId) {
     _orchestrator.resetPitch(deckId);
     _deckAudioPlayer.setDeckPlaybackRate(deckId, 1.0);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  /// Sincroniza la velocidad de reproducción y BPM del deck con el tempo objetivo del reloj maestro.
+  void syncDeckToBpm(String deckId, double targetBpm) {
+    final deck = deckId == 'A' ? deckA : deckB;
+    if (deck.bpm <= 0) return;
+    final multiplier = (targetBpm / deck.bpm).clamp(0.5, 2.0);
+    _orchestrator.setPitchMultiplier(deckId, multiplier);
+    _deckAudioPlayer.setDeckPlaybackRate(deckId, multiplier);
     if (!_isDisposed) notifyListeners();
   }
 

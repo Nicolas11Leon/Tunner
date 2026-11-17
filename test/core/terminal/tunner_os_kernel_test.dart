@@ -1,9 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tunner/core/audio/domain/studio_master_clock_service.dart';
+import 'package:tunner/core/audio/infrastructure/memory_audio_hardware_persistence_service.dart';
+import 'package:tunner/core/audio/infrastructure/memory_studio_audio_engine.dart';
+import 'package:tunner/core/audio/infrastructure/memory_studio_audio_input_engine.dart';
+import 'package:tunner/core/audio/infrastructure/memory_studio_master_capture_service.dart';
+import 'package:tunner/core/audio/infrastructure/studio_audio_device_matrix_service.dart';
 import 'package:tunner/core/terminal/domain/tunner_os_kernel.dart';
 
 void main() {
   group('TunnerOsKernel Unit Tests', () {
     late TunnerOsKernel kernel;
+    late StudioAudioDeviceMatrixService matrixService;
+    late StudioMasterClockService clockService;
     int? navigatedTab;
     String? loadedTrackDeck;
     String? loadedTrackTitle;
@@ -19,8 +27,18 @@ void main() {
       xfaderVal = null;
       chosenTheme = null;
 
+      matrixService = StudioAudioDeviceMatrixService(
+        outputEngine: MemoryStudioAudioEngine(),
+        inputEngine: MemoryStudioAudioInputEngine(),
+        persistenceService: MemoryAudioHardwarePersistenceService(),
+        captureService: MemoryStudioMasterCaptureService(),
+      );
+      clockService = StudioMasterClockService(initialBpm: 120.0);
+
       kernel = TunnerOsKernel(
         onNavigateTab: (tab) => navigatedTab = tab,
+        matrixService: matrixService,
+        clockService: clockService,
         onDjLoadTrack: (deck, track) {
           loadedTrackDeck = deck;
           loadedTrackTitle = track;
@@ -29,6 +47,11 @@ void main() {
         onDjSetCrossfader: (val) => xfaderVal = val,
         onSetTheme: (theme) => chosenTheme = theme,
       );
+    });
+
+    tearDown(() {
+      matrixService.dispose();
+      clockService.dispose();
     });
 
     test('help command returns comprehensive syntax guide', () async {
@@ -100,6 +123,91 @@ void main() {
       final res = await kernel.execute('nonexistent_command foo bar');
       expect(res.isSuccess, isFalse);
       expect(res.message, contains('Comando no reconocido'));
+    });
+
+    test('master command sets gain, mute, dim, mono, and rec', () async {
+      final resGain = await kernel.execute('master gain -4.5');
+      expect(resGain.isSuccess, isTrue);
+      expect(matrixService.matrix.masterGainDb, closeTo(-4.5, 0.1));
+
+      final resMute = await kernel.execute('master mute');
+      expect(resMute.isSuccess, isTrue);
+      expect(matrixService.matrix.isMuted, isTrue);
+
+      final resDim = await kernel.execute('master dim');
+      expect(resDim.isSuccess, isTrue);
+      expect(matrixService.matrix.isDimmed, isTrue);
+
+      final resMono = await kernel.execute('master mono');
+      expect(resMono.isSuccess, isTrue);
+      expect(matrixService.matrix.isMono, isTrue);
+
+      final resRec = await kernel.execute('master rec');
+      expect(resRec.isSuccess, isTrue);
+      expect(matrixService.matrix.isMasterRecording, isTrue);
+
+      final resStopRec = await kernel.execute('master stop-rec');
+      expect(resStopRec.isSuccess, isTrue);
+      expect(matrixService.matrix.isMasterRecording, isFalse);
+    });
+
+    test('eq command configures low, mid, high bands and bypass', () async {
+      final resLow = await kernel.execute('eq low 3.5');
+      expect(resLow.isSuccess, isTrue);
+      expect(matrixService.matrix.eqLowDb, 3.5);
+
+      final resMid = await kernel.execute('eq mid -2.0');
+      expect(resMid.isSuccess, isTrue);
+      expect(matrixService.matrix.eqMidDb, -2.0);
+
+      final resHigh = await kernel.execute('eq high 4.0');
+      expect(resHigh.isSuccess, isTrue);
+      expect(matrixService.matrix.eqHighDb, 4.0);
+
+      final resBypass = await kernel.execute('eq bypass');
+      expect(resBypass.isSuccess, isTrue);
+      expect(matrixService.matrix.isEqBypassed, isTrue);
+    });
+
+    test('comp command configures threshold, ratio and bypass', () async {
+      final resThresh = await kernel.execute('comp thresh -14.0');
+      expect(resThresh.isSuccess, isTrue);
+      expect(matrixService.matrix.compThresholdDb, -14.0);
+
+      final resRatio = await kernel.execute('comp ratio 4.0');
+      expect(resRatio.isSuccess, isTrue);
+      expect(matrixService.matrix.compRatio, 4.0);
+
+      final resBypass = await kernel.execute('comp bypass');
+      expect(resBypass.isSuccess, isTrue);
+      expect(matrixService.matrix.isCompBypassed, isTrue);
+    });
+
+    test('route command redirects virtual channels', () async {
+      final res = await kernel.execute('route dj_deck_a cue');
+      expect(res.isSuccess, isTrue);
+      expect(matrixService.matrix.channelRoutings['dj_deck_a'], 'cue');
+    });
+
+    test('clock command controls play, pause, stop, bpm and tap', () async {
+      final resBpm = await kernel.execute('clock bpm 126.0');
+      expect(resBpm.isSuccess, isTrue);
+      expect(clockService.bpm, 126.0);
+
+      final resPlay = await kernel.execute('clock play');
+      expect(resPlay.isSuccess, isTrue);
+      expect(clockService.isPlaying, isTrue);
+
+      final resPause = await kernel.execute('clock pause');
+      expect(resPause.isSuccess, isTrue);
+      expect(clockService.isPaused, isTrue);
+
+      final resStop = await kernel.execute('clock stop');
+      expect(resStop.isSuccess, isTrue);
+      expect(clockService.isStopped, isTrue);
+
+      final resTap = await kernel.execute('clock tap');
+      expect(resTap.isSuccess, isTrue);
     });
   });
 }

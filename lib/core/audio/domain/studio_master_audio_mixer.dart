@@ -7,6 +7,7 @@ class StudioStereoLevelMeterData {
   final double leftPeakDb;
   final double rightPeakDb;
   final bool isClipping;
+  final double gainReductionDb;
 
   const StudioStereoLevelMeterData({
     this.leftRms = 0.0,
@@ -14,6 +15,7 @@ class StudioStereoLevelMeterData {
     this.leftPeakDb = -96.0,
     this.rightPeakDb = -96.0,
     this.isClipping = false,
+    this.gainReductionDb = 0.0,
   });
 
   /// Instancia en silencio absoluto.

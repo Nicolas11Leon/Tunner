@@ -34,8 +34,10 @@ import '../../../core/terminal/presentation/tunner_os_terminal_drawer.dart';
 import '../../../core/audio/domain/studio_master_clock_service.dart';
 import '../../../core/audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../../../core/audio/infrastructure/studio_audio_engine.dart';
+import '../../../core/audio/infrastructure/studio_audio_hardware_persistence_service.dart';
 import '../../../core/audio/infrastructure/studio_audio_input_engine.dart';
 import '../../../core/audio/presentation/studio_master_hardware_console_widget.dart';
+import '../../../core/audio/presentation/studio_master_meter_mini_pill_widget.dart';
 
 /// Intenciones para el sistema de atajos de teclado de grado profesional y memoria muscular (DAWs).
 class TogglePlayIntent extends Intent {
@@ -176,14 +178,39 @@ class _MainAppShellState extends State<MainAppShell> {
 
     final audioEngine = StudioAudioEngine();
     final audioInput = StudioAudioInputEngine();
+    final audioPersistence = StudioAudioHardwarePersistenceService();
     _audioMatrixService = StudioAudioDeviceMatrixService(
       outputEngine: audioEngine,
       inputEngine: audioInput,
+      persistenceService: audioPersistence,
     );
     _masterClockService = StudioMasterClockService(initialBpm: 120.0);
+    _masterClockService.onPlayAll = () {
+      final vm = context.read<TunerViewModel>();
+      if (!vm.isMetronomeActive) vm.toggleMetronome();
+      _djConsoleViewModel.togglePlay('deck_a');
+    };
+    _masterClockService.onPauseAll = () {
+      final vm = context.read<TunerViewModel>();
+      if (vm.isMetronomeActive) vm.toggleMetronome();
+      _djConsoleViewModel.togglePlay('deck_a');
+    };
+    _masterClockService.onStopAll = () {
+      final vm = context.read<TunerViewModel>();
+      if (vm.isMetronomeActive) vm.toggleMetronome();
+      _djConsoleViewModel.stopAll();
+    };
+    _masterClockService.onBpmChanged = (bpm) {
+      final vm = context.read<TunerViewModel>();
+      vm.updateBpm(bpm.round());
+      _djConsoleViewModel.syncDeckToBpm('deck_a', bpm);
+      _djConsoleViewModel.syncDeckToBpm('deck_b', bpm);
+    };
 
     _terminalKernel = TunnerOsKernel(
       onNavigateTab: _navigateToTab,
+      matrixService: _audioMatrixService,
+      clockService: _masterClockService,
       onDjLoadTrack: (deckId, track) {
         if (track.toLowerCase().contains('elisa')) {
           _djConsoleViewModel.loadCuratedSong(deckId, 'elisa');
@@ -674,6 +701,39 @@ class _MainAppShellState extends State<MainAppShell> {
           if (viewModel.isMetronomeActive) viewModel.toggleMetronome();
           if (viewModel.isRecording) viewModel.stopPracticeRecording();
         },
+      ),
+      PromptSuggestion(
+        id: 'cmd_master',
+        trigger: '/',
+        command: '/master',
+        title: 'Consola Maestra de E/S de Hardware',
+        description: 'Matriz de ruteo, vúmetro y masterización DSP',
+        category: 'Hardware',
+        shortcut: 'Ctrl+Shift+I',
+        icon: Icons.tune_rounded,
+        onExecute: (_) => _openMasterConsole(),
+      ),
+      PromptSuggestion(
+        id: 'cmd_playall',
+        trigger: '/',
+        command: '/playall',
+        title: 'Transporte Global: Reproducir Todo',
+        description: 'Sincronizar metrónomo, consola DJ y partituras',
+        category: 'Transporte',
+        shortcut: 'Shift+Espacio',
+        icon: Icons.play_arrow_rounded,
+        onExecute: (_) => _masterClockService.startTransport(),
+      ),
+      PromptSuggestion(
+        id: 'cmd_stopall',
+        trigger: '/',
+        command: '/stopall',
+        title: 'Transporte Global: Detener Todo',
+        description: 'Detener y reiniciar todos los generadores del estudio',
+        category: 'Transporte',
+        shortcut: 'Shift+Esc',
+        icon: Icons.stop_rounded,
+        onExecute: (_) => _masterClockService.stopTransport(),
       ),
       PromptSuggestion(
         id: 'cmd_import',
@@ -1432,6 +1492,10 @@ class _MainAppShellState extends State<MainAppShell> {
                         }
                       },
                       customStatusItems: [
+                        StudioMasterMeterMiniPillWidget(
+                          matrixService: _audioMatrixService,
+                          onTap: _openMasterConsole,
+                        ),
                         Text(
                           'A4 = ${viewModel.referencePitch.toInt()} Hz',
                           style: TextStyle(
