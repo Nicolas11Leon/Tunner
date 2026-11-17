@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/design_system/studio_theme_provider.dart';
 import 'modular_rack_viewmodel.dart';
 import '../domain/rack_module_entity.dart';
 import 'multitask_master_console_widget.dart';
@@ -8,11 +9,19 @@ import 'rack_unit_card.dart';
 /// Vista principal del Rack de Estudio Modular y Consola Multitarea.
 /// Permite arrastrar, reorganizar, conectar y emular instrumentos libremente.
 class ModularStudioRackView extends StatelessWidget {
-  const ModularStudioRackView({super.key});
+  final ModularRackViewModel? viewModel;
+
+  const ModularStudioRackView({super.key, this.viewModel});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
+    if (viewModel != null) {
+      return ChangeNotifierProvider<ModularRackViewModel>.value(
+        value: viewModel!,
+        child: const _ModularStudioRackBody(),
+      );
+    }
+    return ChangeNotifierProvider<ModularRackViewModel>(
       create: (_) => ModularRackViewModel(),
       child: const _ModularStudioRackBody(),
     );
@@ -23,11 +32,14 @@ class _ModularStudioRackBody extends StatelessWidget {
   const _ModularStudioRackBody();
 
   void _showAddModuleSheet(BuildContext context, ModularRackViewModel viewModel) {
+    final tokens = StudioThemeScope.tokensOf(context);
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0F172A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      backgroundColor: tokens.panelBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
       ),
       builder: (ctx) {
         return Padding(
@@ -41,25 +53,25 @@ class _ModularStudioRackBody extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: tokens.borderHairline,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'BIBLIOTECA DE MÓDULOS DE ESTUDIO',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: tokens.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.2,
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Toca cualquier herramienta para montarla de inmediato en tu rack de trabajo.',
-                style: TextStyle(color: Colors.white54, fontSize: 11),
+                style: TextStyle(color: tokens.textMuted, fontSize: 11),
               ),
               const SizedBox(height: 16),
               Expanded(
@@ -70,36 +82,58 @@ class _ModularStudioRackBody extends StatelessWidget {
                     final isAlreadyActive = viewModel.activeModules.any((m) => m.moduleType == type);
 
                     return ListTile(
-                      leading: Text(type.icon, style: const TextStyle(fontSize: 22)),
+                      leading: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: tokens.elevatedSurface,
+                          borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                          border: Border.all(color: tokens.borderHairline, width: 0.5),
+                        ),
+                        child: Text(
+                          type.icon,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.bold,
+                            color: tokens.accentPrimary,
+                          ),
+                        ),
+                      ),
                       title: Text(
                         type.displayName,
                         style: TextStyle(
-                          color: isAlreadyActive ? Colors.white38 : Colors.white,
+                          color: tokens.textPrimary,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      trailing: isAlreadyActive
-                          ? const Text('ACTIVO', style: TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold))
-                          : ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF38BDF8),
-                                foregroundColor: Colors.black,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                minimumSize: Size.zero,
-                              ),
-                              onPressed: () {
-                                viewModel.addModule(type);
-                                Navigator.pop(context);
-                              },
-                              child: const Text('+ AGREGAR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                            ),
-                      onTap: isAlreadyActive
-                          ? null
-                          : () {
-                              viewModel.addModule(type);
-                              Navigator.pop(context);
-                            },
+                      subtitle: isAlreadyActive
+                          ? Text(
+                              'Ya montado en el rack. Puedes crear otra instancia.',
+                              style: TextStyle(color: tokens.textMuted, fontSize: 10),
+                            )
+                          : null,
+                      trailing: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isAlreadyActive ? tokens.elevatedSurface : tokens.accentPrimary,
+                          foregroundColor: isAlreadyActive ? tokens.accentPrimary : Colors.black,
+                          side: isAlreadyActive ? BorderSide(color: tokens.accentPrimary.withValues(alpha: 0.5)) : null,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          minimumSize: Size.zero,
+                        ),
+                        onPressed: () {
+                          viewModel.addModule(type);
+                          Navigator.pop(context);
+                        },
+                        child: Text(
+                          isAlreadyActive ? '+ NUEVA INSTANCIA' : '+ AGREGAR',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      onTap: () {
+                        viewModel.addModule(type);
+                        Navigator.pop(context);
+                      },
                     );
                   },
                 ),
@@ -117,9 +151,10 @@ class _ModularStudioRackBody extends StatelessWidget {
     final modules = viewModel.activeModules;
     final instrument = viewModel.activeInstrument;
     final primaryColor = instrument.visualProfile.primaryAccentColor;
+    final tokens = StudioThemeScope.tokensOf(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1120),
+      backgroundColor: tokens.canvasBackground,
       body: SafeArea(
         child: Column(
           children: [
@@ -133,16 +168,16 @@ class _ModularStudioRackBody extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.dashboard_customize_outlined, color: Colors.white24, size: 54),
+                          Icon(Icons.dashboard_customize_outlined, color: tokens.textMuted, size: 54),
                           const SizedBox(height: 16),
-                          const Text(
+                          Text(
                             'Tu rack de estudio está vacío',
-                            style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: tokens.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
+                          Text(
                             'Agrega módulos desde la bandeja inferior o carga un preset.',
-                            style: TextStyle(color: Colors.white38, fontSize: 12),
+                            style: TextStyle(color: tokens.textMuted, fontSize: 12),
                           ),
                           const SizedBox(height: 20),
                           ElevatedButton.icon(

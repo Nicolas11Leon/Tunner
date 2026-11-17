@@ -8,6 +8,11 @@ import '../domain/atomic_signal_event.dart';
 import '../domain/interoperable_module_node.dart';
 import '../../instrument/domain/universal_instrument_definition.dart';
 import '../../instrument/domain/instrument_customization_profile.dart';
+import '../../project_format/domain/patchbay_routing_connection.dart';
+import '../../project_format/domain/tunner_project_package.dart';
+import '../../project_format/domain/tunner_tool_preset.dart';
+import '../../project_format/domain/project_storage_repository.dart';
+import '../../project_format/data/local_project_storage_repository.dart';
 
 /// Implementación atómica de un nodo del rack conectable al bus de señales.
 class StandardRackNode implements InteroperableModuleNode {
@@ -120,7 +125,10 @@ class ModularRackViewModel extends ChangeNotifier {
   bool _isRecording = false;
   bool get isRecording => _isRecording;
 
-  ModularRackViewModel() {
+  final ProjectStorageRepository _storageRepo;
+
+  ModularRackViewModel({ProjectStorageRepository? storageRepository})
+      : _storageRepo = storageRepository ?? LocalProjectStorageRepository() {
     _initializeDefaultRack();
   }
 
@@ -180,46 +188,38 @@ class ModularRackViewModel extends ChangeNotifier {
     updateCustomization(_activeCustomization);
   }
 
+  /// Devuelve el conjunto de tipos de señal compatibles para un tipo de módulo.
+  Set<SignalType> getAcceptedSignalsForType(RackModuleType type) {
+    switch (type) {
+      case RackModuleType.strobeTuner:
+      case RackModuleType.spectrogram:
+        return {SignalType.audioPcm, SignalType.tuningCalibration};
+      case RackModuleType.scoreNotation:
+        return {SignalType.temporalClock, SignalType.pitchEvents};
+      case RackModuleType.practiceRecorder:
+        return {SignalType.audioPcm, SignalType.temporalClock, SignalType.transportControl};
+      case RackModuleType.vocalAutoTune:
+        return {SignalType.audioPcm, SignalType.pitchEvents, SignalType.tuningCalibration};
+      case RackModuleType.harmonicDrone:
+        return {SignalType.tuningCalibration, SignalType.pitchEvents};
+      case RackModuleType.chordAnalyzer:
+        return {SignalType.audioPcm, SignalType.pitchEvents};
+      case RackModuleType.guidedLessons:
+        return {SignalType.temporalClock, SignalType.pitchEvents};
+      case RackModuleType.earTrainer:
+        return {SignalType.pitchEvents, SignalType.audioPcm, SignalType.tuningCalibration};
+      case RackModuleType.metronome:
+        return {SignalType.transportControl};
+    }
+  }
+
   /// Agrega un nuevo módulo al rack e inicializa su nodo de interoperabilidad.
   void addModule(RackModuleType type) {
     final newOrder = _activeModules.length;
     final module = RackModuleEntity.standard(type, newOrder);
     _activeModules.add(module);
 
-    // Mapear tipos de señal aceptados según el tipo de módulo
-    final accepted = <SignalType>{};
-    switch (type) {
-      case RackModuleType.strobeTuner:
-      case RackModuleType.spectrogram:
-        accepted.addAll([SignalType.audioPcm, SignalType.tuningCalibration]);
-        break;
-      case RackModuleType.scoreNotation:
-        accepted.addAll([SignalType.temporalClock, SignalType.pitchEvents]);
-        break;
-      case RackModuleType.practiceRecorder:
-        accepted.addAll([SignalType.audioPcm, SignalType.temporalClock, SignalType.transportControl]);
-        break;
-      case RackModuleType.vocalAutoTune:
-        accepted.addAll([SignalType.audioPcm, SignalType.pitchEvents, SignalType.tuningCalibration]);
-        break;
-      case RackModuleType.harmonicDrone:
-        accepted.addAll([SignalType.tuningCalibration, SignalType.pitchEvents]);
-        break;
-      case RackModuleType.chordAnalyzer:
-        accepted.addAll([SignalType.audioPcm, SignalType.pitchEvents]);
-        break;
-      case RackModuleType.guidedLessons:
-        accepted.addAll([SignalType.temporalClock, SignalType.pitchEvents]);
-        break;
-      case RackModuleType.earTrainer:
-        accepted.addAll([SignalType.pitchEvents, SignalType.audioPcm, SignalType.tuningCalibration]);
-        break;
-      case RackModuleType.metronome:
-        accepted.add(SignalType.transportControl);
-        break;
-    }
-
-    _registerNodeForModule(module, accepted);
+    _registerNodeForModule(module, getAcceptedSignalsForType(type));
     notifyListeners();
   }
 
@@ -264,6 +264,16 @@ class ModularRackViewModel extends ChangeNotifier {
     if (index != -1) {
       final mod = _activeModules[index];
       _activeModules[index] = mod.copyWith(isPoweredOn: !mod.isPoweredOn);
+      notifyListeners();
+    }
+  }
+
+  /// Renombra una herramienta activa del rack en tiempo real.
+  void renameModule(String moduleId, String newTitle) {
+    final index = _activeModules.indexWhere((m) => m.moduleId == moduleId);
+    if (index != -1 && newTitle.trim().isNotEmpty) {
+      final mod = _activeModules[index];
+      _activeModules[index] = mod.copyWith(title: newTitle.trim());
       notifyListeners();
     }
   }
@@ -408,6 +418,143 @@ class ModularRackViewModel extends ChangeNotifier {
 
     _reindexModules();
     notifyListeners();
+  }
+
+  // --- FORMATO DE PROYECTO PROPIETARIO HIPER-COMPRIMIDO (.tunner / .tnt) ---
+
+  /// Empaqueta la sesión actual en un TunnerProjectPackage inmutable.
+  TunnerProjectPackage createProjectPackage({
+    String projectName = 'Mi Proyecto Tunner',
+    String author = 'Tunner Artist',
+    String notes = '',
+  }) {
+    final toolPresets = _activeModules
+        .map((m) => TunnerToolPreset.fromModule(m))
+        .toList();
+
+    final connections = signalBus.activeConnections.map((c) {
+      return PatchbayRoutingConnection(
+        connectionId: c.connectionId,
+        sourceModuleId: c.sourcePort.ownerModuleId,
+        sourcePortId: c.sourcePort.id,
+        destinationModuleId: c.destinationPort?.ownerModuleId,
+        destinationPortId: c.destinationPort?.id,
+        signalType: c.sourcePort.signalType,
+        isBroadcast: c.scope == ConnectionScope.broadcast,
+      );
+    }).toList();
+
+    final now = DateTime.now().microsecondsSinceEpoch;
+
+    return TunnerProjectPackage(
+      projectId: 'proj_$now',
+      projectName: projectName,
+      author: author,
+      notes: notes,
+      tools: toolPresets,
+      patchConnections: connections,
+      createdAtMicros: now,
+      updatedAtMicros: now,
+    );
+  }
+
+  /// Carga y restaura un proyecto completo, reconfigurando módulos y cableado en el SignalBus.
+  void loadProjectPackage(TunnerProjectPackage package) {
+    _activeModules.clear();
+    signalBus.dispose();
+
+    // Reinstanciar módulos desde los presets
+    for (int i = 0; i < package.tools.length; i++) {
+      final preset = package.tools[i];
+      final mod = preset.toModuleEntity(i, customId: 'mod_${preset.moduleTypeCode}_$i');
+      _activeModules.add(mod);
+      _registerNodeForModule(mod, getAcceptedSignalsForType(mod.moduleType));
+    }
+
+    // Reconectar cables del Patchbay
+    for (final conn in package.patchConnections) {
+      final sourceMod = _activeModules.cast<RackModuleEntity?>().firstWhere(
+        (m) => m?.moduleId == conn.sourceModuleId,
+        orElse: () => null,
+      );
+      if (sourceMod == null) continue;
+
+      final sourcePort = sourceMod.outputPorts.cast<PortId?>().firstWhere(
+        (p) => p?.id == conn.sourcePortId,
+        orElse: () => null,
+      );
+      if (sourcePort == null) continue;
+
+      if (conn.isBroadcast) {
+        signalBus.addConnection(ModuleConnection.broadcast(source: sourcePort));
+      } else if (conn.destinationModuleId != null && conn.destinationPortId != null) {
+        final destMod = _activeModules.cast<RackModuleEntity?>().firstWhere(
+          (m) => m?.moduleId == conn.destinationModuleId,
+          orElse: () => null,
+        );
+        if (destMod != null) {
+          final destPort = destMod.inputPorts.cast<PortId?>().firstWhere(
+            (p) => p?.id == conn.destinationPortId,
+            orElse: () => null,
+          );
+          if (destPort != null) {
+            signalBus.addConnection(
+              ModuleConnection.pointToPoint(source: sourcePort, destination: destPort),
+            );
+          }
+        }
+      }
+    }
+
+    _reindexModules();
+    notifyListeners();
+  }
+
+  /// Exporta una herramienta específica a un preset individual TunnerToolPreset (.tnt).
+  TunnerToolPreset exportToolPreset(String moduleId) {
+    final module = _activeModules.firstWhere(
+      (m) => m.moduleId == moduleId,
+      orElse: () => throw StateError('Módulo no encontrado: $moduleId'),
+    );
+    return TunnerToolPreset.fromModule(module);
+  }
+
+  /// Importa una herramienta desde un preset y la monta en el rack de trabajo.
+  void importToolPreset(TunnerToolPreset preset) {
+    final newOrder = _activeModules.length;
+    final module = preset.toModuleEntity(
+      newOrder,
+      customId: 'imported_${preset.moduleTypeCode}_${DateTime.now().microsecondsSinceEpoch}',
+    );
+    _activeModules.add(module);
+    _registerNodeForModule(module, getAcceptedSignalsForType(module.moduleType));
+    notifyListeners();
+  }
+
+  /// Guarda el proyecto actual en disco con compresión binaria (.tunner).
+  Future<void> saveProjectToFile(String filePath, {String? projectName}) async {
+    final package = createProjectPackage(
+      projectName: projectName ?? 'Proyecto Tunner',
+    );
+    await _storageRepo.saveProject(filePath, package);
+  }
+
+  /// Carga y descomprime un proyecto desde disco (.tunner).
+  Future<void> loadProjectFromFile(String filePath) async {
+    final package = await _storageRepo.loadProject(filePath);
+    loadProjectPackage(package);
+  }
+
+  /// Exporta una herramienta a un archivo binario comprimido (.tnt).
+  Future<void> exportToolPresetToFile(String moduleId, String filePath) async {
+    final preset = exportToolPreset(moduleId);
+    await _storageRepo.saveToolPreset(filePath, preset);
+  }
+
+  /// Importa una herramienta desde un archivo (.tnt).
+  Future<void> importToolPresetFromFile(String filePath) async {
+    final preset = await _storageRepo.loadToolPreset(filePath);
+    importToolPreset(preset);
   }
 
   void _reindexModules() {

@@ -197,7 +197,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                       color: palette.primaryAccent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Text('👂', style: TextStyle(fontSize: 22)),
+                    child: Icon(Icons.hearing_rounded, color: palette.primaryAccent, size: 22),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -251,7 +251,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                 children: [
                   _buildStatBadge(
                     'RACHA',
-                    '${_engine.currentStreak} 🔥',
+                    '${_engine.currentStreak}',
                     palette.primaryAccent,
                     palette,
                   ),
@@ -387,7 +387,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Text(
-                                '🔒 PANTALLA A CIEGAS: CONFÍA EN TU PERCEPCIÓN AUDITIVA',
+                                'MODO A CIEGAS: PERCEPCIÓN AUDITIVA PURA',
                                 style: TextStyle(
                                   color: Color(0xFFFBBF24),
                                   fontSize: 10,

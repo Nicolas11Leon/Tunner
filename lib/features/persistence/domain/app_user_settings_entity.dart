@@ -6,6 +6,8 @@ import '../../pedagogy_profiles/domain/learner_profile_entity.dart';
 import '../../workspaces/domain/workspace_type.dart';
 import '../../tuner/domain/microphone_calibration_models.dart';
 import '../../tuner/domain/acoustic_rigor_profile.dart';
+import '../../tuner/domain/tuning_preset_entity.dart';
+import '../../song_library/domain/song_package_entity.dart';
 
 /// Modo de experiencia de interfaz de usuario.
 enum AppDisplayMode {
@@ -30,6 +32,8 @@ class AppUserSettingsEntity {
   final List<TunnerThemePalette> customPalettes;
   final List<PracticeReportEntity> sessionHistory;
   final List<PracticeRecordingEntity> recordingHistory;
+  final List<TuningPresetEntity> tuningPresets;
+  final List<SongPackage> workspaceScores;
   final LearnerProfileEntity learnerProfile;
   final WorkspaceType activeWorkspace;
   final MicrophoneCalibrationProfile micCalibrationProfile;
@@ -47,6 +51,8 @@ class AppUserSettingsEntity {
     this.customPalettes = const [],
     this.sessionHistory = const [],
     this.recordingHistory = const [],
+    this.tuningPresets = const [],
+    this.workspaceScores = const [],
     this.activeWorkspace = WorkspaceType.learning,
     this.micCalibrationProfile = const MicrophoneCalibrationProfile(),
     this.acousticRigorProfile = const AcousticRigorProfile(),
@@ -77,6 +83,8 @@ class AppUserSettingsEntity {
     List<TunnerThemePalette>? customPalettes,
     List<PracticeReportEntity>? sessionHistory,
     List<PracticeRecordingEntity>? recordingHistory,
+    List<TuningPresetEntity>? tuningPresets,
+    List<SongPackage>? workspaceScores,
     LearnerProfileEntity? learnerProfile,
     WorkspaceType? activeWorkspace,
     MicrophoneCalibrationProfile? micCalibrationProfile,
@@ -94,6 +102,8 @@ class AppUserSettingsEntity {
       customPalettes: customPalettes ?? this.customPalettes,
       sessionHistory: sessionHistory ?? this.sessionHistory,
       recordingHistory: recordingHistory ?? this.recordingHistory,
+      tuningPresets: tuningPresets ?? this.tuningPresets,
+      workspaceScores: workspaceScores ?? this.workspaceScores,
       learnerProfile: learnerProfile ?? this.learnerProfile,
       activeWorkspace: activeWorkspace ?? this.activeWorkspace,
       micCalibrationProfile: micCalibrationProfile ?? this.micCalibrationProfile,
@@ -116,6 +126,8 @@ class AppUserSettingsEntity {
       'sessionHistory': sessionHistory.take(50).map((s) => s.toMap()).toList(),
       // Limitar a las últimas 50 grabaciones
       'recordingHistory': recordingHistory.take(50).map((r) => r.toMap()).toList(),
+      'tuningPresets': tuningPresets.map((t) => t.toMap()).toList(),
+      'workspaceScores': workspaceScores.map((s) => s.toMap()).toList(),
       'learnerProfile': learnerProfile.toJson(),
       'activeWorkspace': activeWorkspace.serializedKey,
       'micCalibrationProfile': micCalibrationProfile.toJson(),
@@ -137,6 +149,16 @@ class AppUserSettingsEntity {
     final rawRecordings = map['recordingHistory'] as List<dynamic>? ?? [];
     final recordingHistory = rawRecordings
         .map((item) => PracticeRecordingEntity.fromMap(item as Map<String, dynamic>))
+        .toList();
+
+    final rawPresets = map['tuningPresets'] as List<dynamic>? ?? [];
+    final tuningPresets = rawPresets
+        .map((item) => TuningPresetEntity.fromMap(item as Map<String, dynamic>))
+        .toList();
+
+    final rawScores = map['workspaceScores'] as List<dynamic>? ?? [];
+    final workspaceScores = rawScores
+        .map((item) => SongPackage.fromMap(item as Map<String, dynamic>))
         .toList();
 
     final rawProfile = map['learnerProfile'] as Map<String, dynamic>?;
@@ -172,6 +194,8 @@ class AppUserSettingsEntity {
       customPalettes: customPalettes,
       sessionHistory: sessionHistory,
       recordingHistory: recordingHistory,
+      tuningPresets: tuningPresets,
+      workspaceScores: workspaceScores,
       learnerProfile: learnerProfile,
       activeWorkspace: activeWorkspace,
       micCalibrationProfile: micCalibrationProfile,

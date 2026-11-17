@@ -65,4 +65,35 @@ class SongPackage {
       tracks: tracks ?? this.tracks,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'composer': composer,
+      'genre': genre.name,
+      'difficulty': difficulty.name,
+      'defaultBpm': defaultBpm,
+      'score': score.toMap(),
+    };
+  }
+
+  factory SongPackage.fromMap(Map<String, dynamic> map) {
+    return SongPackage(
+      id: map['id'] as String? ?? 'pkg_${DateTime.now().millisecondsSinceEpoch}',
+      title: map['title'] as String? ?? 'Partitura sin título',
+      composer: map['composer'] as String? ?? 'Compositor Tunner',
+      genre: MusicGenre.values.firstWhere(
+        (g) => g.name == map['genre'],
+        orElse: () => MusicGenre.classical,
+      ),
+      difficulty: SongDifficulty.values.firstWhere(
+        (d) => d.name == map['difficulty'],
+        orElse: () => SongDifficulty.beginner,
+      ),
+      defaultBpm: (map['defaultBpm'] as num?)?.toInt() ?? 120,
+      score: HierarchicalScore.fromMap(map['score'] as Map<String, dynamic>? ?? {}),
+      tracks: const [],
+    );
+  }
 }

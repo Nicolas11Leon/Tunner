@@ -4,34 +4,34 @@ import 'signal_type.dart';
 /// Tipo de módulo funcional disponible en el Rack de Estudio.
 enum RackModuleType {
   /// Afinador Estroboscópico de ultra alta precisión (±0.1 cents, MPM/NSDF).
-  strobeTuner('strobe_tuner', 'Afinador Estroboscópico Pro', '🎯'),
+  strobeTuner('strobe_tuner', 'Afinador Estroboscópico Pro', 'TUN'),
 
   /// Metrónomo determinista con reloj en Isolate y Tap Tempo.
-  metronome('metronome', 'Metrónomo Determinista', '⏱️'),
+  metronome('metronome', 'Metrónomo Determinista', 'CLK'),
 
   /// Pentagrama vectorial SMuFL interactivo con modo "Tocar y Transcribir".
-  scoreNotation('score_notation', 'Pentagrama en Vivo & Partitura', '🎼'),
+  scoreNotation('score_notation', 'Pentagrama en Vivo & Partitura', 'SCR'),
 
   /// Grabador de práctica de estudio con auto-escucha y bucles.
-  practiceRecorder('practice_recorder', 'Grabador de Audio & Auto-Escucha', '🎙️'),
+  practiceRecorder('practice_recorder', 'Grabador de Audio & Auto-Escucha', 'REC'),
 
   /// Procesador de afinación vocal y corrección de tono en tiempo real.
-  vocalAutoTune('vocal_autotune', 'Autotune & Corrector de Tono DSP', '✨'),
+  vocalAutoTune('vocal_autotune', 'Autotune & Corrector de Tono DSP', 'ATN'),
 
   /// Dron armónico tonal de quintas y sobretonos de oído.
-  harmonicDrone('harmonic_drone', 'Dron Armónico & Afinación de Oído', '🔊'),
+  harmonicDrone('harmonic_drone', 'Dron Armónico & Afinación de Oído', 'DRN'),
 
   /// Espectrograma FFT y distribución de armónicos acústicos.
-  spectrogram('spectrogram', 'Espectrograma FFT & Armónicos', '📊'),
+  spectrogram('spectrogram', 'Espectrograma FFT & Armónicos', 'FFT'),
 
   /// Analizador de acordes polifónicos en tiempo real.
-  chordAnalyzer('chord_analyzer', 'Analizador Polifónico de Acordes', '🎹'),
+  chordAnalyzer('chord_analyzer', 'Analizador Polifónico de Acordes', 'CHD'),
 
   /// Tutor de lecciones guiadas y evaluación de rushing/dragging.
-  guidedLessons('guided_lessons', 'Tutor & Lecciones Interactivas', '🎓'),
+  guidedLessons('guided_lessons', 'Tutor & Lecciones Interactivas', 'TTR'),
 
   /// Entrenador auditivo de intervalos a ciegas.
-  earTrainer('ear_trainer', 'Entrenador Auditivo a Ciegas', '👂');
+  earTrainer('ear_trainer', 'Entrenador Auditivo a Ciegas', 'EAR');
 
   final String code;
   final String displayName;

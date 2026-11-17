@@ -29,208 +29,12 @@ class HomeDashboardScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: palette.scaffoldBackground,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Barra Superior: Bienvenida & Buscador Spotlight
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'TUNNER STUDIO',
-                        style: TextStyle(
-                          color: palette.secondaryAccent,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 2.0,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '¿Qué deseas hacer hoy?',
-                        style: TextStyle(
-                          color: palette.textColor,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    key: const Key('home_search_icon_btn'),
-                    tooltip: 'Buscar herramienta...',
-                    icon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: palette.cardBackground,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: palette.staffLinesColor.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Icon(Icons.search, color: palette.primaryAccent, size: 22),
-                    ),
-                    onPressed: () => ToolSearchModal.show(
-                      context,
-                      viewModel,
-                      onNavigateToTab: onNavigateToTab,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isDesktop = constraints.maxWidth >= 720;
+            final cardRadius = isDesktop ? 6.0 : 16.0;
 
-              // Barra de Búsqueda Falsa Táctil (Search Trigger)
-              GestureDetector(
-                key: const Key('home_search_trigger_bar'),
-                onTap: () => ToolSearchModal.show(
-                  context,
-                  viewModel,
-                  onNavigateToTab: onNavigateToTab,
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: palette.cardBackground,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: palette.staffLinesColor.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.search, color: palette.textMutedColor, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Buscar herramienta, canción, metrónomo o ajuste...',
-                          style: TextStyle(color: palette.textMutedColor, fontSize: 13),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: palette.primaryAccent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'Ctrl+K',
-                          style: TextStyle(
-                            color: palette.primaryAccent,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Banner de Instrumento Musical Activo
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      palette.primaryAccent.withValues(alpha: 0.15),
-                      palette.secondaryAccent.withValues(alpha: 0.08),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: palette.primaryAccent.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: palette.cardBackground,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        instrument.clef.symbol,
-                        style: TextStyle(
-                          color: palette.primaryAccent,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Instrumento Activo',
-                            style: TextStyle(
-                              color: palette.textMutedColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            instrument.name,
-                            style: TextStyle(
-                              color: palette.textColor,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            '${instrument.family.displayName} • ${instrument.key.displayName}',
-                            style: TextStyle(
-                              color: palette.secondaryAccent,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    OutlinedButton(
-                      key: const Key('home_change_instrument_btn'),
-                      onPressed: () => InstrumentSelectorModal.show(context, viewModel),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: palette.primaryAccent,
-                        side: BorderSide(color: palette.primaryAccent.withValues(alpha: 0.4)),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('Cambiar', style: TextStyle(fontSize: 12)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Título de Sección
-              Text(
-                'Módulos Principales',
-                style: TextStyle(
-                  color: palette.textColor,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Tarjeta 1: Afinador de Precisión
+            final cards = [
               _DashboardActionCard(
                 key: const Key('card_action_tuner'),
                 title: 'Afinador de Precisión',
@@ -241,11 +45,9 @@ class HomeDashboardScreen extends StatelessWidget {
                 accentColor: palette.primaryAccent,
                 palette: palette,
                 actionLabel: 'Afinar Ahora',
+                borderRadius: cardRadius,
                 onTap: () => onNavigateToTab(1),
               ),
-              const SizedBox(height: 12),
-
-              // Tarjeta 2: Aprender a Tocar (Tutor Interactivo)
               _DashboardActionCard(
                 key: const Key('card_action_lessons'),
                 title: 'Aprender a Tocar',
@@ -256,11 +58,9 @@ class HomeDashboardScreen extends StatelessWidget {
                 accentColor: palette.correctPitchColor,
                 palette: palette,
                 actionLabel: 'Iniciar Lección',
+                borderRadius: cardRadius,
                 onTap: () => onNavigateToTab(2),
               ),
-              const SizedBox(height: 12),
-
-              // Tarjeta 3: Rack de Estudio Modular & Consola Multitarea
               _DashboardActionCard(
                 key: const Key('card_action_recorder'),
                 title: 'Rack Modular & Consola Multitarea',
@@ -271,11 +71,9 @@ class HomeDashboardScreen extends StatelessWidget {
                 accentColor: palette.secondaryAccent,
                 palette: palette,
                 actionLabel: 'Abrir Rack de Estudio',
+                borderRadius: cardRadius,
                 onTap: () => onNavigateToTab(3),
               ),
-              const SizedBox(height: 12),
-
-              // Tarjeta 4: Biblioteca de Canciones & Partituras
               _DashboardActionCard(
                 key: const Key('card_action_library'),
                 title: 'Biblioteca & Partituras',
@@ -286,58 +84,280 @@ class HomeDashboardScreen extends StatelessWidget {
                 accentColor: palette.primaryAccent,
                 palette: palette,
                 actionLabel: 'Explorar Obras',
+                borderRadius: cardRadius,
                 onTap: () => onNavigateToTab(4),
               ),
-              const SizedBox(height: 24),
+            ];
 
-              // Fila de Accesos Rápidos
-              Text(
-                'Ajustes & Calibración Rápida',
-                style: TextStyle(
-                  color: palette.textColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
+            return SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 24 : 20,
+                vertical: isDesktop ? 20 : 16,
               ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _QuickChip(
-                    key: const Key('home_quick_mic_btn'),
-                    icon: Icons.mic_external_on,
-                    label: 'Mic: ${viewModel.acousticRigorProfile.preset.displayName.split(' ').first}',
-                    palette: palette,
-                    onTap: () => MicrophoneCalibrationModal.show(context, viewModel),
+                  // Barra Superior: Bienvenida & Buscador Spotlight
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'TUNNER STUDIO',
+                              style: TextStyle(
+                                color: palette.secondaryAccent,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 2.0,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '¿Qué deseas hacer hoy?',
+                              style: TextStyle(
+                                color: palette.textColor,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        key: const Key('home_search_icon_btn'),
+                        tooltip: 'Buscar herramienta...',
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: palette.cardBackground,
+                            borderRadius: BorderRadius.circular(isDesktop ? 6 : 12),
+                            border: Border.all(
+                              color: palette.staffLinesColor.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: Icon(Icons.search, color: palette.primaryAccent, size: 20),
+                        ),
+                        onPressed: () => ToolSearchModal.show(
+                          context,
+                          viewModel,
+                          onNavigateToTab: onNavigateToTab,
+                        ),
+                      ),
+                    ],
                   ),
-                  _QuickChip(
-                    key: const Key('home_quick_concert_pitch_btn'),
-                    icon: Icons.waves,
-                    label: '${viewModel.referencePitch.toInt()} Hz',
-                    palette: palette,
-                    onTap: () => ConcertPitchSelectorModal.show(context),
-                  ),
-                  _QuickChip(
-                    key: const Key('home_quick_temperament_btn'),
-                    icon: Icons.history_edu,
-                    label: viewModel.selectedTemperament.name.split(' ').first,
-                    palette: palette,
-                    onTap: () => TemperamentSelectorModal.show(context),
-                  ),
-                  if (viewModel.lastReport != null)
-                    _QuickChip(
-                      key: const Key('home_quick_report_btn'),
-                      icon: Icons.picture_as_pdf,
-                      label: 'Reporte PDF',
-                      palette: palette,
-                      onTap: () => PedagogicalReportModal.show(context),
+                  const SizedBox(height: 16),
+
+                  // Barra de Búsqueda Falsa Táctil (Search Trigger)
+                  GestureDetector(
+                    key: const Key('home_search_trigger_bar'),
+                    onTap: () => ToolSearchModal.show(
+                      context,
+                      viewModel,
+                      onNavigateToTab: onNavigateToTab,
                     ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: palette.cardBackground,
+                        borderRadius: BorderRadius.circular(cardRadius),
+                        border: Border.all(
+                          color: palette.staffLinesColor.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.search, color: palette.textMutedColor, size: 18),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Buscar herramienta, canción, metrónomo o ajuste...',
+                              style: TextStyle(color: palette.textMutedColor, fontSize: 13),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: palette.primaryAccent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Ctrl+K',
+                              style: TextStyle(
+                                color: palette.primaryAccent,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Banner de Instrumento Musical Activo
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          palette.primaryAccent.withValues(alpha: 0.12),
+                          palette.secondaryAccent.withValues(alpha: 0.05),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(cardRadius),
+                      border: Border.all(
+                        color: palette.primaryAccent.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: palette.cardBackground,
+                            borderRadius: BorderRadius.circular(isDesktop ? 4 : 12),
+                          ),
+                          child: Text(
+                            instrument.clef.symbol,
+                            style: TextStyle(
+                              color: palette.primaryAccent,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Instrumento Activo',
+                                style: TextStyle(
+                                  color: palette.textMutedColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                instrument.name,
+                                style: TextStyle(
+                                  color: palette.textColor,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '${instrument.family.displayName} • ${instrument.key.displayName}',
+                                style: TextStyle(
+                                  color: palette.secondaryAccent,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        OutlinedButton(
+                          key: const Key('home_change_instrument_btn'),
+                          onPressed: () => InstrumentSelectorModal.show(context, viewModel),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: palette.primaryAccent,
+                            side: BorderSide(color: palette.primaryAccent.withValues(alpha: 0.4)),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          child: const Text('Cambiar', style: TextStyle(fontSize: 11)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Título de Sección
+                  Text(
+                    'Módulos de Trabajo Principales',
+                    style: TextStyle(
+                      color: palette.textColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Tarjetas Principales
+                  Column(
+                    children: [
+                      for (int i = 0; i < cards.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 12),
+                        cards[i],
+                      ],
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Fila de Accesos Rápidos
+                  Text(
+                    'Ajustes & Calibración Rápida',
+                    style: TextStyle(
+                      color: palette.textColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _QuickChip(
+                        key: const Key('home_quick_mic_btn'),
+                        icon: Icons.mic_external_on,
+                        label: 'Mic: ${viewModel.acousticRigorProfile.preset.displayName.split(' ').first}',
+                        palette: palette,
+                        onTap: () => MicrophoneCalibrationModal.show(context, viewModel),
+                      ),
+                      _QuickChip(
+                        key: const Key('home_quick_concert_pitch_btn'),
+                        icon: Icons.waves,
+                        label: '${viewModel.referencePitch.toInt()} Hz',
+                        palette: palette,
+                        onTap: () => ConcertPitchSelectorModal.show(context),
+                      ),
+                      _QuickChip(
+                        key: const Key('home_quick_temperament_btn'),
+                        icon: Icons.history_edu,
+                        label: viewModel.selectedTemperament.name.split(' ').first,
+                        palette: palette,
+                        onTap: () => TemperamentSelectorModal.show(context),
+                      ),
+                      if (viewModel.lastReport != null)
+                        _QuickChip(
+                          key: const Key('home_quick_report_btn'),
+                          icon: Icons.picture_as_pdf,
+                          label: 'Reporte PDF',
+                          palette: palette,
+                          onTap: () => PedagogicalReportModal.show(context),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -354,6 +374,7 @@ class _DashboardActionCard extends StatelessWidget {
   final Color accentColor;
   final TunnerThemePalette palette;
   final String actionLabel;
+  final double borderRadius;
   final VoidCallback onTap;
 
   const _DashboardActionCard({
@@ -366,6 +387,7 @@ class _DashboardActionCard extends StatelessWidget {
     required this.accentColor,
     required this.palette,
     required this.actionLabel,
+    this.borderRadius = 16.0,
     required this.onTap,
   });
 
@@ -374,14 +396,14 @@ class _DashboardActionCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: palette.cardBackground,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.18)),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(borderRadius),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(

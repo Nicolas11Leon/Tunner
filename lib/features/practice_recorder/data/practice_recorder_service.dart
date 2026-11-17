@@ -27,9 +27,10 @@ class PracticeRecorderService implements IPracticeRecorderService {
       throw Exception("Permiso de micrófono no concedido por el sistema.");
     }
 
-    const config = RecordConfig(
-      encoder: AudioEncoder.aacLc,
-      bitRate: 128000,
+    final isWav = destinationPath.toLowerCase().endsWith('.wav');
+    final config = RecordConfig(
+      encoder: isWav ? AudioEncoder.wav : AudioEncoder.aacLc,
+      bitRate: isWav ? 1411200 : 128000,
       sampleRate: 44100,
       numChannels: 1,
     );

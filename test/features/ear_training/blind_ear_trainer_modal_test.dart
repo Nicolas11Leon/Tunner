@@ -127,7 +127,7 @@ void main() {
 
       // Por defecto en Modo a Ciegas
       expect(find.text('Modo a Ciegas'), findsOneWidget);
-      expect(find.text('🔒 PANTALLA A CIEGAS: CONFÍA EN TU PERCEPCIÓN AUDITIVA'), findsOneWidget);
+      expect(find.text('MODO A CIEGAS: PERCEPCIÓN AUDITIVA PURA'), findsOneWidget);
 
       // 4 opciones de intervalos
       expect(find.byKey(const Key('btn_interval_option_0')), findsOneWidget);

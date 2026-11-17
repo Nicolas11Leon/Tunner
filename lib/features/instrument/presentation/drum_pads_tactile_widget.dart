@@ -20,14 +20,14 @@ class _DrumPadsTactileWidgetState extends State<DrumPadsTactileWidget> {
   int? _activeHitIndex;
 
   final List<Map<String, dynamic>> _pads = const [
-    {'name': 'BOMBO', 'gm': 36, 'color': Color(0xFFEF4444), 'icon': '🥁'},
-    {'name': 'CAJA / SNARE', 'gm': 38, 'color': Color(0xFFF59E0B), 'icon': '🎯'},
-    {'name': 'HI-HAT CERRADO', 'gm': 42, 'color': Color(0xFF10B981), 'icon': '🔘'},
-    {'name': 'HI-HAT ABIERTO', 'gm': 46, 'color': Color(0xFF06B6D4), 'icon': '⭕'},
-    {'name': 'TOM ALTO', 'gm': 50, 'color': Color(0xFF8B5CF6), 'icon': '🪘'},
-    {'name': 'TOM PISO', 'gm': 43, 'color': Color(0xFFEC4899), 'icon': '🪘'},
-    {'name': 'CRASH', 'gm': 49, 'color': Color(0xFFEAB308), 'icon': '💥'},
-    {'name': 'RIDE', 'gm': 51, 'color': Color(0xFF38BDF8), 'icon': '🔔'},
+    {'name': 'BOMBO', 'gm': 36, 'color': Color(0xFFEF4444), 'iconData': Icons.album_rounded, 'code': 'BD'},
+    {'name': 'CAJA / SNARE', 'gm': 38, 'color': Color(0xFFF59E0B), 'iconData': Icons.radio_button_checked_rounded, 'code': 'SD'},
+    {'name': 'HI-HAT CERRADO', 'gm': 42, 'color': Color(0xFF10B981), 'iconData': Icons.radio_button_unchecked_rounded, 'code': 'CHH'},
+    {'name': 'HI-HAT ABIERTO', 'gm': 46, 'color': Color(0xFF06B6D4), 'iconData': Icons.trip_origin_rounded, 'code': 'OHH'},
+    {'name': 'TOM ALTO', 'gm': 50, 'color': Color(0xFF8B5CF6), 'iconData': Icons.adjust_rounded, 'code': 'T1'},
+    {'name': 'TOM PISO', 'gm': 43, 'color': Color(0xFFEC4899), 'iconData': Icons.adjust_rounded, 'code': 'FT'},
+    {'name': 'CRASH', 'gm': 49, 'color': Color(0xFFEAB308), 'iconData': Icons.blur_circular_rounded, 'code': 'CR'},
+    {'name': 'RIDE', 'gm': 51, 'color': Color(0xFF38BDF8), 'iconData': Icons.circle_outlined, 'code': 'RD'},
   ];
 
   void _triggerPad(int index, int gm) {
@@ -120,7 +120,7 @@ class _DrumPadsTactileWidgetState extends State<DrumPadsTactileWidget> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(pad['icon'] as String, style: const TextStyle(fontSize: 14)),
+                        Icon(pad['iconData'] as IconData, size: 14, color: isHit ? Colors.white : padColor),
                         const SizedBox(height: 2),
                         Text(
                           pad['name'] as String,
