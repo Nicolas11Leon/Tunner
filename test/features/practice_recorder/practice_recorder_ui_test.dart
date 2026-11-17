@@ -58,6 +58,7 @@ void main() {
       recorderService: mockRecorder,
       playbackService: mockPlayback,
       recordingPathProvider: () async => "/test/take_ui.m4a",
+      seedDefaults: false,
     );
   });
 

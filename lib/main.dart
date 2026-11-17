@@ -10,7 +10,7 @@ void main() {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => TunerViewModel()),
+        ChangeNotifierProvider(create: (_) => TunerViewModel(seedDefaults: true)),
         ChangeNotifierProvider(create: (_) => StudioThemeController()),
       ],
       child: const TunnerApp(),

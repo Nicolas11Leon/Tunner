@@ -51,6 +51,21 @@ class StudioFileSystemModals {
     );
   }
 
+  /// Modal para mover un archivo o carpeta a otra carpeta de destino.
+  static Future<void> showMoveNodeModal(
+    BuildContext context, {
+    required StudioWorkspaceFileSystemService service,
+    required StudioFileSystemNode node,
+  }) {
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => _MoveNodeModalDialog(
+        service: service,
+        node: node,
+      ),
+    );
+  }
+
   /// Diálogo de confirmación para eliminación de nodos.
   static Future<bool?> showDeleteConfirmDialog(
     BuildContext context, {
@@ -508,6 +523,157 @@ class _RenameNodeModalDialogState extends State<_RenameNodeModalDialog> {
                     ),
                     onPressed: _submit,
                     child: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MoveNodeModalDialog extends StatefulWidget {
+  final StudioWorkspaceFileSystemService service;
+  final StudioFileSystemNode node;
+
+  const _MoveNodeModalDialog({
+    required this.service,
+    required this.node,
+  });
+
+  @override
+  State<_MoveNodeModalDialog> createState() => _MoveNodeModalDialogState();
+}
+
+class _MoveNodeModalDialogState extends State<_MoveNodeModalDialog> {
+  String? _selectedTargetFolderId;
+
+  List<StudioFolderEntity> _getAvailableFolders(StudioFolderEntity root, String excludeId) {
+    final result = <StudioFolderEntity>[];
+    void traverse(StudioFolderEntity folder) {
+      if (folder.id == excludeId) return;
+      result.add(folder);
+      for (final child in folder.children) {
+        if (child is StudioFolderEntity) {
+          traverse(child);
+        }
+      }
+    }
+    traverse(root);
+    return result;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final available = _getAvailableFolders(widget.service.rootFolder, widget.node.id);
+    if (available.isNotEmpty) {
+      _selectedTargetFolderId = available.first.id;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.tokensOf(context);
+    final availableFolders = _getAvailableFolders(widget.service.rootFolder, widget.node.id);
+
+    return Dialog(
+      backgroundColor: tokens.elevatedSurface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(tokens.borderRadiusMedium),
+        side: BorderSide(color: tokens.borderHairline),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 380, maxHeight: 440),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.drive_file_move_outlined, color: tokens.accentPrimary, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Mover "${widget.node.name}"',
+                      style: TextStyle(color: tokens.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Selecciona la carpeta de destino en el proyecto:',
+                style: TextStyle(color: tokens.textSecondary, fontSize: 11),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: tokens.inputSurface,
+                    borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
+                    border: Border.all(color: tokens.borderHairline),
+                  ),
+                  child: ListView.separated(
+                    itemCount: availableFolders.length,
+                    separatorBuilder: (context, index) => Divider(height: 1, color: tokens.borderHairline),
+                    itemBuilder: (ctx, index) {
+                      final f = availableFolders[index];
+                      final isChosen = f.id == _selectedTargetFolderId;
+                      return ListTile(
+                        dense: true,
+                        visualDensity: VisualDensity.compact,
+                        leading: Icon(
+                          Icons.folder_outlined,
+                          size: 16,
+                          color: isChosen ? tokens.accentPrimary : tokens.textSecondary,
+                        ),
+                        title: Text(
+                          f.relativePath.isEmpty ? '/' : f.relativePath,
+                          style: TextStyle(
+                            color: isChosen ? tokens.accentPrimary : tokens.textPrimary,
+                            fontSize: 11,
+                            fontWeight: isChosen ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                        selected: isChosen,
+                        onTap: () {
+                          setState(() {
+                            _selectedTargetFolderId = f.id;
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text('Cancelar', style: TextStyle(color: tokens.textSecondary)),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: tokens.accentPrimary,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    ),
+                    onPressed: _selectedTargetFolderId == null
+                        ? null
+                        : () {
+                            widget.service.moveNode(widget.node.id, _selectedTargetFolderId!);
+                            Navigator.of(context).pop();
+                          },
+                    child: const Text('Mover Aquí', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

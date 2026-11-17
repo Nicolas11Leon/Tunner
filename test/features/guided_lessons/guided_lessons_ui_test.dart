@@ -60,6 +60,9 @@ class _FakeSynthesizerService implements IAudioSynthesizerService {
   }
 
   @override
+  Future<void> playPcmWav(Uint8List wavBytes, {double volume = 0.8}) async {}
+
+  @override
   Future<void> startDroneLoop(Uint8List wavBytes, {double volume = 0.7}) async {}
 
   @override

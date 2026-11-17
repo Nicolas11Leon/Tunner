@@ -109,6 +109,24 @@ class DjPerformanceOrchestrator {
     _masterVolume = volume.clamp(0.0, 1.0);
   }
 
+  /// Sets individual channel volume for a deck in range [0.0, 1.0].
+  void setDeckVolume(String deckId, double volume) {
+    _updateDeck(deckId, (deck) {
+      return deck.copyWith(volume: volume.clamp(0.0, 1.0));
+    });
+  }
+
+  /// Seeks deck playback to a target position in milliseconds.
+  void seekDeckPlayback(String deckId, int targetPositionMs) {
+    _updateDeck(deckId, (deck) {
+      final clampedPos = targetPositionMs.clamp(0, deck.durationMs);
+      return deck.copyWith(
+        currentPositionMs: clampedPos,
+        slipPositionMs: deck.isSlipModeActive ? deck.slipPositionMs : clampedPos,
+      );
+    });
+  }
+
   /// Loads a track into the specified deck ('A' or 'B').
   void loadTrack(
     String deckId, {

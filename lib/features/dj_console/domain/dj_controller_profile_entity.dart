@@ -1,4 +1,5 @@
 import 'dj_action.dart';
+import 'dj_keymap_profile_entity.dart';
 
 /// Supported controller types.
 enum DjControllerDeviceType {
@@ -156,8 +157,32 @@ class DjControllerProfileEntity {
     );
   }
 
-  /// Finds the action tied to an input key if present.
-  DjAction? findAction(String inputKey) => inputBindings[inputKey];
+  /// Finds the action tied to an input key if present, with flexible normalization
+  /// for key label formats (e.g. 'w', 'W', 'Key W', '1', 'Digit 1', 'Space').
+  DjAction? findAction(String inputKey) {
+    if (inputBindings.containsKey(inputKey)) {
+      return inputBindings[inputKey];
+    }
+    final upper = inputKey.toUpperCase();
+    if (inputBindings.containsKey(upper)) {
+      return inputBindings[upper];
+    }
+    final keyVariant = 'Key $upper';
+    if (inputBindings.containsKey(keyVariant)) {
+      return inputBindings[keyVariant];
+    }
+    final digitVariant = 'Digit $inputKey';
+    if (inputBindings.containsKey(digitVariant)) {
+      return inputBindings[digitVariant];
+    }
+    for (final entry in inputBindings.entries) {
+      if (DjKeymapProfileEntity.cleanKeyLabel(entry.key) ==
+          DjKeymapProfileEntity.cleanKeyLabel(inputKey)) {
+        return entry.value;
+      }
+    }
+    return null;
+  }
 
   /// Finds all input keys mapped to the given action.
   List<String> findInputsForAction(DjAction action) {

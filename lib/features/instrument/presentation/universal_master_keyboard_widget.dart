@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../audio_synthesizer/data/audio_synthesizer_service.dart';
+import '../../audio_synthesizer/domain/i_audio_synthesizer_service.dart';
 import '../domain/instrument_customization_profile.dart';
 import '../domain/musical_phrase_entity.dart';
 import '../data/procedural_instrument_synthesizer.dart';
@@ -12,18 +14,21 @@ class UniversalMasterKeyboardWidget extends StatefulWidget {
   final InstrumentCustomizationProfile customization;
   final ValueChanged<InstrumentCustomizationProfile>? onCustomizationUpdated;
   final ValueChanged<double>? onNotePlayed; // Retorna la frecuencia en Hz ejecutada
+  final IAudioSynthesizerService? audioSynthesizer;
 
   const UniversalMasterKeyboardWidget({
     super.key,
     required this.customization,
     this.onCustomizationUpdated,
     this.onNotePlayed,
+    this.audioSynthesizer,
   });
 
   static void show(
     BuildContext context, {
     required InstrumentCustomizationProfile customization,
     ValueChanged<InstrumentCustomizationProfile>? onUpdated,
+    IAudioSynthesizerService? audioSynthesizer,
   }) {
     showModalBottomSheet(
       context: context,
@@ -37,6 +42,7 @@ class UniversalMasterKeyboardWidget extends StatefulWidget {
         child: UniversalMasterKeyboardWidget(
           customization: customization,
           onCustomizationUpdated: onUpdated,
+          audioSynthesizer: audioSynthesizer,
         ),
       ),
     );
@@ -48,6 +54,7 @@ class UniversalMasterKeyboardWidget extends StatefulWidget {
 
 class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardWidget> {
   late InstrumentCustomizationProfile _profile;
+  late final IAudioSynthesizerService _audioService;
   int _octaveShift = 4; // C4 por defecto
   MusicalPhraseEntity _selectedPhrase = MusicalPhraseEntity.majorConcertArpeggio;
   bool _isPlayingPhrase = false;
@@ -58,6 +65,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
   void initState() {
     super.initState();
     _profile = widget.customization;
+    _audioService = widget.audioSynthesizer ?? AudioSynthesizerService();
   }
 
   @override
@@ -71,6 +79,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
   @override
   void dispose() {
     _phraseTimer?.cancel();
+    _audioService.dispose();
     super.dispose();
   }
 
@@ -78,12 +87,16 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
     final freqHz = _profile.calculateFrequencyForMidiNote(midiNote);
     widget.onNotePlayed?.call(freqHz);
 
-    // Sintetizar en memoria (ejecución offline)
-    ProceduralInstrumentSynthesizer.synthesizeCustomNote(
+    // Sintetizar muestras acústicas con timbre y envolvente ADSR real
+    final floatSamples = ProceduralInstrumentSynthesizer.synthesizeCustomNote(
       customization: _profile,
       frequencyHz: freqHz,
       durationSeconds: 0.8,
     );
+
+    // Emitir sonido físico audible en parlantes / auriculares
+    final wavBytes = ProceduralInstrumentSynthesizer.floatBufferToWavBytes(floatSamples);
+    _audioService.playPcmWav(wavBytes, volume: 0.85);
 
     setState(() => _activePlayingNote = midiNote);
     Future<void>.delayed(const Duration(milliseconds: 200), () {
@@ -128,9 +141,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
       final noteDurationMs = (note.durationTicks * secondsPerTick * 1000).toInt();
 
       if (!note.isRest) {
-        setState(() => _activePlayingNote = note.midiNote);
-        final freqHz = _profile.calculateFrequencyForMidiNote(note.midiNote);
-        widget.onNotePlayed?.call(freqHz);
+        _playNote(note.midiNote);
       } else {
         setState(() => _activePlayingNote = null);
       }

@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
+import '../../../core/audio/domain/i_studio_audio_input_engine.dart';
+import '../../../core/audio/infrastructure/memory_studio_audio_input_engine.dart';
+import '../../../core/audio/infrastructure/studio_audio_input_engine.dart';
 import '../domain/i_pitch_detector_service.dart';
 import '../domain/mcleod_pitch_method.dart';
 import '../domain/instrument_acoustic_filter.dart';
@@ -9,13 +13,10 @@ import '../domain/microphone_calibration_models.dart';
 import '../domain/signal_conditioning_filter.dart';
 
 /// Implementación de infraestructura para la captura de micrófono y procesamiento DSP en Isolate.
-/// Implementa estrictamente el contrato [IPitchDetectorService] del dominio
-/// utilizando el algoritmo McLeod Pitch Method (MPM) con NSDF e interpolación parabólica,
-/// complementado con acondicionamiento de señal en tiempo real (DC-Blocker y Ganancia Adaptativa)
-/// y aislamiento acústico por tesitura y Tone Lock para rechazo de habla humana.
+/// Conecta la ingesta física al motor canónico [IStudioAudioInputEngine] en el núcleo de la aplicación,
+/// ejecutando el algoritmo McLeod Pitch Method (MPM) con NSDF e interpolación parabólica en segundo plano.
 class PitchDetectorService implements IPitchDetectorService {
-  AudioRecorder? _recorderInstance;
-  AudioRecorder get _audioRecorder => _recorderInstance ??= AudioRecorder();
+  final IStudioAudioInputEngine _inputEngine;
   StreamSubscription? _audioSubscription;
   bool _isRecording = false;
   
@@ -28,7 +29,16 @@ class PitchDetectorService implements IPitchDetectorService {
   InstrumentAcousticFilterConfig _activeInstrumentFilter = InstrumentAcousticFilterConfig.universal();
   String _selectedDeviceId = '';
 
-  PitchDetectorService({AudioRecorder? audioRecorder}) : _recorderInstance = audioRecorder;
+  static bool get _isTestEnvironment =>
+      !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
+
+  PitchDetectorService({
+    AudioRecorder? audioRecorder,
+    IStudioAudioInputEngine? inputEngine,
+  }) : _inputEngine = inputEngine ??
+            (_isTestEnvironment
+                ? MemoryStudioAudioInputEngine()
+                : StudioAudioInputEngine(injectedRecorder: audioRecorder));
 
   @override
   Function(double)? onPitchDetected;
@@ -176,7 +186,7 @@ class PitchDetectorService implements IPitchDetectorService {
   @override
   Future<List<String>> listInputDevices() async {
     try {
-      final devices = await _audioRecorder.listInputDevices();
+      final devices = await _inputEngine.listInputDevices();
       return devices.map((d) => d.label.isNotEmpty ? d.label : d.id).toList();
     } catch (e) {
       debugPrint("Error enumerando dispositivos de entrada: $e");
@@ -188,50 +198,25 @@ class PitchDetectorService implements IPitchDetectorService {
   Future<void> setInputDevice(String deviceId) async {
     _selectedDeviceId = deviceId;
     _activeProfile = _activeProfile.copyWith(deviceId: deviceId);
-    if (_audioSubscription != null) {
-      // Reiniciar captura con el nuevo dispositivo
-      await stopRecording();
-      await startRecording();
-    }
+    await _inputEngine.setInputDevice(deviceId);
   }
 
   @override
   Future<void> startRecording() async {
+    if (_isRecording) return;
     try {
-      if (await _audioRecorder.hasPermission()) {
-        await _startDspWorker();
+      await _startDspWorker();
+      await _inputEngine.startCapture(sampleRate: 44100, bufferSize: 1024);
+      _isRecording = true;
 
-        InputDevice? targetDevice;
-        if (_selectedDeviceId.isNotEmpty) {
-          try {
-            final devices = await _audioRecorder.listInputDevices();
-            for (final d in devices) {
-              if (d.id == _selectedDeviceId || d.label == _selectedDeviceId) {
-                targetDevice = d;
-                break;
-              }
-            }
-          } catch (_) {}
-        }
-
-        final config = RecordConfig(
-          encoder: AudioEncoder.pcm16bits,
-          sampleRate: 44100,
-          numChannels: 1,
-          device: targetDevice,
-        );
-
-        final stream = await _audioRecorder.startStream(config);
-        _isRecording = true;
-
-        _audioSubscription = stream.listen((data) {
-          _toWorkerPort?.send(data);
-        }, onError: (error) {
-          debugPrint("Error en el flujo de audio: $error");
-        });
-      }
+      _audioSubscription = _inputEngine.pcmFrameStream.listen((frame) {
+        _toWorkerPort?.send(frame.rawBytes);
+      }, onError: (error) {
+        debugPrint("Error en el flujo de audio de entrada: $error");
+      });
     } catch (e) {
       debugPrint("Error al inicializar micrófono y DSP Isolate: $e");
+      _isRecording = false;
     }
   }
 
@@ -242,11 +227,7 @@ class PitchDetectorService implements IPitchDetectorService {
 
     if (_isRecording) {
       _isRecording = false;
-      try {
-        await _audioRecorder.stop();
-      } catch (e) {
-        debugPrint("Error al detener grabador de audio: $e");
-      }
+      await _inputEngine.stopCapture();
     }
 
     _fromWorkerPort?.close();

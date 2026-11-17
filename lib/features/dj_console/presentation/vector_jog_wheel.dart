@@ -1,14 +1,17 @@
 import 'dart:math' as math;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-/// Highly responsive, vector-rendered DJ Jog Wheel platter with vinyl grooves and rotation tracking.
-class VectorJogWheel extends StatelessWidget {
+/// Highly responsive, vector-rendered DJ Jog Wheel platter with vinyl grooves,
+/// true polar angle rotation tracking, mouse wheel scrubbing, and linear swipe fallback.
+class VectorJogWheel extends StatefulWidget {
   final String deckLabel; // 'A' or 'B'
   final Color accentColor;
   final bool isPlaying;
   final double rotationAngle; // in radians
   final ValueChanged<double>? onScratch; // delta radians
   final VoidCallback? onTap;
+  final double diameter;
 
   const VectorJogWheel({
     super.key,
@@ -18,27 +21,89 @@ class VectorJogWheel extends StatelessWidget {
     required this.rotationAngle,
     this.onScratch,
     this.onTap,
+    this.diameter = 160.0,
   });
 
   @override
+  State<VectorJogWheel> createState() => _VectorJogWheelState();
+}
+
+class _VectorJogWheelState extends State<VectorJogWheel> {
+  double? _lastAngle;
+  Offset? _lastPanPos;
+
+  void _onPanStart(DragStartDetails details, Offset center) {
+    final dx = details.localPosition.dx - center.dx;
+    final dy = details.localPosition.dy - center.dy;
+    _lastAngle = math.atan2(dy, dx);
+    _lastPanPos = details.localPosition;
+  }
+
+  void _onPanUpdate(DragUpdateDetails details, Offset center) {
+    if (widget.onScratch == null) return;
+    final dx = details.localPosition.dx - center.dx;
+    final dy = details.localPosition.dy - center.dy;
+    final currentAngle = math.atan2(dy, dx);
+
+    if (_lastAngle != null) {
+      var delta = currentAngle - _lastAngle!;
+      // Normalizar discontinuidad angular [-pi, pi]
+      if (delta > math.pi) delta -= 2 * math.pi;
+      if (delta < -math.pi) delta += 2 * math.pi;
+
+      if (delta.abs() > 0.002) {
+        widget.onScratch!(delta * 1.6);
+      } else if (_lastPanPos != null) {
+        // Fallback intuitivo lineal: arrastre horizontal (izquierda = rebobinar, derecha = avanzar)
+        final linearDx = details.localPosition.dx - _lastPanPos!.dx;
+        if (linearDx.abs() > 0.8) {
+          widget.onScratch!(linearDx * 0.035);
+        }
+      }
+    }
+    _lastAngle = currentAngle;
+    _lastPanPos = details.localPosition;
+  }
+
+  void _onPanEnd(DragEndDetails details) {
+    _lastAngle = null;
+    _lastPanPos = null;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      onPanUpdate: (details) {
-        if (onScratch != null) {
-          // Approximate rotational delta from pan delta
-          final delta = (details.delta.dx - details.delta.dy) * 0.02;
-          onScratch!(delta);
+    final size = Size(widget.diameter, widget.diameter);
+    final center = Offset(widget.diameter / 2, widget.diameter / 2);
+
+    return Listener(
+      onPointerSignal: (pointerSignal) {
+        if (pointerSignal is PointerScrollEvent && widget.onScratch != null) {
+          // Scroll hacia arriba (dy < 0) => avanzar en la pista
+          // Scroll hacia abajo (dy > 0) => rebobinar en la pista
+          final scrollDelta = -pointerSignal.scrollDelta.dy;
+          final radiansDelta = (scrollDelta / 70.0).clamp(-2.5, 2.5);
+          widget.onScratch!(radiansDelta);
         }
       },
-      child: RepaintBoundary(
-        child: CustomPaint(
-          size: const Size(160, 160),
-          painter: _JogWheelPainter(
-            deckLabel: deckLabel,
-            accentColor: accentColor,
-            rotationAngle: rotationAngle,
-            isPlaying: isPlaying,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        onPanStart: (d) => _onPanStart(d, center),
+        onPanUpdate: (d) => _onPanUpdate(d, center),
+        onPanEnd: _onPanEnd,
+        onPanCancel: () {
+          _lastAngle = null;
+          _lastPanPos = null;
+        },
+        behavior: HitTestBehavior.opaque,
+        child: RepaintBoundary(
+          child: CustomPaint(
+            size: size,
+            painter: _JogWheelPainter(
+              deckLabel: widget.deckLabel,
+              accentColor: widget.accentColor,
+              rotationAngle: widget.rotationAngle,
+              isPlaying: widget.isPlaying,
+            ),
           ),
         ),
       ),

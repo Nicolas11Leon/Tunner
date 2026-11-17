@@ -18,6 +18,9 @@ abstract class StudioFileSystemRepository {
   /// Elimina un archivo o directorio en la ruta indicada.
   Future<void> deletePath(String relativePath);
 
+  /// Crea una nueva carpeta en la ruta indicada.
+  Future<void> createFolder(String relativePath);
+
   /// Renombra o mueve una ruta a un nuevo destino.
   Future<void> movePath({
     required String oldRelativePath,

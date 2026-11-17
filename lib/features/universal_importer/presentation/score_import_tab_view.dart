@@ -283,7 +283,7 @@ startxref
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        "Soporta MusicXML (.mxl, .musicxml), MIDI (.mid), ABC (.abc), PDF OMR (.pdf) y Transcripción de Audio WAV (.wav) offline.",
+                        "Soporta MusicXML (.mxl, .musicxml), MIDI (.mid), ABC (.abc), PDF Vectorial (.pdf) y Transcripción de Audio WAV (.wav) offline.",
                         style: TextStyle(color: palette.textMutedColor, fontSize: 11),
                       ),
                     ],

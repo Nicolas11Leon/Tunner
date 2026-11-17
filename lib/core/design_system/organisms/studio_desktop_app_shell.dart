@@ -50,6 +50,7 @@ class StudioDesktopAppShell extends StatefulWidget {
   final ValueChanged<int>? onNavigateToTabIndex;
   final VoidCallback? onOpenSpectrogram;
   final Widget? customSidebarExplorer;
+  final String initialSidebarMode;
 
   const StudioDesktopAppShell({
     super.key,
@@ -83,6 +84,7 @@ class StudioDesktopAppShell extends StatefulWidget {
     this.onNavigateToTabIndex,
     this.onOpenSpectrogram,
     this.customSidebarExplorer,
+    this.initialSidebarMode = 'tools',
   });
 
   @override
@@ -94,7 +96,13 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
   bool _isSidebarVisible = true;
   bool _isDualSplitActive = false;
   double _dualSplitRatio = 0.50;
-  String _sidebarMode = 'explorer'; // 'explorer' o 'tools'
+  late String _sidebarMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _sidebarMode = widget.initialSidebarMode;
+  }
 
   void _toggleSidebar() {
     setState(() {
@@ -337,6 +345,7 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                                           ),
                                           child: Row(
                                             mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Icon(
                                                 Icons.folder_outlined,
@@ -346,14 +355,18 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                                                     : const Color(0xFF8E9BAE),
                                               ),
                                               const SizedBox(width: 4),
-                                              Text(
-                                                'Archivos',
-                                                style: TextStyle(
-                                                  color: _sidebarMode == 'explorer'
-                                                      ? Colors.white
-                                                      : const Color(0xFF8E9BAE),
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
+                                              Flexible(
+                                                child: Text(
+                                                  'Archivos',
+                                                  style: TextStyle(
+                                                    color: _sidebarMode == 'explorer'
+                                                        ? Colors.white
+                                                        : const Color(0xFF8E9BAE),
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             ],
@@ -380,6 +393,7 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                                           ),
                                           child: Row(
                                             mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Icon(
                                                 Icons.grid_view_outlined,
@@ -389,14 +403,18 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                                                     : const Color(0xFF8E9BAE),
                                               ),
                                               const SizedBox(width: 4),
-                                              Text(
-                                                'Herramientas',
-                                                style: TextStyle(
-                                                  color: _sidebarMode == 'tools'
-                                                      ? Colors.white
-                                                      : const Color(0xFF8E9BAE),
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
+                                              Flexible(
+                                                child: Text(
+                                                  'Herramientas',
+                                                  style: TextStyle(
+                                                    color: _sidebarMode == 'tools'
+                                                        ? Colors.white
+                                                        : const Color(0xFF8E9BAE),
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             ],
@@ -941,47 +959,70 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
   }
 
   Widget _buildStudioPromptBar(StudioDesignTokens tokens) {
-    return Container(
-      height: 38.0,
-      margin: const EdgeInsets.all(10.0),
-      padding: const EdgeInsets.symmetric(horizontal: 12.0),
-      decoration: BoxDecoration(
-        color: tokens.panelHeaderBackground,
-        borderRadius: BorderRadius.circular(tokens.radiusSmall),
-        border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.terminal_rounded, size: 15, color: tokens.textMuted),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Escribe un comando acústico o presiona "/" para acciones rápidas...',
-              style: TextStyle(
-                color: tokens.textMuted,
-                fontSize: 11.0,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
-            decoration: BoxDecoration(
-              color: tokens.canvasBackground,
-              borderRadius: BorderRadius.circular(3.0),
-              border: Border.all(color: tokens.borderHairline),
-            ),
-            child: Text(
-              widget.engineName,
-              style: TextStyle(
-                color: tokens.accentPrimary,
-                fontSize: 9.0,
-                fontFamily: 'monospace',
-                fontWeight: FontWeight.bold,
+    return InkWell(
+      onTap: () => widget.onCommandSubmitted?.call('help'),
+      borderRadius: BorderRadius.circular(tokens.radiusSmall),
+      child: Container(
+        height: 38.0,
+        margin: const EdgeInsets.all(10.0),
+        padding: const EdgeInsets.symmetric(horizontal: 12.0),
+        decoration: BoxDecoration(
+          color: tokens.panelHeaderBackground,
+          borderRadius: BorderRadius.circular(tokens.radiusSmall),
+          border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.terminal_rounded, size: 15, color: tokens.accentPrimary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Escribe un comando o presiona Ctrl+~ para abrir Tunner OS CLI...',
+                style: TextStyle(
+                  color: tokens.textMuted,
+                  fontSize: 11.0,
+                  fontFamily: 'monospace',
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-        ],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+              decoration: BoxDecoration(
+                color: tokens.canvasBackground,
+                borderRadius: BorderRadius.circular(3.0),
+                border: Border.all(color: tokens.borderHairline),
+              ),
+              child: Text(
+                widget.engineName,
+                style: TextStyle(
+                  color: tokens.accentPrimary,
+                  fontSize: 9.0,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+              decoration: BoxDecoration(
+                color: tokens.canvasBackground,
+                borderRadius: BorderRadius.circular(3.0),
+                border: Border.all(color: tokens.borderHairline),
+              ),
+              child: Text(
+                'Ctrl+~',
+                style: TextStyle(
+                  color: tokens.accentPrimary,
+                  fontSize: 9.0,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

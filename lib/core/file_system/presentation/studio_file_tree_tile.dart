@@ -128,6 +128,12 @@ class StudioFileTreeTile extends StatelessWidget {
             service: service,
             node: file,
           );
+        } else if (value == 'move') {
+          StudioFileSystemModals.showMoveNodeModal(
+            context,
+            service: service,
+            node: file,
+          );
         } else if (value == 'delete') {
           StudioFileSystemModals.showDeleteConfirmDialog(
             context,
@@ -145,6 +151,17 @@ class StudioFileTreeTile extends StatelessWidget {
               Icon(Icons.edit_outlined, size: 13, color: tokens.accentPrimary),
               const SizedBox(width: 8),
               Text('Renombrar', style: TextStyle(fontSize: 11, color: tokens.textPrimary)),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'move',
+          height: 32,
+          child: Row(
+            children: [
+              Icon(Icons.drive_file_move_outlined, size: 13, color: tokens.accentSecondary),
+              const SizedBox(width: 8),
+              Text('Mover a...', style: TextStyle(fontSize: 11, color: tokens.textPrimary)),
             ],
           ),
         ),

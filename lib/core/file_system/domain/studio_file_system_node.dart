@@ -202,6 +202,32 @@ class StudioFolderEntity extends StudioFileSystemNode {
     return copyWith(children: updatedChildren);
   }
 
+  /// Mueve un nodo existente a una nueva carpeta de destino de forma inmutable.
+  StudioFolderEntity moveChild(String targetNodeId, String targetFolderId) {
+    final nodeToMove = findNode(targetNodeId);
+    if (nodeToMove == null) return this;
+    if (targetNodeId == targetFolderId) return this;
+    if (nodeToMove is StudioFolderEntity && nodeToMove.findNode(targetFolderId) != null) {
+      return this;
+    }
+
+    final withoutNode = removeChild(targetNodeId);
+    final targetFolder = withoutNode.findNode(targetFolderId);
+    final targetPath = targetFolder?.relativePath ?? '';
+    final newRelativePath = '$targetPath/${nodeToMove.name}';
+
+    final StudioFileSystemNode relocatedNode;
+    if (nodeToMove is StudioFileEntity) {
+      relocatedNode = nodeToMove.copyWith(relativePath: newRelativePath);
+    } else if (nodeToMove is StudioFolderEntity) {
+      relocatedNode = nodeToMove.copyWith(relativePath: newRelativePath);
+    } else {
+      relocatedNode = nodeToMove;
+    }
+
+    return withoutNode.insertChild(targetFolderId, relocatedNode);
+  }
+
   /// Colapsa o expande todas las carpetas del árbol.
   StudioFolderEntity setExpansionAll(bool expanded) {
     final updatedChildren = <StudioFileSystemNode>[];

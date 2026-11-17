@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
+import '../../audio_synthesizer/domain/pcm_wav_synthesizer.dart';
 import '../domain/universal_instrument_definition.dart';
 import '../domain/instrument_customization_profile.dart';
 import '../domain/musical_phrase_entity.dart';
@@ -137,5 +138,24 @@ class ProceduralInstrumentSynthesizer {
     }
 
     return phraseBuffer;
+  }
+
+  /// Convierte un buffer PCM flotante [-1.0, 1.0] a un archivo canónico WAV PCM de 16 bits.
+  static Uint8List floatBufferToWavBytes(Float32List floatSamples, {int sampleRate = sampleRate}) {
+    final pcmBytes = ByteData(floatSamples.length * 2);
+    for (int i = 0; i < floatSamples.length; i++) {
+      final sample = (floatSamples[i] * 32767.0).clamp(-32768.0, 32767.0).round();
+      pcmBytes.setInt16(i * 2, sample, Endian.little);
+    }
+    final header = PcmWavSynthesizer.buildWavHeader(
+      pcmDataBytes: pcmBytes.lengthInBytes,
+      sampleRate: sampleRate,
+      channels: 1,
+      bitsPerSample: 16,
+    );
+    final result = Uint8List(header.length + pcmBytes.lengthInBytes);
+    result.setRange(0, header.length, header);
+    result.setRange(header.length, result.length, pcmBytes.buffer.asUint8List());
+    return result;
   }
 }
