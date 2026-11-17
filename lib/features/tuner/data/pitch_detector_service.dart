@@ -48,6 +48,7 @@ class PitchDetectorService implements IPitchDetectorService {
 
   MicrophoneCalibrationProfile get activeProfile => _activeProfile;
   InstrumentAcousticFilterConfig get activeInstrumentFilter => _activeInstrumentFilter;
+  String get selectedDeviceId => _selectedDeviceId;
 
   Future<void> _startDspWorker() async {
     _fromWorkerPort = ReceivePort();

@@ -12,7 +12,7 @@ class MemoryStudioAudioChannel implements IStudioAudioChannel {
 
   StudioTransportStatus _status = StudioTransportStatus.stopped;
   Duration _currentPosition = Duration.zero;
-  Duration _totalDuration = const Duration(minutes: 3);
+  final Duration _totalDuration = const Duration(minutes: 3);
   double _volume = 1.0;
   double _playbackRate = 1.0;
   bool _isLooping = false;

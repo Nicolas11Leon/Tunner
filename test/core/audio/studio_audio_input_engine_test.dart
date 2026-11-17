@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tunner/core/audio/domain/audio_device_entity.dart';
 import 'package:tunner/core/audio/domain/audio_pcm_frame.dart';
 import 'package:tunner/core/audio/domain/audio_ring_buffer.dart';
 import 'package:tunner/core/audio/infrastructure/memory_studio_audio_input_engine.dart';

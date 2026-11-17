@@ -1,10 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tunner/core/audio/domain/i_studio_audio_channel.dart';
 import 'package:tunner/core/audio/domain/i_studio_audio_engine.dart';
 import 'package:tunner/core/audio/domain/studio_transport_status.dart';
 import 'package:tunner/core/audio/infrastructure/memory_studio_audio_engine.dart';
-import 'package:tunner/core/audio/infrastructure/studio_audio_channel.dart';
 import 'package:tunner/features/dj_console/data/dj_deck_audio_service.dart';
 
 void main() {

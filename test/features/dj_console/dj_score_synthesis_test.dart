@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tunner/features/dj_console/data/dj_audio_processor.dart';
-import 'package:tunner/features/dj_console/data/dj_deck_audio_service.dart';
 import 'package:tunner/features/dj_console/presentation/dj_console_view_model.dart';
 import 'package:tunner/features/dj_console/presentation/dj_track_loader_modal.dart';
 import 'package:tunner/features/song_library/data/song_decomposer_service.dart';

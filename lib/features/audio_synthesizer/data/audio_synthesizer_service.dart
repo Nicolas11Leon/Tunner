@@ -57,6 +57,9 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
     _offbeatBytes = PcmWavSynthesizer.generateMetronomeClickWav(isDownbeat: false);
   }
 
+  /// Retorna la instancia del motor de audio central que orquesta los canales del sintetizador.
+  IStudioAudioEngine get audioEngine => _audioEngine;
+
   @override
   bool get isDiapasonPlaying => _isDiapasonPlaying;
 

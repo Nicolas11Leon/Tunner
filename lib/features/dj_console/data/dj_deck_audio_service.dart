@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import '../../../core/audio/domain/i_studio_audio_channel.dart';
@@ -42,6 +41,9 @@ class DjDeckAudioService implements IDjDeckAudioPlayer {
                 .getChannel('dj_deck_b') {
     _initializeDemoGrooves();
   }
+
+  /// Retorna la instancia del motor de audio central asignado a la consola DJ.
+  IStudioAudioEngine get audioEngine => _audioEngine;
 
   void _initializeDemoGrooves() {
     // Generar bucle rítmico audible para Deck A (124 BPM, 4 compases)

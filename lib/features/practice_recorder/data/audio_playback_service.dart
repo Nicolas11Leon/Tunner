@@ -41,6 +41,9 @@ class AudioPlaybackService implements IAudioPlaybackService {
     });
   }
 
+  /// Retorna la instancia del motor de audio central que reproduce las tomas de práctica.
+  IStudioAudioEngine get audioEngine => _audioEngine;
+
   @override
   bool get isPlaying => _channel.isPlaying;
 
