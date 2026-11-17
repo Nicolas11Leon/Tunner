@@ -5,6 +5,7 @@ import 'package:tunner/core/audio/domain/audio_device_matrix_entity.dart';
 import 'package:tunner/core/audio/infrastructure/memory_audio_hardware_persistence_service.dart';
 import 'package:tunner/core/audio/infrastructure/memory_studio_audio_engine.dart';
 import 'package:tunner/core/audio/infrastructure/memory_studio_audio_input_engine.dart';
+import 'package:tunner/core/audio/infrastructure/memory_studio_master_capture_service.dart';
 import 'package:tunner/core/audio/infrastructure/studio_audio_device_matrix_service.dart';
 import 'package:tunner/core/audio/infrastructure/studio_audio_hardware_persistence_service.dart';
 import 'package:tunner/core/audio/presentation/studio_master_meter_mini_pill_widget.dart';
@@ -166,6 +167,7 @@ void main() {
       matrixService = StudioAudioDeviceMatrixService(
         outputEngine: MemoryStudioAudioEngine(),
         inputEngine: MemoryStudioAudioInputEngine(),
+        captureService: MemoryStudioMasterCaptureService(),
       );
     });
 
@@ -233,6 +235,27 @@ void main() {
       await tester.pump();
 
       expect(find.text('DIM -20dB'), findsOneWidget);
+    });
+
+    testWidgets('renders REC badge when isMasterRecording is active', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          StudioMasterMeterMiniPillWidget(
+            matrixService: matrixService,
+            onTap: () {},
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('REC'), findsNothing);
+
+      await matrixService.startMasterRecording('/tmp/dummy.wav');
+      await tester.pump();
+      expect(find.text('REC'), findsOneWidget);
+
+      await matrixService.stopMasterRecording();
+      await tester.pump();
+      expect(find.text('REC'), findsNothing);
     });
 
     testWidgets('triggers onTap callback when clicked', (tester) async {

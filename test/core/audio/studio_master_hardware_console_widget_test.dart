@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tunner/core/audio/domain/studio_master_clock_service.dart';
 import 'package:tunner/core/audio/domain/studio_transport_status.dart';
+import 'package:tunner/core/audio/infrastructure/memory_audio_hardware_persistence_service.dart';
 import 'package:tunner/core/audio/infrastructure/memory_studio_audio_engine.dart';
 import 'package:tunner/core/audio/infrastructure/memory_studio_audio_input_engine.dart';
+import 'package:tunner/core/audio/infrastructure/memory_studio_master_capture_service.dart';
 import 'package:tunner/core/audio/infrastructure/studio_audio_device_matrix_service.dart';
 import 'package:tunner/core/audio/presentation/studio_master_hardware_console_widget.dart';
 import 'package:tunner/core/design_system/studio_theme_provider.dart';
@@ -24,6 +26,8 @@ void main() {
       matrixService = StudioAudioDeviceMatrixService(
         outputEngine: outEngine,
         inputEngine: inEngine,
+        persistenceService: MemoryAudioHardwarePersistenceService(),
+        captureService: MemoryStudioMasterCaptureService(),
       );
       clockService = StudioMasterClockService(initialBpm: 120.0);
       themeController = StudioThemeController();
@@ -175,6 +179,55 @@ void main() {
       await tester.pump();
 
       expect(matrixService.matrix.channelRoutings['metronome_click'], 'mute');
+    });
+
+    testWidgets('toggles master recording via master_rec_btn', (tester) async {
+      await tester.pumpWidget(createTestApp());
+      await tester.pump();
+
+      final recBtn = find.byKey(const Key('master_rec_btn'));
+      expect(recBtn, findsOneWidget);
+      await tester.ensureVisible(recBtn);
+
+      expect(matrixService.matrix.isMasterRecording, isFalse);
+      await tester.tap(recBtn);
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(matrixService.matrix.isMasterRecording, isTrue);
+      expect(find.text('GRABANDO'), findsOneWidget);
+
+      await tester.tap(recBtn);
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(matrixService.matrix.isMasterRecording, isFalse);
+      expect(find.text('REC MASTER'), findsOneWidget);
+    });
+
+    testWidgets('toggles EQ and Compressor bypass buttons', (tester) async {
+      await tester.pumpWidget(createTestApp());
+      await tester.pump();
+
+      expect(find.text('CADENA DSP DE MASTERIZACIÓN (3-BAND EQ & COMPRESOR DE PICO)'), findsOneWidget);
+
+      // 1. EQ Bypass
+      final eqBypassBtn = find.byKey(const Key('master_eq_bypass_btn'));
+      expect(eqBypassBtn, findsOneWidget);
+      await tester.ensureVisible(eqBypassBtn);
+      expect(matrixService.matrix.isEqBypassed, isFalse);
+
+      await tester.tap(eqBypassBtn);
+      await tester.pump();
+      expect(matrixService.matrix.isEqBypassed, isTrue);
+
+      // 2. Comp Bypass
+      final compBypassBtn = find.byKey(const Key('master_comp_bypass_btn'));
+      expect(compBypassBtn, findsOneWidget);
+      await tester.ensureVisible(compBypassBtn);
+      expect(matrixService.matrix.isCompBypassed, isFalse);
+
+      await tester.tap(compBypassBtn);
+      await tester.pump();
+      expect(matrixService.matrix.isCompBypassed, isTrue);
     });
 
     testWidgets('modal show launches dialog successfully', (tester) async {

@@ -616,6 +616,12 @@ class DjConsoleViewModel extends ChangeNotifier {
     if (!_isDisposed) notifyListeners();
   }
 
+  /// Detiene la reproducción en todos los platos activos (Deck A y Deck B).
+  void stopAll() {
+    if (deckA.isPlaying) togglePlay('A');
+    if (deckB.isPlaying) togglePlay('B');
+  }
+
   void triggerCue(String deckId) {
     _triggerMomentaryPulse(deckId == 'A' ? DjAction.deckACue : DjAction.deckBCue);
     _orchestrator.triggerCue(deckId);

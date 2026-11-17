@@ -97,6 +97,26 @@ class StudioMasterMeterMiniPillWidget extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
 
+                  if (matrix.isMasterRecording) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      child: const Text(
+                        'REC',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 7.5,
+                          fontWeight: FontWeight.w900,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+
                   // Nivel o Estado en Texto
                   if (matrix.isMuted)
                     Text(

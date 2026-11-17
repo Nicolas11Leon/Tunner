@@ -99,6 +99,10 @@ class StudioMasterHardwareConsoleWidget extends StatelessWidget {
                       _buildMasterStripCard(context, tokens, matrix),
                       const SizedBox(height: 16),
 
+                      // Cadena DSP de Masterización: 3-Band EQ & Compresor
+                      _buildMasteringChainCard(context, tokens, matrix),
+                      const SizedBox(height: 16),
+
                       // Fila Inferior: Matriz Universal de Enrutamiento de Buses (Patchbay)
                       _buildMatrixRoutingCard(context, tokens, matrix),
                     ],
@@ -672,6 +676,41 @@ class StudioMasterHardwareConsoleWidget extends StatelessWidget {
                         child: const Text('MONO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                       ),
                     ),
+                    const SizedBox(width: 8),
+
+                    // Botón MASTER REC
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        key: const Key('master_rec_btn'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: matrix.isMasterRecording
+                              ? Colors.redAccent
+                              : tokens.panelHeaderBackground,
+                          foregroundColor: matrix.isMasterRecording ? Colors.white : tokens.textPrimary,
+                          side: BorderSide(
+                            color: matrix.isMasterRecording ? Colors.redAccent : tokens.borderHairline,
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        icon: Icon(
+                          Icons.fiber_manual_record,
+                          size: 13,
+                          color: matrix.isMasterRecording ? Colors.white : Colors.redAccent,
+                        ),
+                        label: Text(
+                          matrix.isMasterRecording ? 'GRABANDO' : 'REC MASTER',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: () {
+                          if (matrix.isMasterRecording) {
+                            matrixService.stopMasterRecording();
+                          } else {
+                            final path = 'recordings/master_mix_${DateTime.now().millisecondsSinceEpoch}.wav';
+                            matrixService.startMasterRecording(path);
+                          }
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -679,6 +718,260 @@ class StudioMasterHardwareConsoleWidget extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMasteringChainCard(BuildContext context, dynamic tokens, dynamic matrix) {
+    final meter = matrixService.masterMeterData;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: tokens.panelBackground.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+        border: Border.all(color: tokens.borderHairline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.graphic_eq, size: 14, color: tokens.accentPrimary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'CADENA DSP DE MASTERIZACIÓN (3-BAND EQ & COMPRESOR DE PICO)',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Ecualizador de 3 Bandas
+              Expanded(
+                flex: 5,
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: tokens.panelHeaderBackground.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                    border: Border.all(color: tokens.borderHairline),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'ECUALIZADOR PARAMÉTRICO',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: tokens.textSecondary, fontSize: 9.5, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          InkWell(
+                            key: const Key('master_eq_bypass_btn'),
+                            onTap: matrixService.toggleEqBypass,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: matrix.isEqBypassed ? Colors.amber.shade900 : tokens.panelBackground,
+                                borderRadius: BorderRadius.circular(3),
+                                border: Border.all(color: tokens.borderHairline),
+                              ),
+                              child: Text(
+                                matrix.isEqBypassed ? 'BYPASS ACTIVO' : 'ACTIVO',
+                                style: TextStyle(
+                                  color: matrix.isEqBypassed ? Colors.white : tokens.accentSuccess,
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      _buildEqBandSlider('LOW (100 Hz)', matrix.eqLowDb, -12.0, 12.0, tokens, matrixService.setEqLow),
+                      _buildEqBandSlider('MID (1 kHz)', matrix.eqMidDb, -12.0, 12.0, tokens, matrixService.setEqMid),
+                      _buildEqBandSlider('HIGH (8 kHz)', matrix.eqHighDb, -12.0, 12.0, tokens, matrixService.setEqHigh),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+
+              // Compresor Dinámico & Medidor GR
+              Expanded(
+                flex: 5,
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: tokens.panelHeaderBackground.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                    border: Border.all(color: tokens.borderHairline),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'COMPRESOR & LIMITADOR',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: tokens.textSecondary, fontSize: 9.5, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          InkWell(
+                            key: const Key('master_comp_bypass_btn'),
+                            onTap: matrixService.toggleCompBypass,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: matrix.isCompBypassed ? Colors.amber.shade900 : tokens.panelBackground,
+                                borderRadius: BorderRadius.circular(3),
+                                border: Border.all(color: tokens.borderHairline),
+                              ),
+                              child: Text(
+                                matrix.isCompBypassed ? 'BYPASS ACTIVO' : 'ACTIVO',
+                                style: TextStyle(
+                                  color: matrix.isCompBypassed ? Colors.white : tokens.accentSuccess,
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      _buildEqBandSlider(
+                        'UMBRAL (THRESHOLD)',
+                        matrix.compThresholdDb,
+                        -30.0,
+                        0.0,
+                        tokens,
+                        matrixService.setCompThreshold,
+                        unit: 'dB',
+                      ),
+                      _buildEqBandSlider(
+                        'RATIO',
+                        matrix.compRatio,
+                        1.0,
+                        20.0,
+                        tokens,
+                        matrixService.setCompRatio,
+                        unit: ':1',
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Text(
+                            'REDUCCIÓN (GR): ',
+                            style: TextStyle(color: tokens.textSecondary, fontSize: 9.0, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            '${meter.gainReductionDb.toStringAsFixed(1)} dB',
+                            style: TextStyle(
+                              color: meter.gainReductionDb < -0.1 ? tokens.accentWarning : tokens.textMuted,
+                              fontSize: 9.0,
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Container(
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: tokens.panelBackground,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                              alignment: Alignment.centerLeft,
+                              child: FractionallySizedBox(
+                                widthFactor: (meter.gainReductionDb.abs() / 15.0).clamp(0.0, 1.0),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.shade600,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEqBandSlider(
+    String label,
+    double value,
+    double min,
+    double max,
+    dynamic tokens,
+    void Function(double) onChanged, {
+    String unit = 'dB',
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: TextStyle(color: tokens.textSecondary, fontSize: 8.5)),
+            Text(
+              unit == 'dB'
+                  ? '${value >= 0 ? "+" : ""}${value.toStringAsFixed(1)} dB'
+                  : '${value.toStringAsFixed(1)}$unit',
+              style: TextStyle(
+                color: tokens.textPrimary,
+                fontSize: 8.5,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ],
+        ),
+        SliderTheme(
+          data: SliderThemeData(
+            activeTrackColor: tokens.accentPrimary,
+            inactiveTrackColor: tokens.panelBackground,
+            thumbColor: tokens.accentPrimary,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 8),
+            trackHeight: 3,
+          ),
+          child: Slider(
+            value: value.clamp(min, max),
+            min: min,
+            max: max,
+            onChanged: onChanged,
+          ),
+        ),
+      ],
     );
   }
 

@@ -1,6 +1,8 @@
 import 'dart:async';
 import '../../audio/domain/i_studio_audio_engine.dart';
 import '../../audio/domain/i_studio_audio_input_engine.dart';
+import '../../audio/domain/studio_master_clock_service.dart';
+import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../../file_system/domain/studio_file_system_node.dart';
 import '../../file_system/domain/studio_file_system_repository.dart';
 import 'tunner_os_command_entity.dart';
@@ -12,6 +14,8 @@ class TunnerOsKernel {
   final IStudioAudioEngine? outputEngine;
   final IStudioAudioInputEngine? inputEngine;
   final StudioFileSystemRepository? fileSystemRepository;
+  final StudioAudioDeviceMatrixService? matrixService;
+  final StudioMasterClockService? clockService;
   final void Function(String themeId)? onSetTheme;
   final void Function(String deckId, String trackTitle)? onDjLoadTrack;
   final void Function(String deckId)? onDjTogglePlay;
@@ -22,6 +26,8 @@ class TunnerOsKernel {
     this.outputEngine,
     this.inputEngine,
     this.fileSystemRepository,
+    this.matrixService,
+    this.clockService,
     this.onSetTheme,
     this.onDjLoadTrack,
     this.onDjTogglePlay,
@@ -56,6 +62,16 @@ class TunnerOsKernel {
         return _handleDsp(args);
       case 'fs':
         return _handleFs(args);
+      case 'master':
+        return _handleMaster(args);
+      case 'eq':
+        return _handleEq(args);
+      case 'comp':
+        return _handleComp(args);
+      case 'route':
+        return _handleRoute(args);
+      case 'clock':
+        return _handleClock(args);
       case 'theme':
         return _handleTheme(args);
       case 'clear':
@@ -76,6 +92,18 @@ dj load <A|B> <titulo>   : Carga una pista o síntesis (e.g. 'dj load A "Para El
 dj play <A|B>            : Inicia o reanuda la reproducción en el Deck
 dj pause <A|B>           : Pausa determinista en el Deck
 dj xfader <valor>        : Modula el crossfader entre -1.0 (A) y 1.0 (B)
+master gain <db>         : Ajusta la ganancia maestra en dB (e.g. 'master gain -3.0')
+master [mute|dim|mono]   : Alterna los modificadores de estudio MUTE, DIM o MONO
+master [rec|stop-rec]    : Inicia o detiene la grabación WAV del bus maestro
+eq [low|mid|high] <db>   : Ajusta las bandas del ecualizador maestro en dB
+eq bypass                : Alterna el bypass del ecualizador maestro
+comp thresh <db>         : Ajusta el umbral del compresor en dB (e.g. 'comp thresh -12')
+comp ratio <valor>       : Ajusta el ratio del compresor (e.g. 'comp ratio 4.0')
+comp bypass              : Alterna el bypass del compresor maestro
+route <canal> <destino>  : Asigna un canal a 'master', 'cue' o 'mute'
+clock [play|pause|stop]  : Controla el transporte unificado de todos los módulos
+clock bpm <valor>        : Sincroniza el tempo maestro (20 a 300 BPM)
+clock tap                : Registra una pulsación táctil para Tap Tempo
 io list                  : Lista las interfaces de audio de entrada detectadas
 io set-input <id>        : Conmuta la interfaz activa de captura
 dsp status               : Muestra la telemetría del motor de audio (latencia, buffers)
@@ -237,6 +265,191 @@ ARCHIVOS DEL PROYECTO ACTUAL:
     }
 
     return TunnerOsCommandResult.error("Sintaxis: fs ls");
+  }
+
+  TunnerOsCommandResult _handleMaster(List<String> args) {
+    if (matrixService == null) {
+      return TunnerOsCommandResult.error("Matriz de hardware no conectada al kernel.");
+    }
+    if (args.isEmpty) {
+      final m = matrixService!.matrix;
+      return TunnerOsCommandResult.success(
+        "ESTADO MASTER: Gain: ${m.masterGainDb.toStringAsFixed(1)} dB | "
+        "Mute: ${m.isMuted} | Dim: ${m.isDimmed} | Mono: ${m.isMono} | Rec: ${m.isMasterRecording}",
+      );
+    }
+    final action = args[0].toLowerCase();
+    switch (action) {
+      case 'gain':
+        if (args.length < 2) return TunnerOsCommandResult.error("Sintaxis: master gain <db>");
+        final db = double.tryParse(args[1]);
+        if (db == null) return TunnerOsCommandResult.error("Valor de dB inválido: ${args[1]}");
+        matrixService!.setMasterGainDb(db);
+        return TunnerOsCommandResult.success("[OK] Ganancia maestra establecida en ${db.toStringAsFixed(1)} dB");
+
+      case 'mute':
+        matrixService!.toggleMute();
+        return TunnerOsCommandResult.success(
+          "[OK] MUTE: ${matrixService!.matrix.isMuted ? 'ACTIVADO' : 'DESACTIVADO'}",
+        );
+
+      case 'dim':
+        matrixService!.toggleDim();
+        return TunnerOsCommandResult.success(
+          "[OK] DIM (-20dB): ${matrixService!.matrix.isDimmed ? 'ACTIVADO' : 'DESACTIVADO'}",
+        );
+
+      case 'mono':
+        matrixService!.toggleMono();
+        return TunnerOsCommandResult.success(
+          "[OK] MONO: ${matrixService!.matrix.isMono ? 'ACTIVADO' : 'DESACTIVADO'}",
+        );
+
+      case 'rec':
+        final path = "recordings/master_mix_${DateTime.now().millisecondsSinceEpoch}.wav";
+        matrixService!.startMasterRecording(path);
+        return TunnerOsCommandResult.success("[OK] Grabación maestra iniciada en: $path");
+
+      case 'stop-rec':
+        matrixService!.stopMasterRecording();
+        return TunnerOsCommandResult.success("[OK] Grabación maestra finalizada y guardada en disco.");
+
+      default:
+        return TunnerOsCommandResult.error("Acción master desconocida. Opciones: gain, mute, dim, mono, rec, stop-rec");
+    }
+  }
+
+  TunnerOsCommandResult _handleEq(List<String> args) {
+    if (matrixService == null) {
+      return TunnerOsCommandResult.error("Matriz de hardware no conectada al kernel.");
+    }
+    if (args.isEmpty) {
+      final m = matrixService!.matrix;
+      return TunnerOsCommandResult.success(
+        "EQ MASTER: Low: ${m.eqLowDb} dB | Mid: ${m.eqMidDb} dB | High: ${m.eqHighDb} dB | Bypass: ${m.isEqBypassed}",
+      );
+    }
+    final band = args[0].toLowerCase();
+    if (band == 'bypass') {
+      matrixService!.toggleEqBypass();
+      return TunnerOsCommandResult.success(
+        "[OK] EQ Bypass: ${matrixService!.matrix.isEqBypassed ? 'ACTIVADO' : 'DESACTIVADO'}",
+      );
+    }
+    if (args.length < 2) return TunnerOsCommandResult.error("Sintaxis: eq [low|mid|high] <db>");
+    final db = double.tryParse(args[1]);
+    if (db == null) return TunnerOsCommandResult.error("Valor de dB inválido: ${args[1]}");
+
+    switch (band) {
+      case 'low':
+        matrixService!.setEqLow(db);
+        return TunnerOsCommandResult.success("[OK] EQ Low Shelf (100 Hz): ${db.toStringAsFixed(1)} dB");
+      case 'mid':
+        matrixService!.setEqMid(db);
+        return TunnerOsCommandResult.success("[OK] EQ Mid Peaking (1 kHz): ${db.toStringAsFixed(1)} dB");
+      case 'high':
+        matrixService!.setEqHigh(db);
+        return TunnerOsCommandResult.success("[OK] EQ High Shelf (8 kHz): ${db.toStringAsFixed(1)} dB");
+      default:
+        return TunnerOsCommandResult.error("Banda desconocida: $band. Opciones: low, mid, high, bypass");
+    }
+  }
+
+  TunnerOsCommandResult _handleComp(List<String> args) {
+    if (matrixService == null) {
+      return TunnerOsCommandResult.error("Matriz de hardware no conectada al kernel.");
+    }
+    if (args.isEmpty) {
+      final m = matrixService!.matrix;
+      return TunnerOsCommandResult.success(
+        "COMP MASTER: Thresh: ${m.compThresholdDb} dB | Ratio: ${m.compRatio}:1 | Bypass: ${m.isCompBypassed}",
+      );
+    }
+    final param = args[0].toLowerCase();
+    switch (param) {
+      case 'thresh':
+      case 'threshold':
+        if (args.length < 2) return TunnerOsCommandResult.error("Sintaxis: comp thresh <db>");
+        final db = double.tryParse(args[1]);
+        if (db == null) return TunnerOsCommandResult.error("Valor de umbral inválido: ${args[1]}");
+        matrixService!.setCompThreshold(db);
+        return TunnerOsCommandResult.success("[OK] Compresor Umbral: ${db.toStringAsFixed(1)} dB");
+
+      case 'ratio':
+        if (args.length < 2) return TunnerOsCommandResult.error("Sintaxis: comp ratio <valor>");
+        final ratio = double.tryParse(args[1]);
+        if (ratio == null) return TunnerOsCommandResult.error("Valor de ratio inválido: ${args[1]}");
+        matrixService!.setCompRatio(ratio);
+        return TunnerOsCommandResult.success("[OK] Compresor Ratio: ${ratio.toStringAsFixed(1)}:1");
+
+      case 'bypass':
+        matrixService!.toggleCompBypass();
+        return TunnerOsCommandResult.success(
+          "[OK] Compresor Bypass: ${matrixService!.matrix.isCompBypassed ? 'ACTIVADO' : 'DESACTIVADO'}",
+        );
+
+      default:
+        return TunnerOsCommandResult.error("Parámetro desconocido: $param. Opciones: thresh, ratio, bypass");
+    }
+  }
+
+  TunnerOsCommandResult _handleRoute(List<String> args) {
+    if (matrixService == null) {
+      return TunnerOsCommandResult.error("Matriz de hardware no conectada al kernel.");
+    }
+    if (args.length < 2) {
+      return TunnerOsCommandResult.error("Sintaxis: route <canal> <master|cue|mute>");
+    }
+    final channel = args[0];
+    final destination = args[1].toLowerCase();
+    if (!['master', 'cue', 'mute'].contains(destination)) {
+      return TunnerOsCommandResult.error("Destino inválido: $destination. Opciones: master, cue, mute");
+    }
+    matrixService!.setChannelRouting(channel, destination);
+    return TunnerOsCommandResult.success("[OK] Canal '$channel' enrutado a bus '$destination'");
+  }
+
+  TunnerOsCommandResult _handleClock(List<String> args) {
+    if (clockService == null) {
+      return TunnerOsCommandResult.error("Reloj maestro no conectado al kernel.");
+    }
+    if (args.isEmpty) {
+      return TunnerOsCommandResult.success(
+        "RELOJ MAESTRO: ${clockService!.bpm.toStringAsFixed(1)} BPM | "
+        "Compás: ${clockService!.currentMeasure}:${clockService!.currentBeat} | "
+        "Estado: ${clockService!.status.name.toUpperCase()}",
+      );
+    }
+    final action = args[0].toLowerCase();
+    switch (action) {
+      case 'play':
+      case 'start':
+        clockService!.startTransport();
+        return TunnerOsCommandResult.success("[OK] Transporte global: PLAY ALL");
+
+      case 'pause':
+        clockService!.pauseTransport();
+        return TunnerOsCommandResult.success("[OK] Transporte global: PAUSE ALL");
+
+      case 'stop':
+        clockService!.stopTransport();
+        return TunnerOsCommandResult.success("[OK] Transporte global: STOP ALL");
+
+      case 'bpm':
+      case 'tempo':
+        if (args.length < 2) return TunnerOsCommandResult.error("Sintaxis: clock bpm <valor>");
+        final bpmVal = double.tryParse(args[1]);
+        if (bpmVal == null) return TunnerOsCommandResult.error("Valor de BPM inválido: ${args[1]}");
+        clockService!.setBpm(bpmVal);
+        return TunnerOsCommandResult.success("[OK] Tempo del reloj maestro: ${bpmVal.toStringAsFixed(1)} BPM");
+
+      case 'tap':
+        clockService!.registerTap();
+        return TunnerOsCommandResult.success("[OK] Tap Tempo registrado -> ${clockService!.bpm.toStringAsFixed(1)} BPM");
+
+      default:
+        return TunnerOsCommandResult.error("Acción de reloj desconocida. Opciones: play, pause, stop, bpm, tap");
+    }
   }
 
   TunnerOsCommandResult _handleTheme(List<String> args) {

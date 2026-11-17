@@ -18,6 +18,12 @@ class StudioMasterClockService extends ChangeNotifier {
   int _currentMeasure = 1;
   int _totalSubdivisionsElapsed = 0;
 
+  /// Callbacks de orquestación global para sincronizar todas las herramientas de Tunner
+  VoidCallback? onPlayAll;
+  VoidCallback? onPauseAll;
+  VoidCallback? onStopAll;
+  void Function(double bpm)? onBpmChanged;
+
   // Registro de pulsaciones para cálculo de Tap Tempo
   final List<DateTime> _tapHistory = [];
   static const int _maxTapSamples = 5;
@@ -60,6 +66,7 @@ class StudioMasterClockService extends ChangeNotifier {
     final clamped = newBpm.clamp(20.0, 300.0);
     if ((clamped - _bpm).abs() < 0.01) return;
     _bpm = clamped;
+    onBpmChanged?.call(clamped);
     notifyListeners();
   }
 
@@ -78,6 +85,7 @@ class StudioMasterClockService extends ChangeNotifier {
     _status = StudioTransportStatus.playing;
     _stopwatch.start();
     _startTicker();
+    onPlayAll?.call();
     notifyListeners();
   }
 
@@ -88,6 +96,7 @@ class StudioMasterClockService extends ChangeNotifier {
     _stopwatch.stop();
     _tickerTimer?.cancel();
     _tickerTimer = null;
+    onPauseAll?.call();
     notifyListeners();
   }
 
@@ -102,6 +111,7 @@ class StudioMasterClockService extends ChangeNotifier {
     _currentBeat = 1;
     _currentMeasure = 1;
     _totalSubdivisionsElapsed = 0;
+    onStopAll?.call();
     notifyListeners();
   }
 

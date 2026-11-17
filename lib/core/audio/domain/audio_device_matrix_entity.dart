@@ -32,6 +32,30 @@ class AudioDeviceMatrixEntity {
   /// Ejemplo: {'dj_deck_a': 'master', 'dj_deck_b': 'cue', 'metronome_click': 'master'}
   final Map<String, String> channelRoutings;
 
+  /// Ganancia de graves del ecualizador maestro en dB (Low Shelf a 100 Hz, -12 a +12 dB).
+  final double eqLowDb;
+
+  /// Ganancia de medios del ecualizador maestro en dB (Peaking Bell a 1 kHz, -12 a +12 dB).
+  final double eqMidDb;
+
+  /// Ganancia de agudos del ecualizador maestro en dB (High Shelf a 8 kHz, -12 a +12 dB).
+  final double eqHighDb;
+
+  /// Indica si la etapa de ecualización se encuentra en bypass.
+  final bool isEqBypassed;
+
+  /// Umbral del compresor/limitador de masterización en dB (-30 a 0 dB).
+  final double compThresholdDb;
+
+  /// Relación de compresión (Ratio 1:1 a 20:1).
+  final double compRatio;
+
+  /// Indica si la etapa de compresión dinámica se encuentra en bypass.
+  final bool isCompBypassed;
+
+  /// Indica si la captura de audio maestro a disco está activa.
+  final bool isMasterRecording;
+
   const AudioDeviceMatrixEntity({
     required this.activeInputDevice,
     required this.activeOutputDevice,
@@ -53,6 +77,14 @@ class AudioDeviceMatrixEntity {
       'harmonic_drone': 'master',
       'practice_take': 'master',
     },
+    this.eqLowDb = 0.0,
+    this.eqMidDb = 0.0,
+    this.eqHighDb = 0.0,
+    this.isEqBypassed = false,
+    this.compThresholdDb = 0.0,
+    this.compRatio = 2.0,
+    this.isCompBypassed = false,
+    this.isMasterRecording = false,
   });
 
   /// Crea una configuración por defecto con dispositivos estándar del sistema.
@@ -110,6 +142,14 @@ class AudioDeviceMatrixEntity {
     bool? isDimmed,
     bool? isMono,
     Map<String, String>? channelRoutings,
+    double? eqLowDb,
+    double? eqMidDb,
+    double? eqHighDb,
+    bool? isEqBypassed,
+    double? compThresholdDb,
+    double? compRatio,
+    bool? isCompBypassed,
+    bool? isMasterRecording,
   }) {
     return AudioDeviceMatrixEntity(
       activeInputDevice: activeInputDevice ?? this.activeInputDevice,
@@ -124,6 +164,14 @@ class AudioDeviceMatrixEntity {
       isDimmed: isDimmed ?? this.isDimmed,
       isMono: isMono ?? this.isMono,
       channelRoutings: channelRoutings ?? this.channelRoutings,
+      eqLowDb: eqLowDb ?? this.eqLowDb,
+      eqMidDb: eqMidDb ?? this.eqMidDb,
+      eqHighDb: eqHighDb ?? this.eqHighDb,
+      isEqBypassed: isEqBypassed ?? this.isEqBypassed,
+      compThresholdDb: compThresholdDb ?? this.compThresholdDb,
+      compRatio: compRatio ?? this.compRatio,
+      isCompBypassed: isCompBypassed ?? this.isCompBypassed,
+      isMasterRecording: isMasterRecording ?? this.isMasterRecording,
     );
   }
 
@@ -138,6 +186,14 @@ class AudioDeviceMatrixEntity {
         'isDimmed': isDimmed,
         'isMono': isMono,
         'channelRoutings': channelRoutings,
+        'eqLowDb': eqLowDb,
+        'eqMidDb': eqMidDb,
+        'eqHighDb': eqHighDb,
+        'isEqBypassed': isEqBypassed,
+        'compThresholdDb': compThresholdDb,
+        'compRatio': compRatio,
+        'isCompBypassed': isCompBypassed,
+        'isMasterRecording': isMasterRecording,
       };
 
   factory AudioDeviceMatrixEntity.fromJson(Map<String, dynamic> json) {
@@ -169,6 +225,14 @@ class AudioDeviceMatrixEntity {
             'harmonic_drone': 'master',
             'practice_take': 'master',
           },
+      eqLowDb: (json['eqLowDb'] as num?)?.toDouble() ?? 0.0,
+      eqMidDb: (json['eqMidDb'] as num?)?.toDouble() ?? 0.0,
+      eqHighDb: (json['eqHighDb'] as num?)?.toDouble() ?? 0.0,
+      isEqBypassed: json['isEqBypassed'] as bool? ?? false,
+      compThresholdDb: (json['compThresholdDb'] as num?)?.toDouble() ?? 0.0,
+      compRatio: (json['compRatio'] as num?)?.toDouble() ?? 2.0,
+      isCompBypassed: json['isCompBypassed'] as bool? ?? false,
+      isMasterRecording: json['isMasterRecording'] as bool? ?? false,
     );
   }
 }
