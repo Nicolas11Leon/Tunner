@@ -226,6 +226,16 @@ class DjPerformanceOrchestrator {
     }
   }
 
+  /// Sets pitch multiplier directly for master clock / BPM sync.
+  void setPitchMultiplier(String deckId, double multiplier) {
+    final clamped = multiplier.clamp(0.5, 2.0);
+    if (deckId == 'A') {
+      _deckA = _deckA.copyWith(pitchMultiplier: clamped, isSyncActive: true);
+    } else {
+      _deckB = _deckB.copyWith(pitchMultiplier: clamped, isSyncActive: true);
+    }
+  }
+
   /// Sets or jumps to a Hot Cue point (index 1..4).
   void triggerHotCue(String deckId, int cueIndex) {
     if (deckId == 'A') {

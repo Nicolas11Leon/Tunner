@@ -93,10 +93,14 @@ class StudioMasterHardwareConsoleWidget extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(width: 16, height: 16),
+                      const SizedBox(height: 16),
 
-                      // Fila Inferior: Tira de Canal Maestro con Vúmetros y Fader
+                      // Fila Intermedia: Tira de Canal Maestro con Vúmetros y Fader
                       _buildMasterStripCard(context, tokens, matrix),
+                      const SizedBox(height: 16),
+
+                      // Fila Inferior: Matriz Universal de Enrutamiento de Buses (Patchbay)
+                      _buildMatrixRoutingCard(context, tokens, matrix),
                     ],
                   ),
                 ),
@@ -613,6 +617,7 @@ class StudioMasterHardwareConsoleWidget extends StatelessWidget {
                     // Botón MUTE
                     Expanded(
                       child: ElevatedButton(
+                        key: const Key('master_mute_btn'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: matrix.isMuted
                               ? Colors.redAccent
@@ -632,6 +637,7 @@ class StudioMasterHardwareConsoleWidget extends StatelessWidget {
                     // Botón DIM (-20 dB)
                     Expanded(
                       child: ElevatedButton(
+                        key: const Key('master_dim_btn'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: matrix.isDimmed
                               ? Colors.amber.shade700
@@ -651,6 +657,7 @@ class StudioMasterHardwareConsoleWidget extends StatelessWidget {
                     // Botón MONO
                     Expanded(
                       child: ElevatedButton(
+                        key: const Key('master_mono_btn'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: matrix.isMono
                               ? Colors.cyan.shade700
@@ -671,6 +678,137 @@ class StudioMasterHardwareConsoleWidget extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMatrixRoutingCard(BuildContext context, dynamic tokens, dynamic matrix) {
+    final channels = [
+      ('dj_deck_a', 'DJ Deck A (Plato Principal)', Icons.album),
+      ('dj_deck_b', 'DJ Deck B (Plato Secundario)', Icons.album),
+      ('metronome_click', 'Metrónomo Acústico', Icons.av_timer),
+      ('tuning_diapason', 'Diapasón y Tono de Afinación', Icons.graphic_eq),
+      ('instrument_note', 'Teclado y Sintetizador', Icons.piano),
+      ('harmonic_drone', 'Bucle de Dron Armónico', Icons.waves),
+      ('practice_take', 'Tomas de Práctica', Icons.record_voice_over),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: tokens.panelBackground.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+        border: Border.all(color: tokens.borderHairline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.hub_outlined, size: 14, color: tokens.accentPrimary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'MATRIZ UNIVERSAL DE ENRUTAMIENTO DE BUSES (PATCHBAY)',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Lista de canales y sus selectores de bus (MASTER, CUE, MUTE)
+          ...channels.map((ch) {
+            final routing = matrix.channelRoutings[ch.$1] ?? 'master';
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Icon(ch.$3, size: 14, color: tokens.textSecondary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      ch.$2,
+                      style: TextStyle(color: tokens.textPrimary, fontSize: 10.5, fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Botón MASTER
+                  _buildBusSelectorChip(
+                    keyName: 'routing_${ch.$1}_master',
+                    label: 'MASTER',
+                    isSelected: routing == 'master',
+                    activeColor: Colors.greenAccent.shade700,
+                    tokens: tokens,
+                    onTap: () => matrixService.setChannelRouting(ch.$1, 'master'),
+                  ),
+                  const SizedBox(width: 4),
+                  // Botón CUE (Headphones)
+                  _buildBusSelectorChip(
+                    keyName: 'routing_${ch.$1}_cue',
+                    label: 'CUE',
+                    isSelected: routing == 'cue',
+                    activeColor: Colors.amber.shade700,
+                    tokens: tokens,
+                    onTap: () => matrixService.setChannelRouting(ch.$1, 'cue'),
+                  ),
+                  const SizedBox(width: 4),
+                  // Botón MUTE
+                  _buildBusSelectorChip(
+                    keyName: 'routing_${ch.$1}_mute',
+                    label: 'MUTE',
+                    isSelected: routing == 'mute',
+                    activeColor: Colors.redAccent,
+                    tokens: tokens,
+                    onTap: () => matrixService.setChannelRouting(ch.$1, 'mute'),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBusSelectorChip({
+    required String keyName,
+    required String label,
+    required bool isSelected,
+    required Color activeColor,
+    required dynamic tokens,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      key: Key(keyName),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(3),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor.withValues(alpha: 0.25) : tokens.panelHeaderBackground,
+          borderRadius: BorderRadius.circular(3),
+          border: Border.all(
+            color: isSelected ? activeColor : tokens.borderHairline,
+            width: isSelected ? 1.2 : 0.8,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? activeColor : tokens.textMuted,
+            fontSize: 9,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontFamily: 'monospace',
+          ),
+        ),
       ),
     );
   }

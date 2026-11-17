@@ -649,6 +649,16 @@ class DjConsoleViewModel extends ChangeNotifier {
     if (!_isDisposed) notifyListeners();
   }
 
+  /// Sincroniza la velocidad de reproducción y BPM del deck con el tempo objetivo del reloj maestro.
+  void syncDeckToBpm(String deckId, double targetBpm) {
+    final deck = deckId == 'A' ? deckA : deckB;
+    if (deck.bpm <= 0) return;
+    final multiplier = (targetBpm / deck.bpm).clamp(0.5, 2.0);
+    _orchestrator.setPitchMultiplier(deckId, multiplier);
+    _deckAudioPlayer.setDeckPlaybackRate(deckId, multiplier);
+    if (!_isDisposed) notifyListeners();
+  }
+
   void triggerHotCue(String deckId, int index) {
     final actions = deckId == 'A'
         ? [DjAction.deckAHotCue1, DjAction.deckAHotCue2, DjAction.deckAHotCue3, DjAction.deckAHotCue4]

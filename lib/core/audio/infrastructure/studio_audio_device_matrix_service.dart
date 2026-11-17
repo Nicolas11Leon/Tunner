@@ -156,20 +156,27 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Asigna un canal virtual a un bus de destino ('master' o 'cue').
+  /// Asigna un canal virtual a un bus de destino ('master', 'cue' o 'mute').
   void setChannelRouting(String channelId, String destinationBus) {
     final currentRoutings = Map<String, String>.from(_matrix.channelRoutings);
     currentRoutings[channelId] = destinationBus;
     _matrix = _matrix.copyWith(channelRoutings: currentRoutings);
+    _applyMasterGainToOutputs();
     notifyListeners();
   }
 
   void _applyMasterGainToOutputs() {
-    // Escala los canales principales en función de la ganancia efectiva
     final effGain = _matrix.effectiveMasterGain;
-    for (final channelId in ['dj_deck_a', 'dj_deck_b', 'metronome_click', 'practice_take']) {
+    for (final channelId in _matrix.channelRoutings.keys) {
+      final routing = _matrix.channelRoutings[channelId] ?? 'master';
       final ch = _outputEngine.getChannel(channelId);
-      ch.setVolume(ch.volume * effGain);
+      if (routing == 'mute') {
+        ch.setVolume(0.0);
+      } else if (routing == 'cue') {
+        ch.setVolume(0.85);
+      } else {
+        ch.setVolume((1.0 * effGain).clamp(0.0, 1.0));
+      }
     }
   }
 

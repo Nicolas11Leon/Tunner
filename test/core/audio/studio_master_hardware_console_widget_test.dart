@@ -136,19 +136,45 @@ void main() {
       expect(matrixService.matrix.isMono, isFalse);
 
       // Tap MUTE
-      await tester.tap(find.text('MUTE'));
+      await tester.tap(find.byKey(const Key('master_mute_btn')));
       await tester.pump();
       expect(matrixService.matrix.isMuted, isTrue);
 
       // Tap DIM (-20dB)
-      await tester.tap(find.text('DIM (-20dB)'));
+      await tester.tap(find.byKey(const Key('master_dim_btn')));
       await tester.pump();
       expect(matrixService.matrix.isDimmed, isTrue);
 
       // Tap MONO
-      await tester.tap(find.text('MONO'));
+      await tester.tap(find.byKey(const Key('master_mono_btn')));
       await tester.pump();
       expect(matrixService.matrix.isMono, isTrue);
+    });
+
+    testWidgets('taps patchbay routing chips and updates matrix channel routing', (tester) async {
+      await tester.pumpWidget(createTestApp());
+      await tester.pump();
+
+      expect(find.text('MATRIZ UNIVERSAL DE ENRUTAMIENTO DE BUSES (PATCHBAY)'), findsOneWidget);
+      expect(matrixService.matrix.channelRoutings['dj_deck_b'], 'master');
+
+      // Route DJ Deck B to CUE
+      final cueBtn = find.byKey(const Key('routing_dj_deck_b_cue'));
+      expect(cueBtn, findsOneWidget);
+      await tester.ensureVisible(cueBtn);
+      await tester.tap(cueBtn);
+      await tester.pump();
+
+      expect(matrixService.matrix.channelRoutings['dj_deck_b'], 'cue');
+
+      // Mute Metronome
+      final muteMetroBtn = find.byKey(const Key('routing_metronome_click_mute'));
+      expect(muteMetroBtn, findsOneWidget);
+      await tester.ensureVisible(muteMetroBtn);
+      await tester.tap(muteMetroBtn);
+      await tester.pump();
+
+      expect(matrixService.matrix.channelRoutings['metronome_click'], 'mute');
     });
 
     testWidgets('modal show launches dialog successfully', (tester) async {
