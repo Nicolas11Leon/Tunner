@@ -2,7 +2,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![CI Pipeline](https://github.com/Nicolas11Leon/Tunner/actions/workflows/ci.yml/badge.svg)](https://github.com/Nicolas11Leon/Tunner/actions/workflows/ci.yml)
-[![Tests: 617 Passing](https://img.shields.io/badge/Tests-617%20Passing-brightgreen.svg)]()
+[![Tests: 1017 Passing](https://img.shields.io/badge/Tests-1017%20Passing-brightgreen.svg)]()
 [![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
 [![Architecture: Clean Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-informational.svg)]()
 [![Privacy: 100% Offline--First](https://img.shields.io/badge/Privacy-100%25%20Offline--First-blueviolet.svg)]()
@@ -175,30 +175,81 @@ flowchart LR
 
 ## 5. Cómo Colaborar en Tunner (Call for Contributors)
 
-¡Tunner es un proyecto impulsado por la comunidad para la comunidad! Creemos firmemente que la mejor tecnología musical nace de la intersección entre músicos, científicos de audio y artesanos del software.
+Tunner es un proyecto impulsado por la comunidad para la comunidad musical y de ingeniería de audio. Creemos firmemente que la mejor tecnología acústica nace de la intersección entre músicos, científicos de DSP y artesanos del software.
 
-### ¿Quiénes pueden colaborar?
-| Perfil | Áreas de Impacto en Tunner |
-| :--- | :--- |
-| **Músicos y Educadores** | Diseñar ejercicios de estudio, afinar curvas de temperamentos históricos, validar instrumentos y proponer afinaciones alternativas. |
-| **Ingenieros de Audio y DSP** | Investigar algoritmos de detección de tono polifónico, optimizar filtros acústicos digitales y expandir la síntesis SoundFont/SFZ. |
-| **Desarrolladores Flutter y Dart** | Optimizar el rendimiento gráfico del lienzo SMuFL a 60/120 FPS, mejorar la interfaz y atajos DAW, y enriquecer el Rack Modular. |
-| **Desarrolladores C++ y Rust** | Colaborar en el futuro motor DSP nativo de ultra baja latencia con `dart:ffi` y optimizaciones SIMD. |
-| **Traductores y Diseñadores** | Traducir Tunner a más idiomas (i18n), diseñar temas accesibles de alto contraste y redactar guías de usuario. |
+### 5.1 Regla Cardinal de GitFlow: Protección de `main` y Base `qa`
 
-### Cómo empezar en 4 pasos
-1. **Lee nuestra [Guía de Contribución](CONTRIBUTING.md)** y la constitución técnica del proyecto en [AGENTS.md](AGENTS.md).
-2. **Haz un Fork y Clona el repositorio:**
+> [!IMPORTANT]
+> **Solo el Mantenedor Principal toca la rama `main`.**  
+> Para preservar la estabilidad absoluta del proyecto y garantizar que la rama `main` contenga exclusivamente versiones canónicas etiquetadas y verificadas:
+> 1. Todas las ramas de funcionalidad se bifurcan a partir de `qa` (`feature/*` o `fix/*`).
+> 2. Todos los Pull Requests de colaboradores deben tener como rama base de destino `qa` (`base: qa`).
+> 3. Los merges de `qa` a `main` son ejecutados de manera periódica y exclusiva por el Mantenedor Principal ([@Nicolas11Leon](https://github.com/Nicolas11Leon)) tras superar los ciclos de auditoría y QA.
+
+```mermaid
+gitGraph
+    commit id: "v1.0.0 (main)"
+    branch qa
+    checkout qa
+    commit id: "qa-init"
+    branch feature/nueva-tarea
+    checkout feature/nueva-tarea
+    commit id: "feat: clean arch"
+    commit id: "test: 100% pass"
+    checkout qa
+    merge feature/nueva-tarea id: "PR #X merge a qa"
+    checkout main
+    merge qa id: "Release Oficial (Solo Mantenedor)"
+```
+
+### 5.2 Tablero Kanban Centralizado (GitHub Projects)
+
+Todas las iniciativas, épicas y tareas abiertas para la comunidad se gestionan públicamente en el **Tablero Kanban de GitHub Projects**:
+
+* **Tablero Kanban Oficial:** [Tunner Project Board en GitHub](https://github.com/Nicolas11Leon/Tunner/projects)
+* **Organización del Tablero:**
+  - **Backlog / Disponibles:** Tareas priorizadas pendientes de asignación. Busca las etiquetas `good first issue` y `help wanted`.
+  - **En Análisis y Diseño:** Tareas con redacción de Caso de Uso y ADR en curso.
+  - **En Desarrollo:** Tareas asignadas con ramas de funcionalidad activas.
+  - **En Revisión / QA:** Pull Requests abiertos contra la rama `qa` en proceso de code review y verificación de tests.
+  - **Completado en QA:** Funcionalidades verificadas en `qa` listas para el próximo release.
+
+### 5.3 ¿Cómo empezar a colaborar en 5 pasos?
+
+1. **Revisa la Constitución y Guías Técnicas:**  
+   Lee [AGENTS.md](AGENTS.md) (constitución de no-negociables) y la [Guía de Contribución](CONTRIBUTING.md).
+2. **Selecciona y Reclama tu Tarea en GitHub Issues / Projects:**  
+   Encuentra una tarea en el tablero Kanban o en los [Issues del repositorio](https://github.com/Nicolas11Leon/Tunner/issues). Deja un comentario formal indicando: *"Deseo tomar esta tarea"*. Un mantenedor te asignará formalmente el Issue para evitar duplicidad de esfuerzo.
+3. **Prepara tu Entorno Local y bifurca desde `qa`:**  
    ```bash
    git clone https://github.com/TU_USUARIO/Tunner.git
    cd Tunner
+   git remote add upstream https://github.com/Nicolas11Leon/Tunner.git
+   git fetch upstream
+   git checkout -b feature/nombre-de-la-tarea upstream/qa
    flutter pub get
    ```
-3. **Explora los "Good First Issues" sugeridos en [CONTRIBUTING.md](CONTRIBUTING.md)**:
-   * Nuevos temperamentos históricos (`lib/features/tuner/domain/temperaments.dart`).
-   * Ampliación de presets de instrumentos en `UniversalInstrumentCatalog`.
-   * Mejoras de accesibilidad y temas de color en `TunnerThemePalette`.
-4. **Envía tu Pull Request** asegurando que `flutter analyze` reporte 0 advertencias y `flutter test` pase al 100%.
+4. **Desarrolla con Disciplina Técnica:**  
+   - 100% Clean Architecture (capa de dominio pura en Dart, sin dependencias de Flutter UI).
+   - Documentación previa (Caso de Uso formal o ADR si introduces cambios estructurales).
+   - Pruebas unitarias acompañando cada nueva funcionalidad.
+   - Política de Cero Emojis en código, commits, tests y documentación.
+5. **Verifica y Abre tu Pull Request contra `qa`:**  
+   ```bash
+   flutter analyze --no-fatal-infos  # Debe reportar 0 issues
+   flutter test                      # 100% de pruebas pasando
+   git push origin feature/nombre-de-la-tarea
+   ```
+   Abre el Pull Request en GitHub seleccionando **`base: qa`** y vincula el número de issue (ej. `Closes #XX`).
+
+### 5.4 Perfiles de Colaboración
+| Perfil | Áreas de Impacto en Tunner |
+| :--- | :--- |
+| **Músicos y Educadores** | Diseñar ejercicios de estudio, afinar curvas de temperamentos históricos, validar instrumentos y proponer afinaciones alternativas. |
+| **Ingenieros de Audio y DSP** | Investigar algoritmos de detección de tono polifónico, optimizar filtros acústicos digitales, crear scripts para Tunner DSL y expandir la síntesis SoundFont/SFZ. |
+| **Desarrolladores Flutter y Dart** | Optimizar el rendimiento gráfico del lienzo SMuFL a 60/120 FPS, mejorar la interfaz y atajos DAW, y enriquecer el Rack Modular. |
+| **Desarrolladores C++ y Rust** | Colaborar en el futuro motor DSP nativo de ultra baja latencia con `dart:ffi` y optimizaciones SIMD. |
+| **Traductores y Diseñadores** | Traducir Tunner a más idiomas (i18n), diseñar temas accesibles de alto contraste y redactar guías técnicas de usuario. |
 
 ---
 
