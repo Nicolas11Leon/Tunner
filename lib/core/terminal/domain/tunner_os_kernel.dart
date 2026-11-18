@@ -5,6 +5,7 @@ import '../../../../features/sheet_music/domain/score_playback_coordinator.dart'
 import '../../../../features/tuner_viewmodel.dart';
 import '../../audio/domain/i_studio_audio_engine.dart';
 import '../../audio/domain/i_studio_audio_input_engine.dart';
+import '../../audio/domain/reverb/schroeder_reverb_engine.dart';
 import '../../audio/domain/studio_master_clock_service.dart';
 import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../../dsl/domain/studio_os_audio_kernel.dart';
@@ -31,6 +32,7 @@ class TunnerOsKernel {
   final void Function(String deckId, String trackTitle)? onDjLoadTrack;
   final void Function(String deckId)? onDjTogglePlay;
   final void Function(double val)? onDjSetCrossfader;
+  SchroederReverbEngine? reverbEngine;
   StudioOsAudioKernel? audioKernel;
   late final StudioOsAudioKernelBridge kernelBridge;
   late final TunnerDslParser dslParser;
@@ -50,14 +52,17 @@ class TunnerOsKernel {
     this.onDjLoadTrack,
     this.onDjTogglePlay,
     this.onDjSetCrossfader,
+    SchroederReverbEngine? reverbEngine,
     StudioOsAudioKernel? audioKernel,
-  }) : audioKernel = audioKernel ?? StudioOsAudioKernel() {
+  })  : reverbEngine = reverbEngine ?? SchroederReverbEngine(),
+        audioKernel = audioKernel ?? StudioOsAudioKernel() {
     kernelBridge = StudioOsAudioKernelBridge(
       kernel: this.audioKernel!,
       matrixService: matrixService,
       synthVoicePool: synthVoicePool,
       clockService: clockService,
       viewModel: viewModel,
+      reverbEngine: this.reverbEngine,
     );
     dslParser = TunnerDslParser();
     dslInterpreter = TunnerDslInterpreter(defaultKernel: this.audioKernel);
@@ -107,6 +112,8 @@ class TunnerOsKernel {
         return _handleScore(args);
       case 'project':
         return _handleProject(args);
+      case 'reverb':
+        return _handleReverb(args);
       case 'dsl':
       case 'eval':
         return _handleDsl(line);
@@ -138,6 +145,8 @@ eq bypass                : Alterna el bypass del ecualizador maestro
 comp thresh <db>         : Ajusta el umbral del compresor en dB (e.g. 'comp thresh -12')
 comp ratio <valor>       : Ajusta el ratio del compresor (e.g. 'comp ratio 4.0')
 comp bypass              : Alterna el bypass del compresor maestro
+reverb [room|damp|wet] <val>: Modula parámetros de reverberación Schroeder-Moorer
+reverb status            : Muestra la configuración actual de reverberación
 route <canal> <destino>  : Asigna un canal a 'master', 'cue' o 'mute'
 clock [play|pause|stop]  : Controla el transporte unificado de todos los módulos
 clock bpm <valor>        : Sincroniza el tempo maestro (20 a 300 BPM)
@@ -682,6 +691,53 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
         return TunnerOsCommandResult.error(
           "Subcomando project desconocido: '$sub'. Opciones validas: info, export",
         );
+    }
+  }
+
+  TunnerOsCommandResult _handleReverb(List<String> args) {
+    if (reverbEngine == null) {
+      return TunnerOsCommandResult.error('Reverberador no disponible en el kernel.');
+    }
+    if (args.isEmpty || args[0] == 'status') {
+      return TunnerOsCommandResult.success('''
+[ESTADO REVERBERADOR SCHROEDER-MOORER]
+- Room Size: ${(reverbEngine!.roomSize * 100).toStringAsFixed(1)}%
+- Damping: ${(reverbEngine!.damping * 100).toStringAsFixed(1)}%
+- Wet Mix: ${(reverbEngine!.wetMix * 100).toStringAsFixed(1)}%
+- Dry Mix: ${(reverbEngine!.dryMix * 100).toStringAsFixed(1)}%
+- Width: ${(reverbEngine!.width * 100).toStringAsFixed(1)}%
+'''.trim());
+    }
+
+    final param = args[0].toLowerCase();
+    if (args.length < 2) {
+      return TunnerOsCommandResult.error('Sintaxis: reverb [room|damp|wet|dry|width] <valor 0.0-1.0>');
+    }
+    final val = double.tryParse(args[1]);
+    if (val == null) {
+      return TunnerOsCommandResult.error('El valor de reverberacion debe ser un numero decimal.');
+    }
+
+    switch (param) {
+      case 'room':
+      case 'roomsize':
+        reverbEngine!.roomSize = val;
+        return TunnerOsCommandResult.success('[OK] Reverb Room Size fijado en: ${reverbEngine!.roomSize}');
+      case 'damp':
+      case 'damping':
+        reverbEngine!.damping = val;
+        return TunnerOsCommandResult.success('[OK] Reverb Damping fijado en: ${reverbEngine!.damping}');
+      case 'wet':
+        reverbEngine!.wetMix = val;
+        return TunnerOsCommandResult.success('[OK] Reverb Wet Mix fijado en: ${reverbEngine!.wetMix}');
+      case 'dry':
+        reverbEngine!.dryMix = val;
+        return TunnerOsCommandResult.success('[OK] Reverb Dry Mix fijado en: ${reverbEngine!.dryMix}');
+      case 'width':
+        reverbEngine!.width = val;
+        return TunnerOsCommandResult.success('[OK] Reverb Width fijado en: ${reverbEngine!.width}');
+      default:
+        return TunnerOsCommandResult.error('Parametro de reverberacion no valido: $param. Opciones: room, damp, wet, dry, width, status');
     }
   }
 

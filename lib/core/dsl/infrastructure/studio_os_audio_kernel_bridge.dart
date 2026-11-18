@@ -2,6 +2,7 @@ import 'dart:async';
 import '../../../features/audio_synthesizer/domain/polyphonic/polyphonic_synth_voice.dart';
 import '../../../features/audio_synthesizer/domain/polyphonic/polyphonic_voice_pool.dart';
 import '../../../features/tuner_viewmodel.dart';
+import '../../audio/domain/reverb/schroeder_reverb_engine.dart';
 import '../../audio/domain/studio_master_clock_service.dart';
 import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../domain/studio_os_audio_kernel.dart';
@@ -15,6 +16,7 @@ class StudioOsAudioKernelBridge {
   final PolyphonicVoicePool? synthVoicePool;
   final StudioMasterClockService? clockService;
   final TunerViewModel? viewModel;
+  final SchroederReverbEngine? reverbEngine;
 
   double _currentBpm = 120.0;
 
@@ -24,6 +26,7 @@ class StudioOsAudioKernelBridge {
     this.synthVoicePool,
     this.clockService,
     this.viewModel,
+    this.reverbEngine,
   }) {
     _bindHandlers();
   }
@@ -143,6 +146,23 @@ class StudioOsAudioKernelBridge {
         } else if (cleanParam == 'release') {
           final s = _normalizeTimeSeconds(value, unit);
           synthVoicePool!.releaseSeconds = s;
+        }
+      }
+    }
+    // 5. Modulación en Reverberador Schroeder-Moorer
+    else if (cleanTarget == 'reverb') {
+      if (reverbEngine != null) {
+        final numVal = (value is num) ? value.toDouble() : 0.5;
+        if (cleanParam == 'room' || cleanParam == 'roomsize') {
+          reverbEngine!.roomSize = numVal;
+        } else if (cleanParam == 'damping' || cleanParam == 'damp') {
+          reverbEngine!.damping = numVal;
+        } else if (cleanParam == 'wet') {
+          reverbEngine!.wetMix = numVal;
+        } else if (cleanParam == 'dry') {
+          reverbEngine!.dryMix = numVal;
+        } else if (cleanParam == 'width') {
+          reverbEngine!.width = numVal;
         }
       }
     }
