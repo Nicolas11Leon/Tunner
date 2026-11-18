@@ -1,6 +1,7 @@
 import 'dart:async';
 import '../../../../features/audio_synthesizer/domain/polyphonic/polyphonic_synth_voice.dart';
 import '../../../../features/audio_synthesizer/domain/polyphonic/polyphonic_voice_pool.dart';
+import '../../../../features/pedagogy/domain/ebbinghaus_spaced_repetition_engine.dart';
 import '../../../../features/sheet_music/domain/score_playback_coordinator.dart';
 import '../../../../features/tuner_viewmodel.dart';
 import '../../audio/domain/i_studio_audio_engine.dart';
@@ -35,6 +36,7 @@ class TunnerOsKernel {
   final void Function(double val)? onDjSetCrossfader;
   SchroederReverbEngine? reverbEngine;
   BinauralPannerEngine? spatialEngine;
+  EbbinghausSpacedRepetitionEngine? earTrainingEngine;
   StudioOsAudioKernel? audioKernel;
   late final StudioOsAudioKernelBridge kernelBridge;
   late final TunnerDslParser dslParser;
@@ -56,9 +58,11 @@ class TunnerOsKernel {
     this.onDjSetCrossfader,
     SchroederReverbEngine? reverbEngine,
     BinauralPannerEngine? spatialEngine,
+    EbbinghausSpacedRepetitionEngine? earTrainingEngine,
     StudioOsAudioKernel? audioKernel,
   })  : reverbEngine = reverbEngine ?? SchroederReverbEngine(),
         spatialEngine = spatialEngine ?? BinauralPannerEngine(),
+        earTrainingEngine = earTrainingEngine ?? EbbinghausSpacedRepetitionEngine(),
         audioKernel = audioKernel ?? StudioOsAudioKernel() {
     kernelBridge = StudioOsAudioKernelBridge(
       kernel: this.audioKernel!,
@@ -121,6 +125,8 @@ class TunnerOsKernel {
         return _handleReverb(args);
       case 'spatial':
         return _handleSpatial(args);
+      case 'train':
+        return _handleTrain(args);
       case 'dsl':
       case 'eval':
         return _handleDsl(line);
@@ -156,6 +162,8 @@ reverb [room|damp|wet] <val>: Modula parámetros de reverberación Schroeder-Moo
 reverb status            : Muestra la configuración actual de reverberación
 spatial [az|elev|dist] <val>: Modula coordenadas espaciales 3D (azimut, elevación, distancia)
 spatial status           : Muestra telemetría y coeficientes psicoacústicos binaurales ITD/ILD
+train [review|status]    : Gestiona la rutina adaptativa de entrenamiento auditivo Ebbinghaus
+train answer <id> <cents>: Califica un intervalo y reprograma la estabilidad de memoria
 route <canal> <destino>  : Asigna un canal a 'master', 'cue' o 'mute'
 clock [play|pause|stop]  : Controla el transporte unificado de todos los módulos
 clock bpm <valor>        : Sincroniza el tempo maestro (20 a 300 BPM)
@@ -813,6 +821,107 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
       default:
         return TunnerOsCommandResult.error(
           'Comando espacial no valido: $subCmd. Opciones: status, pan, az, elev, dist, reset',
+        );
+    }
+  }
+
+  TunnerOsCommandResult _handleTrain(List<String> args) {
+    if (earTrainingEngine == null) {
+      return TunnerOsCommandResult.error('Motor de entrenamiento auditivo no inicializado.');
+    }
+
+    final now = DateTime.now();
+
+    if (args.isEmpty || args[0].toLowerCase() == 'status') {
+      final all = earTrainingEngine!.allItems;
+      final due = earTrainingEngine!.getDueItems(now: now);
+      final avgRetention = earTrainingEngine!.overallRetentionAverage(now) * 100.0;
+      final mastered = all.where((i) => i.repetitions >= 3).length;
+
+      return TunnerOsCommandResult.success('''
+[ESTADO DE ENTRENAMIENTO AUDITIVO - REPETICION ESPACIADA EBBINGHAUS]
+- Total de Ejercicios en Catalogo: ${all.length}
+- Ejercicios Pendientes de Repaso: ${due.length}
+- Retencion Cognitiva Promedio: ${avgRetention.toStringAsFixed(1)}%
+- Intervalos Dominados (>= 3 repasos): $mastered / ${all.length}
+'''.trim());
+    }
+
+    final subCmd = args[0].toLowerCase();
+    switch (subCmd) {
+      case 'review':
+      case 'due':
+        final due = earTrainingEngine!.getDueItems(now: now);
+        if (due.isEmpty) {
+          return TunnerOsCommandResult.success(
+            '[OK] No hay ejercicios pendientes de repaso. Retencion auditiva por encima del 90%.',
+          );
+        }
+        final buffer = StringBuffer('EJERCICIOS PENDIENTES DE REPASO:\n-------------------------------\n');
+        for (final item in due) {
+          final ret = (item.retentionAt(now) * 100).toStringAsFixed(1);
+          buffer.writeln(
+            '- ${item.id} | ${item.name} (${item.semitones} st) | Retencion: $ret% | Estabilidad: ${item.stabilityDays.toStringAsFixed(2)}d',
+          );
+        }
+        return TunnerOsCommandResult.success(buffer.toString().trim());
+
+      case 'list':
+        final all = earTrainingEngine!.allItems;
+        final buffer = StringBuffer('CATALOGO DE ENTRENAMIENTO AUDITIVO:\n----------------------------------\n');
+        for (final item in all) {
+          final ret = (item.retentionAt(now) * 100).toStringAsFixed(1);
+          buffer.writeln(
+            '- ${item.id.padRight(28)}: ${item.name.padRight(32)} [$ret% ret | ${item.stabilityDays.toStringAsFixed(1)}d stab | ${item.repetitions} reps]',
+          );
+        }
+        return TunnerOsCommandResult.success(buffer.toString().trim());
+
+      case 'answer':
+      case 'submit':
+        if (args.length < 3) {
+          return TunnerOsCommandResult.error(
+            'Sintaxis: train answer <id_ejercicio> <cents_error> [tiempo_seg] [correcto: 1|0]',
+          );
+        }
+        final itemId = args[1];
+        final cents = double.tryParse(args[2]);
+        if (cents == null) {
+          return TunnerOsCommandResult.error('El error en cents debe ser un numero decimal.');
+        }
+
+        final time = args.length >= 4 ? (double.tryParse(args[3]) ?? 2.0) : 2.0;
+        final isCorrect = args.length >= 5 ? (args[4] == '1' || args[4].toLowerCase() == 'true') : cents.abs() <= 50.0;
+
+        try {
+          final result = earTrainingEngine!.submitAnswer(
+            itemId,
+            isCorrect: isCorrect,
+            centsError: cents,
+            responseTimeSeconds: time,
+            timestamp: now,
+          );
+          return TunnerOsCommandResult.success('''
+[EVALUACION PEDAGOGICA EBBINGHAUS]
+- Ejercicio: ${result.updatedItem.name} (${result.updatedItem.id})
+- Calificacion de Calidad: ${result.qualityGrade}/5
+- Error Acustico: ${result.centsError.toStringAsFixed(1)} cents
+- Tiempo de Respuesta: ${result.responseTimeSeconds.toStringAsFixed(2)} s
+- Nueva Estabilidad: ${result.updatedItem.stabilityDays.toStringAsFixed(2)} dias
+- Proximo Repaso: ${result.updatedItem.nextReviewDate.toIso8601String().substring(0, 16)}
+- Diagnostico: ${result.cognitiveFeedback}
+'''.trim());
+        } catch (e) {
+          return TunnerOsCommandResult.error('Error al evaluar ejercicio: ${e.toString()}');
+        }
+
+      case 'reset':
+        earTrainingEngine!.reset();
+        return TunnerOsCommandResult.success('[OK] Catalogo de entrenamiento auditivo reiniciado al estado base.');
+
+      default:
+        return TunnerOsCommandResult.error(
+          'Subcomando no valido: $subCmd. Opciones: status, review, list, answer, reset',
         );
     }
   }
