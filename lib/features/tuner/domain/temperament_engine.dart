@@ -36,7 +36,7 @@ class TemperamentEngine {
     'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B'
   ];
 
-  /// Colección canónica de los 8 temperamentos de conservatorio y música antigua.
+  /// Colección canónica de los 11 temperamentos de conservatorio y música antigua.
   static const List<MusicalTemperament> allTemperaments = [
     MusicalTemperament(
       id: 'equal',
@@ -94,6 +94,27 @@ class TemperamentEngine {
       description: 'Progresión gradual de color tonal hacia todas las tonalidades mayores y menores.',
       centsOffsets: [0.0, -8.0, -4.0, -4.0, -8.0, 0.0, -10.0, -2.0, -6.0, -6.0, -2.0, -6.0],
     ),
+    MusicalTemperament(
+      id: 'werckmeister_iv',
+      name: 'Werckmeister IV (Septenarius 1691)',
+      historicalEra: 'Barroco Temprano / Monocordio',
+      description: 'Basado en divisiones en 7 partes del monocordio; quintas compensadas para modulacion circular.',
+      centsOffsets: [0.0, -6.0, -4.0, -6.0, -8.0, 2.0, -10.0, -4.0, -8.0, -6.0, 0.0, -8.0],
+    ),
+    MusicalTemperament(
+      id: 'kirnberger_i',
+      name: 'Kirnberger I (1771)',
+      historicalEra: 'Barroco Tardío / Teórico Bach',
+      description: 'Conserva la tercera mayor C-E acusticamente pura (5:4) concentrando la coma sintonica en D-A.',
+      centsOffsets: [0.0, -7.82, 3.91, -5.87, -13.69, -1.96, -9.78, 1.96, -5.87, -15.64, -3.91, -11.73],
+    ),
+    MusicalTemperament(
+      id: 'neidhardt_1724',
+      name: 'Neidhardt (1724, Grosse Stadt)',
+      historicalEra: 'Barroco de Catedral / Órgano',
+      description: 'Temperamento circulante para grandes organos de iglesia con quintas atemperadas en 1/6 y 1/12 de coma.',
+      centsOffsets: [0.0, -7.82, -3.91, -3.91, -7.82, 1.96, -9.78, -1.96, -5.87, -5.87, 0.0, -7.82],
+    ),
   ];
 
   /// Obtiene un temperamento por su ID, o retorna el Temperamento Igual por defecto.
@@ -109,6 +130,15 @@ class TemperamentEngine {
 
   /// Instancia canónica de Entonación Justa (5-Limit Just).
   static MusicalTemperament get justIntonation => allTemperaments[2];
+
+  /// Instancia canónica de Werckmeister IV (Septenarius).
+  static MusicalTemperament get werckmeisterIV => getById('werckmeister_iv');
+
+  /// Instancia canónica de Kirnberger I.
+  static MusicalTemperament get kirnbergerI => getById('kirnberger_i');
+
+  /// Instancia canónica de Neidhardt (1724).
+  static MusicalTemperament get neidhardt1724 => getById('neidhardt_1724');
 
   /// Calcula la desviación en cents de una nota cromática específica según el temperamento
   /// y la nota raíz o tónica seleccionada.
