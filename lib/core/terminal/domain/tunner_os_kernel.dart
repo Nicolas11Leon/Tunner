@@ -6,11 +6,13 @@ import '../../../../features/pedagogy/domain/pedagogical_certificate_pdf_generat
 import '../../../../features/pedagogy/domain/vocal_stability_evaluator.dart';
 import '../../../../features/sheet_music/domain/score_playback_coordinator.dart';
 import '../../../../features/tuner_viewmodel.dart';
+import '../../audio/domain/ffi/i_native_dsp_bridge.dart';
 import '../../audio/domain/i_studio_audio_engine.dart';
 import '../../audio/domain/i_studio_audio_input_engine.dart';
 import '../../audio/domain/reverb/schroeder_reverb_engine.dart';
 import '../../audio/domain/spatial/binaural_panner_engine.dart';
 import '../../audio/domain/studio_master_clock_service.dart';
+import '../../audio/infrastructure/ffi/native_dsp_ffi_bridge.dart';
 import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../../dsl/domain/studio_os_audio_kernel.dart';
 import '../../dsl/domain/tunner_dsl_interpreter.dart';
@@ -40,6 +42,7 @@ class TunnerOsKernel {
   BinauralPannerEngine? spatialEngine;
   EbbinghausSpacedRepetitionEngine? earTrainingEngine;
   VocalStabilityEvaluator? vocalEvaluator;
+  INativeDspBridge? nativeDspBridge;
   StudioOsAudioKernel? audioKernel;
   late final StudioOsAudioKernelBridge kernelBridge;
   late final TunnerDslParser dslParser;
@@ -63,11 +66,13 @@ class TunnerOsKernel {
     BinauralPannerEngine? spatialEngine,
     EbbinghausSpacedRepetitionEngine? earTrainingEngine,
     VocalStabilityEvaluator? vocalEvaluator,
+    INativeDspBridge? nativeDspBridge,
     StudioOsAudioKernel? audioKernel,
   })  : reverbEngine = reverbEngine ?? SchroederReverbEngine(),
         spatialEngine = spatialEngine ?? BinauralPannerEngine(),
         earTrainingEngine = earTrainingEngine ?? EbbinghausSpacedRepetitionEngine(),
         vocalEvaluator = vocalEvaluator ?? const VocalStabilityEvaluator(),
+        nativeDspBridge = nativeDspBridge ?? NativeDspFfiBridge(),
         audioKernel = audioKernel ?? StudioOsAudioKernel() {
     kernelBridge = StudioOsAudioKernelBridge(
       kernel: this.audioKernel!,
@@ -303,16 +308,19 @@ clear                    : Limpia el historial de la pantalla de la terminal
   }
 
   TunnerOsCommandResult _handleDsp(List<String> args) {
-    const report = '''
+    final nativeEngine = nativeDspBridge != null ? nativeDspBridge!.engineName : 'No Inicializado';
+    final isNative = nativeDspBridge?.isNativeAvailable ?? false;
+    final report = '''
 ESTADO DEL MOTOR DSP CORE (TUNNER STUDIO):
 -------------------------------------------
-Motor de Audio     : EN LÍNEA (FULL-DUPLEX)
-Frecuencia Base    : 44.1 kHz / 48.0 kHz
-Tamaño de Buffer   : 1024 muestras (< 7.8 ms latencia)
-Ring Buffer Lock   : 16384 muestras (Zero GC overhead)
-Isolate MPM Worker : Activo (McLeod Pitch Method + Tone Lock)
-Canales de Salida  : Deck A, Deck B, Metronome, Diapason, Takes
-Limitador Soft-Clip: Activo a 0.0 dBFS
+Motor de Audio        : EN LÍNEA (FULL-DUPLEX)
+Frecuencia Base       : 44.1 kHz / 48.0 kHz
+Tamaño de Buffer      : 1024 muestras (< 7.8 ms latencia)
+Ring Buffer Lock      : 16384 muestras (Zero GC overhead)
+Acelerador Nativo FFI : $nativeEngine (Nativo Activo: ${isNative ? "SI" : "NO - Fallback Activo"})
+Isolate MPM Worker    : Activo (McLeod Pitch Method + Tone Lock)
+Canales de Salida     : Deck A, Deck B, Metronome, Diapason, Takes
+Limitador Soft-Clip   : Activo a 0.0 dBFS
 ''';
     return TunnerOsCommandResult.success(report.trim());
   }
