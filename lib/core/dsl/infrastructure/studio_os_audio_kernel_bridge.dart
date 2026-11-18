@@ -3,6 +3,7 @@ import '../../../features/audio_synthesizer/domain/polyphonic/polyphonic_synth_v
 import '../../../features/audio_synthesizer/domain/polyphonic/polyphonic_voice_pool.dart';
 import '../../../features/tuner_viewmodel.dart';
 import '../../audio/domain/reverb/schroeder_reverb_engine.dart';
+import '../../audio/domain/spatial/binaural_panner_engine.dart';
 import '../../audio/domain/studio_master_clock_service.dart';
 import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../domain/studio_os_audio_kernel.dart';
@@ -17,6 +18,7 @@ class StudioOsAudioKernelBridge {
   final StudioMasterClockService? clockService;
   final TunerViewModel? viewModel;
   final SchroederReverbEngine? reverbEngine;
+  final BinauralPannerEngine? spatialEngine;
 
   double _currentBpm = 120.0;
 
@@ -27,6 +29,7 @@ class StudioOsAudioKernelBridge {
     this.clockService,
     this.viewModel,
     this.reverbEngine,
+    this.spatialEngine,
   }) {
     _bindHandlers();
   }
@@ -163,6 +166,19 @@ class StudioOsAudioKernelBridge {
           reverbEngine!.dryMix = numVal;
         } else if (cleanParam == 'width') {
           reverbEngine!.width = numVal;
+        }
+      }
+    }
+    // 6. Modulacion en Motor de Espacializacion Binaural 3D
+    else if (cleanTarget == 'spatial' || cleanTarget == 'panner') {
+      if (spatialEngine != null) {
+        final numVal = (value is num) ? value.toDouble() : 0.0;
+        if (cleanParam == 'azimuth' || cleanParam == 'pan') {
+          spatialEngine!.setAzimuth(numVal);
+        } else if (cleanParam == 'elevation') {
+          spatialEngine!.setElevation(numVal);
+        } else if (cleanParam == 'distance') {
+          spatialEngine!.setDistance(numVal);
         }
       }
     }

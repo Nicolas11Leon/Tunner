@@ -6,6 +6,7 @@ import '../../../../features/tuner_viewmodel.dart';
 import '../../audio/domain/i_studio_audio_engine.dart';
 import '../../audio/domain/i_studio_audio_input_engine.dart';
 import '../../audio/domain/reverb/schroeder_reverb_engine.dart';
+import '../../audio/domain/spatial/binaural_panner_engine.dart';
 import '../../audio/domain/studio_master_clock_service.dart';
 import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../../dsl/domain/studio_os_audio_kernel.dart';
@@ -33,6 +34,7 @@ class TunnerOsKernel {
   final void Function(String deckId)? onDjTogglePlay;
   final void Function(double val)? onDjSetCrossfader;
   SchroederReverbEngine? reverbEngine;
+  BinauralPannerEngine? spatialEngine;
   StudioOsAudioKernel? audioKernel;
   late final StudioOsAudioKernelBridge kernelBridge;
   late final TunnerDslParser dslParser;
@@ -53,8 +55,10 @@ class TunnerOsKernel {
     this.onDjTogglePlay,
     this.onDjSetCrossfader,
     SchroederReverbEngine? reverbEngine,
+    BinauralPannerEngine? spatialEngine,
     StudioOsAudioKernel? audioKernel,
   })  : reverbEngine = reverbEngine ?? SchroederReverbEngine(),
+        spatialEngine = spatialEngine ?? BinauralPannerEngine(),
         audioKernel = audioKernel ?? StudioOsAudioKernel() {
     kernelBridge = StudioOsAudioKernelBridge(
       kernel: this.audioKernel!,
@@ -63,6 +67,7 @@ class TunnerOsKernel {
       clockService: clockService,
       viewModel: viewModel,
       reverbEngine: this.reverbEngine,
+      spatialEngine: this.spatialEngine,
     );
     dslParser = TunnerDslParser();
     dslInterpreter = TunnerDslInterpreter(defaultKernel: this.audioKernel);
@@ -114,6 +119,8 @@ class TunnerOsKernel {
         return _handleProject(args);
       case 'reverb':
         return _handleReverb(args);
+      case 'spatial':
+        return _handleSpatial(args);
       case 'dsl':
       case 'eval':
         return _handleDsl(line);
@@ -147,6 +154,8 @@ comp ratio <valor>       : Ajusta el ratio del compresor (e.g. 'comp ratio 4.0')
 comp bypass              : Alterna el bypass del compresor maestro
 reverb [room|damp|wet] <val>: Modula parámetros de reverberación Schroeder-Moorer
 reverb status            : Muestra la configuración actual de reverberación
+spatial [az|elev|dist] <val>: Modula coordenadas espaciales 3D (azimut, elevación, distancia)
+spatial status           : Muestra telemetría y coeficientes psicoacústicos binaurales ITD/ILD
 route <canal> <destino>  : Asigna un canal a 'master', 'cue' o 'mute'
 clock [play|pause|stop]  : Controla el transporte unificado de todos los módulos
 clock bpm <valor>        : Sincroniza el tempo maestro (20 a 300 BPM)
@@ -738,6 +747,73 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
         return TunnerOsCommandResult.success('[OK] Reverb Width fijado en: ${reverbEngine!.width}');
       default:
         return TunnerOsCommandResult.error('Parametro de reverberacion no valido: $param. Opciones: room, damp, wet, dry, width, status');
+    }
+  }
+
+  TunnerOsCommandResult _handleSpatial(List<String> args) {
+    if (spatialEngine == null) {
+      return TunnerOsCommandResult.error('Motor de espacializacion binaural 3D no inicializado.');
+    }
+
+    if (args.isEmpty || args[0].toLowerCase() == 'status') {
+      final coords = spatialEngine!.coordinates;
+      return TunnerOsCommandResult.success('''
+[MATRIZ DE ESPACIALIZACION BINAURAL 3D - HRTF WOODWORTH]
+- Azimut: ${coords.azimuthDegrees.toStringAsFixed(1)}°
+- Elevacion: ${coords.elevationDegrees.toStringAsFixed(1)}°
+- Distancia: ${coords.distanceMeters.toStringAsFixed(2)} m
+- Retardo Izquierdo: ${spatialEngine!.leftDelayMs.toStringAsFixed(3)} ms
+- Retardo Derecho: ${spatialEngine!.rightDelayMs.toStringAsFixed(3)} ms
+- ITD Neto: ${spatialEngine!.itdMs.toStringAsFixed(3)} ms
+- Atenuacion por Distancia: ${(spatialEngine!.distanceGain * 100).toStringAsFixed(1)}%
+'''.trim());
+    }
+
+    final subCmd = args[0].toLowerCase();
+    if (subCmd == 'reset') {
+      spatialEngine!.reset();
+      spatialEngine!.coordinates = const BinauralPannerEntity();
+      return TunnerOsCommandResult.success('[OK] Coordenadas binaurales y lineas de retardo reiniciadas.');
+    }
+
+    if (args.length < 2) {
+      return TunnerOsCommandResult.error(
+        'Sintaxis: spatial [pan|az|elev|dist] <valor> o spatial status',
+      );
+    }
+
+    final val = double.tryParse(args[1]);
+    if (val == null) {
+      return TunnerOsCommandResult.error('El parametro espacial debe ser un numero.');
+    }
+
+    switch (subCmd) {
+      case 'pan':
+      case 'az':
+      case 'azimuth':
+        spatialEngine!.setAzimuth(val);
+        return TunnerOsCommandResult.success(
+          '[OK] Azimut fijado en: ${spatialEngine!.coordinates.azimuthDegrees}° (ITD: ${spatialEngine!.itdMs.toStringAsFixed(3)} ms)',
+        );
+      case 'elev':
+      case 'elevation':
+        spatialEngine!.setElevation(val);
+        return TunnerOsCommandResult.success(
+          '[OK] Elevacion fijada en: ${spatialEngine!.coordinates.elevationDegrees}°',
+        );
+      case 'dist':
+      case 'distance':
+        if (val <= 0.0) {
+          return TunnerOsCommandResult.error('La distancia debe ser estrictamente positiva (> 0.0).');
+        }
+        spatialEngine!.setDistance(val);
+        return TunnerOsCommandResult.success(
+          '[OK] Distancia fijada en: ${spatialEngine!.coordinates.distanceMeters} m (Ganancia: ${(spatialEngine!.distanceGain * 100).toStringAsFixed(1)}%)',
+        );
+      default:
+        return TunnerOsCommandResult.error(
+          'Comando espacial no valido: $subCmd. Opciones: status, pan, az, elev, dist, reset',
+        );
     }
   }
 
