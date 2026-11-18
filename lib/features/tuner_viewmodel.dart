@@ -87,6 +87,13 @@ import 'song_library/domain/minus_one_session_entity.dart';
 import 'song_library/domain/minus_one_orchestrator.dart';
 import 'modular_rack/domain/port_permission_broker.dart';
 import 'tuner/domain/hardware_audio_endpoint.dart';
+import 'audio_synthesizer/domain/polyphonic/polyphonic_synth_voice.dart';
+import '../core/packaging/domain/i_tunner_package_codec.dart';
+import '../core/packaging/domain/tunner_project_manifest_entity.dart';
+import '../core/packaging/domain/tunner_project_package_entity.dart';
+import '../core/packaging/infrastructure/tunner_package_codec_service.dart';
+import '../core/audio/infrastructure/studio_audio_device_matrix_service.dart';
+import '../core/audio/domain/audio_device_matrix_entity.dart';
 
 /// ViewModel principal orquestador del estudio interactivo.
 /// Diseñado bajo Clean Architecture con Inversión de Dependencias (DIP).
@@ -243,6 +250,10 @@ class TunerViewModel extends ChangeNotifier {
   late final ScorePlaybackCoordinator _scorePlaybackCoordinator;
   int? _selectedScoreNoteIndex;
 
+  // Empaquetador Canónico de Proyectos .tunner
+  ITunnerPackageCodec packageCodec;
+  final StudioAudioDeviceMatrixService? _audioDeviceMatrixService;
+
   // Calibración y Adaptación Acústica del Micrófono (UC-41)
   MicrophoneCalibrationProfile _micProfile = const MicrophoneCalibrationProfile();
   double _currentMicRmsLevel = 0.0;
@@ -291,6 +302,8 @@ class TunerViewModel extends ChangeNotifier {
     SoundFontSynthesizerService? soundFontSynthesizer,
     PolyphonicVoicePool? polyphonicVoicePool,
     ScorePlaybackCoordinator? scorePlaybackCoordinator,
+    ITunnerPackageCodec? packageCodec,
+    StudioAudioDeviceMatrixService? audioDeviceMatrixService,
     Future<String> Function()? recordingPathProvider,
     bool seedDefaults = false,
   })  : _shouldSeedDefaults = seedDefaults,
@@ -313,6 +326,8 @@ class TunerViewModel extends ChangeNotifier {
         _autoTuneProcessor = autoTuneProcessor ?? VocalAutoTuneProcessor(),
         _soundFontSynthesizer = soundFontSynthesizer ?? SoundFontSynthesizerService(),
         _polyphonicVoicePool = polyphonicVoicePool ?? PolyphonicVoicePool(),
+        packageCodec = packageCodec ?? const TunnerPackageCodecService(),
+        _audioDeviceMatrixService = audioDeviceMatrixService,
         _recordingPathProvider = recordingPathProvider {
     _scorePlaybackCoordinator = scorePlaybackCoordinator ??
         ScorePlaybackCoordinator(
@@ -695,6 +710,101 @@ class TunerViewModel extends ChangeNotifier {
   void clearSelectedScoreNote() {
     _selectedScoreNoteIndex = null;
     notifyListeners();
+  }
+
+  // Acceso a servicios de hardware y empaquetado canónico
+  StudioAudioDeviceMatrixService? get audioDeviceMatrixService => _audioDeviceMatrixService;
+
+  /// Exporta el estado completo de la sesión actual a un paquete canónico binario `.tunner`.
+  Uint8List exportCurrentProjectToTunner({
+    String? projectTitle,
+    String? author,
+  }) {
+    final now = DateTime.now();
+    final manifest = TunnerProjectManifestEntity(
+      id: 'tunner_proj_${now.millisecondsSinceEpoch}',
+      title: projectTitle ?? _activePackage.title,
+      author: author ?? _activePackage.composer,
+      createdAt: now,
+      modifiedAt: now,
+      bpm: _bpm.toDouble(),
+      timeSignature: '4/4',
+    );
+
+    final synthPresetJson = <String, dynamic>{
+      'waveform': _polyphonicVoicePool.waveform.name,
+      'attack': _polyphonicVoicePool.attackSeconds,
+      'decay': _polyphonicVoicePool.decaySeconds,
+      'sustain': _polyphonicVoicePool.sustainLevel,
+      'release': _polyphonicVoicePool.releaseSeconds,
+      'pulseWidth': _polyphonicVoicePool.pulseWidth,
+      'masterGain': _polyphonicVoicePool.masterGain,
+    };
+
+    final scoreJson = <String, dynamic>{
+      'title': _activePackage.title,
+      'composer': _activePackage.composer,
+      'bpm': _bpm,
+    };
+
+    Map<String, dynamic>? routingMatrixJson;
+    if (_audioDeviceMatrixService != null) {
+      routingMatrixJson = _audioDeviceMatrixService.matrix.toJson();
+    }
+
+    final pkg = TunnerProjectPackageEntity(
+      manifest: manifest,
+      routingMatrixJson: routingMatrixJson,
+      scoreJson: scoreJson,
+      synthPresetJson: synthPresetJson,
+    );
+
+    return packageCodec.encodePackage(pkg);
+  }
+
+  /// Importa un proyecto desde un flujo de bytes `.tunner` y restaura
+  /// de forma reactiva el tempo, matriz de hardware y presets del sintetizador.
+  TunnerProjectPackageEntity importProjectFromTunnerBytes(
+    Uint8List bytes, {
+    bool verifyHashes = true,
+  }) {
+    final pkg = packageCodec.decodePackage(bytes, verifyHashes: verifyHashes);
+
+    if (pkg.manifest.bpm > 0) {
+      updateBpm(pkg.manifest.bpm.round());
+    }
+
+    if (pkg.synthPresetJson != null) {
+      final waveStr = pkg.synthPresetJson!['waveform'] as String?;
+      if (waveStr != null) {
+        for (final w in SynthWaveform.values) {
+          if (w.name == waveStr) {
+            _polyphonicVoicePool.waveform = w;
+            break;
+          }
+        }
+      }
+      final attack = (pkg.synthPresetJson!['attack'] as num?)?.toDouble();
+      if (attack != null) _polyphonicVoicePool.attackSeconds = attack;
+      final decay = (pkg.synthPresetJson!['decay'] as num?)?.toDouble();
+      if (decay != null) _polyphonicVoicePool.decaySeconds = decay;
+      final sustain = (pkg.synthPresetJson!['sustain'] as num?)?.toDouble();
+      if (sustain != null) _polyphonicVoicePool.sustainLevel = sustain;
+      final release = (pkg.synthPresetJson!['release'] as num?)?.toDouble();
+      if (release != null) _polyphonicVoicePool.releaseSeconds = release;
+      final pw = (pkg.synthPresetJson!['pulseWidth'] as num?)?.toDouble();
+      if (pw != null) _polyphonicVoicePool.pulseWidth = pw;
+      final gain = (pkg.synthPresetJson!['masterGain'] as num?)?.toDouble();
+      if (gain != null) _polyphonicVoicePool.masterGain = gain;
+    }
+
+    if (pkg.routingMatrixJson != null && _audioDeviceMatrixService != null) {
+      final restoredMatrix = AudioDeviceMatrixEntity.fromJson(pkg.routingMatrixJson!);
+      _audioDeviceMatrixService.restoreMatrix(restoredMatrix);
+    }
+
+    notifyListeners();
+    return pkg;
   }
 
   void _initListeners() {

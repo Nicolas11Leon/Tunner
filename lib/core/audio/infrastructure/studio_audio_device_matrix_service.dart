@@ -242,6 +242,15 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Restaura de forma atómica una configuración completa de matriz de audio.
+  void restoreMatrix(AudioDeviceMatrixEntity newMatrix) {
+    _matrix = newMatrix;
+    _initDspChain();
+    _applyMasterGainToOutputs();
+    _persistState();
+    notifyListeners();
+  }
+
   /// Asigna un canal virtual a un bus de destino ('master', 'cue' o 'mute').
   void setChannelRouting(String channelId, String destinationBus) {
     final currentRoutings = Map<String, String>.from(_matrix.channelRoutings);
