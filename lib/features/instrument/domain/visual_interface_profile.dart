@@ -171,4 +171,59 @@ class VisualInterfaceProfile {
     smuflGlyph: 'SYN',
     tactileLabels: ['Osc 1 (Saw)', 'Cutoff', 'Resonance', 'Glide'],
   );
+
+  /// Preset visual para Kora de África Occidental.
+  static const VisualInterfaceProfile koraEthnic = VisualInterfaceProfile(
+    rendererType: VisualRendererType.fingerboard,
+    visualMaterialTheme: 'calabash_wood',
+    primaryAccentColor: Color(0xFFEAB308), // Oro africano
+    secondaryAccentColor: Color(0xFFCA8A04),
+    surfaceColor: Color(0xFF26180E),
+    smuflGlyph: 'KRA',
+    tactileLabels: ['F2', 'C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'Bb3', 'C4', 'D4', 'E4'],
+  );
+
+  /// Preset visual para Sitar de la India.
+  static const VisualInterfaceProfile sitarEthnic = VisualInterfaceProfile(
+    rendererType: VisualRendererType.fretboard,
+    visualMaterialTheme: 'teak_brass',
+    primaryAccentColor: Color(0xFFF97316), // Azafrán védico
+    secondaryAccentColor: Color(0xFFC2410C),
+    surfaceColor: Color(0xFF1F120A),
+    smuflGlyph: 'SIT',
+    tactileLabels: ['C2', 'G2', 'C3', 'F3', 'G3', 'C4', 'C5'],
+  );
+
+  /// Preset visual para Shakuhachi japonés.
+  static const VisualInterfaceProfile shakuhachiEthnic = VisualInterfaceProfile(
+    rendererType: VisualRendererType.valvesPads,
+    visualMaterialTheme: 'bamboo_natural',
+    primaryAccentColor: Color(0xFF84CC16), // Verde bambú
+    secondaryAccentColor: Color(0xFF65A30D),
+    surfaceColor: Color(0xFF1A1F12),
+    smuflGlyph: 'SHK',
+    tactileLabels: ['D4', 'F4', 'G4', 'A4', 'C5'],
+  );
+
+  /// Preset visual para Charango andino.
+  static const VisualInterfaceProfile charangoEthnic = VisualInterfaceProfile(
+    rendererType: VisualRendererType.fretboard,
+    visualMaterialTheme: 'andean_jacaranda',
+    primaryAccentColor: Color(0xFF06B6D4), // Turquesa andino
+    secondaryAccentColor: Color(0xFF0891B2),
+    surfaceColor: Color(0xFF131D24),
+    smuflGlyph: 'CHG',
+    tactileLabels: ['E5', 'A4', 'E5', 'C5', 'G4'],
+  );
+
+  /// Preset visual para Cuatro tradicional venezolano.
+  static const VisualInterfaceProfile cuatroVenezuelan = VisualInterfaceProfile(
+    rendererType: VisualRendererType.fretboard,
+    visualMaterialTheme: 'cedar_llanero',
+    primaryAccentColor: Color(0xFFE11D48), // Rojo llanero
+    secondaryAccentColor: Color(0xFFBE123C),
+    surfaceColor: Color(0xFF241216),
+    smuflGlyph: 'CTR',
+    tactileLabels: ['B3', 'F#4', 'D4', 'A3'],
+  );
 }

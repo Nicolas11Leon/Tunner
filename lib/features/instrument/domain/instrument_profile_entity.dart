@@ -17,6 +17,7 @@ enum InstrumentKey {
   fKey(-7, 'Fa (F)'),
   gKey(-5, 'Sol (G)'),
   aKey(-3, 'La (A)'),
+  dKey(2, 'Re (D)'),
   bassC(-12, 'Do (C) Octava Grave'),
   highOctaveC(12, 'Do (C) Octava Aguda');
 
