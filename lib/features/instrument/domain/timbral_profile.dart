@@ -177,4 +177,44 @@ class TimbralProfile {
     noiseTransientRatio: 0.02,
     resonanceFactor: 0.70,
   );
+
+  /// Perfil de Kora (arpa-laud africana). Resonancia de calabaza y ataque rapido.
+  static const TimbralProfile kora = TimbralProfile(
+    adsr: AdsrEnvelope(attackMs: 4.0, decayMs: 500.0, sustainLevel: 0.20, releaseMs: 400.0),
+    harmonicOvertoneAmplitudes: [1.0, 0.55, 0.40, 0.28, 0.18, 0.10, 0.06, 0.03],
+    noiseTransientRatio: 0.10,
+    resonanceFactor: 0.90,
+  );
+
+  /// Perfil de Sitar de la India. Zumbido de cuerdas simpaticas y puente plano javari.
+  static const TimbralProfile sitar = TimbralProfile(
+    adsr: AdsrEnvelope(attackMs: 8.0, decayMs: 700.0, sustainLevel: 0.30, releaseMs: 600.0),
+    harmonicOvertoneAmplitudes: [1.0, 0.80, 0.65, 0.50, 0.40, 0.30, 0.22, 0.15],
+    noiseTransientRatio: 0.14,
+    resonanceFactor: 0.95,
+  );
+
+  /// Perfil de Shakuhachi japones. Transiente de soplo en filo de bambu y armónicos oscilantes.
+  static const TimbralProfile shakuhachi = TimbralProfile(
+    adsr: AdsrEnvelope(attackMs: 50.0, decayMs: 80.0, sustainLevel: 0.75, releaseMs: 120.0),
+    harmonicOvertoneAmplitudes: [1.0, 0.30, 0.50, 0.15, 0.25, 0.08, 0.10, 0.04],
+    noiseTransientRatio: 0.22,
+    resonanceFactor: 0.50,
+  );
+
+  /// Perfil de Charango andino. Brillo de 5 ordenes dobles de nylon de alta tension.
+  static const TimbralProfile charango = TimbralProfile(
+    adsr: AdsrEnvelope(attackMs: 3.0, decayMs: 350.0, sustainLevel: 0.15, releaseMs: 250.0),
+    harmonicOvertoneAmplitudes: [1.0, 0.70, 0.50, 0.35, 0.25, 0.18, 0.12, 0.08],
+    noiseTransientRatio: 0.15,
+    resonanceFactor: 0.80,
+  );
+
+  /// Perfil de Cuatro tradicional venezolano. Rasgueo percusivo y sonoridad reentrante.
+  static const TimbralProfile cuatroVenezuelan = TimbralProfile(
+    adsr: AdsrEnvelope(attackMs: 4.0, decayMs: 450.0, sustainLevel: 0.20, releaseMs: 350.0),
+    harmonicOvertoneAmplitudes: [1.0, 0.65, 0.45, 0.30, 0.20, 0.14, 0.09, 0.05],
+    noiseTransientRatio: 0.12,
+    resonanceFactor: 0.85,
+  );
 }
