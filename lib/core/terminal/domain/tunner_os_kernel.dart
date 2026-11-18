@@ -17,6 +17,7 @@ import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../../dsl/domain/studio_os_audio_kernel.dart';
 import '../../dsl/domain/tunner_dsl_interpreter.dart';
 import '../../dsl/domain/tunner_dsl_parser.dart';
+import '../../dsl/domain/tunner_dsl_template_catalog.dart';
 import '../../dsl/infrastructure/studio_os_audio_kernel_bridge.dart';
 import '../../file_system/domain/studio_file_system_node.dart';
 import '../../file_system/domain/studio_file_system_repository.dart';
@@ -190,6 +191,8 @@ score [play|pause|stop]  : Controla la reproducción interactiva del pentagrama
 project info              : Muestra el estado del proyecto y contenedor canónico
 project export [titulo]   : Exporta el proyecto activo a archivo canónico .tunner
 dsl <script>              : Evalúa código declarativo Tunner DSL en tiempo real
+dsl list                  : Lista las plantillas canónicas Tunner DSL disponibles
+dsl load <plantilla>      : Carga y ejecuta una plantilla canónica (.tun)
 eval <script>             : Alias de evaluación inmediata para Tunner DSL
 io list                  : Lista las interfaces de audio de entrada detectadas
 io set-input <id>        : Conmuta la interfaz activa de captura
@@ -1032,15 +1035,70 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
   Future<TunnerOsCommandResult> _handleDsl(String rawCommandLine) async {
     final firstSpace = rawCommandLine.indexOf(' ');
     if (firstSpace == -1 || firstSpace == rawCommandLine.length - 1) {
-      return TunnerOsCommandResult.error(
-        'Sintaxis: dsl <script> o eval <script>. Ejemplo: dsl tempo 128; note C4 1/4;',
-      );
+      final singleWord = rawCommandLine.trim().toLowerCase();
+      if (singleWord == 'dsl' || singleWord == 'eval') {
+        return TunnerOsCommandResult.error(
+          'Sintaxis: dsl <script> o eval <script> (o dsl list | dsl load <plantilla>). Ejemplo: dsl tempo 128; note C4 1/4;',
+        );
+      }
     }
     final script = rawCommandLine.substring(firstSpace + 1).trim();
     if (script.isEmpty) {
       return TunnerOsCommandResult.error('El script DSL no puede estar vacio.');
     }
 
+    final lowerScript = script.toLowerCase();
+
+    // 1. Subcomando: dsl list o dsl templates
+    if (lowerScript == 'list' || lowerScript == 'templates') {
+      final buffer = StringBuffer();
+      buffer.writeln('[BIBLIOTECA CANONICA DE PLANTILLAS TUNNER DSL]');
+      buffer.writeln('--------------------------------------------------');
+      for (final t in TunnerDslTemplateCatalog.allTemplates) {
+        buffer.writeln('ID         : ${t.id}');
+        buffer.writeln('Titulo     : ${t.title}');
+        buffer.writeln('Categoria  : ${t.category}');
+        buffer.writeln('Tempo      : ${t.defaultBpm.toInt()} BPM');
+        buffer.writeln('Activo     : ${t.assetPath}');
+        buffer.writeln('Descripcion: ${t.description}');
+        buffer.writeln('Comando    : dsl load ${t.id}');
+        buffer.writeln();
+      }
+      buffer.write("Escribe 'dsl load <id>' para compilar y ejecutar una plantilla.");
+      return TunnerOsCommandResult.success(buffer.toString().trim());
+    }
+
+    // 2. Subcomando: dsl load <id>
+    if (lowerScript.startsWith('load ') || lowerScript == 'load') {
+      final parts = script.split(RegExp(r'\s+'));
+      if (parts.length < 2 || parts[1].trim().isEmpty) {
+        final available = TunnerDslTemplateCatalog.allTemplates.map((t) => t.id).join(', ');
+        return TunnerOsCommandResult.error(
+          'Sintaxis: dsl load <plantilla_id>. Plantillas disponibles: $available',
+        );
+      }
+      final templateId = parts[1].trim();
+      final template = TunnerDslTemplateCatalog.findById(templateId);
+      if (template == null) {
+        final available = TunnerDslTemplateCatalog.allTemplates.map((t) => t.id).join(', ');
+        return TunnerOsCommandResult.error(
+          "Plantilla '$templateId' no encontrada en el catalogo canónico. Disponibles: $available",
+        );
+      }
+      return _executeDslScript(
+        template.sourceCode,
+        headerPrefix: '[PLANTILLA CARGADA: ${template.title}]',
+      );
+    }
+
+    // 3. Script regular Tunner DSL
+    return _executeDslScript(script);
+  }
+
+  Future<TunnerOsCommandResult> _executeDslScript(
+    String script, {
+    String? headerPrefix,
+  }) async {
     final parseResult = dslParser.parse(script);
     if (!parseResult.isSuccess || parseResult.program == null) {
       final errors = parseResult.diagnostics
@@ -1064,8 +1122,9 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
     }
 
     final eventSummary = report.generatedEvents.map((e) => '  - ${e.toString()}').join('\n');
+    final header = headerPrefix != null ? '$headerPrefix\n' : '';
     return TunnerOsCommandResult.success('''
-[TUNNER DSL EXECUTION REPORT]
+$header[TUNNER DSL EXECUTION REPORT]
 - Sentencias procesadas: ${report.totalStatementsExecuted}
 - Tiempo de evaluacion: ${report.executionTimeMicroseconds} us
 - Eventos de audio despachados: ${report.generatedEvents.length}
