@@ -7,6 +7,10 @@ import '../../audio/domain/i_studio_audio_engine.dart';
 import '../../audio/domain/i_studio_audio_input_engine.dart';
 import '../../audio/domain/studio_master_clock_service.dart';
 import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
+import '../../dsl/domain/studio_os_audio_kernel.dart';
+import '../../dsl/domain/tunner_dsl_interpreter.dart';
+import '../../dsl/domain/tunner_dsl_parser.dart';
+import '../../dsl/infrastructure/studio_os_audio_kernel_bridge.dart';
 import '../../file_system/domain/studio_file_system_node.dart';
 import '../../file_system/domain/studio_file_system_repository.dart';
 import 'tunner_os_command_entity.dart';
@@ -27,6 +31,10 @@ class TunnerOsKernel {
   final void Function(String deckId, String trackTitle)? onDjLoadTrack;
   final void Function(String deckId)? onDjTogglePlay;
   final void Function(double val)? onDjSetCrossfader;
+  StudioOsAudioKernel? audioKernel;
+  late final StudioOsAudioKernelBridge kernelBridge;
+  late final TunnerDslParser dslParser;
+  late final TunnerDslInterpreter dslInterpreter;
 
   TunnerOsKernel({
     this.onNavigateTab,
@@ -42,7 +50,18 @@ class TunnerOsKernel {
     this.onDjLoadTrack,
     this.onDjTogglePlay,
     this.onDjSetCrossfader,
-  });
+    StudioOsAudioKernel? audioKernel,
+  }) : audioKernel = audioKernel ?? StudioOsAudioKernel() {
+    kernelBridge = StudioOsAudioKernelBridge(
+      kernel: this.audioKernel!,
+      matrixService: matrixService,
+      synthVoicePool: synthVoicePool,
+      clockService: clockService,
+      viewModel: viewModel,
+    );
+    dslParser = TunnerDslParser();
+    dslInterpreter = TunnerDslInterpreter(defaultKernel: this.audioKernel);
+  }
 
   /// Analiza y ejecuta una línea de comando de la terminal Tunner OS.
   Future<TunnerOsCommandResult> execute(String rawCommandLine) async {
@@ -88,6 +107,9 @@ class TunnerOsKernel {
         return _handleScore(args);
       case 'project':
         return _handleProject(args);
+      case 'dsl':
+      case 'eval':
+        return _handleDsl(line);
       case 'theme':
         return _handleTheme(args);
       case 'clear':
@@ -127,6 +149,8 @@ synth panic              : Silencia inmediatamente todas las voces activas
 score [play|pause|stop]  : Controla la reproducción interactiva del pentagrama
 project info              : Muestra el estado del proyecto y contenedor canónico
 project export [titulo]   : Exporta el proyecto activo a archivo canónico .tunner
+dsl <script>              : Evalúa código declarativo Tunner DSL en tiempo real
+eval <script>             : Alias de evaluación inmediata para Tunner DSL
 io list                  : Lista las interfaces de audio de entrada detectadas
 io set-input <id>        : Conmuta la interfaz activa de captura
 dsp status               : Muestra la telemetría del motor de audio (latencia, buffers)
@@ -659,6 +683,50 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
           "Subcomando project desconocido: '$sub'. Opciones validas: info, export",
         );
     }
+  }
+
+  Future<TunnerOsCommandResult> _handleDsl(String rawCommandLine) async {
+    final firstSpace = rawCommandLine.indexOf(' ');
+    if (firstSpace == -1 || firstSpace == rawCommandLine.length - 1) {
+      return TunnerOsCommandResult.error(
+        'Sintaxis: dsl <script> o eval <script>. Ejemplo: dsl tempo 128; note C4 1/4;',
+      );
+    }
+    final script = rawCommandLine.substring(firstSpace + 1).trim();
+    if (script.isEmpty) {
+      return TunnerOsCommandResult.error('El script DSL no puede estar vacio.');
+    }
+
+    final parseResult = dslParser.parse(script);
+    if (!parseResult.isSuccess || parseResult.program == null) {
+      final errors = parseResult.diagnostics
+          .map((d) => '[L${d.line}:C${d.column}] ${d.message}')
+          .join('\n');
+      return TunnerOsCommandResult.error(
+        'Error de sintaxis en script Tunner DSL:\n$errors',
+      );
+    }
+
+    final report = await dslInterpreter.interpret(
+      parseResult.program!,
+      kernel: audioKernel,
+    );
+
+    if (!report.isSuccess) {
+      final warnings = report.warnings.join('\n');
+      return TunnerOsCommandResult.error(
+        'Fallo de evaluacion en Tunner DSL:\n$warnings',
+      );
+    }
+
+    final eventSummary = report.generatedEvents.map((e) => '  - ${e.toString()}').join('\n');
+    return TunnerOsCommandResult.success('''
+[TUNNER DSL EXECUTION REPORT]
+- Sentencias procesadas: ${report.totalStatementsExecuted}
+- Tiempo de evaluacion: ${report.executionTimeMicroseconds} us
+- Eventos de audio despachados: ${report.generatedEvents.length}
+${eventSummary.isNotEmpty ? 'Eventos despachados:\n$eventSummary' : ''}
+'''.trim());
   }
 
   TunnerOsCommandResult _handleTheme(List<String> args) {
