@@ -1,4 +1,7 @@
 import 'dart:async';
+import '../../../../features/audio_synthesizer/domain/polyphonic/polyphonic_synth_voice.dart';
+import '../../../../features/audio_synthesizer/domain/polyphonic/polyphonic_voice_pool.dart';
+import '../../../../features/sheet_music/domain/score_playback_coordinator.dart';
 import '../../audio/domain/i_studio_audio_engine.dart';
 import '../../audio/domain/i_studio_audio_input_engine.dart';
 import '../../audio/domain/studio_master_clock_service.dart';
@@ -16,6 +19,8 @@ class TunnerOsKernel {
   final StudioFileSystemRepository? fileSystemRepository;
   final StudioAudioDeviceMatrixService? matrixService;
   final StudioMasterClockService? clockService;
+  PolyphonicVoicePool? synthVoicePool;
+  ScorePlaybackCoordinator? scorePlaybackCoordinator;
   final void Function(String themeId)? onSetTheme;
   final void Function(String deckId, String trackTitle)? onDjLoadTrack;
   final void Function(String deckId)? onDjTogglePlay;
@@ -28,6 +33,8 @@ class TunnerOsKernel {
     this.fileSystemRepository,
     this.matrixService,
     this.clockService,
+    this.synthVoicePool,
+    this.scorePlaybackCoordinator,
     this.onSetTheme,
     this.onDjLoadTrack,
     this.onDjTogglePlay,
@@ -72,6 +79,10 @@ class TunnerOsKernel {
         return _handleRoute(args);
       case 'clock':
         return _handleClock(args);
+      case 'synth':
+        return _handleSynth(args);
+      case 'score':
+        return _handleScore(args);
       case 'theme':
         return _handleTheme(args);
       case 'clear':
@@ -104,6 +115,11 @@ route <canal> <destino>  : Asigna un canal a 'master', 'cue' o 'mute'
 clock [play|pause|stop]  : Controla el transporte unificado de todos los módulos
 clock bpm <valor>        : Sincroniza el tempo maestro (20 a 300 BPM)
 clock tap                : Registra una pulsación táctil para Tap Tempo
+synth wave <tipo>        : Configura oscilador: sine | sawtooth | pulse | triangle
+synth adsr <a> <d> <s> <r>: Ajusta envolvente ADSR (ms y sustain 0-1)
+synth note <nota>        : Dispara una nota polifónica (e.g. 'synth note Do4')
+synth panic              : Silencia inmediatamente todas las voces activas
+score [play|pause|stop]  : Controla la reproducción interactiva del pentagrama
 io list                  : Lista las interfaces de audio de entrada detectadas
 io set-input <id>        : Conmuta la interfaz activa de captura
 dsp status               : Muestra la telemetría del motor de audio (latencia, buffers)
@@ -449,6 +465,143 @@ ARCHIVOS DEL PROYECTO ACTUAL:
 
       default:
         return TunnerOsCommandResult.error("Acción de reloj desconocida. Opciones: play, pause, stop, bpm, tap");
+    }
+  }
+
+  TunnerOsCommandResult _handleSynth(List<String> args) {
+    if (synthVoicePool == null) {
+      return TunnerOsCommandResult.error("Sintetizador polifónico no conectado al kernel.");
+    }
+    if (args.isEmpty || args[0] == 'status') {
+      return TunnerOsCommandResult.success(
+        "SINTETIZADOR POLIFÓNICO SMuFL:\n"
+        "  Forma de Onda  : ${synthVoicePool!.waveform.name.toUpperCase()}\n"
+        "  Polifonía      : ${synthVoicePool!.activeVoiceCount} / ${synthVoicePool!.maxPolyphony} voces activas\n"
+        "  Ataque (A)     : ${(synthVoicePool!.attackSeconds * 1000).round()} ms\n"
+        "  Decaimiento (D): ${(synthVoicePool!.decaySeconds * 1000).round()} ms\n"
+        "  Sostenimiento(S: ${(synthVoicePool!.sustainLevel * 100).round()}%\n"
+        "  Liberación (R) : ${(synthVoicePool!.releaseSeconds * 1000).round()} ms\n"
+        "  Ganancia Master: ${(synthVoicePool!.masterGain * 100).round()}%",
+      );
+    }
+
+    final action = args[0].toLowerCase();
+    switch (action) {
+      case 'wave':
+      case 'waveform':
+        if (args.length < 2) {
+          return TunnerOsCommandResult.error("Sintaxis: synth wave <sine|sawtooth|pulse|triangle>");
+        }
+        final rawWave = args[1].toLowerCase();
+        switch (rawWave) {
+          case 'sine':
+          case 'seno':
+            synthVoicePool!.waveform = SynthWaveform.sine;
+            break;
+          case 'saw':
+          case 'sawtooth':
+          case 'sierra':
+            synthVoicePool!.waveform = SynthWaveform.sawtooth;
+            break;
+          case 'pulse':
+          case 'pulso':
+          case 'cuadrada':
+            synthVoicePool!.waveform = SynthWaveform.pulse;
+            break;
+          case 'tri':
+          case 'triangle':
+          case 'triangulo':
+            synthVoicePool!.waveform = SynthWaveform.triangle;
+            break;
+          default:
+            return TunnerOsCommandResult.error("Forma de onda desconocida: $rawWave. Opciones: sine, saw, pulse, tri");
+        }
+        return TunnerOsCommandResult.success("[OK] Forma de onda del sintetizador: ${synthVoicePool!.waveform.name.toUpperCase()}");
+
+      case 'adsr':
+        if (args.length < 5) {
+          return TunnerOsCommandResult.error("Sintaxis: synth adsr <attack_ms> <decay_ms> <sustain_0_1> <release_ms>");
+        }
+        final a = double.tryParse(args[1]);
+        final d = double.tryParse(args[2]);
+        final s = double.tryParse(args[3]);
+        final r = double.tryParse(args[4]);
+        if (a == null || d == null || s == null || r == null) {
+          return TunnerOsCommandResult.error("Valores numéricos de ADSR inválidos.");
+        }
+        synthVoicePool!.attackSeconds = a / 1000.0;
+        synthVoicePool!.decaySeconds = d / 1000.0;
+        synthVoicePool!.sustainLevel = s;
+        synthVoicePool!.releaseSeconds = r / 1000.0;
+        return TunnerOsCommandResult.success(
+          "[OK] Envolvente ADSR configurada: ${a.round()}ms / ${d.round()}ms / ${(s * 100).round()}% / ${r.round()}ms",
+        );
+
+      case 'note':
+        if (args.length < 2) {
+          return TunnerOsCommandResult.error("Sintaxis: synth note <nombre_nota> [velocidad_0_1]");
+        }
+        final noteName = args[1];
+        final vel = args.length >= 3 ? double.tryParse(args[2]) ?? 0.8 : 0.8;
+        final midi = ScorePlaybackCoordinator.noteNameToMidi(noteName);
+        if (midi < 0) {
+          return TunnerOsCommandResult.error("Nota musical no válida: '$noteName'. Ejemplos: Do4, C4, Mi5, Fa#4, Sol3");
+        }
+        synthVoicePool!.noteOn(midi, vel);
+        return TunnerOsCommandResult.success("[OK] Disparada nota: $noteName (MIDI $midi, vel: ${(vel * 100).round()}%)");
+
+      case 'panic':
+      case 'silence':
+        synthVoicePool!.panic();
+        return TunnerOsCommandResult.success("[OK] Silenciadas todas las voces del sintetizador (PANIC)");
+
+      default:
+        return TunnerOsCommandResult.error("Subcomando synth desconocido: '$action'. Opciones: status, wave, adsr, note, panic");
+    }
+  }
+
+  TunnerOsCommandResult _handleScore(List<String> args) {
+    if (scorePlaybackCoordinator == null) {
+      return TunnerOsCommandResult.error("Coordinador de partitura no conectado al kernel.");
+    }
+    if (args.isEmpty) {
+      return TunnerOsCommandResult.success(
+        "REPRODUCTOR DE PARTITURA:\n"
+        "  Estado : ${scorePlaybackCoordinator!.isPlaying ? 'REPRODUCIENDO' : 'DETENIDO'}\n"
+        "  Compás : ${scorePlaybackCoordinator!.currentMeasureIndex + 1}\n"
+        "  Sub-Tick: ${scorePlaybackCoordinator!.currentSubTick}\n"
+        "  Tempo  : ${scorePlaybackCoordinator!.bpm.toStringAsFixed(1)} BPM",
+      );
+    }
+
+    final action = args[0].toLowerCase();
+    switch (action) {
+      case 'play':
+      case 'start':
+        if (scorePlaybackCoordinator!.activeScore == null) {
+          return TunnerOsCommandResult.error("No hay una partitura activa para reproducir.");
+        }
+        scorePlaybackCoordinator!.startPlayback(score: scorePlaybackCoordinator!.activeScore!);
+        return TunnerOsCommandResult.success("[OK] Reproducción de partitura iniciada");
+
+      case 'pause':
+        scorePlaybackCoordinator!.pausePlayback();
+        return TunnerOsCommandResult.success("[OK] Reproducción de partitura pausada");
+
+      case 'stop':
+        scorePlaybackCoordinator!.stopPlayback();
+        return TunnerOsCommandResult.success("[OK] Reproducción de partitura detenida y rebobinada");
+
+      case 'bpm':
+      case 'tempo':
+        if (args.length < 2) return TunnerOsCommandResult.error("Sintaxis: score bpm <valor>");
+        final bpmVal = double.tryParse(args[1]);
+        if (bpmVal == null) return TunnerOsCommandResult.error("BPM inválido: ${args[1]}");
+        scorePlaybackCoordinator!.bpm = bpmVal;
+        return TunnerOsCommandResult.success("[OK] Tempo de partitura ajustado a: ${bpmVal.toStringAsFixed(1)} BPM");
+
+      default:
+        return TunnerOsCommandResult.error("Subcomando score desconocido: '$action'. Opciones: play, pause, stop, bpm");
     }
   }
 

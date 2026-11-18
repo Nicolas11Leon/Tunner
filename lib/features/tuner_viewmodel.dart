@@ -40,6 +40,8 @@ import 'universal_importer/domain/parsed_score_result_entity.dart';
 import 'universal_importer/data/universal_score_importer_service.dart';
 import 'audio_synthesizer/domain/i_audio_synthesizer_service.dart';
 import 'audio_synthesizer/data/audio_synthesizer_service.dart';
+import 'audio_synthesizer/domain/polyphonic/polyphonic_voice_pool.dart';
+import 'sheet_music/domain/score_playback_coordinator.dart';
 import 'score_editor/domain/score_editor_domain.dart';
 import 'universal_importer/domain/canonical_musicxml_exporter.dart';
 import 'universal_importer/domain/canonical_midi_exporter.dart';
@@ -236,6 +238,11 @@ class TunerViewModel extends ChangeNotifier {
   // Motor de Síntesis SoundFont SF2 y Timbres Acústicos
   final SoundFontSynthesizerService _soundFontSynthesizer;
 
+  // Motor de Síntesis Polifónica SMuFL y Coordinador de Partitura
+  final PolyphonicVoicePool _polyphonicVoicePool;
+  late final ScorePlaybackCoordinator _scorePlaybackCoordinator;
+  int? _selectedScoreNoteIndex;
+
   // Calibración y Adaptación Acústica del Micrófono (UC-41)
   MicrophoneCalibrationProfile _micProfile = const MicrophoneCalibrationProfile();
   double _currentMicRmsLevel = 0.0;
@@ -282,6 +289,8 @@ class TunerViewModel extends ChangeNotifier {
     GuidedLessonEvaluator? guidedLessonEvaluator,
     VocalAutoTuneProcessor? autoTuneProcessor,
     SoundFontSynthesizerService? soundFontSynthesizer,
+    PolyphonicVoicePool? polyphonicVoicePool,
+    ScorePlaybackCoordinator? scorePlaybackCoordinator,
     Future<String> Function()? recordingPathProvider,
     bool seedDefaults = false,
   })  : _shouldSeedDefaults = seedDefaults,
@@ -303,7 +312,13 @@ class TunerViewModel extends ChangeNotifier {
         _guidedLessonEvaluator = guidedLessonEvaluator ?? GuidedLessonEvaluator(),
         _autoTuneProcessor = autoTuneProcessor ?? VocalAutoTuneProcessor(),
         _soundFontSynthesizer = soundFontSynthesizer ?? SoundFontSynthesizerService(),
+        _polyphonicVoicePool = polyphonicVoicePool ?? PolyphonicVoicePool(),
         _recordingPathProvider = recordingPathProvider {
+    _scorePlaybackCoordinator = scorePlaybackCoordinator ??
+        ScorePlaybackCoordinator(
+          voicePool: _polyphonicVoicePool,
+          initialBpm: _bpm.toDouble(),
+        );
     _activePackage = _curatedLibrary.first;
     _bpm = _activePackage.defaultBpm;
     _mixerConsole = MixerConsoleEntity(
@@ -661,6 +676,26 @@ class TunerViewModel extends ChangeNotifier {
   TimeSignature get currentMeasureTimeSignature =>
       _customTimeSignatureOverride ??
       _activePackage.score.measures[_currentMeasureIndex].timeSignature;
+
+  // Acceso al Motor de Síntesis Polifónica SMuFL y Reproductor de Partitura
+  PolyphonicVoicePool get polyphonicVoicePool => _polyphonicVoicePool;
+  ScorePlaybackCoordinator get scorePlaybackCoordinator => _scorePlaybackCoordinator;
+  int? get selectedScoreNoteIndex => _selectedScoreNoteIndex;
+
+  /// Selecciona una nota en el pentagrama y reproduce su sonido acústico de inmediato (Tap-to-Listen).
+  void selectAndPreviewScoreNote(int noteIndex) {
+    if (noteIndex < 0 || noteIndex >= currentMeasureNotes.length) return;
+    _selectedScoreNoteIndex = noteIndex;
+    final note = currentMeasureNotes[noteIndex];
+    _scorePlaybackCoordinator.previewNote(note);
+    notifyListeners();
+  }
+
+  /// Limpia la selección de la nota en el pentagrama.
+  void clearSelectedScoreNote() {
+    _selectedScoreNoteIndex = null;
+    notifyListeners();
+  }
 
   void _initListeners() {
     _pitchService.onRmsLevelChanged = (rms) {
@@ -2900,6 +2935,7 @@ class TunerViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _scorePlaybackCoordinator.dispose();
     _silenceTimer?.cancel();
     _pitchService.stopRecording();
     _metronomeService.stop();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/tunner_theme.dart';
 import '../../tuner_viewmodel.dart';
+import 'polyphonic_synth_modal.dart';
 import '../../sheet_music/presentation/real_sheet_music_painter.dart';
 import '../../song_library/presentation/song_decomposer_modal.dart';
 import '../../score_editor/presentation/score_editor_modal.dart';
@@ -175,22 +176,43 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
               ],
             ),
             clipBehavior: Clip.antiAlias,
-            child: CustomPaint(
-              painter: RealSheetMusicPainter(
-                currentSubTick: viewModel.currentSubTick,
-                notes: viewModel.currentMeasureNotes,
-                history: viewModel.measureHistory,
-                liveNote: viewModel.noteName,
-                liveCents: viewModel.cents,
-                isCountingIn: viewModel.isCountingIn,
-                countInBeat: viewModel.countInBeat,
-                timeSignature: viewModel.currentMeasureTimeSignature,
-                measureIndex: viewModel.currentMeasureIndex,
-                totalMeasures: viewModel.totalMeasures,
-                palette: palette,
-                clef: viewModel.activeInstrument.clef,
-              ),
-              size: Size.infinite,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final painter = RealSheetMusicPainter(
+                  currentSubTick: viewModel.currentSubTick,
+                  notes: viewModel.currentMeasureNotes,
+                  history: viewModel.measureHistory,
+                  liveNote: viewModel.noteName,
+                  liveCents: viewModel.cents,
+                  isCountingIn: viewModel.isCountingIn,
+                  countInBeat: viewModel.countInBeat,
+                  timeSignature: viewModel.currentMeasureTimeSignature,
+                  measureIndex: viewModel.currentMeasureIndex,
+                  totalMeasures: viewModel.totalMeasures,
+                  palette: palette,
+                  clef: viewModel.activeInstrument.clef,
+                  selectedNoteIndex: viewModel.selectedScoreNoteIndex,
+                );
+
+                return GestureDetector(
+                  key: const Key('score_interactive_canvas_gesture'),
+                  onTapDown: (details) {
+                    final tappedIndex = painter.findNoteIndexAtOffset(
+                      details.localPosition,
+                      Size(constraints.maxWidth, constraints.maxHeight),
+                    );
+                    if (tappedIndex != null) {
+                      viewModel.selectAndPreviewScoreNote(tappedIndex);
+                    } else {
+                      viewModel.clearSelectedScoreNote();
+                    }
+                  },
+                  child: CustomPaint(
+                    painter: painter,
+                    size: Size(constraints.maxWidth, constraints.maxHeight),
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -245,6 +267,20 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
+                ActionChip(
+                  key: const Key('poly_synth_settings_btn'),
+                  avatar: Icon(Icons.piano, size: 16, color: palette.secondaryAccent),
+                  label: Text('Sintetizador: ${viewModel.polyphonicVoicePool.waveform.name.toUpperCase()}'),
+                  backgroundColor: palette.cardBackground,
+                  labelStyle: TextStyle(
+                    color: palette.textColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+                  onPressed: () => PolyphonicSynthModal.show(context, viewModel, palette),
+                ),
+                const SizedBox(width: 8),
                 ActionChip(
                   avatar: Icon(Icons.edit_note, size: 16, color: palette.primaryAccent),
                   label: const Text('Editor de Partituras'),

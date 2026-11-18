@@ -114,6 +114,8 @@ void main() {
       final exportBtn = find.byKey(const Key('export_stems_midi_btn'));
       expect(exportBtn, findsOneWidget);
 
+      await tester.ensureVisible(exportBtn);
+      await tester.pumpAndSettle();
       await tester.tap(exportBtn);
       await tester.pumpAndSettle();
 

@@ -7,6 +7,7 @@ import '../../tuner_screen.dart';
 import '../../workspaces/presentation/learning_practice_workspace_view.dart';
 import '../../modular_rack/presentation/modular_studio_rack_view.dart';
 import '../../workspaces/presentation/composition_notation_workspace_view.dart';
+import '../../workspaces/presentation/polyphonic_synth_modal.dart';
 import '../../instrument/presentation/instrument_selector_modal.dart';
 import 'pro_command_palette_modal.dart';
 import 'keyboard_shortcuts_modal.dart';
@@ -225,6 +226,14 @@ class _MainAppShellState extends State<MainAppShell> {
         vm.setPaletteById(themeId);
       },
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final vm = context.read<TunerViewModel>();
+    _terminalKernel.synthVoicePool = vm.polyphonicVoicePool;
+    _terminalKernel.scorePlaybackCoordinator = vm.scorePlaybackCoordinator;
   }
 
   void _handleOpenFile(StudioFileEntity file) {
@@ -734,6 +743,34 @@ class _MainAppShellState extends State<MainAppShell> {
         shortcut: 'Shift+Esc',
         icon: Icons.stop_rounded,
         onExecute: (_) => _masterClockService.stopTransport(),
+      ),
+      PromptSuggestion(
+        id: 'cmd_synth',
+        trigger: '/',
+        command: '/synth',
+        title: 'Sintetizador Polifónico SMuFL',
+        description: 'Configurar osciladores, envolvente ADSR y timbres acústicos',
+        category: 'Composición',
+        shortcut: 'Ctrl+Shift+S',
+        icon: Icons.piano,
+        onExecute: (_) => PolyphonicSynthModal.show(context, viewModel, viewModel.currentPalette),
+      ),
+      PromptSuggestion(
+        id: 'cmd_score_play',
+        trigger: '/',
+        command: '/score',
+        title: 'Partitura Interactiva: Reproducir Obra',
+        description: 'Alternar lectura métrica y síntesis de la obra actual',
+        category: 'Composición',
+        shortcut: 'Espacio',
+        icon: Icons.music_note,
+        onExecute: (_) {
+          if (viewModel.isMetronomePlaying) {
+            viewModel.stopSong();
+          } else {
+            viewModel.startSongWithCountIn();
+          }
+        },
       ),
       PromptSuggestion(
         id: 'cmd_import',

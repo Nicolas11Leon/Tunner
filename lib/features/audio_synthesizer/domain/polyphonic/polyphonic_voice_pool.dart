@@ -1,0 +1,216 @@
+import 'dart:math' as math;
+import 'dart:typed_data';
+import 'adsr_envelope_generator.dart';
+import 'polyphonic_synth_voice.dart';
+
+/// Grupo de voces polifónicas con asignación dinámica y algoritmo de robo de voces.
+///
+/// Gestiona un conjunto determinista de [PolyphonicSynthVoice] (por defecto 16 voces),
+/// permitiendo la ejecución de acordes complejos, notas simultáneas y control centralizado
+/// de envolvente ADSR y forma de onda.
+class PolyphonicVoicePool {
+  final int maxPolyphony;
+  final List<PolyphonicSynthVoice> _voices;
+
+  SynthWaveform _waveform = SynthWaveform.triangle;
+  double _pulseWidth = 0.5;
+  double _masterGain = 0.75;
+  double _sampleRate;
+
+  PolyphonicVoicePool({
+    this.maxPolyphony = 16,
+    double sampleRate = 44100.0,
+    double attackSeconds = 0.015,
+    double decaySeconds = 0.08,
+    double sustainLevel = 0.65,
+    double releaseSeconds = 0.18,
+    SynthWaveform defaultWaveform = SynthWaveform.triangle,
+  })  : _sampleRate = sampleRate,
+        _waveform = defaultWaveform,
+        _voices = [] {
+    for (int i = 0; i < maxPolyphony; i++) {
+      final voice = PolyphonicSynthVoice(id: i, sampleRate: sampleRate);
+      voice.envelope.attackSeconds = attackSeconds;
+      voice.envelope.decaySeconds = decaySeconds;
+      voice.envelope.sustainLevel = sustainLevel;
+      voice.envelope.releaseSeconds = releaseSeconds;
+      voice.waveform = defaultWaveform;
+      _voices.add(voice);
+    }
+  }
+
+  // Getters
+  List<PolyphonicSynthVoice> get voices => List.unmodifiable(_voices);
+  int get activeVoiceCount => _voices.where((v) => v.isActive).length;
+  SynthWaveform get waveform => _waveform;
+  double get pulseWidth => _pulseWidth;
+  double get masterGain => _masterGain;
+  double get sampleRate => _sampleRate;
+
+  double get attackSeconds => _voices.first.envelope.attackSeconds;
+  double get decaySeconds => _voices.first.envelope.decaySeconds;
+  double get sustainLevel => _voices.first.envelope.sustainLevel;
+  double get releaseSeconds => _voices.first.envelope.releaseSeconds;
+
+  // Setters globales aplicados a todas las voces
+  set waveform(SynthWaveform value) {
+    _waveform = value;
+    for (final voice in _voices) {
+      voice.waveform = value;
+    }
+  }
+
+  set pulseWidth(double value) {
+    _pulseWidth = value.clamp(0.05, 0.95);
+    for (final voice in _voices) {
+      voice.pulseWidth = _pulseWidth;
+    }
+  }
+
+  set masterGain(double value) => _masterGain = value.clamp(0.0, 1.0);
+
+  set attackSeconds(double value) {
+    for (final voice in _voices) {
+      voice.envelope.attackSeconds = value;
+    }
+  }
+
+  set decaySeconds(double value) {
+    for (final voice in _voices) {
+      voice.envelope.decaySeconds = value;
+    }
+  }
+
+  set sustainLevel(double value) {
+    for (final voice in _voices) {
+      voice.envelope.sustainLevel = value;
+    }
+  }
+
+  set releaseSeconds(double value) {
+    for (final voice in _voices) {
+      voice.envelope.releaseSeconds = value;
+    }
+  }
+
+  set sampleRate(double value) {
+    _sampleRate = value;
+    for (final voice in _voices) {
+      voice.envelope.sampleRate = value;
+    }
+  }
+
+  /// Calcula la frecuencia en Hz a partir del número de nota MIDI estándar.
+  /// Fórmula canónica: f = 440.0 * 2^((midi - 69) / 12)
+  static double midiToFrequency(int midiNote) {
+    return 440.0 * math.pow(2.0, (midiNote - 69.0) / 12.0);
+  }
+
+  /// Activa una nota musical polifónica.
+  /// Si no se especifica [frequency], se calcula automáticamente a partir de [noteNumber].
+  void noteOn(int noteNumber, double velocity, {double? frequency}) {
+    final freq = frequency ?? midiToFrequency(noteNumber);
+    final voice = _findVoiceForNote(noteNumber);
+
+    voice.startNote(
+      noteNumber: noteNumber,
+      frequency: freq,
+      velocity: velocity,
+      waveform: _waveform,
+      pulseWidth: _pulseWidth,
+    );
+  }
+
+  /// Pasa a fase de liberación todas las voces que se encuentren ejecutando [noteNumber].
+  void noteOff(int noteNumber) {
+    for (final voice in _voices) {
+      if (voice.noteNumber == noteNumber && voice.isActive) {
+        voice.stopNote();
+      }
+    }
+  }
+
+  /// Libera suavemente todas las notas actualmente activas.
+  void allNotesOff() {
+    for (final voice in _voices) {
+      if (voice.isActive) {
+        voice.stopNote();
+      }
+    }
+  }
+
+  /// Detiene inmediatamente todas las notas sin esperar la fase de Release.
+  void panic() {
+    for (final voice in _voices) {
+      voice.kill();
+    }
+  }
+
+  /// Localiza una voz disponible o aplica el algoritmo de robo de voz (Voice Stealing).
+  PolyphonicSynthVoice _findVoiceForNote(int noteNumber) {
+    // 1. Si la nota ya está sonando en una voz, reusarla
+    for (final voice in _voices) {
+      if (voice.noteNumber == noteNumber && voice.isActive) {
+        return voice;
+      }
+    }
+
+    // 2. Buscar una voz en reposo (idle)
+    for (final voice in _voices) {
+      if (voice.isIdle) {
+        return voice;
+      }
+    }
+
+    // 3. Algoritmo de Robo de Voz: buscar en fase de Release con menor amplitud
+    PolyphonicSynthVoice? releaseCandidate;
+    double lowestAmplitude = double.infinity;
+    for (final voice in _voices) {
+      if (voice.stage == AdsrStage.release && voice.currentAmplitude < lowestAmplitude) {
+        lowestAmplitude = voice.currentAmplitude;
+        releaseCandidate = voice;
+      }
+    }
+    if (releaseCandidate != null) {
+      return releaseCandidate;
+    }
+
+    // 4. Fallback de robo: tomar la voz más antigua en reproducción
+    int oldestAge = -1;
+    PolyphonicSynthVoice oldestCandidate = _voices.first;
+    for (final voice in _voices) {
+      if (voice.ageSamples > oldestAge) {
+        oldestAge = voice.ageSamples;
+        oldestCandidate = voice;
+      }
+    }
+    return oldestCandidate;
+  }
+
+  /// Renderiza un bloque de muestras de audio estéreo sumando todas las voces activas.
+  /// Aplica saturación suave analógica (Soft Limiter) para prevenir distorsión digital.
+  void renderBlock({
+    required Float64List leftOut,
+    required Float64List rightOut,
+    required int numSamples,
+  }) {
+    for (int i = 0; i < numSamples; i++) {
+      double sum = 0.0;
+      for (int v = 0; v < _voices.length; v++) {
+        final voice = _voices[v];
+        if (voice.isActive) {
+          sum += voice.renderNextSample(_sampleRate);
+        }
+      }
+
+      // Ganancia maestra
+      final scaled = sum * _masterGain;
+
+      // Saturación suave analógica: tanh aproximada y eficiente (x / (1 + |x|))
+      final limited = scaled / (1.0 + scaled.abs());
+
+      leftOut[i] = limited;
+      rightOut[i] = limited;
+    }
+  }
+}

@@ -984,6 +984,7 @@ class StudioMasterHardwareConsoleWidget extends StatelessWidget {
       ('instrument_note', 'Teclado y Sintetizador', Icons.piano),
       ('harmonic_drone', 'Bucle de Dron Armónico', Icons.waves),
       ('practice_take', 'Tomas de Práctica', Icons.record_voice_over),
+      ('score_synth', 'Sintetizador de Partitura SMuFL', Icons.music_note),
     ];
 
     return Container(
