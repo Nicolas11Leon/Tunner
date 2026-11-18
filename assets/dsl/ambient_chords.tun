@@ -1,0 +1,27 @@
+// Ambient Chords - Progresiones modales y reverberacion espacial en Tunner DSL
+tempo 72;
+
+// Configuracion de canales y ruteo
+channel ambient;
+connect @ambient.out -> @master.in;
+
+// Parametros acusticos de reverberacion espacial Schroeder-Moorer
+set @reverb.room = 0.85;
+set @reverb.damp = 0.20;
+set @reverb.wet = 0.65;
+set @spatial.distance = 2.5;
+
+// Sintetizador polifonico: envolvente de pad ambiental
+set @synth.waveform = "triangle";
+set @synth.attack = 350 ms;
+set @synth.decay = 200 ms;
+set @synth.sustain = 0.8;
+set @synth.release = 1200 ms;
+
+// Progresion modal armonica
+chord [D3, F3, A3, C4, E4] 1/2;
+chord [G2, F3, B3, E4] 1/2;
+chord [C3, E3, G3, B3, D4] 1/2;
+chord [A2, E3, G3, C4] 1/2;
+
+play;

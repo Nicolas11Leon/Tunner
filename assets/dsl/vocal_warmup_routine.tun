@@ -1,0 +1,50 @@
+// Vocal Warmup Routine - Escalas diatonicas para entrenamiento vocal en Tunner DSL
+tempo 96;
+
+// Canal dedicado a guia vocal
+channel vocal;
+connect @vocal.out -> @master.in;
+
+// Sintetizador con oscilador senoidal suave para referencia tonal pura
+set @synth.waveform = "sine";
+set @synth.attack = 50 ms;
+set @synth.decay = 80 ms;
+set @synth.sustain = 0.9;
+set @synth.release = 150 ms;
+
+// 1. Escala diatonica ascendente y descendente en C Mayor
+note C4 1/8;
+note D4 1/8;
+note E4 1/8;
+note F4 1/8;
+note G4 1/4;
+note F4 1/8;
+note E4 1/8;
+note D4 1/8;
+note C4 1/4;
+rest 1/4;
+
+// 2. Transposicion a D Mayor
+note D4 1/8;
+note E4 1/8;
+note F#4 1/8;
+note G4 1/8;
+note A4 1/4;
+note G4 1/8;
+note F#4 1/8;
+note E4 1/8;
+note D4 1/4;
+rest 1/4;
+
+// 3. Transposicion a E Mayor
+note E4 1/8;
+note F#4 1/8;
+note G#4 1/8;
+note A4 1/8;
+note B4 1/4;
+note A4 1/8;
+note G#4 1/8;
+note F#4 1/8;
+note E4 1/4;
+
+play;
