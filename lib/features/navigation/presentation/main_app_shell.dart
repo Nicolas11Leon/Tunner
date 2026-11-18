@@ -234,6 +234,7 @@ class _MainAppShellState extends State<MainAppShell> {
     final vm = context.read<TunerViewModel>();
     _terminalKernel.synthVoicePool = vm.polyphonicVoicePool;
     _terminalKernel.scorePlaybackCoordinator = vm.scorePlaybackCoordinator;
+    _terminalKernel.viewModel = vm;
   }
 
   void _handleOpenFile(StudioFileEntity file) {
@@ -770,6 +771,26 @@ class _MainAppShellState extends State<MainAppShell> {
           } else {
             viewModel.startSongWithCountIn();
           }
+        },
+      ),
+      PromptSuggestion(
+        id: 'cmd_project_export',
+        trigger: '/',
+        command: '/project',
+        title: 'Proyecto: Exportar Paquete Canónico .tunner',
+        description: 'Empaquetar sesión, partitura, presets y matriz con firma SHA-256',
+        category: 'Proyectos',
+        shortcut: 'Ctrl+S',
+        icon: Icons.inventory_2,
+        onExecute: (_) {
+          final bytes = viewModel.exportCurrentProjectToTunner();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Proyecto exportado a formato canónico .tunner (${bytes.lengthInBytes} bytes)'),
+              backgroundColor: const Color(0xFF10B981),
+              duration: const Duration(seconds: 3),
+            ),
+          );
         },
       ),
       PromptSuggestion(

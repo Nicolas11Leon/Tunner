@@ -2,6 +2,7 @@ import 'dart:async';
 import '../../../../features/audio_synthesizer/domain/polyphonic/polyphonic_synth_voice.dart';
 import '../../../../features/audio_synthesizer/domain/polyphonic/polyphonic_voice_pool.dart';
 import '../../../../features/sheet_music/domain/score_playback_coordinator.dart';
+import '../../../../features/tuner_viewmodel.dart';
 import '../../audio/domain/i_studio_audio_engine.dart';
 import '../../audio/domain/i_studio_audio_input_engine.dart';
 import '../../audio/domain/studio_master_clock_service.dart';
@@ -21,6 +22,7 @@ class TunnerOsKernel {
   final StudioMasterClockService? clockService;
   PolyphonicVoicePool? synthVoicePool;
   ScorePlaybackCoordinator? scorePlaybackCoordinator;
+  TunerViewModel? viewModel;
   final void Function(String themeId)? onSetTheme;
   final void Function(String deckId, String trackTitle)? onDjLoadTrack;
   final void Function(String deckId)? onDjTogglePlay;
@@ -35,6 +37,7 @@ class TunnerOsKernel {
     this.clockService,
     this.synthVoicePool,
     this.scorePlaybackCoordinator,
+    this.viewModel,
     this.onSetTheme,
     this.onDjLoadTrack,
     this.onDjTogglePlay,
@@ -83,6 +86,8 @@ class TunnerOsKernel {
         return _handleSynth(args);
       case 'score':
         return _handleScore(args);
+      case 'project':
+        return _handleProject(args);
       case 'theme':
         return _handleTheme(args);
       case 'clear':
@@ -120,6 +125,8 @@ synth adsr <a> <d> <s> <r>: Ajusta envolvente ADSR (ms y sustain 0-1)
 synth note <nota>        : Dispara una nota polifónica (e.g. 'synth note Do4')
 synth panic              : Silencia inmediatamente todas las voces activas
 score [play|pause|stop]  : Controla la reproducción interactiva del pentagrama
+project info              : Muestra el estado del proyecto y contenedor canónico
+project export [titulo]   : Exporta el proyecto activo a archivo canónico .tunner
 io list                  : Lista las interfaces de audio de entrada detectadas
 io set-input <id>        : Conmuta la interfaz activa de captura
 dsp status               : Muestra la telemetría del motor de audio (latencia, buffers)
@@ -602,6 +609,55 @@ ARCHIVOS DEL PROYECTO ACTUAL:
 
       default:
         return TunnerOsCommandResult.error("Subcomando score desconocido: '$action'. Opciones: play, pause, stop, bpm");
+    }
+  }
+
+  TunnerOsCommandResult _handleProject(List<String> args) {
+    final sub = args.isEmpty ? 'info' : args[0].toLowerCase();
+    switch (sub) {
+      case 'info':
+        final title = viewModel?.activePackage.title ?? 'Untitled Project';
+        final composer = viewModel?.activePackage.composer ?? 'Tunner Artist';
+        final bpmVal = viewModel?.bpm ?? 120;
+        final matrixInfo = matrixService != null
+            ? 'Conectada (${matrixService!.matrix.channelRoutings.length} canales activos)'
+            : 'Desconectada';
+        final synthInfo = synthVoicePool != null
+            ? '${synthVoicePool!.waveform.name} (Voces activas: ${synthVoicePool!.activeVoiceCount})'
+            : 'No inicializado';
+        return TunnerOsCommandResult.success('''
+PROYECTO ACTIVO EN TUNNER STUDIO:
+- Titulo: $title
+- Compositor / Autor: $composer
+- Tempo Nominal: $bpmVal BPM
+- Matriz de Hardware: $matrixInfo
+- Sintetizador Polifonico: $synthInfo
+- Contenedor Canonico: .tunner v1.0.0 (DEFLATE ZIP con SHA-256)
+'''.trim());
+
+      case 'export':
+        if (viewModel == null) {
+          return TunnerOsCommandResult.error(
+            'No se puede exportar: TunerViewModel no esta enlazado al kernel.',
+          );
+        }
+        final customTitle = args.length > 1 ? args.sublist(1).join(' ').replaceAll('"', '') : null;
+        try {
+          final bytes = viewModel!.exportCurrentProjectToTunner(projectTitle: customTitle);
+          return TunnerOsCommandResult.success('''
+[OK] Proyecto exportado exitosamente a formato canonico .tunner:
+- Titulo: ${customTitle ?? viewModel!.activePackage.title}
+- Peso del archivo: ${bytes.lengthInBytes} bytes
+- Integridad: Hashes SHA-256 generados y sellados en manifest.json
+'''.trim());
+        } catch (e) {
+          return TunnerOsCommandResult.error('Fallo al exportar el proyecto .tunner: $e');
+        }
+
+      default:
+        return TunnerOsCommandResult.error(
+          "Subcomando project desconocido: '$sub'. Opciones validas: info, export",
+        );
     }
   }
 
