@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../domain/app_user_settings_entity.dart';
 import '../domain/i_local_persistence_service.dart';
 
@@ -41,7 +42,14 @@ class JsonLocalPersistenceService implements ILocalPersistenceService {
     if (pending != null) {
       try {
         await pending;
-      } catch (_) {}
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'JsonLocalPersistenceService',
+          'Pending save failed prior to loadSettings',
+          error: e,
+          stackTrace: st,
+        );
+      }
     }
 
     try {
@@ -74,7 +82,14 @@ class JsonLocalPersistenceService implements ILocalPersistenceService {
     if (previous != null) {
       try {
         await previous;
-      } catch (_) {}
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'JsonLocalPersistenceService',
+          'Previous save failed prior to saveSettings',
+          error: e,
+          stackTrace: st,
+        );
+      }
     }
 
     try {

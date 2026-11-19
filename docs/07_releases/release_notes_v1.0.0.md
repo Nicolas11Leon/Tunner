@@ -11,7 +11,7 @@
 
 La versión 1.0.0 de **Tunner** representa la culminación técnica y arquitectónica de las Fases 1 a 8 del proyecto, estableciendo una plataforma de estación de trabajo musical digital (DAW), educación auditiva y síntesis acústica en tiempo real, 100% offline-first y construida bajo Clean Architecture modular en Flutter/Dart con aceleración FFI nativa.
 
-El sistema garantiza una latencia de procesamiento DSP inferior a 10 milisegundos, renderizado vectorial a 60/120 FPS sin bucles de espera activa (zero busy-waiting), y una suite exhaustiva de 1017 pruebas unitarias e integrales que validan el comportamiento determinista de cada módulo.
+El sistema garantiza una latencia de procesamiento DSP inferior a 10 milisegundos, renderizado vectorial a 60/120 FPS sin bucles de espera activa (zero busy-waiting), y una suite exhaustiva de 1082 pruebas unitarias e integrales que validan el comportamiento determinista de cada módulo.
 
 ---
 
@@ -69,11 +69,20 @@ El sistema garantiza una latencia de procesamiento DSP inferior a 10 milisegundo
 
 ---
 
+## 3.1 Endurecimiento Arquitectónico Pre-v1.0.0 (5 Olas Auditadas)
+- **Ola 1 (Estabilidad DSP, Reloj y Memoria):** Eliminación de `RangeError` en fallback SIMD, reutilización de buffers scratch C/Dart (`Finalizer` + `dispose()`), anclaje de fase en vivo en `StudioMasterClockService`, corrección de ciclo de vida de `TextEditingController` (`StudioTextControllerScope`), y selectores granulares `context.select` en `MaterialApp`.
+- **Ola 2 (Pureza Clean Architecture):** 0 importaciones de Flutter/Infraestructura en Dominio, 0 importaciones de `features/` en `core/`, y extracción de puertos (`IStudioMasterClock`, `ISynthVoicePoolPort`).
+- **Ola 3 (Inyección de Dependencias y Composition Root):** Introducción de `IPlatformFileGateway` y `StudioCompositionRoot` con constructores `.isolated()` para pruebas deterministas.
+- **Ola 4 (Descomposición Modular y Command Pattern):** Reducción de `TunerViewModel` y `MainAppShell` en módulos cohesivos, descomposición de `VocalAutoTuneModal`, y registro O(1) `ITerminalCommandHandler` en `TunnerOsKernel`.
+- **Ola 5 (Telemetría, Limpieza y Compuerta Final):** Eliminación de archivos muertos verificados, introducción de `IStudioLogger` / `StudioDebugLogger` en reemplazo de `catch (_)` silenciosos críticos, y cobertura unitaria en `core/docking` y comandos dinámicos.
+
+---
+
 ## 4. Métricas de Calidad y Verificación
 
 | Métrica | Valor Alcanzado | Estado |
 | :--- | :--- | :--- |
-| Pruebas Unitarias e Integración | 1068+ pruebas aprobadas | Aprobado |
+| Pruebas Unitarias e Integración | 1082 pruebas aprobadas (100% pass) | Aprobado |
 | Advertencias de Dart Analyzer | 0 advertencias / 0 errores | Aprobado |
 | Dependencias Externas en Dominio | 0 (Dart Puro) | Aprobado |
 | Bucles de Espera Activa | 0 (Zero Busy-Waiting) | Aprobado |

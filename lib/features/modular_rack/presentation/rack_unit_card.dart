@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/design_system/atoms/studio_text_controller_scope.dart';
 import '../domain/rack_module_entity.dart';
 import '../domain/port_id.dart';
 import 'modular_rack_viewmodel.dart';
@@ -248,53 +249,55 @@ class RackUnitCard extends StatelessWidget {
   }
 
   void _showRenameDialog(BuildContext context) {
-    final controller = TextEditingController(text: module.title);
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: const Text(
-          'RENOMBRAR HERRAMIENTA',
-          style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+      builder: (ctx) => StudioTextControllerScope(
+        initialText: module.title,
+        builder: (ctx, controller) => AlertDialog(
+          backgroundColor: const Color(0xFF1E293B),
+          title: const Text(
+            'RENOMBRAR HERRAMIENTA',
+            style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+          ),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+            decoration: InputDecoration(
+              labelText: 'Nombre Personalizado',
+              labelStyle: const TextStyle(color: Colors.white60, fontSize: 12),
+              enabledBorder: OutlineInputBorder(
+                borderSide: const BorderSide(color: Colors.white24),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: const BorderSide(color: Color(0xFF38BDF8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('CANCELAR', style: TextStyle(color: Colors.white54, fontSize: 11)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF38BDF8),
+                foregroundColor: Colors.black,
+              ),
+              onPressed: () {
+                if (controller.text.trim().isNotEmpty) {
+                  viewModel.renameModule(module.moduleId, controller.text.trim());
+                }
+                Navigator.pop(ctx);
+              },
+              child: const Text('GUARDAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+            ),
+          ],
         ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white, fontSize: 13),
-          decoration: InputDecoration(
-            labelText: 'Nombre Personalizado',
-            labelStyle: const TextStyle(color: Colors.white60, fontSize: 12),
-            enabledBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: Colors.white24),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: Color(0xFF38BDF8)),
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('CANCELAR', style: TextStyle(color: Colors.white54, fontSize: 11)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF38BDF8),
-              foregroundColor: Colors.black,
-            ),
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                viewModel.renameModule(module.moduleId, controller.text.trim());
-              }
-              Navigator.pop(ctx);
-            },
-            child: const Text('GUARDAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-        ],
       ),
-    ).whenComplete(controller.dispose);
+    );
   }
 
   void _exportToolPreset(BuildContext context) async {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import '../../logging/infrastructure/studio_debug_logger.dart';
 import '../domain/i_studio_master_capture_service.dart';
 
 /// Implementación en infraestructura de [IStudioMasterCaptureService]
@@ -194,7 +195,14 @@ class StudioMasterCaptureService implements IStudioMasterCaptureService {
     if (_randomAccessFile != null) {
       try {
         _randomAccessFile?.closeSync();
-      } catch (_) {}
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'StudioMasterCaptureService',
+          'Failed to close RandomAccessFile during dispose',
+          error: e,
+          stackTrace: st,
+        );
+      }
       _randomAccessFile = null;
     }
   }
