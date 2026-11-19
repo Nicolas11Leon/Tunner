@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'tuner_viewmodel.dart';
 import 'tuner/presentation/strobe_tuner_widget.dart';
+import 'tuner/presentation/acoustic_rigor_profile_ui_ext.dart';
 import 'song_library/presentation/song_decomposer_modal.dart';
 import 'practice_evaluator/presentation/practice_report_modal.dart';
 import 'instrument/domain/instrument_profile_entity.dart';

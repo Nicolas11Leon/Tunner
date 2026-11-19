@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 import '../../modular_rack/domain/signal_type.dart';
 
 /// Representación serializable e inmutable de una conexión de cableado entre puertos en el Patchbay.

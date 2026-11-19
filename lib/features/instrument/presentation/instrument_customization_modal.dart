@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../domain/instrument_customization_profile.dart';
+import 'visual_interface_profile_ui_ext.dart';
 import '../domain/per_note_detuning_profile.dart';
 import '../../tuner/domain/temperament_engine.dart';
 

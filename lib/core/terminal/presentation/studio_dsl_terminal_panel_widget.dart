@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../domain/tunner_os_kernel.dart';
+import '../application/tunner_os_kernel.dart';
 
 /// Consola REPL y editor interactivo para Tunner DSL en Tunner Studio.
 /// Permite redactar, cargar plantillas y evaluar scripts declarativos en caliente.

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tunner/core/terminal/domain/tunner_os_kernel.dart';
+import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
 import 'package:tunner/features/pedagogy/domain/pedagogical_certificate_pdf_generator.dart';
 import 'package:tunner/features/pedagogy/domain/vocal_stability_evaluator.dart';
 

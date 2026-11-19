@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tunner/core/design_system/studio_design_system.dart';
-import 'package:tunner/core/design_system/molecules/studio_automations_modal.dart';
-import 'package:tunner/core/design_system/molecules/studio_customizations_modal.dart';
-import 'package:tunner/core/design_system/molecules/studio_settings_modal.dart';
+import 'package:tunner/features/navigation/presentation/modals/studio_automations_modal.dart';
+import 'package:tunner/features/navigation/presentation/modals/studio_customizations_modal.dart';
+import 'package:tunner/features/navigation/presentation/modals/studio_settings_modal.dart';
 import 'package:tunner/features/tuner_viewmodel.dart';
 import 'package:tunner/features/modular_rack/presentation/modular_rack_viewmodel.dart';
 import 'package:tunner/features/modular_rack/presentation/modular_studio_rack_view.dart';

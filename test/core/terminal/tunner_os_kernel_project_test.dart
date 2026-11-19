@@ -4,7 +4,7 @@ import 'package:tunner/core/audio/infrastructure/memory_studio_audio_engine.dart
 import 'package:tunner/core/audio/infrastructure/memory_studio_audio_input_engine.dart';
 import 'package:tunner/core/audio/infrastructure/memory_studio_master_capture_service.dart';
 import 'package:tunner/core/audio/infrastructure/studio_audio_device_matrix_service.dart';
-import 'package:tunner/core/terminal/domain/tunner_os_kernel.dart';
+import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
 import 'package:tunner/features/audio_synthesizer/domain/polyphonic/polyphonic_voice_pool.dart';
 import 'package:tunner/features/tuner_viewmodel.dart';
 

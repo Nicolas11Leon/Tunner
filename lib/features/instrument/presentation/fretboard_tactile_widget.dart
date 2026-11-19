@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../domain/universal_instrument_definition.dart';
+import 'visual_interface_profile_ui_ext.dart';
 
 /// Visualizador y emulador táctil interactivo de diapasón con trastes (Fretboard).
 /// Permite visualizar la digitación de escalas y tocar notas al aire o trastes en vivo.

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../domain/tunner_os_command_entity.dart';
-import '../domain/tunner_os_kernel.dart';
+import '../application/tunner_os_kernel.dart';
 
 /// Cajón interactivo de Terminal Tunner OS CLI.
 /// Emula una consola de comandos embebida de alta fidelidad estilo Quake / VS Code para DAWs.

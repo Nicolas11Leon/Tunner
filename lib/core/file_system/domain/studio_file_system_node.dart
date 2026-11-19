@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 import 'studio_file_type.dart';
 
 /// Nodo base inmutable para el sistema de archivos jerárquico del estudio.

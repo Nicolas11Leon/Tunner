@@ -4,6 +4,7 @@ import '../domain/rack_module_entity.dart';
 import '../domain/port_id.dart';
 import 'modular_rack_viewmodel.dart';
 import 'studio_patchbay_modal.dart';
+import '../../instrument/presentation/visual_interface_profile_ui_ext.dart';
 import '../../instrument/presentation/instrument_emulation_surface_widget.dart';
 import '../../navigation/presentation/contextual_help_sheet.dart';
 import '../../../core/theme/tunner_theme.dart';

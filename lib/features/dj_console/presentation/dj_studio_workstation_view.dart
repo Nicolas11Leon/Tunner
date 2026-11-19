@@ -17,7 +17,7 @@ import '../domain/dj_smart_automix_engine.dart';
 import '../domain/dj_stem_isolation_entity.dart';
 import '../../../core/docking/domain/studio_dock_layout_entity.dart';
 import '../../../core/docking/domain/studio_dock_zone.dart';
-import '../../../core/docking/domain/studio_dockable_panel_entity.dart';
+import '../../../core/docking/presentation/studio_dockable_panel_entity.dart';
 import '../../../core/docking/presentation/studio_workspace_docking_container.dart';
 import 'dj_console_model_builder_modal.dart';
 import 'dj_console_view_model.dart';

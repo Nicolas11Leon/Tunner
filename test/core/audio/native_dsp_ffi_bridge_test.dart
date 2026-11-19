@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tunner/core/audio/domain/ffi/native_dsp_bridge_fallback.dart';
 import 'package:tunner/core/audio/infrastructure/ffi/native_dsp_ffi_bridge.dart';
-import 'package:tunner/core/terminal/domain/tunner_os_kernel.dart';
+import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
 
 void main() {
   group('NativeDspBridgeFallback Unit Tests', () {

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../domain/universal_instrument_definition.dart';
+import 'visual_interface_profile_ui_ext.dart';
 
 /// Visualizador y emulador táctil interactivo de teclado de concierto (Keybed).
 /// Renderiza 2 octavas de teclas blancas y negras con respuesta háptica y auditiva.

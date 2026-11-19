@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'modular_rack_viewmodel.dart';
 import '../../instrument/domain/universal_instrument_definition.dart';
 import '../../instrument/domain/universal_instrument_taxonomy.dart';
+import '../../instrument/presentation/visual_interface_profile_ui_ext.dart';
 
 /// Modal de búsqueda y selección de instrumentos con taxonomía universal y filtrado rápido.
 class UniversalInstrumentSearchModal extends StatefulWidget {

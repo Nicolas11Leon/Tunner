@@ -1,11 +1,9 @@
 import 'dart:async';
-import '../../../features/audio_synthesizer/domain/polyphonic/polyphonic_synth_voice.dart';
-import '../../../features/audio_synthesizer/domain/polyphonic/polyphonic_voice_pool.dart';
-import '../../../features/tuner_viewmodel.dart';
 import '../../audio/domain/reverb/schroeder_reverb_engine.dart';
 import '../../audio/domain/spatial/binaural_panner_engine.dart';
-import '../../audio/domain/studio_master_clock_service.dart';
+import '../../audio/infrastructure/studio_master_clock_service.dart';
 import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
+import '../domain/i_synth_voice_pool_port.dart';
 import '../domain/studio_os_audio_kernel.dart';
 import '../domain/tunner_dsl_interpreter.dart';
 
@@ -14,9 +12,9 @@ import '../domain/tunner_dsl_interpreter.dart';
 class StudioOsAudioKernelBridge {
   final StudioOsAudioKernel kernel;
   final StudioAudioDeviceMatrixService? matrixService;
-  PolyphonicVoicePool? synthVoicePool;
+  ISynthVoicePoolPort? synthVoicePool;
   final StudioMasterClockService? clockService;
-  TunerViewModel? viewModel;
+  void Function(int bpm)? onBpmUpdate;
   final SchroederReverbEngine? reverbEngine;
   final BinauralPannerEngine? spatialEngine;
 
@@ -29,7 +27,7 @@ class StudioOsAudioKernelBridge {
     this.matrixService,
     this.synthVoicePool,
     this.clockService,
-    this.viewModel,
+    this.onBpmUpdate,
     this.reverbEngine,
     this.spatialEngine,
   }) {
@@ -50,7 +48,7 @@ class StudioOsAudioKernelBridge {
   Future<void> _handleTempoChanged(double bpm) async {
     _currentBpm = bpm;
     clockService?.setBpm(bpm);
-    viewModel?.updateBpm(bpm.round());
+    onBpmUpdate?.call(bpm.round());
   }
 
   Future<void> _handleChannelDeclared(String channel) async {
@@ -123,19 +121,19 @@ class StudioOsAudioKernelBridge {
           final waveStr = value.toString().toLowerCase().replaceAll('"', '').replaceAll("'", '');
           switch (waveStr) {
             case 'sine':
-              synthVoicePool!.waveform = SynthWaveform.sine;
+              synthVoicePool!.setDslWaveform(DslSynthWaveform.sine);
               break;
             case 'saw':
             case 'sawtooth':
-              synthVoicePool!.waveform = SynthWaveform.sawtooth;
+              synthVoicePool!.setDslWaveform(DslSynthWaveform.sawtooth);
               break;
             case 'pulse':
             case 'square':
-              synthVoicePool!.waveform = SynthWaveform.pulse;
+              synthVoicePool!.setDslWaveform(DslSynthWaveform.pulse);
               break;
             case 'triangle':
             default:
-              synthVoicePool!.waveform = SynthWaveform.triangle;
+              synthVoicePool!.setDslWaveform(DslSynthWaveform.triangle);
               break;
           }
         } else if (cleanParam == 'attack') {

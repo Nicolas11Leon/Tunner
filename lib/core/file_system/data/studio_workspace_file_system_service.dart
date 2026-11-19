@@ -1,6 +1,4 @@
 import 'package:flutter/foundation.dart';
-import '../../../features/project_format/data/local_project_storage_repository.dart';
-import '../../../features/project_format/data/tunner_binary_project_codec.dart';
 import '../domain/studio_file_system_node.dart';
 import '../domain/studio_file_system_repository.dart';
 import '../domain/studio_file_type.dart';
@@ -15,7 +13,7 @@ typedef StudioOpenFileCallback = void Function(StudioFileEntity file);
 class StudioWorkspaceFileSystemService extends ChangeNotifier {
   static final StudioWorkspaceFileSystemService _instance = StudioWorkspaceFileSystemService._internal();
   factory StudioWorkspaceFileSystemService({
-    LocalProjectStorageRepository? repository,
+    Object? repository,
     StudioFileSystemRepository? fileSystemRepository,
   }) {
     if (repository != null) {
@@ -28,12 +26,11 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
   }
 
   StudioWorkspaceFileSystemService._internal() {
-    _repository = LocalProjectStorageRepository(codec: TunnerBinaryProjectCodec());
     _fileSystemRepository = LocalDiskStudioFileSystemRepository();
     _initializeDefaultTree();
   }
 
-  late LocalProjectStorageRepository _repository;
+  Object? _repository;
   late StudioFileSystemRepository _fileSystemRepository;
   late StudioFolderEntity _rootFolder;
   String? _selectedNodeId;
@@ -55,7 +52,7 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
   String _searchQuery = '';
   StudioOpenFileCallback? onOpenFile;
 
-  LocalProjectStorageRepository get repository => _repository;
+  Object? get repository => _repository;
   StudioFileSystemRepository get fileSystemRepository => _fileSystemRepository;
   StudioFolderEntity get rootFolder => _rootFolder;
   String? get selectedNodeId => _selectedNodeId;

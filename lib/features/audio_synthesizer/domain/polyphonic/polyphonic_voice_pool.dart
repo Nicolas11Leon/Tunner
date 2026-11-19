@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
+import '../../../../core/dsl/domain/i_synth_voice_pool_port.dart';
 import 'adsr_envelope_generator.dart';
 import 'polyphonic_synth_voice.dart';
 
@@ -8,7 +9,7 @@ import 'polyphonic_synth_voice.dart';
 /// Gestiona un conjunto determinista de [PolyphonicSynthVoice] (por defecto 16 voces),
 /// permitiendo la ejecución de acordes complejos, notas simultáneas y control centralizado
 /// de envolvente ADSR y forma de onda.
-class PolyphonicVoicePool {
+class PolyphonicVoicePool implements ISynthVoicePoolPort {
   final int maxPolyphony;
   final List<PolyphonicSynthVoice> _voices;
 
@@ -36,6 +37,24 @@ class PolyphonicVoicePool {
       voice.envelope.releaseSeconds = releaseSeconds;
       voice.waveform = defaultWaveform;
       _voices.add(voice);
+    }
+  }
+
+  @override
+  void setDslWaveform(DslSynthWaveform value) {
+    switch (value) {
+      case DslSynthWaveform.sine:
+        waveform = SynthWaveform.sine;
+        break;
+      case DslSynthWaveform.sawtooth:
+        waveform = SynthWaveform.sawtooth;
+        break;
+      case DslSynthWaveform.pulse:
+        waveform = SynthWaveform.pulse;
+        break;
+      case DslSynthWaveform.triangle:
+        waveform = SynthWaveform.triangle;
+        break;
     }
   }
 
@@ -69,24 +88,28 @@ class PolyphonicVoicePool {
 
   set masterGain(double value) => _masterGain = value.clamp(0.0, 1.0);
 
+  @override
   set attackSeconds(double value) {
     for (final voice in _voices) {
       voice.envelope.attackSeconds = value;
     }
   }
 
+  @override
   set decaySeconds(double value) {
     for (final voice in _voices) {
       voice.envelope.decaySeconds = value;
     }
   }
 
+  @override
   set sustainLevel(double value) {
     for (final voice in _voices) {
       voice.envelope.sustainLevel = value;
     }
   }
 
+  @override
   set releaseSeconds(double value) {
     for (final voice in _voices) {
       voice.envelope.releaseSeconds = value;
@@ -108,6 +131,7 @@ class PolyphonicVoicePool {
 
   /// Activa una nota musical polifónica.
   /// Si no se especifica [frequency], se calcula automáticamente a partir de [noteNumber].
+  @override
   void noteOn(int noteNumber, double velocity, {double? frequency}) {
     final freq = frequency ?? midiToFrequency(noteNumber);
     final voice = _findVoiceForNote(noteNumber);
@@ -122,6 +146,7 @@ class PolyphonicVoicePool {
   }
 
   /// Pasa a fase de liberación todas las voces que se encuentren ejecutando [noteNumber].
+  @override
   void noteOff(int noteNumber) {
     for (final voice in _voices) {
       if (voice.noteNumber == noteNumber && voice.isActive) {
@@ -140,6 +165,7 @@ class PolyphonicVoicePool {
   }
 
   /// Detiene inmediatamente todas las notas sin esperar la fase de Release.
+  @override
   void panic() {
     for (final voice in _voices) {
       voice.kill();

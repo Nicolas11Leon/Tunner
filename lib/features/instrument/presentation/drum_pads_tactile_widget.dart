@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../domain/universal_instrument_definition.dart';
+import 'visual_interface_profile_ui_ext.dart';
 
 /// Cuadrícula táctil interactiva de pads de percusión con animación reactiva al golpe.
 class DrumPadsTactileWidget extends StatefulWidget {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/app_tool_item.dart';
+import 'app_tool_item_ui_ext.dart';
 import '../../tuner/presentation/microphone_calibration_modal.dart';
 import '../../tuner/presentation/concert_pitch_selector_modal.dart';
 import '../../tuner/presentation/temperament_selector_modal.dart';

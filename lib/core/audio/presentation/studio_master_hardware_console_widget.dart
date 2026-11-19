@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../design_system/studio_theme_provider.dart';
 import '../../design_system/atoms/studio_stereo_vu_meter.dart';
 import '../../design_system/atoms/studio_hairline.dart';
-import '../domain/studio_master_clock_service.dart';
+import '../infrastructure/studio_master_clock_service.dart';
 import '../infrastructure/studio_audio_device_matrix_service.dart';
 
 /// Consola Maestra de E/S de Hardware y Reloj de Transporte Global de Tunner Studio.

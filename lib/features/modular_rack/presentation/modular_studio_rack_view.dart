@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../instrument/presentation/visual_interface_profile_ui_ext.dart';
 import '../../../../core/design_system/studio_theme_provider.dart';
 import 'modular_rack_viewmodel.dart';
 import '../domain/rack_module_entity.dart';

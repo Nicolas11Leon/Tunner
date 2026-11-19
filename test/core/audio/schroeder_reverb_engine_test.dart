@@ -4,7 +4,7 @@ import 'package:tunner/core/audio/domain/reverb/all_pass_filter.dart';
 import 'package:tunner/core/audio/domain/reverb/comb_filter.dart';
 import 'package:tunner/core/audio/domain/reverb/ir_convolution_processor.dart';
 import 'package:tunner/core/audio/domain/reverb/schroeder_reverb_engine.dart';
-import 'package:tunner/core/terminal/domain/tunner_os_kernel.dart';
+import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
 
 void main() {
   group('CombFilter Tests', () {

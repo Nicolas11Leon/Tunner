@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'domain/studio_theme_skin_entity.dart';
 
 /// Immutable, feature-agnostic Design Token specification for the
 /// Tunner Studio Workstation and Pro-DAW audio environments.
@@ -298,4 +299,37 @@ class StudioDesignTokens {
     studioObsidian,
     studioLight,
   ];
+}
+
+/// Extensión de presentación para convertir una entidad pura [StudioThemeSkinEntity]
+/// en tokens de renderizado Flutter [StudioDesignTokens].
+extension StudioThemeSkinTokensMapper on StudioThemeSkinEntity {
+  StudioDesignTokens toDesignTokens() {
+    return StudioDesignTokens(
+      id: id,
+      displayName: name,
+      brightness: isDark ? Brightness.dark : Brightness.light,
+      canvasBackground: Color(canvasBackgroundHex),
+      panelBackground: Color(panelBackgroundHex),
+      panelHeaderBackground: Color(panelHeaderBackgroundHex),
+      elevatedSurface: Color(elevatedSurfaceHex),
+      inputSurface: Color(inputSurfaceHex),
+      hoverSurface: Color(hoverSurfaceHex),
+      borderHairline: Color(borderHairlineHex),
+      borderSubtle: Color(borderSubtleHex),
+      borderFocus: Color(borderFocusHex),
+      accentPrimary: Color(accentPrimaryHex),
+      accentSecondary: Color(accentSecondaryHex),
+      accentSuccess: Color(accentSuccessHex),
+      accentWarning: Color(accentWarningHex),
+      accentDanger: Color(accentDangerHex),
+      textPrimary: Color(textPrimaryHex),
+      textSecondary: Color(textSecondaryHex),
+      textMuted: Color(textMutedHex),
+      textOnAccent: Color(textOnAccentHex),
+      radiusSmall: radiusSmall,
+      radiusMedium: radiusMedium,
+      borderWidth: borderWidth,
+    );
+  }
 }

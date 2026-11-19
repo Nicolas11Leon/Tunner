@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import '../studio_design_tokens.dart';
+import 'package:meta/meta.dart';
 
 /// Entidad inmutable y serializable que representa un paquete de estética / skin de estudio (.tntheme).
 /// Permite descargar, importar y exportar estéticas visuales completas sin tocar código.
@@ -70,36 +69,6 @@ class StudioThemeSkinEntity {
     this.radiusMedium = 6.0,
     this.borderWidth = 1.0,
   });
-
-  /// Convierte la entidad de skin a tokens de diseño activos para el motor de renderizado.
-  StudioDesignTokens toDesignTokens() {
-    return StudioDesignTokens(
-      id: id,
-      displayName: name,
-      brightness: isDark ? Brightness.dark : Brightness.light,
-      canvasBackground: Color(canvasBackgroundHex),
-      panelBackground: Color(panelBackgroundHex),
-      panelHeaderBackground: Color(panelHeaderBackgroundHex),
-      elevatedSurface: Color(elevatedSurfaceHex),
-      inputSurface: Color(inputSurfaceHex),
-      hoverSurface: Color(hoverSurfaceHex),
-      borderHairline: Color(borderHairlineHex),
-      borderSubtle: Color(borderSubtleHex),
-      borderFocus: Color(borderFocusHex),
-      accentPrimary: Color(accentPrimaryHex),
-      accentSecondary: Color(accentSecondaryHex),
-      accentSuccess: Color(accentSuccessHex),
-      accentWarning: Color(accentWarningHex),
-      accentDanger: Color(accentDangerHex),
-      textPrimary: Color(textPrimaryHex),
-      textSecondary: Color(textSecondaryHex),
-      textMuted: Color(textMutedHex),
-      textOnAccent: Color(textOnAccentHex),
-      radiusSmall: radiusSmall,
-      radiusMedium: radiusMedium,
-      borderWidth: borderWidth,
-    );
-  }
 
   /// Serialización JSON para exportar a archivo .tntheme.
   Map<String, dynamic> toJson() {
