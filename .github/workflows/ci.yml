@@ -4,11 +4,13 @@ on:
   push:
     branches:
       - main
+      - qa
       - develop
       - 'feature/**'
   pull_request:
     branches:
       - main
+      - qa
       - develop
 
 concurrency:
@@ -36,6 +38,12 @@ jobs:
 
       - name: Verify Flutter Toolchain
         run: flutter --version
+
+      - name: Build Native DSP Library (CMake & C99 SIMD)
+        run: |
+          chmod +x scripts/build_native_dsp.sh
+          ./scripts/build_native_dsp.sh
+          ls -la libtunner_dsp.so
 
       - name: Install Package Dependencies
         run: flutter pub get --enforce-lockfile
