@@ -8,6 +8,9 @@ class StudioAudioEngine implements IStudioAudioEngine {
   static final StudioAudioEngine _instance = StudioAudioEngine._internal();
   factory StudioAudioEngine() => _instance;
 
+  /// Crea una instancia aislada sin estado global compartido para DI y pruebas.
+  StudioAudioEngine.isolated();
+
   StudioAudioEngine._internal();
 
   final Map<String, StudioAudioChannel> _channels = {};

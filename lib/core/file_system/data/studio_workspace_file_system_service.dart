@@ -25,6 +25,15 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
     return _instance;
   }
 
+  /// Crea una instancia aislada sin estado global compartido para DI y pruebas.
+  StudioWorkspaceFileSystemService.isolated({
+    Object? repository,
+    StudioFileSystemRepository? fileSystemRepository,
+  }) : _repository = repository {
+    _fileSystemRepository = fileSystemRepository ?? LocalDiskStudioFileSystemRepository();
+    _initializeDefaultTree();
+  }
+
   StudioWorkspaceFileSystemService._internal() {
     _fileSystemRepository = LocalDiskStudioFileSystemRepository();
     _initializeDefaultTree();

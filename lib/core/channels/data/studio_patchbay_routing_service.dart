@@ -21,6 +21,11 @@ class StudioPatchbayRoutingService extends ChangeNotifier {
   static final StudioPatchbayRoutingService _instance = StudioPatchbayRoutingService._internal();
   factory StudioPatchbayRoutingService() => _instance;
 
+  /// Crea una instancia aislada sin estado global compartido para DI y pruebas.
+  StudioPatchbayRoutingService.isolated() {
+    _matrix = StudioPatchbayMatrixEntity.initial();
+  }
+
   StudioPatchbayRoutingService._internal() {
     _matrix = StudioPatchbayMatrixEntity.initial();
   }
