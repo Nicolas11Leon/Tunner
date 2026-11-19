@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'core/audio/infrastructure/studio_audio_device_matrix_service.dart';
-import 'core/audio/infrastructure/studio_audio_engine.dart';
-import 'core/audio/infrastructure/studio_audio_hardware_persistence_service.dart';
-import 'core/audio/infrastructure/studio_audio_input_engine.dart';
+import 'app/studio_composition_root.dart';
 import 'core/design_system/studio_theme_provider.dart';
 import 'core/theme/tunner_theme.dart';
 import 'features/navigation/presentation/main_app_shell.dart';
@@ -12,23 +9,16 @@ import 'features/tuner_viewmodel.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  final inputEngine = StudioAudioInputEngine();
-  final matrixService = StudioAudioDeviceMatrixService(
-    outputEngine: StudioAudioEngine(),
-    inputEngine: inputEngine,
-    persistenceService: StudioAudioHardwarePersistenceService(),
-  );
+  final compositionRoot = StudioCompositionRoot.create();
 
   runApp(
     MultiProvider(
       providers: [
+        Provider<StudioCompositionRoot>.value(value: compositionRoot),
         ChangeNotifierProvider(
-          create: (_) => TunerViewModel(
-            seedDefaults: true,
-            audioDeviceMatrixService: matrixService,
-          ),
+          create: (_) => compositionRoot.createTunerViewModel(seedDefaults: true),
         ),
-        ChangeNotifierProvider(create: (_) => StudioThemeController()),
+        ChangeNotifierProvider.value(value: compositionRoot.themeController),
       ],
       child: const TunnerApp(),
     ),

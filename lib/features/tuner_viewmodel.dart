@@ -3,8 +3,9 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 
+import '../core/file_system/data/platform_file_gateway.dart';
+import '../core/file_system/domain/i_platform_file_gateway.dart';
 import 'tuner/domain/tuning_preset_entity.dart';
 import '../core/theme/tunner_theme.dart';
 import 'tuner/domain/note_entity.dart';
@@ -25,7 +26,6 @@ import 'practice_evaluator/data/practice_evaluator_service.dart';
 import 'instrument/domain/instrument_profile_entity.dart';
 import 'instrument/domain/i_instrument_transposition_service.dart';
 import 'instrument/data/instrument_transposition_service.dart';
-import 'package:path_provider/path_provider.dart';
 import 'practice_recorder/domain/practice_recording_entity.dart';
 import 'practice_recorder/domain/multitrack_session_entity.dart';
 import 'practice_recorder/domain/i_practice_recorder_service.dart';
@@ -109,6 +109,7 @@ class TunerViewModel extends ChangeNotifier {
   final IScoreParserService _scoreImporterService;
   final IAudioSynthesizerService _audioSynthesizer;
   final AcousticEchoSuppressor _echoSuppressor;
+  final IPlatformFileGateway _platformFileGateway;
   final Future<String> Function()? _recordingPathProvider;
 
   StreamSubscription<double>? _amplitudeSubscription;
@@ -305,6 +306,7 @@ class TunerViewModel extends ChangeNotifier {
     ScorePlaybackCoordinator? scorePlaybackCoordinator,
     ITunnerPackageCodec? packageCodec,
     StudioAudioDeviceMatrixService? audioDeviceMatrixService,
+    IPlatformFileGateway? platformFileGateway,
     Future<String> Function()? recordingPathProvider,
     bool seedDefaults = false,
   })  : _shouldSeedDefaults = seedDefaults,
@@ -319,6 +321,7 @@ class TunerViewModel extends ChangeNotifier {
         _scoreImporterService = scoreImporterService ?? const UniversalScoreImporterService(),
         _audioSynthesizer = audioSynthesizerService ?? AudioSynthesizerService(),
         _echoSuppressor = echoSuppressor ?? AcousticEchoSuppressor(),
+        _platformFileGateway = platformFileGateway ?? const PlatformFileGateway(),
         _stemSynthesizer = stemSynthesizer ?? const StemAudioSynthesizer(),
         _exportPersistenceService = exportPersistenceService ??
             StemExportPersistenceService(documentsPathProvider: recordingPathProvider),
@@ -1756,23 +1759,15 @@ class TunerViewModel extends ChangeNotifier {
   /// Abre el selector nativo del sistema de archivos para importar partituras MusicXML, MIDI, etc.
   Future<ParsedScoreResult?> importScoreFromFilePicker() async {
     try {
-      final files = await FilePicker.pickFiles(
-        type: FileType.custom,
+      final picked = await _platformFileGateway.pickFile(
         allowedExtensions: ['musicxml', 'xml', 'mxl', 'mid', 'midi', 'abc', 'pdf', 'wav'],
       );
 
-      if (files.isEmpty) {
+      if (picked == null || picked.bytes == null || picked.bytes!.isEmpty) {
         return null;
       }
 
-      final file = files.first;
-      final bytes = await file.readAsBytes();
-
-      if (bytes.isEmpty) {
-        return null;
-      }
-
-      final parsed = await importScoreFromBytes(bytes, file.name);
+      final parsed = await importScoreFromBytes(picked.bytes!, picked.name);
       return parsed;
     } catch (e) {
       debugPrint("Error al seleccionar archivo en FilePicker: $e");
@@ -1997,8 +1992,8 @@ class TunerViewModel extends ChangeNotifier {
       return _recordingPathProvider();
     }
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      return '${dir.path}/take_${DateTime.now().millisecondsSinceEpoch}.wav';
+      final dirPath = await _platformFileGateway.getDocumentsDirectoryPath();
+      return '$dirPath/take_${DateTime.now().millisecondsSinceEpoch}.wav';
     } catch (_) {
       return '/tmp/tunner_take_${DateTime.now().millisecondsSinceEpoch}.wav';
     }

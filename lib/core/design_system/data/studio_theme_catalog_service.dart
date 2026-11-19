@@ -15,6 +15,13 @@ class StudioThemeCatalogService extends ChangeNotifier {
     return _instance;
   }
 
+  /// Crea una instancia aislada sin estado global compartido para DI y pruebas.
+  StudioThemeCatalogService.isolated({StudioThemeController? controller})
+      : _controller = controller {
+    _skins = List<StudioThemeSkinEntity>.from(StudioThemeSkinEntity.defaultCatalog);
+    _activeSkin = StudioThemeSkinEntity.obsidianPro;
+  }
+
   StudioThemeCatalogService._internal() {
     _skins = List<StudioThemeSkinEntity>.from(StudioThemeSkinEntity.defaultCatalog);
     _activeSkin = StudioThemeSkinEntity.obsidianPro;

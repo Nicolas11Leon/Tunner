@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../../app/studio_composition_root.dart';
 import '../../tuner_viewmodel.dart';
 import 'home_dashboard_screen.dart';
 import '../../tuner_screen.dart';
@@ -165,6 +166,7 @@ class _MainAppShellState extends State<MainAppShell> {
   late final StudioAudioDeviceMatrixService _audioMatrixService;
   StudioAudioInputEngine? _ownedAudioInput;
   bool _ownsAudioMatrixService = false;
+  bool _ownsClockService = false;
   late final StudioMasterClockService _masterClockService;
   bool _isTerminalOpen = false;
   late final TunnerOsKernel _terminalKernel;
@@ -175,7 +177,15 @@ class _MainAppShellState extends State<MainAppShell> {
     _currentIndex = widget.initialIndex;
     _modularRackViewModel = ModularRackViewModel();
     _djConsoleViewModel = DjConsoleViewModel();
-    _fileSystemService = StudioWorkspaceFileSystemService();
+
+    StudioCompositionRoot? root;
+    try {
+      root = context.read<StudioCompositionRoot>();
+    } catch (_) {
+      root = null;
+    }
+
+    _fileSystemService = root?.fileSystemService ?? StudioWorkspaceFileSystemService();
     _fileSystemService.onOpenFile = _handleOpenFile;
     _fileSystemService.initializeWorkspace();
 
@@ -186,9 +196,16 @@ class _MainAppShellState extends State<MainAppShell> {
       existingVm = null;
     }
 
-    if (existingVm?.audioDeviceMatrixService != null) {
+    if (root != null) {
+      _audioMatrixService = root.audioMatrixService;
+      _ownsAudioMatrixService = false;
+      _masterClockService = root.masterClockService;
+      _ownsClockService = false;
+    } else if (existingVm?.audioDeviceMatrixService != null) {
       _audioMatrixService = existingVm!.audioDeviceMatrixService!;
       _ownsAudioMatrixService = false;
+      _masterClockService = StudioMasterClockService(initialBpm: 120.0);
+      _ownsClockService = true;
     } else {
       final audioEngine = StudioAudioEngine();
       final audioInput = StudioAudioInputEngine();
@@ -200,9 +217,9 @@ class _MainAppShellState extends State<MainAppShell> {
         persistenceService: audioPersistence,
       );
       _ownsAudioMatrixService = true;
+      _masterClockService = StudioMasterClockService(initialBpm: 120.0);
+      _ownsClockService = true;
     }
-
-    _masterClockService = StudioMasterClockService(initialBpm: 120.0);
     _masterClockService.onPlayAll = () {
       final vm = context.read<TunerViewModel>();
       if (!vm.isMetronomeActive) vm.toggleMetronome();
@@ -348,7 +365,9 @@ class _MainAppShellState extends State<MainAppShell> {
       _audioMatrixService.dispose();
     }
     _ownedAudioInput?.dispose();
-    _masterClockService.dispose();
+    if (_ownsClockService) {
+      _masterClockService.dispose();
+    }
     super.dispose();
   }
 
