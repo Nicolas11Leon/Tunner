@@ -70,21 +70,89 @@ class DjAudioProcessor {
       );
     }
 
+    // Apply 3-Band Equalizer crossover filtering to Deck A
+    processedA = apply3BandEq(
+      processedA,
+      eqLow: eqLowA,
+      eqMid: eqMidA,
+      eqHigh: eqHighA,
+    );
+
+    // Apply 3-Band Equalizer crossover filtering to Deck B
+    processedB = apply3BandEq(
+      processedB,
+      eqLow: eqLowB,
+      eqMid: eqMidB,
+      eqHigh: eqHighB,
+    );
+
     final length = math.max(processedA.length, processedB.length);
     final output = Float32List(length);
-
-    // Composite 3-band gain weighting (normalized sum)
-    final weightA = (eqLowA * 0.35 + eqMidA * 0.40 + eqHighA * 0.25) * gainA;
-    final weightB = (eqLowB * 0.35 + eqMidB * 0.40 + eqHighB * 0.25) * gainB;
 
     for (int i = 0; i < length; i++) {
       final sampleA = i < processedA.length ? processedA[i] : 0.0;
       final sampleB = i < processedB.length ? processedB[i] : 0.0;
 
-      final combined = (sampleA * weightA) + (sampleB * weightB);
+      final combined = (sampleA * gainA) + (sampleB * gainB);
 
       // Soft limiter via hyperbolic tangent to eliminate hard digital clipping
       output[i] = _softLimit(combined);
+    }
+
+    return output;
+  }
+
+  /// Applies a true 3-band equalizer (Low Shelf / Crossover at 250 Hz, High Shelf / Crossover at 2500 Hz, Mid Band).
+  ///
+  /// Separates the spectrum into Low, Mid, and High frequency bands using stable
+  /// single-pole crossover filters, scales each by its respective gain multiplier,
+  /// and recombines them. When [eqLow], [eqMid], and [eqHigh] are 1.0, the output
+  /// reconstructs the input with unity gain.
+  Float32List apply3BandEq(
+    Float32List input, {
+    double eqLow = 1.0,
+    double eqMid = 1.0,
+    double eqHigh = 1.0,
+  }) {
+    if (input.isEmpty) return Float32List(0);
+    if ((eqLow - 1.0).abs() < 0.001 &&
+        (eqMid - 1.0).abs() < 0.001 &&
+        (eqHigh - 1.0).abs() < 0.001) {
+      return Float32List.fromList(input);
+    }
+
+    final len = input.length;
+    final output = Float32List(len);
+
+    // Filter coefficients for 250 Hz low-crossover and 2500 Hz high-crossover
+    final dt = 1.0 / sampleRate;
+    final rcLow = 1.0 / (2.0 * math.pi * 250.0);
+    final alphaLow = (dt / (rcLow + dt)).clamp(0.0001, 1.0);
+
+    final rcHigh = 1.0 / (2.0 * math.pi * 2500.0);
+    final alphaHigh = (rcHigh / (rcHigh + dt)).clamp(0.0001, 1.0);
+
+    double lpLow = 0.0;
+    double hpHay = 0.0;
+    double prevX = input[0];
+
+    for (int i = 0; i < len; i++) {
+      final x = input[i];
+
+      // Low band: low-pass at 250 Hz
+      lpLow += alphaLow * (x - lpLow);
+      final lowSample = lpLow;
+
+      // High band: high-pass at 2500 Hz
+      hpHay = alphaHigh * (hpHay + x - prevX);
+      prevX = x;
+      final highSample = hpHay;
+
+      // Mid band: remainder
+      final midSample = x - lowSample - highSample;
+
+      // Recombine with 3-band gain weighting
+      output[i] = (lowSample * eqLow) + (midSample * eqMid) + (highSample * eqHigh);
     }
 
     return output;

@@ -229,14 +229,28 @@ class StudioPatchbayRoutingService extends ChangeNotifier {
     if (sourcePlug == null || !sourcePlug.isConnected) return;
 
     final channelId = sourcePlug.connectedChannelId!;
+    final channel = _matrix.channels[channelId];
     _triggerPlugPulse(sourcePlugId);
 
+    // Ajustar payload según ganancia y estado de silencio (mute) del canal
+    final effectivePayload = Map<String, dynamic>.from(payload);
+    if (channel != null) {
+      effectivePayload['channelGain'] = channel.gain;
+      effectivePayload['channelIsMuted'] = channel.isMuted;
+      if (channel.isMuted && effectivePayload.containsKey('pcmBuffer')) {
+        final pcm = effectivePayload['pcmBuffer'] as Float32List?;
+        if (pcm != null) {
+          effectivePayload['pcmBuffer'] = Float32List(pcm.length);
+        }
+      }
+    }
+
     // Actualizar parámetros del canal si vienen provistos en el payload
-    final title = payload['title'] as String?;
-    final bpm = (payload['bpm'] as num?)?.toDouble();
-    final key = payload['key'] as String?;
-    final isPlaying = payload['isPlaying'] as bool?;
-    final pcmBuffer = payload['pcmBuffer'] as Float32List?;
+    final title = effectivePayload['title'] as String?;
+    final bpm = (effectivePayload['bpm'] as num?)?.toDouble();
+    final key = effectivePayload['key'] as String?;
+    final isPlaying = effectivePayload['isPlaying'] as bool?;
+    final pcmBuffer = effectivePayload['pcmBuffer'] as Float32List?;
 
     if (title != null || bpm != null || key != null || isPlaying != null || pcmBuffer != null) {
       publishChannelParameters(
@@ -255,7 +269,7 @@ class StudioPatchbayRoutingService extends ChangeNotifier {
     for (final sink in sinks) {
       _triggerPlugPulse(sink.id);
       final listener = _sinkListeners[sink.id];
-      listener?.call(sourcePlugId, channelId, payload);
+      listener?.call(sourcePlugId, channelId, effectivePayload);
     }
   }
 

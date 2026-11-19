@@ -103,6 +103,45 @@ class SoundFontSynthesizerService {
 
     final sampleHeader = _activeSoundFont.sampleHeaders[sampleId];
 
+    final combinedGens = <int, int>{};
+    if (matchingPresetZone != null) combinedGens.addAll(matchingPresetZone.generators);
+    if (matchingInstZone != null) combinedGens.addAll(matchingInstZone.generators);
+
+    double delaySec = 0.001;
+    double attackSec = 0.015;
+    double holdSec = 0.010;
+    double decaySec = 0.400;
+    double sustainLev = 0.40;
+    double releaseSec = 0.080;
+
+    if (combinedGens.containsKey(Sf2GeneratorType.delayVolEnv)) {
+      delaySec = Sf2EnvelopeParams.timecentsToSeconds(combinedGens[Sf2GeneratorType.delayVolEnv]!);
+    }
+    if (combinedGens.containsKey(Sf2GeneratorType.attackVolEnv)) {
+      attackSec = Sf2EnvelopeParams.timecentsToSeconds(combinedGens[Sf2GeneratorType.attackVolEnv]!);
+    }
+    if (combinedGens.containsKey(Sf2GeneratorType.holdVolEnv)) {
+      holdSec = Sf2EnvelopeParams.timecentsToSeconds(combinedGens[Sf2GeneratorType.holdVolEnv]!);
+    }
+    if (combinedGens.containsKey(Sf2GeneratorType.decayVolEnv)) {
+      decaySec = Sf2EnvelopeParams.timecentsToSeconds(combinedGens[Sf2GeneratorType.decayVolEnv]!);
+    }
+    if (combinedGens.containsKey(Sf2GeneratorType.sustainVolEnv)) {
+      sustainLev = Sf2EnvelopeParams.centibelsToGain(combinedGens[Sf2GeneratorType.sustainVolEnv]!);
+    }
+    if (combinedGens.containsKey(Sf2GeneratorType.releaseVolEnv)) {
+      releaseSec = Sf2EnvelopeParams.timecentsToSeconds(combinedGens[Sf2GeneratorType.releaseVolEnv]!);
+    }
+
+    final envelope = Sf2EnvelopeParams(
+      delaySeconds: delaySec,
+      attackSeconds: attackSec,
+      holdSeconds: holdSec,
+      decaySeconds: decaySec,
+      sustainLevel: sustainLev,
+      releaseSeconds: releaseSec,
+    );
+
     final samples = _oscillator.renderNoteSamples(
       sampleData: _activeSoundFont.sampleData,
       header: sampleHeader,
@@ -110,6 +149,7 @@ class SoundFontSynthesizerService {
       durationSeconds: durationSeconds,
       outputSampleRate: sampleRate,
       velocity: velocity,
+      envelope: envelope,
     );
 
     return _floatSamplesToWavBytes(samples, sampleRate: sampleRate);

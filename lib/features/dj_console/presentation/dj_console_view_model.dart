@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../../audio_synthesizer/data/audio_synthesizer_service.dart';
@@ -71,6 +72,8 @@ class DjConsoleViewModel extends ChangeNotifier {
   List<SpectralWaveformBucket> _waveformB =
       DjTransitionSfxSynthesizer.generateSyntheticTrackWaveform(bpm: 128.0);
   Float32List? _lastSamplerBuffer;
+  Float32List? _deckSamplesA;
+  Float32List? _deckSamplesB;
 
   // Showcase / Auto-Demo Routine (15s)
   bool _isShowcaseRunning = false;
@@ -124,6 +127,7 @@ class DjConsoleViewModel extends ChangeNotifier {
     _deckAudioPlayer.setDeckVolume('B', gains.effectiveGainB);
   }
 
+  DjPerformanceOrchestrator get orchestrator => _orchestrator;
   DjDeckEntity get deckA => _orchestrator.deckA;
   DjDeckEntity get deckB => _orchestrator.deckB;
   DjCrossfaderEntity get crossfader => _orchestrator.crossfader;
@@ -238,16 +242,46 @@ class DjConsoleViewModel extends ChangeNotifier {
         changed = true;
       }
 
-      // If recording is active, capture audio slice
+      // If recording is active, capture real audio slice from active decks
       if (recorder.isRecording) {
         final sampleRate = _audioProcessor.sampleRate;
         final sliceLength = (sampleRate * 0.033).round();
-        final dummyBufferA = Float32List(sliceLength);
-        final dummyBufferB = Float32List(sliceLength);
+        final sliceA = Float32List(sliceLength);
+        final sliceB = Float32List(sliceLength);
+
+        if (deckA.isPlaying) {
+          final samples = _deckSamplesA ??
+              _audioProcessor.generateDemoGroove(
+                bpm: deckA.effectiveBpm,
+                frequencyHz: 55.0,
+                durationMs: 4000,
+              );
+          final maxStart = math.max(1, samples.length - sliceLength);
+          final startSample =
+              ((deckA.currentPositionMs / 1000.0) * sampleRate).round() % maxStart;
+          for (int s = 0; s < sliceLength && (startSample + s) < samples.length; s++) {
+            sliceA[s] = samples[startSample + s];
+          }
+        }
+
+        if (deckB.isPlaying) {
+          final samples = _deckSamplesB ??
+              _audioProcessor.generateDemoGroove(
+                bpm: deckB.effectiveBpm,
+                frequencyHz: 65.4,
+                durationMs: 4000,
+              );
+          final maxStart = math.max(1, samples.length - sliceLength);
+          final startSample =
+              ((deckB.currentPositionMs / 1000.0) * sampleRate).round() % maxStart;
+          for (int s = 0; s < sliceLength && (startSample + s) < samples.length; s++) {
+            sliceB[s] = samples[startSample + s];
+          }
+        }
 
         final mixedChunk = _audioProcessor.mixBuffers(
-          bufferA: dummyBufferA,
-          bufferB: dummyBufferB,
+          bufferA: sliceA,
+          bufferB: sliceB,
           gainA: _orchestrator.deckAGain,
           gainB: _orchestrator.deckBGain,
           eqLowA: deckA.gainLow,
@@ -772,6 +806,20 @@ class DjConsoleViewModel extends ChangeNotifier {
     if (!_isDisposed) notifyListeners();
   }
 
+  /// Persiste la última sesión de mezcla grabada como un archivo estándar WAV en disco.
+  Future<bool> saveRecordingToDisk(String filePath) async {
+    final bytes = _lastRecordedWavBytes ?? stopRecording();
+    if (bytes == null || bytes.isEmpty) return false;
+    try {
+      final file = File(filePath);
+      await file.parent.create(recursive: true);
+      await file.writeAsBytes(bytes, flush: true);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Automatically estimates BPM from audio samples using [BpmBeatTrackerEngine]
   /// and loads the track into the deck.
   double loadTrackWithBeatTracking(
@@ -794,8 +842,10 @@ class DjConsoleViewModel extends ChangeNotifier {
       sampleRate: sampleRate,
     );
     if (deckId == 'A') {
+      _deckSamplesA = audioSamples;
       _waveformA = spectralSummary;
     } else {
+      _deckSamplesB = audioSamples;
       _waveformB = spectralSummary;
     }
     final durationMs = ((audioSamples.length / sampleRate) * 1000.0).round();

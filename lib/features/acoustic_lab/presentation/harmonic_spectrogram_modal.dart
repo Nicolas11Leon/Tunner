@@ -24,6 +24,7 @@ class HarmonicSpectrogramModal extends StatelessWidget {
 
     final analysis = analyzer.analyze(
       fundamentalHz: vm.frequency > 20.0 ? vm.frequency : 440.0,
+      samples: vm.latestAudioSamples,
     );
 
     final hasSignal = vm.frequency > 20.0;

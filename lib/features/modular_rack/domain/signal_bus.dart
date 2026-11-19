@@ -128,22 +128,29 @@ class SignalBus {
     final sourceKey = _generatePortKey(sourcePort);
     _portControllers[sourceKey]?.add(data);
 
-    // 2. Enrutar hacia los destinos configurados
+    // 2. Enrutar hacia los destinos configurados garantizando deduplicación atómica
+    final dispatchedKeys = <String>{sourceKey};
+
     for (final conn in _connections) {
-      if (!conn.isEnabled) continue;
+      if (!conn.isEnabled || conn.isMuted) continue;
 
       if (conn.sourcePort == sourcePort) {
         if (conn.scope == ConnectionScope.broadcast) {
           // Difusión global a todos los puertos de entrada compatibles del mismo SignalType
           for (final entry in _portControllers.entries) {
-            if (entry.key != sourceKey && entry.key.contains(sourcePort.signalType.code)) {
+            if (!dispatchedKeys.contains(entry.key) &&
+                entry.key.contains(sourcePort.signalType.code)) {
+              dispatchedKeys.add(entry.key);
               entry.value.add(data);
             }
           }
         } else if (conn.destinationPort != null) {
-          // Despacho punto a punto exclusivo
+          // Despacho punto a punto exclusivo sin eventos duplicados
           final destKey = _generatePortKey(conn.destinationPort!);
-          _portControllers[destKey]?.add(data);
+          if (!dispatchedKeys.contains(destKey)) {
+            dispatchedKeys.add(destKey);
+            _portControllers[destKey]?.add(data);
+          }
         }
       }
     }

@@ -75,8 +75,10 @@ class TdPsolaPitchShifter {
     final Float64List output = Float64List(len);
     final Float64List normWeights = Float64List(len);
 
-    int synthMark = p0;
-    while (synthMark < len - p0) {
+    double synthMarkFrac = p0.toDouble();
+    while (synthMarkFrac < (len - p0).toDouble()) {
+      final int synthMark = synthMarkFrac.round();
+
       // Encontrar la marca de análisis más cercana a la posición temporal relativa
       final double relativePos = synthMark.toDouble();
       int nearestAnalysis = analysisMarks.first;
@@ -105,21 +107,21 @@ class TdPsolaPitchShifter {
         }
       }
 
-      synthMark += ps;
+      synthMarkFrac += rawPs;
     }
 
-    // Normalización de energía y mezcla dry/wet
+    // Normalización de energía y mezcla dry/wet con transición suave en bordes
     final double wet = leadVocalMix.clamp(0.0, 1.0);
     final double dry = 1.0 - wet;
 
     final Float64List finalBuffer = Float64List(len);
     for (int i = 0; i < len; i++) {
-      double synthSample = 0.0;
-      if (normWeights[i] > 1e-4) {
-        synthSample = output[i] / normWeights[i];
-      } else {
-        synthSample = inputSamples[i];
-      }
+      final double weightAlpha = (normWeights[i]).clamp(0.0, 1.0);
+      final double normalizedSynth = normWeights[i] > 1e-4
+          ? (output[i] / normWeights[i])
+          : inputSamples[i];
+      final double synthSample =
+          normalizedSynth * weightAlpha + inputSamples[i] * (1.0 - weightAlpha);
 
       // Mezcla Dry/Wet
       final double mixed = (inputSamples[i] * dry) + (synthSample * wet);
