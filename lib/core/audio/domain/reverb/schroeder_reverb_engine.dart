@@ -18,6 +18,7 @@ class SchroederReverbEngine {
   final List<AllPassFilter> _allPassLeft = [];
   final List<AllPassFilter> _allPassRight = [];
 
+  final int sampleRate;
   double _roomSize = 0.5;
   double _damping = 0.5;
   double _wetMix = 0.33;
@@ -25,6 +26,7 @@ class SchroederReverbEngine {
   double _width = 1.0;
 
   SchroederReverbEngine({
+    this.sampleRate = 44100,
     double roomSize = 0.5,
     double damping = 0.5,
     double wetMix = 0.33,
@@ -65,14 +67,19 @@ class SchroederReverbEngine {
     _allPassLeft.clear();
     _allPassRight.clear();
 
+    final scaleFactor = sampleRate / 44100.0;
+    final spread = (_stereoSpread * scaleFactor).round();
+
     for (final tuning in _combTunings) {
-      _combLeft.add(CombFilter(tuning));
-      _combRight.add(CombFilter(tuning + _stereoSpread));
+      final scaledTuning = (tuning * scaleFactor).round();
+      _combLeft.add(CombFilter(scaledTuning));
+      _combRight.add(CombFilter(scaledTuning + spread));
     }
 
     for (final tuning in _allPassTunings) {
-      _allPassLeft.add(AllPassFilter(tuning, feedback: 0.5));
-      _allPassRight.add(AllPassFilter(tuning + _stereoSpread, feedback: 0.5));
+      final scaledTuning = (tuning * scaleFactor).round();
+      _allPassLeft.add(AllPassFilter(scaledTuning, feedback: 0.5));
+      _allPassRight.add(AllPassFilter(scaledTuning + spread, feedback: 0.5));
     }
   }
 
@@ -106,11 +113,13 @@ class SchroederReverbEngine {
       var outLeft = 0.0;
       var outRight = 0.0;
 
-      // 1. Banco de filtros en peine en paralelo
+      // 1. Banco de filtros en peine en paralelo normalizado (1 / 4 = 0.25)
       for (var c = 0; c < _combLeft.length; c++) {
         outLeft += _combLeft[c].process(inputSample);
         outRight += _combRight[c].process(inputSample);
       }
+      outLeft *= 0.25;
+      outRight *= 0.25;
 
       // 2. Filtros paso-todo en serie
       for (var a = 0; a < _allPassLeft.length; a++) {

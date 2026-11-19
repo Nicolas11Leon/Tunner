@@ -11,6 +11,7 @@ abstract class IStudioAudioChannel {
   Duration get currentPosition;
   double get volume;
   double get playbackRate;
+  bool get isDisposed;
   Stream<StudioAudioTrackState> get stateStream;
 
   /// Carga una fuente de audio (ruta a archivo local o bytes en memoria).

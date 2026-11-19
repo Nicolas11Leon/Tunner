@@ -13,15 +13,16 @@ class AllPassFilter {
 
   AllPassFilter(this.bufferSize, {this.feedback = 0.5}) : _buffer = Float32List(bufferSize);
 
-  /// Procesa una muestra de audio flotante.
+  /// Procesa una muestra de audio flotante según la forma canónica Direct Form II de Schroeder:
+  /// $v[n] = x[n] + g \cdot w[n-D]$
+  /// $y[n] = -g \cdot v[n] + w[n-D]$
+  /// $w[n-D] \leftarrow v[n]$
+  /// Garantiza $|H(e^{j\omega})| \equiv 1.0$ y conservación rigurosa de energía para toda frecuencia.
   double process(double input) {
     final bufOut = _buffer[_bufferIndex];
-
-    // Salida canónica: y[n] = -input + x[n - D]
-    final output = -input + bufOut;
-
-    // Realimentación en la línea de retardo: x[n] = input + (bufOut * g)
-    _buffer[_bufferIndex] = input + (bufOut * feedback);
+    final v = input + (bufOut * feedback);
+    final output = -feedback * v + bufOut;
+    _buffer[_bufferIndex] = v;
 
     // Puntero circular determinista
     if (++_bufferIndex >= bufferSize) {

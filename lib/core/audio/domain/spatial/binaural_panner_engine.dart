@@ -103,9 +103,14 @@ class BinauralPannerEngine {
     final double maxDelaySeconds = (r / c) * (math.sin(effectiveAngle) + effectiveAngle);
     final double maxDelaySamples = maxDelaySeconds * sampleRate;
 
-    // Si theta > 0 (fuente a la derecha): oído izquierdo se retrasa
-    // Si theta < 0 (fuente a la izquierda): oído derecho se retrasa
-    if (theta > 0.0) {
+    // Si absTheta es prácticamente pi (directamente detrás de la cabeza en el plano medio):
+    // simetría física exacta: retardo 0 en ambos oídos y sombra craneal idéntica
+    final bool isDirectlyBehind = absTheta >= (math.pi - 0.001);
+
+    if (isDirectlyBehind) {
+      _leftDelaySamples = 0.0;
+      _rightDelaySamples = 0.0;
+    } else if (theta > 0.0) {
       _leftDelaySamples = maxDelaySamples;
       _rightDelaySamples = 0.0;
     } else if (theta < 0.0) {
@@ -128,7 +133,12 @@ class BinauralPannerEngine {
     // Elevación: elevación positiva mantiene brillo, elevación negativa incrementa sombra
     final double elevationFactor = 1.0 + 0.15 * math.sin(_coordinates.elevationRadians);
 
-    if (theta > 0.0) {
+    if (isDirectlyBehind) {
+      _leftFilterAlpha = shadowAlpha;
+      _rightFilterAlpha = shadowAlpha;
+      _leftGain = 1.0 * elevationFactor;
+      _rightGain = 1.0 * elevationFactor;
+    } else if (theta > 0.0) {
       // Oído derecho es ipsilateral (abierto), izquierdo contralateral (sombra)
       _rightFilterAlpha = 0.0; // Pasa directo sin filtro
       _leftFilterAlpha = shadowAlpha;

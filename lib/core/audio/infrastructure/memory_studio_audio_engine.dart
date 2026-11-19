@@ -20,6 +20,10 @@ class MemoryStudioAudioChannel implements IStudioAudioChannel {
 
   Uint8List? loadedBytes;
   String? loadedFilePath;
+  bool _isDisposed = false;
+
+  @override
+  bool get isDisposed => _isDisposed;
 
   final StreamController<StudioAudioTrackState> _stateController =
       StreamController<StudioAudioTrackState>.broadcast();
@@ -119,6 +123,7 @@ class MemoryStudioAudioChannel implements IStudioAudioChannel {
 
   @override
   Future<void> dispose() async {
+    _isDisposed = true;
     _status = StudioTransportStatus.stopped;
     await _stateController.close();
   }
@@ -131,10 +136,13 @@ class MemoryStudioAudioEngine implements IStudioAudioEngine {
   @override
   IStudioAudioChannel getChannel(String channelId) {
     final normalized = channelId.trim().toLowerCase();
-    return channels.putIfAbsent(
-      normalized,
-      () => MemoryStudioAudioChannel(channelId: normalized),
-    );
+    final existing = channels[normalized];
+    if (existing != null && !existing.isDisposed) {
+      return existing;
+    }
+    final fresh = MemoryStudioAudioChannel(channelId: normalized);
+    channels[normalized] = fresh;
+    return fresh;
   }
 
   @override

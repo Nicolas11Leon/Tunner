@@ -18,10 +18,13 @@ class StudioAudioEngine implements IStudioAudioEngine {
   @override
   IStudioAudioChannel getChannel(String channelId) {
     final normalizedId = channelId.trim().toLowerCase();
-    return _channels.putIfAbsent(
-      normalizedId,
-      () => StudioAudioChannel(channelId: normalizedId),
-    );
+    final existing = _channels[normalizedId];
+    if (existing != null && !existing.isDisposed) {
+      return existing;
+    }
+    final fresh = StudioAudioChannel(channelId: normalizedId);
+    _channels[normalizedId] = fresh;
+    return fresh;
   }
 
   @override

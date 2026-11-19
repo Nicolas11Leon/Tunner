@@ -14,13 +14,14 @@ class MetronomeService implements IMetronomeService {
   Function(int currentSubTick)? onSubTick;
 
   @override
-  Future<void> start(int bpm, {int ticksPerMeasure = 16}) async {
+  Future<void> start(int bpm, {int ticksPerMeasure = 16, int meterDenominator = 4}) async {
     if (_isolate != null || _fromIsolatePort != null) {
       await stop();
     }
 
     final safeBpm = bpm.clamp(20, 300);
     final safeTicks = ticksPerMeasure.clamp(1, 64);
+    final safeDenominator = meterDenominator.clamp(1, 16);
 
     final receivePort = ReceivePort();
     _fromIsolatePort = receivePort;
@@ -35,6 +36,7 @@ class MetronomeService implements IMetronomeService {
         'port': receivePort.sendPort,
         'bpm': safeBpm,
         'ticksPerMeasure': safeTicks,
+        'meterDenominator': safeDenominator,
       });
     } catch (_) {
       await stop();
@@ -46,10 +48,12 @@ class MetronomeService implements IMetronomeService {
     final SendPort toMainPort = args['port'] as SendPort;
     final int bpm = ((args['bpm'] as int?) ?? 120).clamp(20, 300);
     final int ticksPerMeasure = ((args['ticksPerMeasure'] as int?) ?? 16).clamp(1, 64);
+    final int meterDenominator = ((args['meterDenominator'] as int?) ?? 4).clamp(1, 16);
 
-    // Intervalo exacto en microsegundos para resolución de semicorcheas
-    // 60,000,000 microsegundos por minuto / bpm / 4
-    final int intervalMicros = (60000000 / bpm / 4).round();
+    // Intervalo exacto en microsegundos para resolución de subdivisión métrica:
+    // 60,000,000 microsegundos por minuto / bpm / 4 (o escalado por denominador si difiere de 4)
+    final double denominatorFactor = meterDenominator == 8 ? 1.0 : (meterDenominator / 4.0);
+    final int intervalMicros = (60000000 / (bpm * denominatorFactor * 4)).round();
     final Stopwatch stopwatch = Stopwatch()..start();
     int nextTickMicros = 0;
     int subTickCounter = 0;

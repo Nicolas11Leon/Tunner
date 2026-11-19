@@ -202,7 +202,7 @@ class _TapTempoModalState extends State<TapTempoModal> with SingleTickerProvider
                     scale: _pulseAnimation,
                     child: GestureDetector(
                       key: const Key('tap_tempo_pad'),
-                      onTap: _onTap,
+                      onTapDown: (_) => _onTap(),
                       child: Container(
                         width: 170,
                         height: 170,

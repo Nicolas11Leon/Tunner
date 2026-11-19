@@ -131,6 +131,15 @@ class TemperamentEngine {
   /// Instancia canónica de Entonación Justa (5-Limit Just).
   static MusicalTemperament get justIntonation => allTemperaments[2];
 
+  /// Instancia canónica de Werckmeister III (1691).
+  static MusicalTemperament get werckmeisterIII => getById('werckmeister_iii');
+
+  /// Instancia canónica de Vallotti (1779).
+  static MusicalTemperament get vallotti => getById('vallotti');
+
+  /// Instancia canónica de Young II (1800).
+  static MusicalTemperament get youngII => getById('young_ii');
+
   /// Instancia canónica de Werckmeister IV (Septenarius).
   static MusicalTemperament get werckmeisterIV => getById('werckmeister_iv');
 
@@ -162,11 +171,13 @@ class TemperamentEngine {
   /// [a4Ref]: Frecuencia de concierto de calibración para A4 (e.g. 440.0, 442.0, 415.0).
   /// [temperament]: Sistema de temperamento.
   /// [rootKey]: Tónica del temperamento (0 = Do).
+  /// [anchorA4]: Cuando es `true`, ancla la escala para que A4 sea idéntico a [a4Ref] preservando todos los intervalos internos.
   double getTargetFrequency({
     required int midiNumber,
     required MusicalTemperament temperament,
     double a4Ref = 440.0,
     int rootKey = 0,
+    bool anchorA4 = false,
   }) {
     // 1. Frecuencia base en Temperamento Igual 12-EDO:
     // f_equal = a4Ref * 2^((midiNumber - 69) / 12)
@@ -174,11 +185,22 @@ class TemperamentEngine {
 
     // 2. Desviación en cents en función de la tónica:
     final noteIndex = midiNumber % 12;
-    final centsOffset = getCentsOffset(
+    var centsOffset = getCentsOffset(
       noteIndex: noteIndex,
       temperament: temperament,
       rootKey: rootKey,
     );
+
+    // Si anchorA4 está activo, se calibra la escala completa para que A4 (grado 9)
+    // coincida exactamente con a4Ref (0 cents de desviación en A4):
+    if (anchorA4) {
+      final a4Offset = getCentsOffset(
+        noteIndex: 9,
+        temperament: temperament,
+        rootKey: rootKey,
+      );
+      centsOffset -= a4Offset;
+    }
 
     // 3. Modulación por factor cents: f_target = f_equal * 2^(centsOffset / 1200)
     return equalFrequency * math.pow(2.0, centsOffset / 1200.0);

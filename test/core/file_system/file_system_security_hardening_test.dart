@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tunner/core/file_system/data/local_disk_studio_file_system_repository.dart';
 import 'package:tunner/core/file_system/data/studio_workspace_file_system_service.dart';
 import 'package:tunner/core/file_system/domain/studio_file_system_node.dart';
-import 'package:tunner/core/file_system/domain/studio_file_type.dart';
 
 void main() {
   group('FileSystem Security & Hardening Tests (Ola 1)', () {

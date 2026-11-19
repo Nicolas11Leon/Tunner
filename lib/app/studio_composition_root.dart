@@ -13,6 +13,12 @@ import '../core/file_system/data/platform_file_gateway.dart';
 import '../core/file_system/data/studio_workspace_file_system_service.dart';
 import '../core/file_system/domain/i_platform_file_gateway.dart';
 import '../features/tuner_viewmodel.dart';
+import '../features/tuner/data/pitch_detector_service.dart';
+import '../features/audio_synthesizer/data/audio_synthesizer_service.dart';
+import '../features/practice_recorder/data/audio_playback_service.dart';
+import '../features/dj_console/presentation/dj_console_view_model.dart';
+import '../features/dj_console/data/dj_deck_audio_service.dart';
+import '../features/modular_rack/presentation/modular_rack_viewmodel.dart';
 
 /// Composition Root único de Tunner Studio.
 /// Centraliza la instanciación e inyección de dependencias de infraestructura y dominio,
@@ -94,6 +100,25 @@ class StudioCompositionRoot {
       seedDefaults: seedDefaults,
       audioDeviceMatrixService: audioMatrixService,
       platformFileGateway: platformFileGateway,
+      audioSynthesizerService: AudioSynthesizerService(audioEngine: audioEngine),
+      playbackService: AudioPlaybackService(audioEngine: audioEngine),
+      pitchService: PitchDetectorService(inputEngine: audioInputEngine),
+    );
+  }
+
+  /// Crea el ViewModel de la Consola DJ con motor de audio unificado inyectado.
+  DjConsoleViewModel createDjConsoleViewModel() {
+    return DjConsoleViewModel(
+      deckAudioPlayer: DjDeckAudioService(audioEngine: audioEngine),
+      audioSynthesizer: AudioSynthesizerService(audioEngine: audioEngine),
+    );
+  }
+
+  /// Crea el ViewModel del Rack Modular con motores centralizados inyectados.
+  ModularRackViewModel createModularRackViewModel() {
+    return ModularRackViewModel(
+      audioEngine: audioEngine,
+      audioInputEngine: audioInputEngine,
     );
   }
 
