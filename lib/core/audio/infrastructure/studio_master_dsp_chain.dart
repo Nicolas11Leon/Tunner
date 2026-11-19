@@ -32,6 +32,7 @@ class DspBenchmarkResult {
 /// balísticas y cálculo de autocorrelación en tiempo real.
 class StudioMasterDspChain {
   final INativeDspBridge _bridge;
+  Float32List _scratchBuffer = Float32List(0);
 
   StudioMasterDspChain({
     INativeDspBridge? bridge,
@@ -39,6 +40,13 @@ class StudioMasterDspChain {
 
   /// Acceso al puente DSP subyacente (nativo o fallback).
   INativeDspBridge get bridge => _bridge;
+
+  Float32List _getScratchView(int length) {
+    if (_scratchBuffer.length < length) {
+      _scratchBuffer = Float32List(length);
+    }
+    return Float32List.sublistView(_scratchBuffer, 0, length);
+  }
 
   /// Procesa un bloque de audio estéreo aplicando volumen maestro, mute, atenuación (dim)
   /// y colapso de fase monoaural mediante primitivas vectoriales aceleradas.
@@ -61,10 +69,13 @@ class StudioMasterDspChain {
     final effectiveGain = masterGain * (isDimmed ? 0.35 : 1.0);
 
     if (isMono) {
-      // Colapso monoaural: Out = 0.5 * (Left + Right)
+      // Colapso monoaural: Out = 0.5 * (Left + Right) sobre la longitud mínima común
       final length = left.length < right.length ? left.length : right.length;
-      final tempSum = Float32List(length);
-      _bridge.vectorSum(left, right, tempSum);
+      final leftView = left.length == length ? left : Float32List.sublistView(left, 0, length);
+      final rightView = right.length == length ? right : Float32List.sublistView(right, 0, length);
+      final tempSum = _getScratchView(length);
+
+      _bridge.vectorSum(leftView, rightView, tempSum);
       _bridge.applyGain(tempSum, 0.5 * effectiveGain);
 
       left.setRange(0, length, tempSum);
@@ -86,8 +97,8 @@ class StudioMasterDspChain {
   ) {
     if (channels.isEmpty || out.isEmpty) return;
 
-    final length = out.length;
-    out.fillRange(0, length, 0.0);
+    final outLength = out.length;
+    out.fillRange(0, outLength, 0.0);
 
     for (int c = 0; c < channels.length; c++) {
       final ch = channels[c];
@@ -95,15 +106,18 @@ class StudioMasterDspChain {
 
       if (gain <= 0.00001 || ch.isEmpty) continue;
 
-      final processLen = ch.length < length ? ch.length : length;
-      final temp = Float32List(processLen);
+      final processLen = ch.length < outLength ? ch.length : outLength;
+      final temp = _getScratchView(processLen);
       temp.setRange(0, processLen, ch);
 
       if ((gain - 1.0).abs() > 0.0001) {
         _bridge.applyGain(temp, gain);
       }
 
-      _bridge.vectorSum(out, temp, out);
+      final outView = processLen == outLength
+          ? out
+          : Float32List.sublistView(out, 0, processLen);
+      _bridge.vectorSum(outView, temp, outView);
     }
   }
 

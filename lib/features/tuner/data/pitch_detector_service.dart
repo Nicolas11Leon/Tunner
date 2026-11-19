@@ -218,7 +218,13 @@ class PitchDetectorService implements IPitchDetectorService {
     } catch (e) {
       debugPrint("Error al inicializar micrófono y DSP Isolate: $e");
       _isRecording = false;
+      await stopRecording();
     }
+  }
+
+  /// Libera los recursos de captura y finaliza el Isolate DSP.
+  Future<void> dispose() async {
+    await stopRecording();
   }
 
   @override

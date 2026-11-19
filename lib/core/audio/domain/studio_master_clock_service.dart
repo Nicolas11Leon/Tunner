@@ -3,8 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'studio_transport_status.dart';
 
 /// Servicio de dominio para el Reloj Maestro de Transporte Unificado de Tunner Studio.
-/// Sincroniza compás, tempo (BPM) y fase rítmica con compensación determinista
-/// mediante [Stopwatch] para garantizar cero deriva temporal acumulativa.
+/// Sincroniza compás, tempo (BPM) y fase rítmica con acumulador de fase anclado
+/// sobre [Stopwatch] para garantizar cero deriva y transiciones fluidas al cambiar BPM en vivo.
 class StudioMasterClockService extends ChangeNotifier {
   double _bpm;
   int _meterNumerator;
@@ -13,10 +13,15 @@ class StudioMasterClockService extends ChangeNotifier {
   StudioTransportStatus _status = StudioTransportStatus.stopped;
   final Stopwatch _stopwatch = Stopwatch();
   Timer? _tickerTimer;
+  bool _isDisposed = false;
+
+  // Acumulador de fase para cambios de BPM sin saltos ni congelamientos
+  double _accumulatedBeats = 0.0;
+  int _anchorElapsedMicros = 0;
+  int _lastEmittedBeatIndex = 0;
 
   int _currentBeat = 1;
   int _currentMeasure = 1;
-  int _totalSubdivisionsElapsed = 0;
 
   /// Callbacks de orquestación global para sincronizar todas las herramientas de Tunner
   VoidCallback? onPlayAll;
@@ -61,20 +66,38 @@ class StudioMasterClockService extends ChangeNotifier {
   /// $$t_{\text{negra}} = \frac{60\,000}{\text{BPM}}$$
   double get beatIntervalMs => 60000.0 / _bpm;
 
-  /// Ajusta el tempo del reloj maestro de 20 a 300 BPM.
+  void _consolidatePhaseAnchor() {
+    final nowMicros = _stopwatch.elapsedMicroseconds;
+    final deltaMicros = nowMicros - _anchorElapsedMicros;
+    if (deltaMicros > 0) {
+      final microsPerBeat = 60000000.0 / _bpm;
+      _accumulatedBeats += deltaMicros / microsPerBeat;
+      _anchorElapsedMicros = nowMicros;
+    }
+  }
+
+  double _currentTotalBeats() {
+    final nowMicros = _stopwatch.elapsedMicroseconds;
+    final deltaMicros = nowMicros - _anchorElapsedMicros;
+    final microsPerBeat = 60000000.0 / _bpm;
+    return _accumulatedBeats + (deltaMicros / microsPerBeat);
+  }
+
+  /// Ajusta el tempo del reloj maestro de 20 a 300 BPM preservando la fase rítmica actual.
   void setBpm(double newBpm) {
     final clamped = newBpm.clamp(20.0, 300.0);
     if ((clamped - _bpm).abs() < 0.01) return;
+    _consolidatePhaseAnchor();
     _bpm = clamped;
     onBpmChanged?.call(clamped);
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
   }
 
   /// Ajusta la signatura de compás (ej. 4/4, 3/4, 6/8).
   void setMeter(int numerator, int denominator) {
     _meterNumerator = numerator.clamp(1, 16);
     _meterDenominator = denominator.clamp(1, 16);
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
   }
 
   /// Inicia el transporte del reloj maestro de estudio.
@@ -83,24 +106,26 @@ class StudioMasterClockService extends ChangeNotifier {
     if (_status == StudioTransportStatus.playing) return;
 
     _status = StudioTransportStatus.playing;
+    _anchorElapsedMicros = _stopwatch.elapsedMicroseconds;
     _stopwatch.start();
     _startTicker();
     onPlayAll?.call();
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
   }
 
-  /// Pausa el transporte sin resetear el compás actual.
+  /// Pausa el transporte sin resetear el compás ni la fase acumulada.
   void pauseTransport() {
     if (_status != StudioTransportStatus.playing) return;
+    _consolidatePhaseAnchor();
     _status = StudioTransportStatus.paused;
     _stopwatch.stop();
     _tickerTimer?.cancel();
     _tickerTimer = null;
     onPauseAll?.call();
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
   }
 
-  /// Detiene el transporte y reinicia los contadores de compás y compás fuerte a cero.
+  /// Detiene el transporte y reinicia los contadores de compás y fase a cero.
   void stopTransport() {
     _status = StudioTransportStatus.stopped;
     _stopwatch.stop();
@@ -108,11 +133,13 @@ class StudioMasterClockService extends ChangeNotifier {
     _tickerTimer?.cancel();
     _tickerTimer = null;
 
+    _accumulatedBeats = 0.0;
+    _anchorElapsedMicros = 0;
+    _lastEmittedBeatIndex = 0;
     _currentBeat = 1;
     _currentMeasure = 1;
-    _totalSubdivisionsElapsed = 0;
     onStopAll?.call();
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
   }
 
   void togglePlayPause() {
@@ -127,7 +154,6 @@ class StudioMasterClockService extends ChangeNotifier {
   void registerTap() {
     final now = DateTime.now();
 
-    // Si ha pasado mucho tiempo desde el último tap, reiniciar historial
     if (_tapHistory.isNotEmpty && now.difference(_tapHistory.last) > _tapTimeout) {
       _tapHistory.clear();
     }
@@ -152,15 +178,14 @@ class StudioMasterClockService extends ChangeNotifier {
 
   void _startTicker() {
     _tickerTimer?.cancel();
-    // Ticker de alta resolución cada 25 ms para muestreo determinista
-    _tickerTimer = Timer.periodic(const Duration(milliseconds: 25), (_) {
-      if (_status != StudioTransportStatus.playing) return;
+    // Muestreo de alta resolución cada 4 ms (jitter <= 4 ms, cumple meta sub-10ms sin busy-waiting)
+    _tickerTimer = Timer.periodic(const Duration(milliseconds: 4), (_) {
+      if (_isDisposed || _status != StudioTransportStatus.playing) return;
 
-      final elapsedMs = _stopwatch.elapsedMilliseconds.toDouble();
-      final totalBeats = (elapsedMs / beatIntervalMs).floor();
+      final totalBeats = _currentTotalBeats().floor();
 
-      if (totalBeats > _totalSubdivisionsElapsed) {
-        _totalSubdivisionsElapsed = totalBeats;
+      if (totalBeats > _lastEmittedBeatIndex) {
+        _lastEmittedBeatIndex = totalBeats;
 
         final beatInBar = (totalBeats % _meterNumerator) + 1;
         final measure = (totalBeats ~/ _meterNumerator) + 1;
@@ -168,19 +193,24 @@ class StudioMasterClockService extends ChangeNotifier {
         _currentBeat = beatInBar;
         _currentMeasure = measure;
 
-        _beatStreamController.add(_currentBeat);
-        if (_currentBeat == 1) {
+        if (!_beatStreamController.isClosed) {
+          _beatStreamController.add(_currentBeat);
+        }
+        if (_currentBeat == 1 && !_downbeatStreamController.isClosed) {
           _downbeatStreamController.add(true);
         }
 
-        notifyListeners();
+        if (!_isDisposed) notifyListeners();
       }
     });
   }
 
   @override
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
     _tickerTimer?.cancel();
+    _tickerTimer = null;
     _stopwatch.stop();
     _beatStreamController.close();
     _downbeatStreamController.close();

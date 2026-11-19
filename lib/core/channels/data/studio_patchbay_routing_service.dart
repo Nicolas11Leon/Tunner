@@ -30,18 +30,28 @@ class StudioPatchbayRoutingService extends ChangeNotifier {
   final Map<String, List<StudioChannelParamCallback>> _channelListeners = {};
   Timer? _signalPulseTimer;
   String? _activePulsePlugId;
+  bool _isDisposed = false;
 
   StudioPatchbayMatrixEntity get matrix => _matrix;
   List<StudioChannelBus> get channels => _matrix.channels.values.toList();
   Map<String, StudioModularPlug> get plugs => _matrix.plugs;
   String? get activePulsePlugId => _activePulsePlugId;
 
+  void _safeNotify() {
+    if (!_isDisposed) {
+      notifyListeners();
+    }
+  }
+
   /// Reinicia la matriz a su estado inicial canónico (para pruebas o reset de sesión).
   void resetToDefaults() {
+    _signalPulseTimer?.cancel();
+    _signalPulseTimer = null;
+    _activePulsePlugId = null;
     _matrix = StudioPatchbayMatrixEntity.initial();
     _sinkListeners.clear();
     _channelListeners.clear();
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Registra un nuevo plug modular en la matriz si no existe.
@@ -245,13 +255,25 @@ class StudioPatchbayRoutingService extends ChangeNotifier {
   }
 
   void _triggerPlugPulse(String plugId) {
+    if (_isDisposed) return;
     _activePulsePlugId = plugId;
     _signalPulseTimer?.cancel();
     _signalPulseTimer = Timer(const Duration(milliseconds: 200), () {
       _activePulsePlugId = null;
-      notifyListeners();
+      _safeNotify();
     });
-    notifyListeners();
+    _safeNotify();
+  }
+
+  @override
+  void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
+    _signalPulseTimer?.cancel();
+    _signalPulseTimer = null;
+    _sinkListeners.clear();
+    _channelListeners.clear();
+    super.dispose();
   }
 
   /// Retorna el color asignado al canal conectado a un plug, o gris oscuro si está desconectado.

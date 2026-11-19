@@ -163,6 +163,8 @@ class _MainAppShellState extends State<MainAppShell> {
   late final DjConsoleViewModel _djConsoleViewModel;
   late final StudioWorkspaceFileSystemService _fileSystemService;
   late final StudioAudioDeviceMatrixService _audioMatrixService;
+  StudioAudioInputEngine? _ownedAudioInput;
+  bool _ownsAudioMatrixService = false;
   late final StudioMasterClockService _masterClockService;
   bool _isTerminalOpen = false;
   late final TunnerOsKernel _terminalKernel;
@@ -177,24 +179,39 @@ class _MainAppShellState extends State<MainAppShell> {
     _fileSystemService.onOpenFile = _handleOpenFile;
     _fileSystemService.initializeWorkspace();
 
-    final audioEngine = StudioAudioEngine();
-    final audioInput = StudioAudioInputEngine();
-    final audioPersistence = StudioAudioHardwarePersistenceService();
-    _audioMatrixService = StudioAudioDeviceMatrixService(
-      outputEngine: audioEngine,
-      inputEngine: audioInput,
-      persistenceService: audioPersistence,
-    );
+    TunerViewModel? existingVm;
+    try {
+      existingVm = context.read<TunerViewModel>();
+    } catch (_) {
+      existingVm = null;
+    }
+
+    if (existingVm?.audioDeviceMatrixService != null) {
+      _audioMatrixService = existingVm!.audioDeviceMatrixService!;
+      _ownsAudioMatrixService = false;
+    } else {
+      final audioEngine = StudioAudioEngine();
+      final audioInput = StudioAudioInputEngine();
+      final audioPersistence = StudioAudioHardwarePersistenceService();
+      _ownedAudioInput = audioInput;
+      _audioMatrixService = StudioAudioDeviceMatrixService(
+        outputEngine: audioEngine,
+        inputEngine: audioInput,
+        persistenceService: audioPersistence,
+      );
+      _ownsAudioMatrixService = true;
+    }
+
     _masterClockService = StudioMasterClockService(initialBpm: 120.0);
     _masterClockService.onPlayAll = () {
       final vm = context.read<TunerViewModel>();
       if (!vm.isMetronomeActive) vm.toggleMetronome();
-      _djConsoleViewModel.togglePlay('deck_a');
+      _djConsoleViewModel.playDeck('A');
     };
     _masterClockService.onPauseAll = () {
       final vm = context.read<TunerViewModel>();
       if (vm.isMetronomeActive) vm.toggleMetronome();
-      _djConsoleViewModel.togglePlay('deck_a');
+      _djConsoleViewModel.pauseDeck('A');
     };
     _masterClockService.onStopAll = () {
       final vm = context.read<TunerViewModel>();
@@ -204,8 +221,8 @@ class _MainAppShellState extends State<MainAppShell> {
     _masterClockService.onBpmChanged = (bpm) {
       final vm = context.read<TunerViewModel>();
       vm.updateBpm(bpm.round());
-      _djConsoleViewModel.syncDeckToBpm('deck_a', bpm);
-      _djConsoleViewModel.syncDeckToBpm('deck_b', bpm);
+      _djConsoleViewModel.syncDeckToBpm('A', bpm);
+      _djConsoleViewModel.syncDeckToBpm('B', bpm);
     };
 
     _terminalKernel = TunnerOsKernel(
@@ -220,6 +237,8 @@ class _MainAppShellState extends State<MainAppShell> {
         }
       },
       onDjTogglePlay: (deckId) => _djConsoleViewModel.togglePlay(deckId),
+      onDjPlayDeck: (deckId) => _djConsoleViewModel.playDeck(deckId),
+      onDjPauseDeck: (deckId) => _djConsoleViewModel.pauseDeck(deckId),
       onDjSetCrossfader: (val) => _djConsoleViewModel.setCrossfaderPosition(val),
       onSetTheme: (themeId) {
         final vm = context.read<TunerViewModel>();
@@ -319,9 +338,16 @@ class _MainAppShellState extends State<MainAppShell> {
 
   @override
   void dispose() {
+    if (_fileSystemService.onOpenFile == _handleOpenFile) {
+      _fileSystemService.onOpenFile = null;
+    }
+    _terminalKernel.dispose();
     _modularRackViewModel.dispose();
     _djConsoleViewModel.dispose();
-    _audioMatrixService.dispose();
+    if (_ownsAudioMatrixService) {
+      _audioMatrixService.dispose();
+    }
+    _ownedAudioInput?.dispose();
     _masterClockService.dispose();
     super.dispose();
   }

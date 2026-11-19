@@ -163,24 +163,17 @@ class CanonicalMidiExporter {
     return midiFile.toBytes();
   }
 
-  /// Codifica un número entero a representación MIDI de longitud variable (VLQ).
+  /// Codifica un número entero a representación MIDI de longitud variable (VLQ)
+  /// de forma segura para compilación Web (32-bit) y sin bucles `while (true)`.
   static List<int> encodeVlq(int value) {
     if (value <= 0) return [0];
-    int buffer = value & 0x7F;
-    final bytes = <int>[];
-    while ((value >>= 7) > 0) {
-      buffer <<= 8;
-      buffer |= (value & 0x7F) | 0x80;
+    final reversed = <int>[value & 0x7F];
+    int remaining = value >> 7;
+    while (remaining > 0) {
+      reversed.add((remaining & 0x7F) | 0x80);
+      remaining >>= 7;
     }
-    while (true) {
-      bytes.add(buffer & 0xFF);
-      if ((buffer & 0x80) != 0) {
-        buffer >>= 8;
-      } else {
-        break;
-      }
-    }
-    return bytes;
+    return reversed.reversed.toList();
   }
 
   /// Convierte un nombre de nota musical (ej: "Do4", "Fa#5", "A4", "Bb3")

@@ -395,6 +395,6 @@ class StudioThemeManagerModal extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ).whenComplete(controller.dispose);
   }
 }

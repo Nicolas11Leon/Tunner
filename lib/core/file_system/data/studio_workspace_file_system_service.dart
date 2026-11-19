@@ -38,6 +38,20 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
   late StudioFolderEntity _rootFolder;
   String? _selectedNodeId;
   String _activeFolderId = 'root';
+  bool _isDisposed = false;
+
+  @override
+  void notifyListeners() {
+    if (!_isDisposed) {
+      super.notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
   String _searchQuery = '';
   StudioOpenFileCallback? onOpenFile;
 

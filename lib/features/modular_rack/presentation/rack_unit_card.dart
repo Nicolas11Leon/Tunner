@@ -293,7 +293,7 @@ class RackUnitCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ).whenComplete(controller.dispose);
   }
 
   void _exportToolPreset(BuildContext context) async {

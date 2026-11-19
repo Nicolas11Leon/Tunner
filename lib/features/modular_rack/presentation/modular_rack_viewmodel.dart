@@ -78,6 +78,7 @@ class StandardRackNode implements InteroperableModuleNode {
 /// el transporte global sincronizado y la emulación del instrumento activo.
 class ModularRackViewModel extends ChangeNotifier {
   final SignalBus signalBus = SignalBus();
+  bool _isDisposed = false;
 
   /// Módulos actualmente montados en el rack de trabajo.
   final List<RackModuleEntity> _activeModules = [];
@@ -564,7 +565,16 @@ class ModularRackViewModel extends ChangeNotifier {
   }
 
   @override
+  void notifyListeners() {
+    if (!_isDisposed) {
+      super.notifyListeners();
+    }
+  }
+
+  @override
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
     signalBus.dispose();
     super.dispose();
   }

@@ -31,7 +31,10 @@ class NativeDspBridgeFallback implements INativeDspBridge {
 
   @override
   void vectorSum(Float32List a, Float32List b, Float32List out) {
-    final len = a.length;
+    final lenAB = a.length < b.length ? a.length : b.length;
+    final len = lenAB < out.length ? lenAB : out.length;
+    if (len <= 0) return;
+
     int i = 0;
     for (; i + 3 < len; i += 4) {
       out[i] = a[i] + b[i];

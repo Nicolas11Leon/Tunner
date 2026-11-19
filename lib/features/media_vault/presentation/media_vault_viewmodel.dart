@@ -25,6 +25,7 @@ class MediaVaultViewModel extends ChangeNotifier {
   int _playheadMs = 0;
   bool _isPlaying = false;
   Timer? _playTimer;
+  bool _isDisposed = false;
   String _statusMessage = 'Boveda Multimedia lista (100% Offline).';
   MediaExportResult? _lastExportResult;
   int _clipSequence = 0;
@@ -215,7 +216,16 @@ class MediaVaultViewModel extends ChangeNotifier {
   }
 
   @override
+  void notifyListeners() {
+    if (!_isDisposed) {
+      super.notifyListeners();
+    }
+  }
+
+  @override
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
     _stopTimer();
     super.dispose();
   }
