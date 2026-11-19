@@ -61,8 +61,11 @@ El sistema garantiza una latencia de procesamiento DSP inferior a 10 milisegundo
 
 ---
 
-## 3. Innovaciones de Fase 9 (Iniciada)
-- **Épica 9.1 (Merged en `qa`):** Puente FFI nativo (`NativeDspFfiBridge`) para aceleración SIMD/C con fallback transparente en Dart puro (`NativeDspBridgeFallback`), asegurando máxima portabilidad y resiliencia.
+## 3. Innovaciones de Fase 9 (Completada e Integrada en qa)
+- **Épica 9.1:** Puente FFI nativo (`NativeDspFfiBridge`) para aceleración SIMD/C con fallback transparente en Dart puro (`NativeDspBridgeFallback`), asegurando máxima portabilidad y resiliencia.
+- **Épica 9.2:** Biblioteca nativa C99 (`libtunner_dsp`) con desenrollado cuádruple SIMD y sistema de compilación cruzada CMake con script automatizado (`scripts/build_native_dsp.sh`).
+- **Épica 9.3:** Integración del acelerador FFI en la cadena maestra DSP (`StudioMasterDspChain`), suma lineal de stems, ganancia estéreo, colapso mono y telemetría de benchmark interactivo en la consola OS (`dsp bench`).
+- **Épica 9.4:** Pipeline de integración continua GitHub Actions con supervisión de la rama `qa` y paso de compilación nativa CMake previo a la ejecución de pruebas.
 
 ---
 
@@ -70,7 +73,7 @@ El sistema garantiza una latencia de procesamiento DSP inferior a 10 milisegundo
 
 | Métrica | Valor Alcanzado | Estado |
 | :--- | :--- | :--- |
-| Pruebas Unitarias e Integración | 1017 pruebas aprobadas | Aprobado |
+| Pruebas Unitarias e Integración | 1068+ pruebas aprobadas | Aprobado |
 | Advertencias de Dart Analyzer | 0 advertencias / 0 errores | Aprobado |
 | Dependencias Externas en Dominio | 0 (Dart Puro) | Aprobado |
 | Bucles de Espera Activa | 0 (Zero Busy-Waiting) | Aprobado |
