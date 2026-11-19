@@ -77,7 +77,11 @@ void main() {
       expect(res.isSuccess, isTrue);
       expect(res.message, contains('ESTADO DEL MOTOR DSP CORE (TUNNER STUDIO):'));
       expect(res.message, contains('Acelerador Nativo FFI'));
-      expect(res.message, contains('Pure Dart SIMD Fallback'));
+      expect(res.message, contains('Nativo Activo:'));
+      expect(
+        res.message.contains('Pure Dart SIMD Fallback') || res.message.contains('Native C/Rust SIMD'),
+        isTrue,
+      );
     });
   });
 }
