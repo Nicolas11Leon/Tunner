@@ -2,7 +2,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![CI Pipeline](https://github.com/Nicolas11Leon/Tunner/actions/workflows/ci.yml/badge.svg)](https://github.com/Nicolas11Leon/Tunner/actions/workflows/ci.yml)
-[![Tests: 1056+ Passing](https://img.shields.io/badge/Tests-1056%2B%20Passing-brightgreen.svg)]()
+[![Tests: 1068+ Passing](https://img.shields.io/badge/Tests-1068%2B%20Passing-brightgreen.svg)]()
 [![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
 [![Architecture: Clean Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-informational.svg)]()
 [![Privacy: 100% Offline--First](https://img.shields.io/badge/Privacy-100%25%20Offline--First-blueviolet.svg)]()

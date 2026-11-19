@@ -14,6 +14,7 @@ import '../../audio/domain/spatial/binaural_panner_engine.dart';
 import '../../audio/domain/studio_master_clock_service.dart';
 import '../../audio/infrastructure/ffi/native_dsp_ffi_bridge.dart';
 import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
+import '../../audio/infrastructure/studio_master_dsp_chain.dart';
 import '../../dsl/domain/studio_os_audio_kernel.dart';
 import '../../dsl/domain/tunner_dsl_interpreter.dart';
 import '../../dsl/domain/tunner_dsl_parser.dart';
@@ -44,6 +45,7 @@ class TunnerOsKernel {
   EbbinghausSpacedRepetitionEngine? earTrainingEngine;
   VocalStabilityEvaluator? vocalEvaluator;
   INativeDspBridge? nativeDspBridge;
+  StudioMasterDspChain? masterDspChain;
   StudioOsAudioKernel? audioKernel;
   late final StudioOsAudioKernelBridge kernelBridge;
   late final TunnerDslParser dslParser;
@@ -68,12 +70,14 @@ class TunnerOsKernel {
     EbbinghausSpacedRepetitionEngine? earTrainingEngine,
     VocalStabilityEvaluator? vocalEvaluator,
     INativeDspBridge? nativeDspBridge,
+    StudioMasterDspChain? masterDspChain,
     StudioOsAudioKernel? audioKernel,
   })  : reverbEngine = reverbEngine ?? SchroederReverbEngine(),
         spatialEngine = spatialEngine ?? BinauralPannerEngine(),
         earTrainingEngine = earTrainingEngine ?? EbbinghausSpacedRepetitionEngine(),
         vocalEvaluator = vocalEvaluator ?? const VocalStabilityEvaluator(),
-        nativeDspBridge = nativeDspBridge ?? NativeDspFfiBridge(),
+        nativeDspBridge = nativeDspBridge ?? (masterDspChain?.bridge ?? NativeDspFfiBridge()),
+        masterDspChain = masterDspChain ?? StudioMasterDspChain(bridge: nativeDspBridge ?? (masterDspChain?.bridge ?? NativeDspFfiBridge())),
         audioKernel = audioKernel ?? StudioOsAudioKernel() {
     kernelBridge = StudioOsAudioKernelBridge(
       kernel: this.audioKernel!,
@@ -197,6 +201,7 @@ eval <script>             : Alias de evaluación inmediata para Tunner DSL
 io list                  : Lista las interfaces de audio de entrada detectadas
 io set-input <id>        : Conmuta la interfaz activa de captura
 dsp status               : Muestra la telemetría del motor de audio (latencia, buffers)
+dsp bench [iter] [bloque]: Ejecuta el benchmark de rendimiento SIMD vs Fallback
 fs ls                    : Lista los archivos y proyectos en el espacio de trabajo
 theme set <nombre>       : Cambia el tema visual (e.g. 'theme set "Tokyo Cyberpunk"')
 clear                    : Limpia el historial de la pantalla de la terminal
@@ -311,6 +316,33 @@ clear                    : Limpia el historial de la pantalla de la terminal
   }
 
   TunnerOsCommandResult _handleDsp(List<String> args) {
+    if (args.isNotEmpty && args[0].toLowerCase() == 'bench') {
+      int iters = 100;
+      int block = 2048;
+      if (args.length >= 2) {
+        iters = int.tryParse(args[1]) ?? 100;
+      }
+      if (args.length >= 3) {
+        block = int.tryParse(args[2]) ?? 2048;
+      }
+
+      final chain = masterDspChain ?? StudioMasterDspChain(bridge: nativeDspBridge);
+      final res = chain.runBenchmark(iterations: iters, blockSize: block);
+
+      final report = '''
+BENCHMARK DEL MOTOR DSP (TUNNER STUDIO):
+-------------------------------------------
+Motor Activo          : ${res.engineName}
+Aceleración Nativa    : ${res.isNative ? "SI (C99 SIMD x4)" : "NO (Pure Dart SIMD Fallback)"}
+Configuración         : ${res.iterations} iteraciones x ${res.blockSize} muestras
+Muestras Procesadas   : ${res.iterations * res.blockSize * 2} muestras
+Tiempo Transcurrido   : ${res.elapsedMicroseconds} us
+Tasa de Rendimiento   : ${res.throughputMegaSamplesPerSec.toStringAsFixed(2)} MSamples/s
+Latencia por Bloque   : ${(res.elapsedMicroseconds / res.iterations).toStringAsFixed(2)} us/bloque
+''';
+      return TunnerOsCommandResult.success(report.trim());
+    }
+
     final nativeEngine = nativeDspBridge != null ? nativeDspBridge!.engineName : 'No Inicializado';
     final isNative = nativeDspBridge?.isNativeAvailable ?? false;
     final report = '''
