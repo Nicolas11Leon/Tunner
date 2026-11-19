@@ -220,6 +220,7 @@ class TunerViewModel extends ChangeNotifier {
   PolyphonicMultiToneAnalysisResult _multiToneResult = PolyphonicMultiToneAnalysisResult.empty;
   bool _isChordRecognitionActive = false;
   List<double> _activeChromaVector = List<double>.filled(12, 0.0);
+  List<double>? _latestAudioSamples;
   final List<ChordEntity> _chordHistory = [];
   final TapTempoEngine _tapTempoEngine = TapTempoEngine();
   TapTempoResult? _lastTapTempoResult;
@@ -583,6 +584,7 @@ class TunerViewModel extends ChangeNotifier {
   PolyphonicMultiToneAnalysisResult get polyphonicAnalysisResult => _multiToneResult;
   bool get isChordRecognitionActive => _isChordRecognitionActive;
   List<double> get activeChromaVector => _activeChromaVector;
+  List<double>? get latestAudioSamples => _latestAudioSamples;
   List<ChordEntity> get chordHistory => List.unmodifiable(_chordHistory);
   TapTempoResult? get lastTapTempoResult => _lastTapTempoResult;
   LearnerProfileEntity get learnerProfile => _learnerProfile;
@@ -1428,6 +1430,7 @@ class TunerViewModel extends ChangeNotifier {
 
   /// Procesa muestras PCM normalizadas [-1.0, 1.0] para análisis armónico polifónico multitonal.
   void processChordSamples(List<double> samples) {
+    _latestAudioSamples = samples;
     if (!_isChordRecognitionActive) return;
 
     final multiResult = _multiToneDetector.detectFromSamples(

@@ -248,6 +248,7 @@ class Sf2Parser {
       final inst = rawInsts[i];
       final nextInst = rawInsts[i + 1];
       final zones = <Sf2Zone>[];
+      Map<int, int> globalGens = {};
 
       for (int b = inst.bagIndex; b < nextInst.bagIndex && b < rawIbag.length - 1; b++) {
         final genStart = rawIbag[b];
@@ -269,12 +270,19 @@ class Sf2Parser {
           }
         }
 
-        zones.add(Sf2Zone(
-          keyRange: keyRange,
-          velRange: velRange,
-          generators: genMap,
-          sampleId: sampleId,
-        ));
+        // Según especificación SoundFont 2.04: Si la primera zona no posee sampleID,
+        // es una Zona Global cuyos generadores se heredan como base a las zonas locales.
+        if (sampleId == null && b == inst.bagIndex) {
+          globalGens = genMap;
+        } else {
+          final mergedGens = Map<int, int>.from(globalGens)..addAll(genMap);
+          zones.add(Sf2Zone(
+            keyRange: keyRange,
+            velRange: velRange,
+            generators: mergedGens,
+            sampleId: sampleId,
+          ));
+        }
       }
 
       instruments.add(Sf2Instrument(name: inst.name, zones: zones));
@@ -286,6 +294,7 @@ class Sf2Parser {
       final pr = rawPresets[i];
       final nextPr = rawPresets[i + 1];
       final zones = <Sf2Zone>[];
+      Map<int, int> globalGens = {};
 
       for (int b = pr.bagIndex; b < nextPr.bagIndex && b < rawPbag.length - 1; b++) {
         final genStart = rawPbag[b];
@@ -307,12 +316,19 @@ class Sf2Parser {
           }
         }
 
-        zones.add(Sf2Zone(
-          keyRange: keyRange,
-          velRange: velRange,
-          generators: genMap,
-          instrumentId: instId,
-        ));
+        // Según especificación SoundFont 2.04: Si la primera zona no posee instrumentId,
+        // es una Zona Global cuyos generadores se heredan como base a las zonas locales del preset.
+        if (instId == null && b == pr.bagIndex) {
+          globalGens = genMap;
+        } else {
+          final mergedGens = Map<int, int>.from(globalGens)..addAll(genMap);
+          zones.add(Sf2Zone(
+            keyRange: keyRange,
+            velRange: velRange,
+            generators: mergedGens,
+            instrumentId: instId,
+          ));
+        }
       }
 
       presets.add(Sf2Preset(

@@ -213,6 +213,24 @@ class PolyphonicVoicePool implements ISynthVoicePoolPort {
     return oldestCandidate;
   }
 
+  /// Renderiza un bloque de muestras monofónicas sumando todas las voces activas.
+  void renderMonoBlock({
+    required Float64List out,
+    required int numSamples,
+  }) {
+    for (int i = 0; i < numSamples; i++) {
+      double sum = 0.0;
+      for (int v = 0; v < _voices.length; v++) {
+        final voice = _voices[v];
+        if (voice.isActive) {
+          sum += voice.renderNextSample(_sampleRate);
+        }
+      }
+      final scaled = sum * _masterGain;
+      out[i] = scaled / (1.0 + scaled.abs());
+    }
+  }
+
   /// Renderiza un bloque de muestras de audio estéreo sumando todas las voces activas.
   /// Aplica saturación suave analógica (Soft Limiter) para prevenir distorsión digital.
   void renderBlock({
