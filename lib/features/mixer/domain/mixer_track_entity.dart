@@ -42,6 +42,24 @@ class AudioTrack {
       isSolo: isSolo ?? this.isSolo,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'title': title,
+    'instrumentIcon': instrumentIcon,
+    'volume': volume,
+    'isMuted': isMuted,
+    'isSolo': isSolo,
+  };
+
+  factory AudioTrack.fromMap(Map<String, dynamic> map) => AudioTrack(
+    id: map['id'] as String? ?? 'track',
+    title: map['title'] as String? ?? 'Pista',
+    instrumentIcon: map['instrumentIcon'] as String? ?? 'music_note',
+    volume: (map['volume'] as num?)?.toDouble() ?? 0.8,
+    isMuted: map['isMuted'] as bool? ?? false,
+    isSolo: map['isSolo'] as bool? ?? false,
+  );
 }
 
 /// Estado global inmutable de la consola de mezcla multicanal.

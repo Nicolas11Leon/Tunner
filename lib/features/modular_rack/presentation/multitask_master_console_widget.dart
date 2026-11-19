@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/design_system/atoms/studio_text_controller_scope.dart';
@@ -376,8 +377,9 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
             onPressed: () async {
               final name = controller.text.trim();
               if (name.isNotEmpty) {
-                final safeName = name.replaceAll(RegExp(r'\s+'), '_');
-                final path = '/tmp/$safeName.tunner';
+                final safeName = name.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+                final tempDir = Directory.systemTemp.path;
+                final path = '$tempDir/$safeName.tunner';
                 await viewModel.saveProjectToFile(path, projectName: name);
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (context.mounted) {

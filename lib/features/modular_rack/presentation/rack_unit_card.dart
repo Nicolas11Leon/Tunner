@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/design_system/atoms/studio_text_controller_scope.dart';
@@ -303,8 +304,9 @@ class RackUnitCard extends StatelessWidget {
   void _exportToolPreset(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final safeName = module.title.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
-      final path = '/tmp/${safeName}_preset.tnt';
+      final safeName = module.title.toLowerCase().replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+      final tempDir = Directory.systemTemp.path;
+      final path = '$tempDir/${safeName}_preset.tnt';
       await viewModel.exportToolPresetToFile(module.moduleId, path);
       messenger.showSnackBar(
         SnackBar(

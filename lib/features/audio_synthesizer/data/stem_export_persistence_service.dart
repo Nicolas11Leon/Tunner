@@ -17,7 +17,8 @@ class StemExportPersistenceService {
       basePath = Directory.systemTemp.path;
     }
 
-    final folderName = customSubfolder ?? "tunner_exports";
+    final rawFolderName = customSubfolder ?? "tunner_exports";
+    final folderName = rawFolderName.replaceAll(RegExp(r'[\\/:\*\?"<>\|\x00]'), '_').replaceAll('..', '_');
     final targetDir = Directory('$basePath/exports/$folderName');
     if (!await targetDir.exists()) {
       await targetDir.create(recursive: true);
@@ -37,7 +38,8 @@ class StemExportPersistenceService {
     final savedPaths = <String>[];
 
     for (final file in bundle.files) {
-      final filePath = '${targetDir.path}/${file.fileName}';
+      final safeFileName = file.fileName.replaceAll(RegExp(r'[\\/:\*\?"<>\|\x00]'), '_').replaceAll('..', '_');
+      final filePath = '${targetDir.path}/$safeFileName';
       final ioFile = File(filePath);
       await ioFile.writeAsBytes(file.bytes, flush: true);
       savedPaths.add(filePath);

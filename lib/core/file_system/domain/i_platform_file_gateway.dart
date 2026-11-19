@@ -18,4 +18,5 @@ class PlatformPickedFile {
 abstract class IPlatformFileGateway {
   Future<PlatformPickedFile?> pickFile({List<String>? allowedExtensions});
   Future<String> getDocumentsDirectoryPath();
+  Future<String> getTemporaryDirectoryPath();
 }

@@ -11,7 +11,12 @@ extension TunerViewModelRecorderPart on TunerViewModel {
       final dirPath = await _platformFileGateway.getDocumentsDirectoryPath();
       return '$dirPath/take_${DateTime.now().millisecondsSinceEpoch}.wav';
     } catch (_) {
-      return '/tmp/tunner_take_${DateTime.now().millisecondsSinceEpoch}.wav';
+      try {
+        final tempDir = await _platformFileGateway.getTemporaryDirectoryPath();
+        return '$tempDir/tunner_take_${DateTime.now().millisecondsSinceEpoch}.wav';
+      } catch (_) {
+        return 'tunner_take_${DateTime.now().millisecondsSinceEpoch}.wav';
+      }
     }
   }
 
@@ -293,7 +298,7 @@ extension TunerViewModelRecorderPart on TunerViewModel {
       _referencePitch = settings.referencePitch.clamp(415.0, 466.0);
       _isSmartWaitEnabled = settings.isSmartWaitEnabled;
       if (settings.bpm >= 20 && settings.bpm <= 300) {
-        _bpm = settings.bpm;
+        updateBpm(settings.bpm);
       }
 
       if (settings.customPalettes.isNotEmpty) {

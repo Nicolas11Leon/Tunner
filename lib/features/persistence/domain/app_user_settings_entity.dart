@@ -122,10 +122,18 @@ class AppUserSettingsEntity {
       'selectedTemperamentId': selectedTemperamentId,
       'temperamentRootKey': temperamentRootKey,
       'customPalettes': customPalettes.map((p) => p.toJson()).toList(),
-      // Limitar a las últimas 50 sesiones para evitar sobrecarga de I/O
-      'sessionHistory': sessionHistory.take(50).map((s) => s.toMap()).toList(),
-      // Limitar a las últimas 50 grabaciones
-      'recordingHistory': recordingHistory.take(50).map((r) => r.toMap()).toList(),
+      // Conservar las 50 sesiones mas recientes
+      'sessionHistory': (sessionHistory.length > 50
+              ? sessionHistory.sublist(sessionHistory.length - 50)
+              : sessionHistory)
+          .map((s) => s.toMap())
+          .toList(),
+      // Conservar las 50 grabaciones mas recientes
+      'recordingHistory': (recordingHistory.length > 50
+              ? recordingHistory.sublist(recordingHistory.length - 50)
+              : recordingHistory)
+          .map((r) => r.toMap())
+          .toList(),
       'tuningPresets': tuningPresets.map((t) => t.toMap()).toList(),
       'workspaceScores': workspaceScores.map((s) => s.toMap()).toList(),
       'learnerProfile': learnerProfile.toJson(),
@@ -137,29 +145,54 @@ class AppUserSettingsEntity {
 
   factory AppUserSettingsEntity.fromMap(Map<String, dynamic> map) {
     final rawCustom = map['customPalettes'] as List<dynamic>? ?? [];
-    final customPalettes = rawCustom
-        .map((item) => TunnerThemePalette.fromJson(item as Map<String, dynamic>))
-        .toList();
+    final customPalettes = <TunnerThemePalette>[];
+    for (final item in rawCustom) {
+      if (item is Map<String, dynamic>) {
+        try {
+          customPalettes.add(TunnerThemePalette.fromJson(item));
+        } catch (_) {}
+      }
+    }
 
     final rawSessions = map['sessionHistory'] as List<dynamic>? ?? [];
-    final sessionHistory = rawSessions
-        .map((item) => PracticeReportEntity.fromMap(item as Map<String, dynamic>))
-        .toList();
+    final sessionHistory = <PracticeReportEntity>[];
+    for (final item in rawSessions) {
+      if (item is Map<String, dynamic>) {
+        try {
+          sessionHistory.add(PracticeReportEntity.fromMap(item));
+        } catch (_) {}
+      }
+    }
 
     final rawRecordings = map['recordingHistory'] as List<dynamic>? ?? [];
-    final recordingHistory = rawRecordings
-        .map((item) => PracticeRecordingEntity.fromMap(item as Map<String, dynamic>))
-        .toList();
+    final recordingHistory = <PracticeRecordingEntity>[];
+    for (final item in rawRecordings) {
+      if (item is Map<String, dynamic>) {
+        try {
+          recordingHistory.add(PracticeRecordingEntity.fromMap(item));
+        } catch (_) {}
+      }
+    }
 
     final rawPresets = map['tuningPresets'] as List<dynamic>? ?? [];
-    final tuningPresets = rawPresets
-        .map((item) => TuningPresetEntity.fromMap(item as Map<String, dynamic>))
-        .toList();
+    final tuningPresets = <TuningPresetEntity>[];
+    for (final item in rawPresets) {
+      if (item is Map<String, dynamic>) {
+        try {
+          tuningPresets.add(TuningPresetEntity.fromMap(item));
+        } catch (_) {}
+      }
+    }
 
     final rawScores = map['workspaceScores'] as List<dynamic>? ?? [];
-    final workspaceScores = rawScores
-        .map((item) => SongPackage.fromMap(item as Map<String, dynamic>))
-        .toList();
+    final workspaceScores = <SongPackage>[];
+    for (final item in rawScores) {
+      if (item is Map<String, dynamic>) {
+        try {
+          workspaceScores.add(SongPackage.fromMap(item));
+        } catch (_) {}
+      }
+    }
 
     final rawProfile = map['learnerProfile'] as Map<String, dynamic>?;
     final learnerProfile = rawProfile != null
