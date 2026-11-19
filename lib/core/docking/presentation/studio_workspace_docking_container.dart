@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../domain/studio_dock_layout_entity.dart';
 import '../domain/studio_dock_zone.dart';
-import '../domain/studio_dockable_panel_entity.dart';
+import 'studio_dockable_panel_entity.dart';
 import 'studio_dock_drop_zone_target.dart';
 import 'studio_dockable_window_card.dart';
 import 'studio_splitter_divider.dart';

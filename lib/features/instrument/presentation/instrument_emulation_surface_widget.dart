@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../domain/universal_instrument_definition.dart';
 import '../domain/visual_interface_profile.dart';
+import 'visual_interface_profile_ui_ext.dart';
 import 'fretboard_tactile_widget.dart';
 import 'keybed_tactile_widget.dart';
 import 'drum_pads_tactile_widget.dart';

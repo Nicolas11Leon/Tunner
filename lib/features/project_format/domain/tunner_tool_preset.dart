@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 import '../../modular_rack/domain/rack_module_entity.dart';
 
 /// Preset serializable de una herramienta modular individual de Tunner (.tnt).

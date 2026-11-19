@@ -4,6 +4,7 @@ import 'modular_rack_viewmodel.dart';
 import 'studio_patchbay_modal.dart';
 import 'universal_instrument_search_modal.dart';
 import '../../instrument/presentation/instrument_customization_modal.dart';
+import '../../instrument/presentation/visual_interface_profile_ui_ext.dart';
 import '../../instrument/presentation/universal_master_keyboard_widget.dart';
 import '../../tuner_viewmodel.dart';
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../studio_theme_provider.dart';
-import '../studio_design_tokens.dart';
-import '../atoms/studio_hairline.dart';
-import '../../../features/tuner_viewmodel.dart';
+import '../../../../core/design_system/studio_theme_provider.dart';
+import '../../../../core/design_system/studio_design_tokens.dart';
+import '../../../../core/design_system/atoms/studio_hairline.dart';
+import '../../../tuner_viewmodel.dart';
 
 /// Modal de Personalización Técnica y Visual del Estudio (StudioCustomizationsModal).
 ///

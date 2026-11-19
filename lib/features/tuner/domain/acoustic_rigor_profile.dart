@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 /// Presets de contexto y nivel de rigurosidad acústica para la ingesta del micrófono.
 enum AcousticRigorPreset {
   beginner,
@@ -57,23 +55,6 @@ enum AcousticRigorPreset {
         return 'Exigencia absoluta para instrumentistas avanzados. Exige claridad >= 0.92 y fluctuaciones <= 15 cents.';
       case AcousticRigorPreset.custom:
         return 'Control granular de todos los parámetros de DSP por el usuario o productor musical.';
-    }
-  }
-
-  IconData get icon {
-    switch (this) {
-      case AcousticRigorPreset.beginner:
-        return Icons.sentiment_satisfied_alt;
-      case AcousticRigorPreset.balancedRehearsal:
-        return Icons.music_note;
-      case AcousticRigorPreset.studioRecording:
-        return Icons.mic;
-      case AcousticRigorPreset.noisyStage:
-        return Icons.speaker_group;
-      case AcousticRigorPreset.conservatoryMastery:
-        return Icons.verified;
-      case AcousticRigorPreset.custom:
-        return Icons.tune;
     }
   }
 }

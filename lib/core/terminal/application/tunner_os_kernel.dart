@@ -11,7 +11,7 @@ import '../../audio/domain/i_studio_audio_engine.dart';
 import '../../audio/domain/i_studio_audio_input_engine.dart';
 import '../../audio/domain/reverb/schroeder_reverb_engine.dart';
 import '../../audio/domain/spatial/binaural_panner_engine.dart';
-import '../../audio/domain/studio_master_clock_service.dart';
+import '../../audio/infrastructure/studio_master_clock_service.dart';
 import '../../audio/infrastructure/ffi/native_dsp_ffi_bridge.dart';
 import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../../audio/infrastructure/studio_master_dsp_chain.dart';
@@ -22,7 +22,7 @@ import '../../dsl/domain/tunner_dsl_template_catalog.dart';
 import '../../dsl/infrastructure/studio_os_audio_kernel_bridge.dart';
 import '../../file_system/domain/studio_file_system_node.dart';
 import '../../file_system/domain/studio_file_system_repository.dart';
-import 'tunner_os_command_entity.dart';
+import '../domain/tunner_os_command_entity.dart';
 
 /// Núcleo de interpretación de comandos y automatización del sistema Tunner OS.
 /// Permite controlar el transporte, enrutamiento, módulos y archivos mediante órdenes de texto.
@@ -62,7 +62,7 @@ class TunnerOsKernel {
   TunerViewModel? get viewModel => _viewModel;
   set viewModel(TunerViewModel? value) {
     _viewModel = value;
-    kernelBridge.viewModel = value;
+    kernelBridge.onBpmUpdate = value != null ? (bpm) => value.updateBpm(bpm) : null;
   }
 
   TunnerOsKernel({
@@ -102,7 +102,7 @@ class TunnerOsKernel {
       matrixService: matrixService,
       synthVoicePool: _synthVoicePool,
       clockService: clockService,
-      viewModel: _viewModel,
+      onBpmUpdate: _viewModel != null ? (bpm) => _viewModel!.updateBpm(bpm) : null,
       reverbEngine: this.reverbEngine,
       spatialEngine: this.spatialEngine,
     );

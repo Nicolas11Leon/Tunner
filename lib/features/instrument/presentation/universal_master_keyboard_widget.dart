@@ -6,6 +6,7 @@ import '../domain/instrument_customization_profile.dart';
 import '../domain/musical_phrase_entity.dart';
 import '../data/procedural_instrument_synthesizer.dart';
 import 'instrument_customization_modal.dart';
+import 'visual_interface_profile_ui_ext.dart';
 
 /// Teclado Maestro Emulador Universal Polifónico y Reproductor de Estrofas.
 /// Permite simular y escuchar cualquier nota, acorde o frase musical estructurada

@@ -2,7 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tunner/core/audio/domain/spatial/binaural_panner_engine.dart';
-import 'package:tunner/core/terminal/domain/tunner_os_kernel.dart';
+import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
 
 void main() {
   group('BinauralPannerEntity Tests', () {

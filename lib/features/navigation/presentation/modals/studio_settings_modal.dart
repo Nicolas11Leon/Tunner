@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../studio_theme_provider.dart';
-import '../studio_design_tokens.dart';
-import '../atoms/studio_hairline.dart';
-import '../../../features/tuner_viewmodel.dart';
-import '../../../features/tuner/presentation/microphone_calibration_modal.dart';
-import '../../../features/instrument/presentation/instrument_selector_modal.dart';
+import '../../../../core/design_system/studio_theme_provider.dart';
+import '../../../../core/design_system/studio_design_tokens.dart';
+import '../../../../core/design_system/atoms/studio_hairline.dart';
+import '../../../tuner_viewmodel.dart';
+import '../../../tuner/presentation/microphone_calibration_modal.dart';
+import '../../../instrument/presentation/instrument_selector_modal.dart';
 
 /// Modal Profesional de Configuración General del Estudio (StudioSettingsModal).
 ///

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 import 'patchbay_routing_connection.dart';
 import 'tunner_tool_preset.dart';
 

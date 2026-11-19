@@ -1,47 +1,43 @@
-import 'package:flutter/widgets.dart';
 import 'studio_dock_zone.dart';
 
-/// Descriptor inmutable de un módulo o herramienta desacoplable y arrastrable.
-class StudioDockablePanelEntity {
+/// Descriptor puro de dominio para un módulo o panel desacoplable del estudio.
+/// No contiene referencias a widgets ni iconos de Flutter.
+class StudioPanelDescriptor {
   final String id;
   final String title;
   final String subtitle;
-  final IconData icon;
+  final String iconKey;
   final StudioDockZone currentZone;
   final bool isClosable;
   final bool isDetachable;
-  final Widget Function(BuildContext context)? builder;
 
-  const StudioDockablePanelEntity({
+  const StudioPanelDescriptor({
     required this.id,
     required this.title,
     this.subtitle = '',
-    required this.icon,
+    this.iconKey = 'panel',
     this.currentZone = StudioDockZone.center,
     this.isClosable = true,
     this.isDetachable = true,
-    this.builder,
   });
 
-  StudioDockablePanelEntity copyWith({
+  StudioPanelDescriptor copyWith({
     String? id,
     String? title,
     String? subtitle,
-    IconData? icon,
+    String? iconKey,
     StudioDockZone? currentZone,
     bool? isClosable,
     bool? isDetachable,
-    Widget Function(BuildContext context)? builder,
   }) {
-    return StudioDockablePanelEntity(
+    return StudioPanelDescriptor(
       id: id ?? this.id,
       title: title ?? this.title,
       subtitle: subtitle ?? this.subtitle,
-      icon: icon ?? this.icon,
+      iconKey: iconKey ?? this.iconKey,
       currentZone: currentZone ?? this.currentZone,
       isClosable: isClosable ?? this.isClosable,
       isDetachable: isDetachable ?? this.isDetachable,
-      builder: builder ?? this.builder,
     );
   }
 }

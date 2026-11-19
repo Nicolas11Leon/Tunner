@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tunner/core/terminal/domain/tunner_os_kernel.dart';
+import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
 import 'package:tunner/features/pedagogy/domain/ebbinghaus_spaced_repetition_engine.dart';
 
 void main() {

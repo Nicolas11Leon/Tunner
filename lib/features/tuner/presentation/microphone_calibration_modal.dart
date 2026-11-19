@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/acoustic_rigor_profile.dart';
+import 'acoustic_rigor_profile_ui_ext.dart';
 
 /// Modal interactivo para la calibración acústica, presets de rigurosidad por contexto
 /// (versión sencilla para principiantes y versión avanzada para productores/técnicos - UC-41 & UC-44).

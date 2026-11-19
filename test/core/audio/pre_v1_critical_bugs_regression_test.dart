@@ -2,10 +2,10 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tunner/core/audio/domain/ffi/native_dsp_bridge_fallback.dart';
-import 'package:tunner/core/audio/domain/studio_master_clock_service.dart';
+import 'package:tunner/core/audio/infrastructure/studio_master_clock_service.dart';
 import 'package:tunner/core/audio/infrastructure/ffi/native_dsp_ffi_bridge.dart';
 import 'package:tunner/core/audio/infrastructure/studio_master_dsp_chain.dart';
-import 'package:tunner/core/terminal/domain/tunner_os_kernel.dart';
+import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
 import 'package:tunner/features/audio_synthesizer/domain/polyphonic/polyphonic_voice_pool.dart';
 import 'package:tunner/features/dj_console/presentation/dj_console_view_model.dart';
 import 'package:tunner/features/metronome/data/metronome_service.dart';

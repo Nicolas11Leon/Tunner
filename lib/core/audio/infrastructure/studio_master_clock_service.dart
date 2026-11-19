@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'studio_transport_status.dart';
+import '../domain/i_studio_master_clock.dart';
+import '../domain/studio_transport_status.dart';
 
-/// Servicio de dominio para el Reloj Maestro de Transporte Unificado de Tunner Studio.
+/// Servicio de infraestructura para el Reloj Maestro de Transporte Unificado de Tunner Studio.
 /// Sincroniza compás, tempo (BPM) y fase rítmica con acumulador de fase anclado
 /// sobre [Stopwatch] para garantizar cero deriva y transiciones fluidas al cambiar BPM en vivo.
-class StudioMasterClockService extends ChangeNotifier {
+class StudioMasterClockService extends ChangeNotifier implements IStudioMasterClock {
   double _bpm;
   int _meterNumerator;
   int _meterDenominator;
@@ -45,25 +46,39 @@ class StudioMasterClockService extends ChangeNotifier {
         _meterNumerator = initialMeterNumerator.clamp(1, 16),
         _meterDenominator = initialMeterDenominator.clamp(1, 16);
 
+  @override
   double get bpm => _bpm;
+  @override
   int get meterNumerator => _meterNumerator;
+  @override
   int get meterDenominator => _meterDenominator;
+  @override
   StudioTransportStatus get status => _status;
+  @override
   bool get isPlaying => _status == StudioTransportStatus.playing;
+  @override
   bool get isPaused => _status == StudioTransportStatus.paused;
+  @override
   bool get isStopped => _status == StudioTransportStatus.stopped;
 
+  @override
   int get currentBeat => _currentBeat;
+  @override
   int get currentMeasure => _currentMeasure;
+  @override
   bool get isDownbeat => _currentBeat == 1;
+  @override
   Duration get elapsedDuration => _stopwatch.elapsed;
 
+  @override
   Stream<int> get onBeat => _beatStreamController.stream;
+  @override
   Stream<bool> get onDownbeat => _downbeatStreamController.stream;
 
   /// Duración exacta de una negra (quarter note) en milisegundos:
   ///
   /// $$t_{\text{negra}} = \frac{60\,000}{\text{BPM}}$$
+  @override
   double get beatIntervalMs => 60000.0 / _bpm;
 
   void _consolidatePhaseAnchor() {
@@ -84,6 +99,7 @@ class StudioMasterClockService extends ChangeNotifier {
   }
 
   /// Ajusta el tempo del reloj maestro de 20 a 300 BPM preservando la fase rítmica actual.
+  @override
   void setBpm(double newBpm) {
     final clamped = newBpm.clamp(20.0, 300.0);
     if ((clamped - _bpm).abs() < 0.01) return;
@@ -94,6 +110,7 @@ class StudioMasterClockService extends ChangeNotifier {
   }
 
   /// Ajusta la signatura de compás (ej. 4/4, 3/4, 6/8).
+  @override
   void setMeter(int numerator, int denominator) {
     _meterNumerator = numerator.clamp(1, 16);
     _meterDenominator = denominator.clamp(1, 16);
@@ -101,6 +118,7 @@ class StudioMasterClockService extends ChangeNotifier {
   }
 
   /// Inicia el transporte del reloj maestro de estudio.
+  @override
   void startTransport({double? bpm}) {
     if (bpm != null) setBpm(bpm);
     if (_status == StudioTransportStatus.playing) return;
@@ -114,6 +132,7 @@ class StudioMasterClockService extends ChangeNotifier {
   }
 
   /// Pausa el transporte sin resetear el compás ni la fase acumulada.
+  @override
   void pauseTransport() {
     if (_status != StudioTransportStatus.playing) return;
     _consolidatePhaseAnchor();
@@ -126,6 +145,7 @@ class StudioMasterClockService extends ChangeNotifier {
   }
 
   /// Detiene el transporte y reinicia los contadores de compás y fase a cero.
+  @override
   void stopTransport() {
     _status = StudioTransportStatus.stopped;
     _stopwatch.stop();
@@ -142,6 +162,7 @@ class StudioMasterClockService extends ChangeNotifier {
     if (!_isDisposed) notifyListeners();
   }
 
+  @override
   void togglePlayPause() {
     if (isPlaying) {
       pauseTransport();
@@ -151,6 +172,7 @@ class StudioMasterClockService extends ChangeNotifier {
   }
 
   /// Registra una pulsación táctil manual y recalcula el BPM ponderado (*Tap Tempo*).
+  @override
   void registerTap() {
     final now = DateTime.now();
 

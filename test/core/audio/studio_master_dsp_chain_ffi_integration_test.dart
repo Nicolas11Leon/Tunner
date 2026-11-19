@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tunner/core/audio/domain/ffi/native_dsp_bridge_fallback.dart';
 import 'package:tunner/core/audio/infrastructure/studio_master_dsp_chain.dart';
-import 'package:tunner/core/terminal/domain/tunner_os_kernel.dart';
+import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
 
 void main() {
   group('StudioMasterDspChain Core Processing Tests', () {
