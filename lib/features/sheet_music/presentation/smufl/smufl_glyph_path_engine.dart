@@ -34,9 +34,8 @@ class SmuflGlyphPathEngine {
       final outerPaint = Paint()
         ..color = color
         ..style = PaintingStyle.fill;
-      canvas.drawOval(rect, outerPaint);
 
-      // Corte central característico
+      // Corte central característico con BlendMode.clear
       final innerPaint = Paint()
         ..color = Colors.transparent
         ..blendMode = BlendMode.clear;

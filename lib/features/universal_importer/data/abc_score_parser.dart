@@ -78,12 +78,12 @@ class AbcScoreParser implements IScoreParserService {
           final afterEqual = tempoStr.split('=').last.trim();
           final match = RegExp(r'\d+').firstMatch(afterEqual);
           if (match != null) {
-            bpm = int.tryParse(match.group(0)!) ?? 120;
+            bpm = (int.tryParse(match.group(0)!) ?? 120).clamp(20, 300);
           }
         } else {
           final match = RegExp(r'\d+').firstMatch(tempoStr);
           if (match != null) {
-            bpm = int.tryParse(match.group(0)!) ?? 120;
+            bpm = (int.tryParse(match.group(0)!) ?? 120).clamp(20, 300);
           }
         }
       } else if (line.startsWith('K:')) {
@@ -189,7 +189,8 @@ class AbcScoreParser implements IScoreParserService {
           final parts = durationMod.split('/');
           final num = parts[0].isEmpty ? 1.0 : (double.tryParse(parts[0]) ?? 1.0);
           final den = parts[1].isEmpty ? 2.0 : (double.tryParse(parts[1]) ?? 2.0);
-          durationTicksDouble = unitLengthTicks * (num / den);
+          final safeDen = (den == 0.0) ? 1.0 : den;
+          durationTicksDouble = unitLengthTicks * (num / safeDen);
         } else {
           final mul = double.tryParse(durationMod) ?? 1.0;
           durationTicksDouble = unitLengthTicks * mul;

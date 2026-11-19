@@ -290,6 +290,17 @@ class _MainAppShellState extends State<MainAppShell> {
     }
   }
 
+  bool _isTextInputFocused() {
+    final focus = FocusManager.instance.primaryFocus;
+    if (focus == null) return false;
+    final context = focus.context;
+    if (context != null) {
+      if (context.widget is EditableText) return true;
+      if (context.findAncestorWidgetOfExactType<EditableText>() != null) return true;
+    }
+    return false;
+  }
+
   void _openInstrumentSelector(TunerViewModel viewModel) {
     InstrumentSelectorModal.show(context, viewModel);
   }
@@ -930,26 +941,44 @@ class _MainAppShellState extends State<MainAppShell> {
       child: Actions(
         actions: <Type, Action<Intent>>{
           TogglePlayIntent: CallbackAction<TogglePlayIntent>(
-            onInvoke: (_) => viewModel.toggleMetronome(),
+            onInvoke: (_) {
+              if (_isTextInputFocused()) return null;
+              viewModel.toggleMetronome();
+              return null;
+            },
           ),
           RewindToStartIntent: CallbackAction<RewindToStartIntent>(
             onInvoke: (_) {
+              if (_isTextInputFocused()) return null;
               viewModel.resetSongState();
               viewModel.selectMeasure(0);
               return null;
             },
           ),
           ToggleCycleLoopIntent: CallbackAction<ToggleCycleLoopIntent>(
-            onInvoke: (_) => viewModel.togglePracticeMode(),
+            onInvoke: (_) {
+              if (_isTextInputFocused()) return null;
+              viewModel.togglePracticeMode();
+              return null;
+            },
           ),
           NudgeMeasureBackIntent: CallbackAction<NudgeMeasureBackIntent>(
-            onInvoke: (_) => viewModel.previousMeasure(),
+            onInvoke: (_) {
+              if (_isTextInputFocused()) return null;
+              viewModel.previousMeasure();
+              return null;
+            },
           ),
           NudgeMeasureForwardIntent: CallbackAction<NudgeMeasureForwardIntent>(
-            onInvoke: (_) => viewModel.nextMeasure(),
+            onInvoke: (_) {
+              if (_isTextInputFocused()) return null;
+              viewModel.nextMeasure();
+              return null;
+            },
           ),
           ToggleRecordIntent: CallbackAction<ToggleRecordIntent>(
             onInvoke: (_) {
+              if (_isTextInputFocused()) return null;
               if (viewModel.isRecording) {
                 viewModel.stopPracticeRecording();
               } else {
@@ -959,35 +988,64 @@ class _MainAppShellState extends State<MainAppShell> {
             },
           ),
           TapTempoIntent: CallbackAction<TapTempoIntent>(
-            onInvoke: (_) => viewModel.recordTapTempo(),
+            onInvoke: (_) {
+              if (_isTextInputFocused()) return null;
+              viewModel.recordTapTempo();
+              return null;
+            },
           ),
           IncrementBpmIntent: CallbackAction<IncrementBpmIntent>(
-            onInvoke: (intent) => viewModel.incrementBpm(intent.step),
+            onInvoke: (intent) {
+              if (_isTextInputFocused()) return null;
+              viewModel.incrementBpm(intent.step);
+              return null;
+            },
           ),
           DecrementBpmIntent: CallbackAction<DecrementBpmIntent>(
-            onInvoke: (intent) => viewModel.decrementBpm(intent.step),
+            onInvoke: (intent) {
+              if (_isTextInputFocused()) return null;
+              viewModel.decrementBpm(intent.step);
+              return null;
+            },
           ),
           CalibrateReferencePitchIntent: CallbackAction<CalibrateReferencePitchIntent>(
             onInvoke: (intent) => viewModel.setReferencePitch(viewModel.referencePitch + intent.deltaHz),
           ),
           PanicMuteIntent: CallbackAction<PanicMuteIntent>(
             onInvoke: (_) {
+              if (_isTextInputFocused()) return null;
               if (viewModel.isMetronomeActive) viewModel.toggleMetronome();
               if (viewModel.isRecording) viewModel.stopPracticeRecording();
               return null;
             },
           ),
           FocusTunerIntent: CallbackAction<FocusTunerIntent>(
-            onInvoke: (_) => _navigateToTab(1),
+            onInvoke: (_) {
+              if (_isTextInputFocused()) return null;
+              _navigateToTab(1);
+              return null;
+            },
           ),
           FocusMetronomeIntent: CallbackAction<FocusMetronomeIntent>(
-            onInvoke: (_) => viewModel.toggleMetronome(),
+            onInvoke: (_) {
+              if (_isTextInputFocused()) return null;
+              viewModel.toggleMetronome();
+              return null;
+            },
           ),
           FocusScoreIntent: CallbackAction<FocusScoreIntent>(
-            onInvoke: (_) => _navigateToTab(4),
+            onInvoke: (_) {
+              if (_isTextInputFocused()) return null;
+              _navigateToTab(4);
+              return null;
+            },
           ),
           FocusLessonsIntent: CallbackAction<FocusLessonsIntent>(
-            onInvoke: (_) => _navigateToTab(2),
+            onInvoke: (_) {
+              if (_isTextInputFocused()) return null;
+              _navigateToTab(2);
+              return null;
+            },
           ),
           OpenInstrumentSelectorIntent: CallbackAction<OpenInstrumentSelectorIntent>(
             onInvoke: (_) => _openInstrumentSelector(viewModel),
@@ -1014,13 +1072,21 @@ class _MainAppShellState extends State<MainAppShell> {
             onInvoke: (_) => ChordAnalyzerModal.show(context, viewModel),
           ),
           JumpToTaskIntent: CallbackAction<JumpToTaskIntent>(
-            onInvoke: (_) => TaskQuickJumpModal.show(
-              context: context,
-              palette: viewModel.currentPalette,
-            ),
+            onInvoke: (_) {
+              if (_isTextInputFocused()) return null;
+              TaskQuickJumpModal.show(
+                context: context,
+                palette: viewModel.currentPalette,
+              );
+              return null;
+            },
           ),
           SwitchTabIntent: CallbackAction<SwitchTabIntent>(
-            onInvoke: (intent) => _navigateToTab(intent.tabIndex),
+            onInvoke: (intent) {
+              if (_isTextInputFocused()) return null;
+              _navigateToTab(intent.tabIndex);
+              return null;
+            },
           ),
         },
         child: Focus(
