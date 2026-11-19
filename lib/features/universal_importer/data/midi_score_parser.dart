@@ -46,8 +46,8 @@ class MidiScoreParser implements IScoreParserService {
     final int numTracks = byteData.getUint16(10);
     final int rawDivision = byteData.getUint16(12);
 
-    // PPQ (Pulses Per Quarter Note)
-    final int ppq = (rawDivision & 0x8000) == 0 ? rawDivision : 480;
+    // PPQ (Pulses Per Quarter Note) protegido contra división por cero
+    final int ppq = ((rawDivision & 0x8000) == 0 && rawDivision > 0) ? rawDivision : 480;
 
     int offset = 8 + headerLength;
     int bpm = 120;
@@ -218,7 +218,8 @@ class MidiScoreParser implements IScoreParserService {
 
     // Cuantizar ticks MIDI a cuadrícula de Tunner (16 ticks por compás de 4/4)
     // 1 negra = ppq ticks MIDI = 4 ticks Tunner.
-    final ticksPerMeasureMidi = ppq * 4;
+    final safePpq = ppq > 0 ? ppq : 480;
+    final ticksPerMeasureMidi = safePpq * 4;
     final maxMidiTick = rawNotes.map((n) => n.startTick + n.durationTicks).reduce((a, b) => a > b ? a : b);
     final totalMeasuresCount = ((maxMidiTick / ticksPerMeasureMidi).ceil()).clamp(1, 100);
 
@@ -238,7 +239,7 @@ class MidiScoreParser implements IScoreParserService {
       for (final raw in notesInMeasure) {
         // Calcular tick dentro del compás (0 a 15)
         final localMidiStart = raw.startTick - measureStartMidi;
-        final startTick = ((localMidiStart * 4) / ppq).round().clamp(0, 15);
+        final startTick = ((localMidiStart * 4) / safePpq).round().clamp(0, 15);
 
         // Si hay espacio antes de esta nota, rellenar con silencio
         if (startTick > currentTick) {
@@ -251,7 +252,7 @@ class MidiScoreParser implements IScoreParserService {
 
         if (currentTick >= 16) break;
 
-        final duration = ((raw.durationTicks * 4) / ppq).round().clamp(1, 16 - currentTick);
+        final duration = ((raw.durationTicks * 4) / safePpq).round().clamp(1, 16 - currentTick);
         final noteName = _midiPitchToNoteName(raw.pitch);
 
         measureNotes.add(HierarchicalNote.note(

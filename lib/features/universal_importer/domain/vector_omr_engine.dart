@@ -217,6 +217,9 @@ class VectorOmrEngine {
       }
     }
 
+    // Ordenar sistemas de pentagramas de arriba hacia abajo (mayor Y a menor Y en espacio vectorial PDF)
+    staves.sort((a, b) => b.bottomY.compareTo(a.bottomY));
+
     return staves;
   }
 
