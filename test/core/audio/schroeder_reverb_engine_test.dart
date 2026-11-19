@@ -49,9 +49,9 @@ void main() {
       const bufferSize = 5;
       final allPass = AllPassFilter(bufferSize, feedback: 0.5);
 
-      // En n=0 con impulso x[0]=1.0: y[0] = -input + 0 = -1.0
+      // En n=0 con impulso x[0]=1.0 en Schroeder Direct Form II: y[0] = -feedback * x[0] = -0.5
       final y0 = allPass.process(1.0);
-      expect(y0, -1.0);
+      expect(y0, -0.5);
 
       // En n=bufferSize: emerge x[0] en el buffer
       for (var i = 1; i < bufferSize; i++) {

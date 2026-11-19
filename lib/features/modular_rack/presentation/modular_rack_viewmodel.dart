@@ -13,6 +13,8 @@ import '../../project_format/domain/tunner_project_package.dart';
 import '../../project_format/domain/tunner_tool_preset.dart';
 import '../../project_format/domain/project_storage_repository.dart';
 import '../../project_format/data/local_project_storage_repository.dart';
+import '../../../core/audio/domain/i_studio_audio_engine.dart';
+import '../../../core/audio/infrastructure/studio_audio_input_engine.dart';
 
 /// Implementación atómica de un nodo del rack conectable al bus de señales.
 class StandardRackNode implements InteroperableModuleNode {
@@ -127,9 +129,14 @@ class ModularRackViewModel extends ChangeNotifier {
   bool get isRecording => _isRecording;
 
   final ProjectStorageRepository _storageRepo;
+  final IStudioAudioEngine? audioEngine;
+  final StudioAudioInputEngine? audioInputEngine;
 
-  ModularRackViewModel({ProjectStorageRepository? storageRepository})
-      : _storageRepo = storageRepository ?? LocalProjectStorageRepository() {
+  ModularRackViewModel({
+    ProjectStorageRepository? storageRepository,
+    this.audioEngine,
+    this.audioInputEngine,
+  })  : _storageRepo = storageRepository ?? LocalProjectStorageRepository() {
     _initializeDefaultRack();
   }
 

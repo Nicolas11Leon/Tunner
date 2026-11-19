@@ -74,15 +74,19 @@ class _MainAppShellState extends State<MainAppShell> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
-    _modularRackViewModel = ModularRackViewModel();
-    _djConsoleViewModel = DjConsoleViewModel();
-
     StudioCompositionRoot? root;
     try {
       root = context.read<StudioCompositionRoot>();
     } catch (_) {
       root = null;
     }
+
+    _modularRackViewModel = root != null
+        ? root.createModularRackViewModel()
+        : ModularRackViewModel();
+    _djConsoleViewModel = root != null
+        ? root.createDjConsoleViewModel()
+        : DjConsoleViewModel();
 
     _fileSystemService = root?.fileSystemService ?? StudioWorkspaceFileSystemService();
     _fileSystemService.onOpenFile = _handleOpenFile;

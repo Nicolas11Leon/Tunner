@@ -155,25 +155,26 @@ class McleodPitchMethod {
       return PitchDetectionResult.unpitched(rms: rms);
     }
 
-    // Detección de picos en lóbulos positivos
+    // Detección de picos en lóbulos positivos (descartando el lóbulo principal inicial en tau=0)
     final peaks = <int>[];
     bool inPositiveLobe = false;
     int currentPeakIdx = -1;
     double currentPeakVal = -1.0;
+    bool hasPassedZeroCrossing = false;
+
+    // Verificar si ya cruzó por cero antes de minLagForMaxPitch
+    for (int tau = 1; tau < minLagForMaxPitch; tau++) {
+      if (nsdf[tau] <= 0.0) {
+        hasPassedZeroCrossing = true;
+        break;
+      }
+    }
 
     for (int tau = minLagForMaxPitch; tau < nsdf.length - 1; tau++) {
       final val = nsdf[tau];
 
-      if (val > 0) {
-        if (!inPositiveLobe) {
-          inPositiveLobe = true;
-          currentPeakIdx = tau;
-          currentPeakVal = val;
-        } else if (val > currentPeakVal) {
-          currentPeakIdx = tau;
-          currentPeakVal = val;
-        }
-      } else {
+      if (val <= 0.0) {
+        hasPassedZeroCrossing = true;
         if (inPositiveLobe) {
           if (currentPeakIdx > 0 &&
               currentPeakIdx < nsdf.length - 1 &&
@@ -184,6 +185,17 @@ class McleodPitchMethod {
           inPositiveLobe = false;
           currentPeakIdx = -1;
           currentPeakVal = -1.0;
+        }
+      } else {
+        if (hasPassedZeroCrossing) {
+          if (!inPositiveLobe) {
+            inPositiveLobe = true;
+            currentPeakIdx = tau;
+            currentPeakVal = val;
+          } else if (val > currentPeakVal) {
+            currentPeakIdx = tau;
+            currentPeakVal = val;
+          }
         }
       }
     }

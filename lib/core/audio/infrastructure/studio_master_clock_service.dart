@@ -19,7 +19,7 @@ class StudioMasterClockService extends ChangeNotifier implements IStudioMasterCl
   // Acumulador de fase para cambios de BPM sin saltos ni congelamientos
   double _accumulatedBeats = 0.0;
   int _anchorElapsedMicros = 0;
-  int _lastEmittedBeatIndex = 0;
+  int _lastEmittedBeatIndex = -1;
 
   int _currentBeat = 1;
   int _currentMeasure = 1;
@@ -155,7 +155,7 @@ class StudioMasterClockService extends ChangeNotifier implements IStudioMasterCl
 
     _accumulatedBeats = 0.0;
     _anchorElapsedMicros = 0;
-    _lastEmittedBeatIndex = 0;
+    _lastEmittedBeatIndex = -1;
     _currentBeat = 1;
     _currentMeasure = 1;
     onStopAll?.call();

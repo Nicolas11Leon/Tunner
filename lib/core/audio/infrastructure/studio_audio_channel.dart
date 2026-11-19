@@ -41,6 +41,7 @@ class StudioAudioChannel implements IStudioAudioChannel {
 
   double? _queuedVolume;
   bool _isProcessingVolume = false;
+  bool _isDisposed = false;
 
   StudioAudioChannel({
     required this.channelId,
@@ -96,6 +97,9 @@ class StudioAudioChannel implements IStudioAudioChannel {
 
   @override
   bool get isPaused => _status == StudioTransportStatus.paused;
+
+  @override
+  bool get isDisposed => _isDisposed;
 
   @override
   Duration get currentPosition => _currentPosition;
@@ -301,6 +305,8 @@ class StudioAudioChannel implements IStudioAudioChannel {
 
   @override
   Future<void> dispose() async {
+    if (_isDisposed) return;
+    _isDisposed = true;
     try {
       final p = _playerInstance ?? _injectedPlayer;
       if (p != null) {
