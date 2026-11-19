@@ -6,6 +6,8 @@ import 'package:tunner/core/audio/infrastructure/memory_studio_audio_input_engin
 import 'package:tunner/core/audio/infrastructure/memory_studio_master_capture_service.dart';
 import 'package:tunner/core/audio/infrastructure/studio_audio_device_matrix_service.dart';
 import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
+import 'package:tunner/core/terminal/domain/i_terminal_command_handler.dart';
+import 'package:tunner/core/terminal/domain/tunner_os_command_entity.dart';
 
 void main() {
   group('TunnerOsKernel Unit Tests', () {
@@ -209,5 +211,26 @@ void main() {
       final resTap = await kernel.execute('clock tap');
       expect(resTap.isSuccess, isTrue);
     });
+
+    test('registerHandler dispatches custom ITerminalCommandHandler in O(1)', () async {
+      kernel.registerHandler(_EchoTestHandler());
+      final res = await kernel.execute('echo_custom hello world');
+      expect(res.isSuccess, isTrue);
+      expect(res.message, 'echo_custom:hello,world');
+    });
   });
+}
+
+class _EchoTestHandler implements ITerminalCommandHandler {
+  @override
+  Set<String> get supportedDomains => const {'echo_custom'};
+
+  @override
+  TunnerOsCommandResult execute(
+    String domain,
+    List<String> args,
+    String rawCommandLine,
+  ) {
+    return TunnerOsCommandResult.success('$domain:${args.join(',')}');
+  }
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
+import '../../logging/infrastructure/studio_debug_logger.dart';
 import '../domain/audio_device_entity.dart';
 import '../domain/audio_pcm_frame.dart';
 import '../domain/audio_ring_buffer.dart';
@@ -131,7 +132,14 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
               break;
             }
           }
-        } catch (_) {}
+        } catch (e, st) {
+          StudioDebugLogger.instance.warning(
+            'StudioAudioInputEngine',
+            'Failed to enumerate audio input devices; falling back to default',
+            error: e,
+            stackTrace: st,
+          );
+        }
       }
 
       final config = RecordConfig(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/design_system/atoms/studio_text_controller_scope.dart';
 import 'modular_rack_viewmodel.dart';
 import 'studio_patchbay_modal.dart';
 import 'universal_instrument_search_modal.dart';
@@ -325,10 +326,11 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
   }
 
   void _showSaveProjectDialog(BuildContext context) {
-    final controller = TextEditingController(text: 'Mi_Proyecto_Estudio');
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => StudioTextControllerScope(
+        initialText: 'Mi_Proyecto_Estudio',
+        builder: (ctx, controller) => AlertDialog(
         backgroundColor: const Color(0xFF1E293B),
         title: const Text(
           'GUARDAR PROYECTO COMPRIMIDO (.TUNNER)',
@@ -391,8 +393,9 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
             child: const Text('GUARDAR (.TUNNER)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
           ),
         ],
+        ),
       ),
-    ).whenComplete(controller.dispose);
+    );
   }
 
   void _showImportToolDialog(BuildContext context) {
