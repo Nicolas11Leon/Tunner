@@ -43,12 +43,19 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
     return _resolvedRootPath!;
   }
 
-  /// Limpia la ruta relativa eliminando barras iniciales duplicadas.
+  /// Limpia la ruta relativa eliminando barras iniciales duplicadas y previene path traversal.
   String _normalizeRelativePath(String relPath) {
-    if (relPath.startsWith('/')) {
-      return relPath.substring(1);
+    var clean = relPath.replaceAll('\\', '/');
+    while (clean.startsWith('/')) {
+      clean = clean.substring(1);
     }
-    return relPath;
+    final segments = clean.split('/');
+    for (final seg in segments) {
+      if (seg == '..' || seg.contains('\x00')) {
+        throw ArgumentError('Secuencia de Path Traversal no permitida: $relPath');
+      }
+    }
+    return clean;
   }
 
   @override
@@ -122,7 +129,7 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
     final dirPath = dir.path;
     final relativePath = dirPath == rootPath ? '/' : dirPath.replaceFirst('$rootPath/', '/');
     final folderName = dirPath == rootPath ? 'PROYECTO TUNNER' : dirPath.split(Platform.pathSeparator).last;
-    final folderId = 'folder_${relativePath.hashCode.abs()}';
+    final folderId = dirPath == rootPath ? 'root' : 'folder_${relativePath.hashCode.abs()}';
 
     final children = <StudioFileSystemNode>[];
 
@@ -211,6 +218,9 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   Future<void> deletePath(String relativePath) async {
     final rootPath = await getRootPath();
     final cleanRel = _normalizeRelativePath(relativePath);
+    if (cleanRel.isEmpty || cleanRel == '.' || cleanRel == '/') {
+      throw ArgumentError('No se permite eliminar la raiz del espacio de trabajo');
+    }
     final absPath = '$rootPath/$cleanRel';
 
     final file = File(absPath);
@@ -230,6 +240,9 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
     final rootPath = await getRootPath();
     final cleanOld = _normalizeRelativePath(oldRelativePath);
     final cleanNew = _normalizeRelativePath(newRelativePath);
+    if (cleanOld.isEmpty || cleanNew.isEmpty) {
+      throw ArgumentError('Ruta de origen o destino no valida para mover');
+    }
 
     final oldPath = '$rootPath/$cleanOld';
     final newPath = '$rootPath/$cleanNew';

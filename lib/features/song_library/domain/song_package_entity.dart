@@ -75,10 +75,17 @@ class SongPackage {
       'difficulty': difficulty.name,
       'defaultBpm': defaultBpm,
       'score': score.toMap(),
+      'tracks': tracks.map((t) => t.toMap()).toList(),
     };
   }
 
   factory SongPackage.fromMap(Map<String, dynamic> map) {
+    final rawTracks = map['tracks'] as List<dynamic>? ?? [];
+    final tracksList = rawTracks
+        .whereType<Map<String, dynamic>>()
+        .map((t) => AudioTrack.fromMap(t))
+        .toList();
+
     return SongPackage(
       id: map['id'] as String? ?? 'pkg_${DateTime.now().millisecondsSinceEpoch}',
       title: map['title'] as String? ?? 'Partitura sin título',
@@ -93,7 +100,7 @@ class SongPackage {
       ),
       defaultBpm: (map['defaultBpm'] as num?)?.toInt() ?? 120,
       score: HierarchicalScore.fromMap(map['score'] as Map<String, dynamic>? ?? {}),
-      tracks: const [],
+      tracks: tracksList,
     );
   }
 }

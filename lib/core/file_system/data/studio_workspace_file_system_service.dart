@@ -236,6 +236,9 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
     dynamic payload,
     Uint8List? initialBytes,
   }) {
+    if (name.contains('/') || name.contains('\\') || name.contains('..') || name.trim().isEmpty) {
+      throw ArgumentError('Nombre de archivo invalido o contiene caracteres prohibidos: $name');
+    }
     final targetFolderId = parentFolderId ?? _activeFolderId;
     final type = fileType ?? StudioFileType.fromFileName(name);
     final fullName = name.contains('.') ? name : '$name${type.extension}';
@@ -243,7 +246,8 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
     final fileId = 'file_${DateTime.now().millisecondsSinceEpoch}_${name.hashCode.abs()}';
 
     final parentNode = _rootFolder.findNode(targetFolderId);
-    final parentPath = parentNode?.relativePath ?? '';
+    final rawParent = parentNode?.relativePath ?? '';
+    final parentPath = rawParent == '/' ? '' : rawParent;
     final relativePath = '$parentPath/$fullName';
 
     final bytes = initialBytes ?? Uint8List.fromList([0]);
@@ -279,12 +283,16 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
     required String name,
     String? parentFolderId,
   }) {
+    if (name.contains('/') || name.contains('\\') || name.contains('..') || name.trim().isEmpty) {
+      throw ArgumentError('Nombre de carpeta invalido o contiene caracteres prohibidos: $name');
+    }
     final targetFolderId = parentFolderId ?? _activeFolderId;
     final now = DateTime.now().microsecondsSinceEpoch;
     final folderId = 'folder_${DateTime.now().millisecondsSinceEpoch}_${name.hashCode.abs()}';
 
     final parentNode = _rootFolder.findNode(targetFolderId);
-    final parentPath = parentNode?.relativePath ?? '';
+    final rawParent = parentNode?.relativePath ?? '';
+    final parentPath = rawParent == '/' ? '' : rawParent;
     final relativePath = '$parentPath/$name';
 
     final newFolder = StudioFolderEntity(
@@ -311,6 +319,10 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
 
   /// Renombra un archivo o carpeta existente.
   void renameNode(String nodeId, String newName) {
+    if (nodeId == 'root') return;
+    if (newName.contains('/') || newName.contains('\\') || newName.contains('..') || newName.trim().isEmpty) {
+      throw ArgumentError('Nombre invalido o contiene caracteres prohibidos: $newName');
+    }
     final node = _rootFolder.findNode(nodeId);
     if (node == null) return;
 
@@ -336,10 +348,19 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
       _rootFolder = _rootFolder.updateNode(updated);
     } else if (node is StudioFolderEntity) {
       newRelPath = '$parentRelPath/$newName';
+      final updatedChildren = node.children.map((c) {
+        if (c is StudioFileEntity) {
+          return c.copyWith(relativePath: '$newRelPath/${c.name}');
+        } else if (c is StudioFolderEntity) {
+          return c.updateRelativePathRecursively(newRelPath);
+        }
+        return c;
+      }).toList();
       final updated = node.copyWith(
         name: newName,
         relativePath: newRelPath,
         modifiedAtMicros: now,
+        children: updatedChildren,
       );
       _rootFolder = _rootFolder.updateNode(updated);
     }
@@ -362,7 +383,9 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
     if (node == null || targetFolder == null || targetFolder is! StudioFolderEntity) return;
 
     final oldRelPath = node.relativePath;
-    final newRelPath = '${targetFolder.relativePath}/${node.name}';
+    final rawTarget = targetFolder.relativePath;
+    final targetPath = rawTarget == '/' ? '' : rawTarget;
+    final newRelPath = '$targetPath/${node.name}';
 
     _rootFolder = _rootFolder.moveChild(nodeId, targetFolderId);
     _selectedNodeId = nodeId;

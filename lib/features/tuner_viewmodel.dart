@@ -313,6 +313,7 @@ class TunerViewModel extends ChangeNotifier {
     ITunnerPackageCodec? packageCodec,
     StudioAudioDeviceMatrixService? audioDeviceMatrixService,
     IPlatformFileGateway? platformFileGateway,
+    Future<String> Function()? documentsDirectoryProvider,
     Future<String> Function()? recordingPathProvider,
     bool seedDefaults = false,
   })  : _shouldSeedDefaults = seedDefaults,
@@ -323,14 +324,14 @@ class TunerViewModel extends ChangeNotifier {
         _recorderService = recorderService ?? PracticeRecorderService(),
         _playbackService = playbackService ?? AudioPlaybackService(),
         _persistenceService = persistenceService ??
-            JsonLocalPersistenceService(documentsPathProvider: recordingPathProvider),
+            JsonLocalPersistenceService(documentsPathProvider: documentsDirectoryProvider ?? recordingPathProvider),
         _scoreImporterService = scoreImporterService ?? const UniversalScoreImporterService(),
         _audioSynthesizer = audioSynthesizerService ?? AudioSynthesizerService(),
         _echoSuppressor = echoSuppressor ?? AcousticEchoSuppressor(),
         _platformFileGateway = platformFileGateway ?? const PlatformFileGateway(),
         _stemSynthesizer = stemSynthesizer ?? const StemAudioSynthesizer(),
         _exportPersistenceService = exportPersistenceService ??
-            StemExportPersistenceService(documentsPathProvider: recordingPathProvider),
+            StemExportPersistenceService(documentsPathProvider: documentsDirectoryProvider ?? recordingPathProvider),
         _multiToneDetector = multiToneDetector ?? PolyphonicMultiToneDetector(),
         _guidedLessonEvaluator = guidedLessonEvaluator ?? GuidedLessonEvaluator(),
         _autoTuneProcessor = autoTuneProcessor ?? VocalAutoTuneProcessor(),
@@ -738,7 +739,7 @@ class TunerViewModel extends ChangeNotifier {
       createdAt: now,
       modifiedAt: now,
       bpm: _bpm.toDouble(),
-      timeSignature: '4/4',
+      timeSignature: _activePackage.initialTimeSignature.toString(),
     );
 
     final synthPresetJson = <String, dynamic>{
@@ -755,6 +756,7 @@ class TunerViewModel extends ChangeNotifier {
       'title': _activePackage.title,
       'composer': _activePackage.composer,
       'bpm': _bpm,
+      'songPackage': _activePackage.toMap(),
     };
 
     Map<String, dynamic>? routingMatrixJson;
@@ -811,6 +813,13 @@ class TunerViewModel extends ChangeNotifier {
     if (pkg.routingMatrixJson != null && _audioDeviceMatrixService != null) {
       final restoredMatrix = AudioDeviceMatrixEntity.fromJson(pkg.routingMatrixJson!);
       _audioDeviceMatrixService.restoreMatrix(restoredMatrix);
+    }
+
+    if (pkg.scoreJson != null && pkg.scoreJson!['songPackage'] is Map<String, dynamic>) {
+      try {
+        final pkgMap = pkg.scoreJson!['songPackage'] as Map<String, dynamic>;
+        _activePackage = SongPackage.fromMap(pkgMap);
+      } catch (_) {}
     }
 
     notifyListeners();

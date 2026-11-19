@@ -30,4 +30,10 @@ class PlatformFileGateway implements IPlatformFileGateway {
     final dir = await getApplicationDocumentsDirectory();
     return dir.path;
   }
+
+  @override
+  Future<String> getTemporaryDirectoryPath() async {
+    final dir = await getTemporaryDirectory();
+    return dir.path;
+  }
 }
