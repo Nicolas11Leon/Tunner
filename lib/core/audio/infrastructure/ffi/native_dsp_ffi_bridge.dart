@@ -16,14 +16,49 @@ typedef _VectorSumDart = void Function(Pointer<Float>, Pointer<Float>, Pointer<F
 typedef _AutoCorrelateC = Void Function(Pointer<Float>, Int32, Pointer<Float>, Int32);
 typedef _AutoCorrelateDart = void Function(Pointer<Float>, int, Pointer<Float>, int);
 
+class _NativeScratchPool {
+  Pointer<Float>? ptrA;
+  int capA = 0;
+
+  Pointer<Float>? ptrB;
+  int capB = 0;
+
+  Pointer<Float>? ptrOut;
+  int capOut = 0;
+
+  void freeAll() {
+    if (ptrA != null) {
+      calloc.free(ptrA!);
+      ptrA = null;
+      capA = 0;
+    }
+    if (ptrB != null) {
+      calloc.free(ptrB!);
+      ptrB = null;
+      capB = 0;
+    }
+    if (ptrOut != null) {
+      calloc.free(ptrOut!);
+      ptrOut = null;
+      capOut = 0;
+    }
+  }
+}
+
 /// Implementación de infraestructura para la aceleración DSP nativa mediante `dart:ffi`.
 /// Resuelve y enlaza símbolos de bajo nivel en C/C++ (`libtunner_dsp`).
-/// En caso de no encontrar el binario en el sistema, conmuta de forma transparente y determinista
-/// al motor de respaldo en Dart puro `NativeDspBridgeFallback`.
+/// Reutiliza un pool de memoria nativa preasignado para evitar sobrecarga de `calloc`/`free`
+/// por cada bloque de audio, con liberación determinista vía `dispose()` y respaldo `Finalizer`.
 class NativeDspFfiBridge implements INativeDspBridge {
+  static final Finalizer<_NativeScratchPool> _finalizer = Finalizer<_NativeScratchPool>(
+    (pool) => pool.freeAll(),
+  );
+
   final INativeDspBridge _fallback;
+  final _NativeScratchPool _pool = _NativeScratchPool();
   DynamicLibrary? _dylib;
   bool _isNative = false;
+  bool _isDisposed = false;
   String _activeEngineName = 'Pure Dart SIMD Fallback';
 
   _ApplyGainDart? _applyGainNative;
@@ -37,6 +72,7 @@ class NativeDspFfiBridge implements INativeDspBridge {
     INativeDspBridge? fallback,
     String? customLibraryPath,
   }) : _fallback = fallback ?? const NativeDspBridgeFallback() {
+    _finalizer.attach(this, _pool, detach: this);
     _initDynamicLibrary(customLibraryPath);
   }
 
@@ -47,12 +83,10 @@ class NativeDspFfiBridge implements INativeDspBridge {
       } else {
         final libraryName = _getPlatformLibraryName();
         if (libraryName != null) {
-          // Intentar resolver primero en el directorio de trabajo local
           final localFile = File(libraryName);
           if (localFile.existsSync()) {
             _dylib = DynamicLibrary.open(localFile.absolute.path);
           } else {
-            // Intentar resolver en los directorios de librerías del sistema operativo
             _dylib = DynamicLibrary.open(libraryName);
           }
         }
@@ -73,7 +107,6 @@ class NativeDspFfiBridge implements INativeDspBridge {
         _activeEngineName = 'Native C/Rust SIMD (${customLibraryPath ?? _getPlatformLibraryName()})';
       }
     } catch (_) {
-      // Fallback seguro: la biblioteca compartida no está compilada o presente en el SO.
       _dylib = null;
       _applyGainNative = null;
       _vectorSumNative = null;
@@ -94,78 +127,108 @@ class NativeDspFfiBridge implements INativeDspBridge {
     return null;
   }
 
+  Pointer<Float> _ensureBufferA(int requiredLength) {
+    if (_pool.ptrA == null || _pool.capA < requiredLength) {
+      if (_pool.ptrA != null) calloc.free(_pool.ptrA!);
+      _pool.ptrA = calloc<Float>(requiredLength);
+      _pool.capA = requiredLength;
+    }
+    return _pool.ptrA!;
+  }
+
+  Pointer<Float> _ensureBufferB(int requiredLength) {
+    if (_pool.ptrB == null || _pool.capB < requiredLength) {
+      if (_pool.ptrB != null) calloc.free(_pool.ptrB!);
+      _pool.ptrB = calloc<Float>(requiredLength);
+      _pool.capB = requiredLength;
+    }
+    return _pool.ptrB!;
+  }
+
+  Pointer<Float> _ensureBufferOut(int requiredLength) {
+    if (_pool.ptrOut == null || _pool.capOut < requiredLength) {
+      if (_pool.ptrOut != null) calloc.free(_pool.ptrOut!);
+      _pool.ptrOut = calloc<Float>(requiredLength);
+      _pool.capOut = requiredLength;
+    }
+    return _pool.ptrOut!;
+  }
+
   @override
-  bool get isNativeAvailable => _isNative;
+  bool get isNativeAvailable => _isNative && !_isDisposed;
 
   @override
   String get engineName => _activeEngineName;
 
   @override
   void applyGain(Float32List buffer, double gain) {
-    if (!_isNative || _applyGainNative == null || buffer.isEmpty) {
+    final fn = _applyGainNative;
+    if (_isDisposed || !_isNative || fn == null || buffer.isEmpty) {
       _fallback.applyGain(buffer, gain);
       return;
     }
 
     final length = buffer.length;
-    final ptr = calloc<Float>(length);
     try {
+      final ptr = _ensureBufferA(length);
       final nativeList = ptr.asTypedList(length);
       nativeList.setAll(0, buffer);
-      _applyGainNative!(ptr, length, gain);
+      fn(ptr, length, gain);
       buffer.setAll(0, nativeList);
     } catch (_) {
       _fallback.applyGain(buffer, gain);
-    } finally {
-      calloc.free(ptr);
     }
   }
 
   @override
   void vectorSum(Float32List a, Float32List b, Float32List out) {
-    if (!_isNative || _vectorSumNative == null || a.isEmpty || a.length != b.length || a.length != out.length) {
+    final fn = _vectorSumNative;
+    final lenAB = a.length < b.length ? a.length : b.length;
+    final length = lenAB < out.length ? lenAB : out.length;
+    if (_isDisposed || !_isNative || fn == null || length <= 0) {
       _fallback.vectorSum(a, b, out);
       return;
     }
 
-    final length = a.length;
-    final ptrA = calloc<Float>(length);
-    final ptrB = calloc<Float>(length);
-    final ptrOut = calloc<Float>(length);
     try {
-      ptrA.asTypedList(length).setAll(0, a);
-      ptrB.asTypedList(length).setAll(0, b);
-      _vectorSumNative!(ptrA, ptrB, ptrOut, length);
-      out.setAll(0, ptrOut.asTypedList(length));
+      final ptrA = _ensureBufferA(length);
+      final ptrB = _ensureBufferB(length);
+      final ptrOut = _ensureBufferOut(length);
+      ptrA.asTypedList(length).setRange(0, length, a);
+      ptrB.asTypedList(length).setRange(0, length, b);
+      fn(ptrA, ptrB, ptrOut, length);
+      out.setRange(0, length, ptrOut.asTypedList(length));
     } catch (_) {
       _fallback.vectorSum(a, b, out);
-    } finally {
-      calloc.free(ptrA);
-      calloc.free(ptrB);
-      calloc.free(ptrOut);
     }
   }
 
   @override
   void autoCorrelate(Float32List input, Float32List output) {
-    if (!_isNative || _autoCorrelateNative == null || input.isEmpty || output.isEmpty) {
+    final fn = _autoCorrelateNative;
+    if (_isDisposed || !_isNative || fn == null || input.isEmpty || output.isEmpty) {
       _fallback.autoCorrelate(input, output);
       return;
     }
 
     final inLen = input.length;
     final outLen = output.length;
-    final ptrIn = calloc<Float>(inLen);
-    final ptrOut = calloc<Float>(outLen);
     try {
+      final ptrIn = _ensureBufferA(inLen);
+      final ptrOut = _ensureBufferOut(outLen);
       ptrIn.asTypedList(inLen).setAll(0, input);
-      _autoCorrelateNative!(ptrIn, inLen, ptrOut, outLen);
+      fn(ptrIn, inLen, ptrOut, outLen);
       output.setAll(0, ptrOut.asTypedList(outLen));
     } catch (_) {
       _fallback.autoCorrelate(input, output);
-    } finally {
-      calloc.free(ptrIn);
-      calloc.free(ptrOut);
     }
+  }
+
+  /// Libera determinísticamente los búferes nativos asignados.
+  void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
+    _finalizer.detach(this);
+    _pool.freeAll();
   }
 }

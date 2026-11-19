@@ -3,51 +3,79 @@ import 'dart:isolate';
 import '../domain/i_metronome_service.dart';
 
 /// Implementación de infraestructura para la temporización de alta resolución en Isolate de Dart.
-/// Implementa [IMetronomeService] y rinde el tiempo al sistema operativo sin busy-waiting.
+/// Implementa [IMetronomeService], rinde el tiempo al sistema operativo sin busy-waiting
+/// y libera determinísticamente el puerto e Isolate en cada llamada a [stop].
 class MetronomeService implements IMetronomeService {
   Isolate? _isolate;
-  final ReceivePort _fromIsolatePort = ReceivePort();
+  ReceivePort? _fromIsolatePort;
+  StreamSubscription<dynamic>? _portSubscription;
 
   @override
   Function(int currentSubTick)? onSubTick;
 
-  MetronomeService() {
-    _fromIsolatePort.listen((message) {
+  @override
+  Future<void> start(int bpm, {int ticksPerMeasure = 16}) async {
+    if (_isolate != null || _fromIsolatePort != null) {
+      await stop();
+    }
+
+    final safeBpm = bpm.clamp(20, 300);
+    final safeTicks = ticksPerMeasure.clamp(1, 64);
+
+    final receivePort = ReceivePort();
+    _fromIsolatePort = receivePort;
+    _portSubscription = receivePort.listen((message) {
       if (message is int && onSubTick != null) {
         onSubTick!(message);
+      }
+    });
+
+    try {
+      _isolate = await Isolate.spawn(_highResolutionTicksLogic, {
+        'port': receivePort.sendPort,
+        'bpm': safeBpm,
+        'ticksPerMeasure': safeTicks,
+      });
+    } catch (_) {
+      await stop();
+      rethrow;
+    }
+  }
+
+  static void _highResolutionTicksLogic(Map<String, dynamic> args) {
+    final SendPort toMainPort = args['port'] as SendPort;
+    final int bpm = ((args['bpm'] as int?) ?? 120).clamp(20, 300);
+    final int ticksPerMeasure = ((args['ticksPerMeasure'] as int?) ?? 16).clamp(1, 64);
+
+    // Intervalo exacto en microsegundos para resolución de semicorcheas
+    // 60,000,000 microsegundos por minuto / bpm / 4
+    final int intervalMicros = (60000000 / bpm / 4).round();
+    final Stopwatch stopwatch = Stopwatch()..start();
+    int nextTickMicros = 0;
+    int subTickCounter = 0;
+
+    // Timer.periodic rinde el tiempo al planificador del sistema operativo (0% busy-waiting)
+    // con compensación por Stopwatch para evitar deriva temporal acumulativa.
+    final int pollMicros = intervalMicros < 2000 ? intervalMicros : 2000;
+    Timer.periodic(Duration(microseconds: pollMicros), (timer) {
+      final elapsed = stopwatch.elapsedMicroseconds;
+      if (elapsed >= nextTickMicros) {
+        toMainPort.send(subTickCounter);
+        subTickCounter = (subTickCounter + 1) % ticksPerMeasure;
+        nextTickMicros += intervalMicros;
+        if (nextTickMicros < elapsed) {
+          nextTickMicros = elapsed + intervalMicros;
+        }
       }
     });
   }
 
   @override
-  Future<void> start(int bpm, {int ticksPerMeasure = 16}) async {
-    if (_isolate != null) await stop();
-    _isolate = await Isolate.spawn(_highResolutionTicksLogic, {
-      'port': _fromIsolatePort.sendPort,
-      'bpm': bpm,
-      'ticksPerMeasure': ticksPerMeasure,
-    });
-  }
-
-  static void _highResolutionTicksLogic(Map<String, dynamic> args) {
-    SendPort toMainPort = args['port'];
-    int bpm = args['bpm'];
-    int ticksPerMeasure = args['ticksPerMeasure'] ?? 16;
-    
-    // Intervalo exacto en microsegundos para resolución de semicorcheas
-    // 60,000,000 microsegundos por minuto / bpm / 4
-    int intervalMicros = (60000000 / bpm / 4).round();
-    int subTickCounter = 0;
-
-    // Timer.periodic rinde el tiempo al planificador del sistema operativo (0% busy-waiting)
-    Timer.periodic(Duration(microseconds: intervalMicros), (timer) {
-      toMainPort.send(subTickCounter);
-      subTickCounter = (subTickCounter + 1) % ticksPerMeasure;
-    });
-  }
-
-  @override
   Future<void> stop() async {
+    await _portSubscription?.cancel();
+    _portSubscription = null;
+    _fromIsolatePort?.close();
+    _fromIsolatePort = null;
     _isolate?.kill(priority: Isolate.immediate);
     _isolate = null;
   }

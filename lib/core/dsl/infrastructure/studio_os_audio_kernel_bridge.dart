@@ -14,12 +14,14 @@ import '../domain/tunner_dsl_interpreter.dart';
 class StudioOsAudioKernelBridge {
   final StudioOsAudioKernel kernel;
   final StudioAudioDeviceMatrixService? matrixService;
-  final PolyphonicVoicePool? synthVoicePool;
+  PolyphonicVoicePool? synthVoicePool;
   final StudioMasterClockService? clockService;
-  final TunerViewModel? viewModel;
+  TunerViewModel? viewModel;
   final SchroederReverbEngine? reverbEngine;
   final BinauralPannerEngine? spatialEngine;
 
+  final Set<Timer> _activeNoteTimers = <Timer>{};
+  bool _isDisposed = false;
   double _currentBpm = 120.0;
 
   StudioOsAudioKernelBridge({
@@ -204,10 +206,15 @@ class StudioOsAudioKernelBridge {
       _currentBpm,
     );
 
-    // Liberación programada no bloqueante
-    Timer(Duration(milliseconds: durationMs.round().clamp(10, 10000)), () {
-      synthVoicePool?.noteOff(midiNote);
+    // Liberación programada no bloqueante con rastreo determinista
+    late final Timer timer;
+    timer = Timer(Duration(milliseconds: durationMs.round().clamp(10, 10000)), () {
+      _activeNoteTimers.remove(timer);
+      if (!_isDisposed) {
+        synthVoicePool?.noteOff(midiNote);
+      }
     });
+    _activeNoteTimers.add(timer);
   }
 
   Future<void> _handleChordTriggered(
@@ -217,7 +224,7 @@ class StudioOsAudioKernelBridge {
     String durationFraction,
     double velocity,
   ) async {
-    if (synthVoicePool == null) return;
+    if (_isDisposed || synthVoicePool == null) return;
 
     for (var i = 0; i < midiNotes.length; i++) {
       synthVoicePool!.noteOn(
@@ -232,18 +239,31 @@ class StudioOsAudioKernelBridge {
       _currentBpm,
     );
 
-    Timer(Duration(milliseconds: durationMs.round().clamp(10, 10000)), () {
-      for (final midi in midiNotes) {
-        synthVoicePool?.noteOff(midi);
+    late final Timer timer;
+    timer = Timer(Duration(milliseconds: durationMs.round().clamp(10, 10000)), () {
+      _activeNoteTimers.remove(timer);
+      if (!_isDisposed) {
+        for (final midi in midiNotes) {
+          synthVoicePool?.noteOff(midi);
+        }
       }
     });
+    _activeNoteTimers.add(timer);
   }
 
   Future<void> _handleRestTriggered(String durationFraction) async {
     // En ejecución en tiempo real el silencio deja que las envolventes expiren naturalmente
   }
 
+  void _cancelActiveNoteTimers() {
+    for (final t in _activeNoteTimers) {
+      t.cancel();
+    }
+    _activeNoteTimers.clear();
+  }
+
   Future<void> _handleTransportChanged(String action) async {
+    if (_isDisposed) return;
     switch (action.toLowerCase()) {
       case 'play':
       case 'start':
@@ -257,10 +277,18 @@ class StudioOsAudioKernelBridge {
         }
         break;
       case 'stop':
+        _cancelActiveNoteTimers();
         clockService?.stopTransport();
         synthVoicePool?.panic();
         break;
     }
+  }
+
+  /// Libera todos los temporizadores de notas DSL activos de forma determinista.
+  void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
+    _cancelActiveNoteTimers();
   }
 
   double _normalizeTimeSeconds(dynamic value, String? unit) {

@@ -61,6 +61,13 @@ class _DjConsoleModelBuilderModalState
     _loadBaseTemplate();
   }
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _manufacturerController.dispose();
+    super.dispose();
+  }
+
   void _loadBaseTemplate() {
     // Plantilla inicial con controles básicos para agilizar la creación
     _zones.addAll([

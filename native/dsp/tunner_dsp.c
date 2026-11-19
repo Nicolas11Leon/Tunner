@@ -52,23 +52,23 @@ void tunner_autocorrelate(const float* input, int input_length, float* output, i
             continue;
         }
 
-        float sum = 0.0f;
+        double sum = 0.0;
         int limit = input_length - lag;
         int i = 0;
 
-        /* Desenrollado de bucle para multiplicacion y acumulacion vectorial (FMA) */
+        /* Desenrollado de bucle para multiplicacion y acumulacion vectorial (FMA) en doble precision */
         for (; i + 3 < limit; i += 4) {
-            sum += input[i]     * input[i + lag]
-                 + input[i + 1] * input[i + 1 + lag]
-                 + input[i + 2] * input[i + 2 + lag]
-                 + input[i + 3] * input[i + 3 + lag];
+            sum += (double)input[i]     * (double)input[i + lag]
+                 + (double)input[i + 1] * (double)input[i + 1 + lag]
+                 + (double)input[i + 2] * (double)input[i + 2 + lag]
+                 + (double)input[i + 3] * (double)input[i + 3 + lag];
         }
 
         /* Muestras remanentes del calculo de lag */
         for (; i < limit; i++) {
-            sum += input[i] * input[i + lag];
+            sum += (double)input[i] * (double)input[i + lag];
         }
 
-        output[lag] = sum;
+        output[lag] = (float)sum;
     }
 }

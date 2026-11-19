@@ -140,6 +140,7 @@ class TunerViewModel extends ChangeNotifier {
   bool _isRecording = false;
 
   Timer? _silenceTimer;
+  bool _isDisposed = false;
 
   bool _isMetronomePlaying = false;
   int _currentSubTick = -1;
@@ -3044,7 +3045,16 @@ class TunerViewModel extends ChangeNotifier {
   }
 
   @override
+  void notifyListeners() {
+    if (!_isDisposed) {
+      super.notifyListeners();
+    }
+  }
+
+  @override
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
     _scorePlaybackCoordinator.dispose();
     _silenceTimer?.cancel();
     _pitchService.stopRecording();

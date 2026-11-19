@@ -604,16 +604,42 @@ class DjConsoleViewModel extends ChangeNotifier {
     if (!_isDisposed) notifyListeners();
   }
 
+  String _normalizeDeckId(String deckId) {
+    final lower = deckId.trim().toLowerCase();
+    if (lower == 'a' || lower == 'deck_a') return 'A';
+    if (lower == 'b' || lower == 'deck_b') return 'B';
+    return deckId.trim().toUpperCase();
+  }
+
   void togglePlay(String deckId) {
-    _orchestrator.togglePlay(deckId);
-    final isPlaying = deckId == 'A' ? deckA.isPlaying : deckB.isPlaying;
+    final id = _normalizeDeckId(deckId);
+    _orchestrator.togglePlay(id);
+    final isPlaying = id == 'A' ? deckA.isPlaying : deckB.isPlaying;
     if (isPlaying) {
-      _deckAudioPlayer.playDeck(deckId);
+      _deckAudioPlayer.playDeck(id);
     } else {
-      _deckAudioPlayer.pauseDeck(deckId);
+      _deckAudioPlayer.pauseDeck(id);
     }
     _syncAudioVolumes();
     if (!_isDisposed) notifyListeners();
+  }
+
+  /// Inicia reproducción explícitamente en [deckId] sin alternar si ya está sonando.
+  void playDeck(String deckId) {
+    final id = _normalizeDeckId(deckId);
+    final isPlaying = id == 'A' ? deckA.isPlaying : deckB.isPlaying;
+    if (!isPlaying) {
+      togglePlay(id);
+    }
+  }
+
+  /// Pausa explícitamente [deckId] sin iniciarlo si ya estaba detenido.
+  void pauseDeck(String deckId) {
+    final id = _normalizeDeckId(deckId);
+    final isPlaying = id == 'A' ? deckA.isPlaying : deckB.isPlaying;
+    if (isPlaying) {
+      togglePlay(id);
+    }
   }
 
   /// Detiene la reproducción en todos los platos activos (Deck A y Deck B).
@@ -657,11 +683,12 @@ class DjConsoleViewModel extends ChangeNotifier {
 
   /// Sincroniza la velocidad de reproducción y BPM del deck con el tempo objetivo del reloj maestro.
   void syncDeckToBpm(String deckId, double targetBpm) {
-    final deck = deckId == 'A' ? deckA : deckB;
+    final id = _normalizeDeckId(deckId);
+    final deck = id == 'A' ? deckA : deckB;
     if (deck.bpm <= 0) return;
     final multiplier = (targetBpm / deck.bpm).clamp(0.5, 2.0);
-    _orchestrator.setPitchMultiplier(deckId, multiplier);
-    _deckAudioPlayer.setDeckPlaybackRate(deckId, multiplier);
+    _orchestrator.setPitchMultiplier(id, multiplier);
+    _deckAudioPlayer.setDeckPlaybackRate(id, multiplier);
     if (!_isDisposed) notifyListeners();
   }
 

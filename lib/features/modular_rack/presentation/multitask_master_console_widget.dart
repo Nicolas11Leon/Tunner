@@ -391,7 +391,7 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ).whenComplete(controller.dispose);
   }
 
   void _showImportToolDialog(BuildContext context) {

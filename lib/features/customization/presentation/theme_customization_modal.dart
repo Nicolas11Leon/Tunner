@@ -197,7 +197,7 @@ class ThemeCustomizationModal extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ).whenComplete(textController.dispose);
   }
 
   @override

@@ -33,12 +33,14 @@ class TunnerOsKernel {
   final StudioFileSystemRepository? fileSystemRepository;
   final StudioAudioDeviceMatrixService? matrixService;
   final StudioMasterClockService? clockService;
-  PolyphonicVoicePool? synthVoicePool;
+  PolyphonicVoicePool? _synthVoicePool;
   ScorePlaybackCoordinator? scorePlaybackCoordinator;
-  TunerViewModel? viewModel;
+  TunerViewModel? _viewModel;
   final void Function(String themeId)? onSetTheme;
   final void Function(String deckId, String trackTitle)? onDjLoadTrack;
   final void Function(String deckId)? onDjTogglePlay;
+  final void Function(String deckId)? onDjPlayDeck;
+  final void Function(String deckId)? onDjPauseDeck;
   final void Function(double val)? onDjSetCrossfader;
   SchroederReverbEngine? reverbEngine;
   BinauralPannerEngine? spatialEngine;
@@ -51,6 +53,18 @@ class TunnerOsKernel {
   late final TunnerDslParser dslParser;
   late final TunnerDslInterpreter dslInterpreter;
 
+  PolyphonicVoicePool? get synthVoicePool => _synthVoicePool;
+  set synthVoicePool(PolyphonicVoicePool? value) {
+    _synthVoicePool = value;
+    kernelBridge.synthVoicePool = value;
+  }
+
+  TunerViewModel? get viewModel => _viewModel;
+  set viewModel(TunerViewModel? value) {
+    _viewModel = value;
+    kernelBridge.viewModel = value;
+  }
+
   TunnerOsKernel({
     this.onNavigateTab,
     this.outputEngine,
@@ -58,12 +72,14 @@ class TunnerOsKernel {
     this.fileSystemRepository,
     this.matrixService,
     this.clockService,
-    this.synthVoicePool,
+    PolyphonicVoicePool? synthVoicePool,
     this.scorePlaybackCoordinator,
-    this.viewModel,
+    TunerViewModel? viewModel,
     this.onSetTheme,
     this.onDjLoadTrack,
     this.onDjTogglePlay,
+    this.onDjPlayDeck,
+    this.onDjPauseDeck,
     this.onDjSetCrossfader,
     SchroederReverbEngine? reverbEngine,
     BinauralPannerEngine? spatialEngine,
@@ -72,7 +88,9 @@ class TunnerOsKernel {
     INativeDspBridge? nativeDspBridge,
     StudioMasterDspChain? masterDspChain,
     StudioOsAudioKernel? audioKernel,
-  })  : reverbEngine = reverbEngine ?? SchroederReverbEngine(),
+  })  : _synthVoicePool = synthVoicePool,
+        _viewModel = viewModel,
+        reverbEngine = reverbEngine ?? SchroederReverbEngine(),
         spatialEngine = spatialEngine ?? BinauralPannerEngine(),
         earTrainingEngine = earTrainingEngine ?? EbbinghausSpacedRepetitionEngine(),
         vocalEvaluator = vocalEvaluator ?? const VocalStabilityEvaluator(),
@@ -82,14 +100,19 @@ class TunnerOsKernel {
     kernelBridge = StudioOsAudioKernelBridge(
       kernel: this.audioKernel!,
       matrixService: matrixService,
-      synthVoicePool: synthVoicePool,
+      synthVoicePool: _synthVoicePool,
       clockService: clockService,
-      viewModel: viewModel,
+      viewModel: _viewModel,
       reverbEngine: this.reverbEngine,
       spatialEngine: this.spatialEngine,
     );
     dslParser = TunnerDslParser();
     dslInterpreter = TunnerDslInterpreter(defaultKernel: this.audioKernel);
+  }
+
+  /// Libera los recursos asociados al puente DSL y temporizadores activos.
+  void dispose() {
+    kernelBridge.dispose();
   }
 
   /// Analiza y ejecuta una línea de comando de la terminal Tunner OS.
@@ -261,13 +284,28 @@ clear                    : Limpia el historial de la pantalla de la terminal
         return TunnerOsCommandResult.success("[OK] Deck $deck: Pista '$track' cargada.");
 
       case 'play':
-      case 'pause':
         if (args.length < 2) {
-          return TunnerOsCommandResult.error('Sintaxis: dj $action <A|B>');
+          return TunnerOsCommandResult.error('Sintaxis: dj play <A|B>');
         }
         final deck = args[1].toUpperCase();
-        onDjTogglePlay?.call(deck);
-        return TunnerOsCommandResult.success("[OK] Deck $deck: Comando $action enviado.");
+        if (onDjPlayDeck != null) {
+          onDjPlayDeck!(deck);
+        } else {
+          onDjTogglePlay?.call(deck);
+        }
+        return TunnerOsCommandResult.success("[OK] Deck $deck: Reproduccion iniciada.");
+
+      case 'pause':
+        if (args.length < 2) {
+          return TunnerOsCommandResult.error('Sintaxis: dj pause <A|B>');
+        }
+        final deck = args[1].toUpperCase();
+        if (onDjPauseDeck != null) {
+          onDjPauseDeck!(deck);
+        } else {
+          onDjTogglePlay?.call(deck);
+        }
+        return TunnerOsCommandResult.success("[OK] Deck $deck: Reproduccion pausada.");
 
       case 'xfader':
       case 'crossfader':
@@ -369,7 +407,7 @@ Limitador Soft-Clip   : Activo a 0.0 dBFS
           if (node is StudioFileEntity) {
             buf.writeln("  $prefix• ${node.name} [${node.fileType.name.toUpperCase()}] (${node.sizeBytes} B)");
           } else if (node is StudioFolderEntity) {
-            buf.writeln("  $prefix📁 ${node.name}/");
+            buf.writeln("  $prefix[DIR] ${node.name}/");
             for (final child in node.children) {
               printNode(child, "$prefix  ");
             }

@@ -29,6 +29,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
   late StudioMasterDynamicsProcessor _dynamicsProcessor;
 
   Timer? _vuMeterSimulationTimer;
+  bool _isDisposed = false;
   final StreamController<StudioStereoLevelMeterData> _meterController =
       StreamController<StudioStereoLevelMeterData>.broadcast();
 
@@ -403,8 +404,18 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
   }
 
   @override
+  void notifyListeners() {
+    if (!_isDisposed) {
+      super.notifyListeners();
+    }
+  }
+
+  @override
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
     _vuMeterSimulationTimer?.cancel();
+    _vuMeterSimulationTimer = null;
     _meterController.close();
     _captureService.dispose();
     super.dispose();
