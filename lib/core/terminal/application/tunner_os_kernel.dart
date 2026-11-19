@@ -22,6 +22,7 @@ import '../../dsl/domain/tunner_dsl_template_catalog.dart';
 import '../../dsl/infrastructure/studio_os_audio_kernel_bridge.dart';
 import '../../file_system/domain/studio_file_system_node.dart';
 import '../../file_system/domain/studio_file_system_repository.dart';
+import '../domain/i_terminal_command_handler.dart';
 import '../domain/tunner_os_command_entity.dart';
 
 /// Núcleo de interpretación de comandos y automatización del sistema Tunner OS.
@@ -52,6 +53,7 @@ class TunnerOsKernel {
   late final StudioOsAudioKernelBridge kernelBridge;
   late final TunnerDslParser dslParser;
   late final TunnerDslInterpreter dslInterpreter;
+  final Map<String, ITerminalCommandHandler> _customHandlers = {};
 
   PolyphonicVoicePool? get synthVoicePool => _synthVoicePool;
   set synthVoicePool(PolyphonicVoicePool? value) {
@@ -88,6 +90,7 @@ class TunnerOsKernel {
     INativeDspBridge? nativeDspBridge,
     StudioMasterDspChain? masterDspChain,
     StudioOsAudioKernel? audioKernel,
+    List<ITerminalCommandHandler>? customHandlers,
   })  : _synthVoicePool = synthVoicePool,
         _viewModel = viewModel,
         reverbEngine = reverbEngine ?? SchroederReverbEngine(),
@@ -108,6 +111,18 @@ class TunnerOsKernel {
     );
     dslParser = TunnerDslParser();
     dslInterpreter = TunnerDslInterpreter(defaultKernel: this.audioKernel);
+    if (customHandlers != null) {
+      for (final h in customHandlers) {
+        registerHandler(h);
+      }
+    }
+  }
+
+  /// Registra dinámicamente un manejador modular de comandos en el mapa $O(1)$.
+  void registerHandler(ITerminalCommandHandler handler) {
+    for (final domain in handler.supportedDomains) {
+      _customHandlers[domain.toLowerCase()] = handler;
+    }
   }
 
   /// Libera los recursos asociados al puente DSL y temporizadores activos.
@@ -129,6 +144,11 @@ class TunnerOsKernel {
 
     final domain = tokens[0].toLowerCase();
     final args = tokens.sublist(1);
+
+    final customHandler = _customHandlers[domain];
+    if (customHandler != null) {
+      return await customHandler.execute(domain, args, line);
+    }
 
     switch (domain) {
       case 'help':
