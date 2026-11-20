@@ -56,7 +56,7 @@ class StudioDesktopAppShell extends StatefulWidget {
   const StudioDesktopAppShell({
     super.key,
     this.appTitle = 'Tunner',
-    this.appVersion = 'v2.29.0',
+    this.appVersion = 'v1.0.0',
     required this.currentBreadcrumb,
     required this.navigationSections,
     required this.activeItemId,
@@ -635,7 +635,7 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                   const SizedBox(width: 12),
                   Flexible(
                     child: Text(
-                      'BUFFER: 2048 • LATENCIA: < 8ms',
+                      'BUFFER: 256 • LATENCIA: < 8ms',
                       style: TextStyle(
                         color: tokens.textMuted,
                         fontSize: 9.0,
