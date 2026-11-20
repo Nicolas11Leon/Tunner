@@ -162,6 +162,7 @@ void main() {
       expect(viewModel.activeLessonProgress!.sustainedSeconds, greaterThan(0.0));
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.byKey(const Key('lesson_progress_bar')), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 360));
     });
 
     testWidgets('Tapping step dots jumps between steps accurately', (tester) async {

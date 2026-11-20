@@ -267,7 +267,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
   void setEqLow(double db) {
     final clamped = db.clamp(-12.0, 12.0);
     _matrix = _matrix.copyWith(eqLowDb: clamped);
-    _filterLow = StudioMasterBiquadFilter.lowShelf(
+    _filterLow.updateParameters(
       frequency: 100.0,
       gainDb: clamped,
       sampleRate: _matrix.sampleRate,
@@ -280,7 +280,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
   void setEqMid(double db) {
     final clamped = db.clamp(-12.0, 12.0);
     _matrix = _matrix.copyWith(eqMidDb: clamped);
-    _filterMid = StudioMasterBiquadFilter.peaking(
+    _filterMid.updateParameters(
       frequency: 1000.0,
       gainDb: clamped,
       q: 1.0,
@@ -294,7 +294,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
   void setEqHigh(double db) {
     final clamped = db.clamp(-12.0, 12.0);
     _matrix = _matrix.copyWith(eqHighDb: clamped);
-    _filterHigh = StudioMasterBiquadFilter.highShelf(
+    _filterHigh.updateParameters(
       frequency: 8000.0,
       gainDb: clamped,
       sampleRate: _matrix.sampleRate,

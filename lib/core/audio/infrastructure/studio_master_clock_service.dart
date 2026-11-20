@@ -30,10 +30,10 @@ class StudioMasterClockService extends ChangeNotifier implements IStudioMasterCl
   VoidCallback? onStopAll;
   void Function(double bpm)? onBpmChanged;
 
-  // Registro de pulsaciones para cálculo de Tap Tempo
+  // Registro de pulsaciones para cálculo de Tap Tempo (soporta hasta 20 BPM = 3000ms)
   final List<DateTime> _tapHistory = [];
   static const int _maxTapSamples = 5;
-  static const Duration _tapTimeout = Duration(seconds: 2);
+  static const Duration _tapTimeout = Duration(milliseconds: 3200);
 
   final StreamController<int> _beatStreamController = StreamController<int>.broadcast();
   final StreamController<bool> _downbeatStreamController = StreamController<bool>.broadcast();
@@ -191,7 +191,7 @@ class StudioMasterClockService extends ChangeNotifier implements IStudioMasterCl
         totalDeltaMs += _tapHistory[i].difference(_tapHistory[i - 1]).inMilliseconds;
       }
       final avgDeltaMs = totalDeltaMs / (_tapHistory.length - 1);
-      if (avgDeltaMs > 100.0 && avgDeltaMs < 3000.0) {
+      if (avgDeltaMs >= 200.0 && avgDeltaMs <= 3000.0) {
         final calculatedBpm = 60000.0 / avgDeltaMs;
         setBpm(calculatedBpm);
       }
@@ -200,12 +200,10 @@ class StudioMasterClockService extends ChangeNotifier implements IStudioMasterCl
 
   void _startTicker() {
     _tickerTimer?.cancel();
-    // Muestreo de alta resolución cada 4 ms (jitter <= 4 ms, cumple meta sub-10ms sin busy-waiting)
-    _tickerTimer = Timer.periodic(const Duration(milliseconds: 4), (_) {
+    void scheduleNextBeat() {
       if (_isDisposed || _status != StudioTransportStatus.playing) return;
 
       final totalBeats = _currentTotalBeats().floor();
-
       if (totalBeats > _lastEmittedBeatIndex) {
         _lastEmittedBeatIndex = totalBeats;
 
@@ -224,7 +222,14 @@ class StudioMasterClockService extends ChangeNotifier implements IStudioMasterCl
 
         if (!_isDisposed) notifyListeners();
       }
-    });
+
+      final double fractionalBeat = _currentTotalBeats();
+      final double remainingBeats = (totalBeats + 1.0) - fractionalBeat;
+      final int waitMicros = (remainingBeats * (60000000.0 / _bpm)).round().clamp(1000, 3000000);
+      _tickerTimer = Timer(Duration(microseconds: waitMicros), scheduleNextBeat);
+    }
+
+    scheduleNextBeat();
   }
 
   @override

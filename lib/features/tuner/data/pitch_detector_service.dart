@@ -203,11 +203,18 @@ class PitchDetectorService implements IPitchDetectorService {
     _toWorkerPort?.send(filterConfig);
   }
 
+  final Map<String, String> _deviceLabelToId = {};
+
   @override
   Future<List<String>> listInputDevices() async {
     try {
       final devices = await _inputEngine.listInputDevices();
-      return devices.map((d) => d.label.isNotEmpty ? d.label : d.id).toList();
+      _deviceLabelToId.clear();
+      return devices.map((d) {
+        final display = d.label.isNotEmpty ? d.label : d.id;
+        _deviceLabelToId[display] = d.id;
+        return display;
+      }).toList();
     } catch (e, st) {
       StudioDebugLogger.instance.warning(
         'PitchDetectorService',
@@ -221,9 +228,10 @@ class PitchDetectorService implements IPitchDetectorService {
 
   @override
   Future<void> setInputDevice(String deviceId) async {
-    _selectedDeviceId = deviceId;
-    _activeProfile = _activeProfile.copyWith(deviceId: deviceId);
-    await _inputEngine.setInputDevice(deviceId);
+    final resolvedId = _deviceLabelToId[deviceId] ?? deviceId;
+    _selectedDeviceId = resolvedId;
+    _activeProfile = _activeProfile.copyWith(deviceId: resolvedId);
+    await _inputEngine.setInputDevice(resolvedId);
   }
 
   @override

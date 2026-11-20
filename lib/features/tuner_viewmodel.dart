@@ -248,6 +248,7 @@ class TunerViewModel extends ChangeNotifier {
   ScaleQuantizationResult _lastAutoTuneResult = ScaleQuantizationResult.unvoiced(0.0);
 
   // Conversor Vocal a Pentagrama y Melodyne Mode (UC-60)
+  final Stopwatch _recordingStopwatch = Stopwatch();
   final VocalScoreConverter _vocalScoreConverter = const VocalScoreConverter();
   SongPackage? _lastConvertedVocalPackage;
   VocalScoreConversionResult? _lastVocalConversionResult;
@@ -377,6 +378,9 @@ class TunerViewModel extends ChangeNotifier {
   int get activeSoundFontPatch => _soundFontSynthesizer.activePatch;
   List<Sf2Preset> get availableSoundFontPresets => _soundFontSynthesizer.availablePresets;
 
+  /// Acceso controlado al sintetizador de audio para modales interactivos.
+  IAudioSynthesizerService get audioSynthesizer => _audioSynthesizer;
+
   /// Selecciona el instrumento acústico SoundFont activo.
   void selectSoundFontPatch(int patch) {
     _soundFontSynthesizer.selectPatch(patch);
@@ -389,11 +393,15 @@ class TunerViewModel extends ChangeNotifier {
     double durationSeconds = 1.0,
     int velocity = 100,
   }) {
-    return _soundFontSynthesizer.synthesizeNoteWav(
+    final wavBytes = _soundFontSynthesizer.synthesizeNoteWav(
       midiPitch: midiPitch,
       durationSeconds: durationSeconds,
       velocity: velocity,
     );
+    if (wavBytes.isNotEmpty) {
+      _audioSynthesizer.playPcmWav(wavBytes);
+    }
+    return wavBytes;
   }
 
   /// Cambia el modo de visualización de interfaz (Esencial vs. Conservatorio Pro).
@@ -650,6 +658,7 @@ class TunerViewModel extends ChangeNotifier {
         temperament: _selectedTemperament,
         a4Ref: _referencePitch,
         rootKey: _temperamentRootKey,
+        anchorA4: true,
       );
       _cents = _temperamentEngine.calculateCentsDeviation(
         detectedFrequency: _frequency,
@@ -929,7 +938,7 @@ class TunerViewModel extends ChangeNotifier {
       _validatePerformance();
       notifyListeners();
 
-      _silenceTimer = Timer(const Duration(milliseconds: 60), () {
+      _silenceTimer = Timer(const Duration(milliseconds: 350), () {
         _frequency = 0.0;
         _noteName = "--";
         _cents = 0.0;
@@ -964,8 +973,14 @@ class TunerViewModel extends ChangeNotifier {
     };
 
     _metronomeService.onSubTick = (subTick) {
+      final ts = currentMeasureTimeSignature;
+      final int beatTicks = (ts.denominator == 8 && ts.numerator >= 6 && ts.numerator % 3 == 0)
+          ? 6
+          : (ts.denominator == 8 ? 2 : (ts.denominator == 2 ? 8 : 4));
+      final int countInBeats = (ts.totalTicks / beatTicks).round().clamp(1, 16);
+
       if (_isCountingIn) {
-        if (subTick % 4 == 0) {
+        if (subTick % beatTicks == 0) {
           final metroGain = _mixerConsole.getEffectiveGain(_mixerConsole.metronomeTrack.id);
           if (metroGain > 0.001) {
             _echoSuppressor.notifyClickEmitted();
@@ -975,10 +990,10 @@ class TunerViewModel extends ChangeNotifier {
             );
           }
           _countInBeat++;
-          if (_countInBeat > 4) {
+          if (_countInBeat > countInBeats) {
             _isCountingIn = false;
             _currentMeasureIndex = 0;
-            _currentSubTick = 0;
+            _currentSubTick = -1;
             _measureHistory.clear();
             _updateExpectedNoteForTick(0);
           }
@@ -1025,7 +1040,7 @@ class TunerViewModel extends ChangeNotifier {
           }
         }
 
-        if (subTick % 4 == 0) {
+        if (subTick % beatTicks == 0) {
           final metroGain = _mixerConsole.getEffectiveGain(_mixerConsole.metronomeTrack.id);
           if (metroGain > 0.001) {
             _echoSuppressor.notifyClickEmitted();
@@ -1284,9 +1299,7 @@ class TunerViewModel extends ChangeNotifier {
     if ((_referencePitch - clamped).abs() > 0.01) {
       _referencePitch = clamped;
       if (_frequency > 0) {
-        final noteEntity = NoteEntity.fromFrequency(_frequency, a4Ref: _referencePitch);
-        _noteName = noteEntity.name;
-        _cents = noteEntity.cents;
+        _recalculatePitchForActiveTemperament();
       }
       if (_audioSynthesizer.isDiapasonPlaying) {
         _audioSynthesizer.startDiapasonTone(_referencePitch);
@@ -1610,14 +1623,23 @@ class TunerViewModel extends ChangeNotifier {
       resetSongState();
     } else {
       _isCountingIn = true;
-      _countInBeat = 0;
+      _countInBeat = 1;
       _currentSubTick = -1;
       _measureHistory.clear();
       _lastEvaluatedNote = null;
       _activeEvaluations.clear();
       _isMetronomePlaying = true;
-      final currentTicks = currentMeasureTimeSignature.totalTicks;
-      await _metronomeService.start(_bpm, ticksPerMeasure: currentTicks);
+      final ts = currentMeasureTimeSignature;
+      final metro = _metronomeService;
+      if (metro is MetronomeService) {
+        await metro.start(
+          _bpm,
+          ticksPerMeasure: ts.totalTicks,
+          meterDenominator: ts.denominator,
+        );
+      } else {
+        await metro.start(_bpm, ticksPerMeasure: ts.totalTicks);
+      }
     }
     notifyListeners();
   }
@@ -1662,10 +1684,25 @@ class TunerViewModel extends ChangeNotifier {
 
   void updateBpm(int newBpm) {
     _bpm = newBpm.clamp(20, 300);
+    _scorePlaybackCoordinator.bpm = _bpm.toDouble();
     if (_isMetronomePlaying) {
-      final currentTicks = currentMeasureTimeSignature.totalTicks;
-      _metronomeService.stop().then((_) => _metronomeService.start(_bpm, ticksPerMeasure: currentTicks));
+      final ts = currentMeasureTimeSignature;
+      _metronomeService.stop().then((_) {
+        if (_isMetronomePlaying && !_isDisposed) {
+          final metro = _metronomeService;
+          if (metro is MetronomeService) {
+            metro.start(
+              _bpm,
+              ticksPerMeasure: ts.totalTicks,
+              meterDenominator: ts.denominator,
+            );
+          } else {
+            metro.start(_bpm, ticksPerMeasure: ts.totalTicks);
+          }
+        }
+      });
     }
+    _triggerAutoSave();
     notifyListeners();
   }
 
@@ -1973,10 +2010,26 @@ class TunerViewModel extends ChangeNotifier {
 
   void setCustomTimeSignature(TimeSignature? signature) {
     _customTimeSignatureOverride = signature;
-    if (_isMetronomePlaying) {
-      _metronomeService.stop().then((_) => _metronomeService.start(_bpm, ticksPerMeasure: currentMeasureTimeSignature.totalTicks));
-    }
+    final wasPlaying = _isMetronomePlaying;
     resetSongState();
+    if (wasPlaying) {
+      _isMetronomePlaying = true;
+      final ts = currentMeasureTimeSignature;
+      _metronomeService.stop().then((_) {
+        if (_isMetronomePlaying && !_isDisposed) {
+          final metro = _metronomeService;
+          if (metro is MetronomeService) {
+            metro.start(
+              _bpm,
+              ticksPerMeasure: ts.totalTicks,
+              meterDenominator: ts.denominator,
+            );
+          } else {
+            metro.start(_bpm, ticksPerMeasure: ts.totalTicks);
+          }
+        }
+      });
+    }
     notifyListeners();
   }
 
@@ -1996,7 +2049,7 @@ class TunerViewModel extends ChangeNotifier {
   }
 
   void playReferenceTone([String noteName = "La4"]) {
-    final double freq = NoteEntity.frequencyForNote(noteName);
+    final double freq = NoteEntity.frequencyForNote(noteName, a4Ref: _referencePitch);
     if (freq > 0) {
       _frequency = freq;
       _noteName = noteName;

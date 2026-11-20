@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../../core/theme/tunner_theme.dart';
 import '../../audio_synthesizer/domain/polyphonic/polyphonic_synth_voice.dart';
+import '../../instrument/domain/procedural_instrument_synthesizer.dart';
 import '../../tuner_viewmodel.dart';
 
 /// Modal de control interactivo para los parámetros tímbricos y envolvente acústica
@@ -297,10 +299,29 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
                         ),
                         onPressed: () {
                           _testChordTimer?.cancel();
-                          // Toca acorde Do Mayor (Do4, Mi4, Sol4)
+                          // Toca acorde Do Mayor (Do4, Mi4, Sol4) y renderiza audio real audible
                           pool.noteOn(60, 0.85);
                           pool.noteOn(64, 0.85);
                           pool.noteOn(67, 0.85);
+                          final numSamples = (pool.sampleRate * 0.6).round();
+                          final leftOut = Float64List(numSamples);
+                          final rightOut = Float64List(numSamples);
+                          pool.renderBlock(
+                            leftOut: leftOut,
+                            rightOut: rightOut,
+                            numSamples: numSamples,
+                          );
+                          final monoFloat = Float32List(numSamples);
+                          for (int i = 0; i < numSamples; i++) {
+                            monoFloat[i] = ((leftOut[i] + rightOut[i]) * 0.5).clamp(-1.0, 1.0);
+                          }
+                          if (monoFloat.isNotEmpty) {
+                            final wavBytes = ProceduralInstrumentSynthesizer.floatBufferToWavBytes(
+                              monoFloat,
+                              sampleRate: pool.sampleRate.round(),
+                            );
+                            widget.viewModel.audioSynthesizer.playPcmWav(wavBytes);
+                          }
                           setState(() {});
                           _testChordTimer = Timer(const Duration(milliseconds: 600), () {
                             pool.noteOff(60);

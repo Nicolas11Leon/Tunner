@@ -81,6 +81,20 @@ class Sf2Parser {
     return String.fromCharCodes(codeUnits);
   }
 
+  static int _decodeGeneratorAmount(int oper, int rawUint16) {
+    // Unsigned / packed range & index operators in SF2 2.04 spec
+    if (oper == Sf2GeneratorType.keyRange ||
+        oper == Sf2GeneratorType.velRange ||
+        oper == Sf2GeneratorType.instrument ||
+        oper == Sf2GeneratorType.sampleID ||
+        oper == Sf2GeneratorType.sampleModes ||
+        oper == Sf2GeneratorType.overridingRootKey) {
+      return rawUint16;
+    }
+    // Sign-extend 16-bit signed generator values (timecents, cents, atten, etc.)
+    return rawUint16 >= 32768 ? rawUint16 - 65536 : rawUint16;
+  }
+
   static String _readFixedAscii(ByteData data, int offset, int length) {
     final codeUnits = <int>[];
     for (int i = 0; i < length; i++) {
@@ -260,7 +274,7 @@ class Sf2Parser {
 
         for (int g = genStart; g < genEnd && g < rawIgen.length; g++) {
           final gen = rawIgen[g];
-          genMap[gen.oper] = gen.amount;
+          genMap[gen.oper] = _decodeGeneratorAmount(gen.oper, gen.amount);
           if (gen.oper == Sf2GeneratorType.sampleID) {
             sampleId = gen.amount;
           } else if (gen.oper == Sf2GeneratorType.keyRange) {
@@ -306,7 +320,7 @@ class Sf2Parser {
 
         for (int g = genStart; g < genEnd && g < rawPgen.length; g++) {
           final gen = rawPgen[g];
-          genMap[gen.oper] = gen.amount;
+          genMap[gen.oper] = _decodeGeneratorAmount(gen.oper, gen.amount);
           if (gen.oper == Sf2GeneratorType.instrument) {
             instId = gen.amount;
           } else if (gen.oper == Sf2GeneratorType.keyRange) {

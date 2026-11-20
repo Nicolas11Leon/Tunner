@@ -697,6 +697,9 @@ class DjConsoleViewModel extends ChangeNotifier {
 
   void syncBpm(String deckId) {
     _orchestrator.syncBpm(deckId);
+    final deck = deckId.toUpperCase() == 'A' ? deckA : deckB;
+    final rate = deck.pitchMultiplier.clamp(0.5, 2.0);
+    _deckAudioPlayer.setDeckPlaybackRate(deckId, rate);
     if (!_isDisposed) notifyListeners();
   }
 

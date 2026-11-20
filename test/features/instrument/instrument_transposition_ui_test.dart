@@ -79,7 +79,7 @@ void main() {
       expect(find.byKey(const Key('essential_sounding_badge')), findsOneWidget);
       expect(find.text('Sonando: La#3 (Tono Real)'), findsOneWidget);
 
-      await tester.pump(const Duration(milliseconds: 70));
+      await tester.pump(const Duration(milliseconds: 360));
     });
 
     testWidgets('Conservatory Pro mode StrobeTuner displays written note and sounding subtitle', (tester) async {
@@ -108,7 +108,7 @@ void main() {
       expect(find.text('Do4'), findsWidgets);
       expect(find.text('Real: Re#3'), findsOneWidget);
 
-      await tester.pump(const Duration(milliseconds: 70));
+      await tester.pump(const Duration(milliseconds: 360));
     });
 
     testWidgets('Score transposition shifts melody by correct interval for active instrument', (tester) async {

@@ -57,13 +57,13 @@ void main() {
       expect(lastResult.tempoMark.italianName, equals('Prestissimo'));
     });
 
-    test('Inactivity exceeding 2500 ms resets the engine session', () {
+    test('Inactivity exceeding 3200 ms resets the engine session', () {
       engine.recordTap(1000);
       engine.recordTap(1500); // 120 BPM
       expect(engine.tapCount, equals(2));
 
-      // Wait 3000 ms (greater than default 2500 ms timeout)
-      final resetResult = engine.recordTap(4500);
+      // Wait 3500 ms (greater than default 3200 ms timeout)
+      final resetResult = engine.recordTap(5000);
 
       expect(resetResult.tapCount, equals(1));
       expect(resetResult.isCalibrated, isFalse);
@@ -80,7 +80,7 @@ void main() {
       expect(result.jitterPercentage, greaterThan(2.0));
     });
 
-    test('Clamps BPM strictly between minBpm (30) and maxBpm (300)', () {
+    test('Clamps BPM strictly between minBpm (20) and maxBpm (300)', () {
       // Very fast (100 ms = 600 BPM)
       engine.recordTap(0);
       final fastResult = engine.recordTap(100);
@@ -88,10 +88,10 @@ void main() {
 
       engine.reset();
 
-      // Very slow (2300 ms = 26 BPM)
+      // Very slow (3100 ms = 19.35 BPM, within 3200 ms inactivity window)
       engine.recordTap(0);
-      final slowResult = engine.recordTap(2300);
-      expect(slowResult.bpm, equals(30));
+      final slowResult = engine.recordTap(3100);
+      expect(slowResult.bpm, equals(20));
     });
 
     test('reset clears internal timestamps and intervals', () {

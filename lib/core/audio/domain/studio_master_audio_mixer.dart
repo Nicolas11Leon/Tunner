@@ -109,9 +109,9 @@ class StudioMasterAudioMixer {
     l *= effectiveGain;
     r *= effectiveGain;
 
-    // Limitador suave si excede rango dinámico unitario
-    if (l.abs() > 0.95) l = applySoftClipper(l);
-    if (r.abs() > 0.95) r = applySoftClipper(r);
+    // Limitador suave C1-continuo (activo desde T = 0.85 sin discontinuidad de salto)
+    l = applySoftClipper(l);
+    r = applySoftClipper(r);
 
     return (l.clamp(-1.0, 1.0), r.clamp(-1.0, 1.0));
   }

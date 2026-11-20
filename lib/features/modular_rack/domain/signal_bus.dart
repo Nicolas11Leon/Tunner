@@ -136,10 +136,10 @@ class SignalBus {
 
       if (conn.sourcePort == sourcePort) {
         if (conn.scope == ConnectionScope.broadcast) {
-          // Difusión global a todos los puertos de entrada compatibles del mismo SignalType
+          // Difusión global solo hacia puertos INPUT compatibles del mismo SignalType
           for (final entry in _portControllers.entries) {
             if (!dispatchedKeys.contains(entry.key) &&
-                entry.key.contains(sourcePort.signalType.code)) {
+                entry.key.contains('_${PortDirection.input.name}_${sourcePort.signalType.code}')) {
               dispatchedKeys.add(entry.key);
               entry.value.add(data);
             }
@@ -194,5 +194,5 @@ class SignalBus {
   }
 
   static String _generatePortKey(PortId port) =>
-      '${port.ownerModuleId}_${port.id}_${port.signalType.code}';
+      '${port.ownerModuleId}_${port.id}_${port.direction.name}_${port.signalType.code}';
 }

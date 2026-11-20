@@ -246,37 +246,50 @@ class StudioPatchbayRoutingService extends ChangeNotifier implements IStudioPatc
 
     // Ajustar payload según ganancia y estado de silencio (mute) del canal
     final effectivePayload = Map<String, dynamic>.from(payload);
+    final bool isMuted = channel?.isMuted ?? false;
     if (channel != null) {
-      effectivePayload['channelGain'] = channel.gain;
-      effectivePayload['channelIsMuted'] = channel.isMuted;
-      if (channel.isMuted && effectivePayload.containsKey('pcmBuffer')) {
-        final pcm = effectivePayload['pcmBuffer'] as Float32List?;
-        if (pcm != null) {
+      effectivePayload['channelGain'] = isMuted ? 0.0 : channel.gain;
+      effectivePayload['channelIsMuted'] = isMuted;
+      if (effectivePayload['pcmBuffer'] is Float32List) {
+        final pcm = effectivePayload['pcmBuffer'] as Float32List;
+        if (isMuted) {
           effectivePayload['pcmBuffer'] = Float32List(pcm.length);
+        } else if ((channel.gain - 1.0).abs() > 1e-4) {
+          final scaled = Float32List(pcm.length);
+          for (int i = 0; i < pcm.length; i++) {
+            scaled[i] = (pcm[i] * channel.gain).clamp(-1.0, 1.0);
+          }
+          effectivePayload['pcmBuffer'] = scaled;
         }
+      }
+      if (isMuted) {
+        effectivePayload['isPlaying'] = false;
+        effectivePayload.remove('wavBytes');
+        effectivePayload.remove('filePath');
       }
     }
 
-    // Actualizar parámetros del canal si vienen provistos en el payload
+    // Actualizar metadatos del canal sin re-despachar a los sinks (evita doble entrega)
     final title = effectivePayload['title'] as String?;
     final bpm = (effectivePayload['bpm'] as num?)?.toDouble();
     final key = effectivePayload['key'] as String?;
     final isPlaying = effectivePayload['isPlaying'] as bool?;
     final pcmBuffer = effectivePayload['pcmBuffer'] as Float32List?;
 
-    if (title != null || bpm != null || key != null || isPlaying != null || pcmBuffer != null) {
-      publishChannelParameters(
-        channelId,
-        title: title,
-        bpm: bpm,
-        key: key,
-        isPlaying: isPlaying,
-        pcmBuffer: pcmBuffer,
-        initiatorPlugId: sourcePlugId,
+    if (channel != null && (title != null || bpm != null || key != null || isPlaying != null || pcmBuffer != null)) {
+      _matrix = _matrix.updateChannel(
+        channel.copyWith(
+          activeTrackTitle: title,
+          activeBpm: bpm,
+          activeCamelotKey: key,
+          isPlaying: isPlaying,
+          livePcmBuffer: pcmBuffer,
+        ),
       );
+      _safeNotify();
     }
 
-    // Buscar todos los plugs receptores conectados a este mismo canal
+    // Despacho único a todos los plugs receptores conectados a este canal
     final sinks = _matrix.findSinksForChannel(channelId);
     for (final sink in sinks) {
       _triggerPlugPulse(sink.id);
