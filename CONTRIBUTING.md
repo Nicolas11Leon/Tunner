@@ -87,7 +87,7 @@ Buscamos diversos perfiles interdisciplinarios:
 ## 4. Entorno de Desarrollo y Puesta en Marcha
 
 ### Requisitos
-* [Flutter SDK](https://flutter.dev/docs/get-started/install) (Canal estable `^3.11.5` o superior).
+* [Flutter SDK](https://flutter.dev/docs/get-started/install) (Canal estable `3.41+` / Dart `^3.11.5`).
 * [Dart SDK](https://dart.dev/get-dart) incluido con Flutter.
 * Git.
 

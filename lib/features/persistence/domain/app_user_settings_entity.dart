@@ -1,5 +1,4 @@
 import 'dart:convert';
-import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../../core/theme/tunner_theme.dart';
 import '../../practice_evaluator/domain/practice_report_entity.dart';
 import '../../practice_recorder/domain/practice_recording_entity.dart';
@@ -140,7 +139,10 @@ class AppUserSettingsEntity {
     };
   }
 
-  factory AppUserSettingsEntity.fromMap(Map<String, dynamic> map) {
+  factory AppUserSettingsEntity.fromMap(
+    Map<String, dynamic> map, {
+    void Function(String message)? onCorruptEntry,
+  }) {
     final rawCustom = map['customPalettes'] as List<dynamic>? ?? [];
     final customPalettes = <TunnerThemePalette>[];
     for (final item in rawCustom) {
@@ -148,7 +150,7 @@ class AppUserSettingsEntity {
         try {
           customPalettes.add(TunnerThemePalette.fromJson(item));
         } catch (e) {
-          StudioDebugLogger.instance.warning('AppUserSettingsEntity', 'Paleta corrupta omitida: $e');
+          onCorruptEntry?.call('Paleta corrupta omitida: $e');
         }
       }
     }
@@ -160,7 +162,7 @@ class AppUserSettingsEntity {
         try {
           sessionHistory.add(PracticeReportEntity.fromMap(item));
         } catch (e) {
-          StudioDebugLogger.instance.warning('AppUserSettingsEntity', 'Sesion de practica corrupta omitida: $e');
+          onCorruptEntry?.call('Sesion de practica corrupta omitida: $e');
         }
       }
     }
@@ -172,7 +174,7 @@ class AppUserSettingsEntity {
         try {
           recordingHistory.add(PracticeRecordingEntity.fromMap(item));
         } catch (e) {
-          StudioDebugLogger.instance.warning('AppUserSettingsEntity', 'Grabacion corrupta omitida: $e');
+          onCorruptEntry?.call('Grabacion corrupta omitida: $e');
         }
       }
     }
@@ -184,7 +186,7 @@ class AppUserSettingsEntity {
         try {
           tuningPresets.add(TuningPresetEntity.fromMap(item));
         } catch (e) {
-          StudioDebugLogger.instance.warning('AppUserSettingsEntity', 'Preset de afinacion corrupto omitido: $e');
+          onCorruptEntry?.call('Preset de afinacion corrupto omitido: $e');
         }
       }
     }
@@ -196,7 +198,7 @@ class AppUserSettingsEntity {
         try {
           workspaceScores.add(SongPackage.fromMap(item));
         } catch (e) {
-          StudioDebugLogger.instance.warning('AppUserSettingsEntity', 'Partitura corrupta omitida: $e');
+          onCorruptEntry?.call('Partitura corrupta omitida: $e');
         }
       }
     }

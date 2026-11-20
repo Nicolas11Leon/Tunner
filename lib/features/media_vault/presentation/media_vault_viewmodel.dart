@@ -10,7 +10,7 @@ import '../domain/i_media_io_port.dart';
 import '../domain/media_asset_entity.dart';
 import '../domain/media_synergy_target.dart';
 import '../domain/timeline_project_entity.dart';
-import '../domain/universal_media_io_service.dart';
+import '../data/universal_media_io_service.dart';
 
 /// Presentation ViewModel coordinating the Multimedia Vault catalog,
 /// synchronized multi-track timeline, universal import/export, and

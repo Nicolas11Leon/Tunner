@@ -75,7 +75,7 @@ Esta entrega incorpora la **Tríada de Hyper-Sinergia**:
 ## 4. Métricas de Calidad de Código y Estabilidad
 
 - **Linter (`flutter analyze`):** 0 errores, 0 advertencias.
-- **Suite de Pruebas Automatizadas:** 480 pruebas unitarias y de widgets pasando al 100%.
+- **Suite de Pruebas Automatizadas:** Mas de 1,185 pruebas unitarias y de widgets pasando al 100%.
 - **Gestión de Memoria:** Determinista, sin fugas en buffers circulares de audio ni bucles de espera activa.
 - **Arquitectura:** Clean Architecture modular y monolítica (cero dependencias de microservicios externos).
 
@@ -85,8 +85,8 @@ Esta entrega incorpora la **Tríada de Hyper-Sinergia**:
 
 ```bash
 # Clonar repositorio
-git clone https://github.com/nicomania11/tunner.git
-cd tunner
+git clone https://github.com/Nicolas11Leon/Tunner.git
+cd Tunner
 
 # Verificar entorno y dependencias
 flutter doctor

@@ -1,4 +1,4 @@
-package com.example.tunner
+package org.tunner.studio
 
 import io.flutter.embedding.android.FlutterActivity
 

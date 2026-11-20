@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.tunner"
+    namespace = "org.tunner.studio"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
