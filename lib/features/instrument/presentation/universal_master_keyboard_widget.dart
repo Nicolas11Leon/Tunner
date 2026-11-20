@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../audio_synthesizer/domain/i_audio_synthesizer_service.dart';
 import '../domain/instrument_customization_profile.dart';
 import '../domain/musical_phrase_entity.dart';
@@ -79,8 +80,51 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
   @override
   void dispose() {
     _phraseTimer?.cancel();
-    _audioService.dispose();
+    if (widget.audioSynthesizer == null) {
+      _audioService.dispose();
+    }
     super.dispose();
+  }
+
+  KeyEventResult _handlePhysicalKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    final baseMidi = (_octaveShift + 1) * 12; // C4 = 60
+    final keyMap = <LogicalKeyboardKey, int>{
+      LogicalKeyboardKey.keyA: baseMidi, // C
+      LogicalKeyboardKey.keyW: baseMidi + 1, // C#
+      LogicalKeyboardKey.keyS: baseMidi + 2, // D
+      LogicalKeyboardKey.keyE: baseMidi + 3, // D#
+      LogicalKeyboardKey.keyD: baseMidi + 4, // E
+      LogicalKeyboardKey.keyF: baseMidi + 5, // F
+      LogicalKeyboardKey.keyT: baseMidi + 6, // F#
+      LogicalKeyboardKey.keyG: baseMidi + 7, // G
+      LogicalKeyboardKey.keyY: baseMidi + 8, // G#
+      LogicalKeyboardKey.keyH: baseMidi + 9, // A
+      LogicalKeyboardKey.keyU: baseMidi + 10, // A#
+      LogicalKeyboardKey.keyJ: baseMidi + 11, // B
+      LogicalKeyboardKey.keyK: baseMidi + 12, // C5
+    };
+
+    if (keyMap.containsKey(event.logicalKey)) {
+      _playNote(keyMap[event.logicalKey]!);
+      return KeyEventResult.handled;
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.keyZ) {
+      if (_octaveShift > 1) {
+        setState(() => _octaveShift--);
+      }
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.keyX) {
+      if (_octaveShift < 7) {
+        setState(() => _octaveShift++);
+      }
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
   }
 
   void _playNote(int midiNote) {
@@ -159,14 +203,17 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
     final primaryColor = instrument.visualProfile.primaryAccentColor;
     final baseMidi = (_octaveShift + 1) * 12;
 
-    return Container(
-      height: 480,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F172A),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _handlePhysicalKey,
+      child: Container(
+        height: 480,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F172A),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
         children: [
           // Barra de cabecera con selector de octava y acceso a personalización
           Row(
@@ -381,6 +428,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
             ),
           ),
         ],
+      ),
       ),
     );
   }

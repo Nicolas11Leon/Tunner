@@ -101,5 +101,25 @@ class OpenMasterConsoleIntent extends Intent {
   const OpenMasterConsoleIntent();
 }
 
+class SaveSessionIntent extends Intent {
+  const SaveSessionIntent();
+}
+
+class OpenFileIntent extends Intent {
+  const OpenFileIntent();
+}
+
+class NewProjectIntent extends Intent {
+  const NewProjectIntent();
+}
+
+class ToggleSidebarIntent extends Intent {
+  const ToggleSidebarIntent();
+}
+
+class ToggleDualSplitIntent extends Intent {
+  const ToggleDualSplitIntent();
+}
+
 /// Contenedor principal de navegación de Tunner (MainAppShell).
 /// Gestiona la transición limpia entre el Dashboard de Inicio, el Afinador,

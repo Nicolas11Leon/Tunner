@@ -90,15 +90,18 @@ class StudioDesktopAppShell extends StatefulWidget {
   });
 
   @override
-  State<StudioDesktopAppShell> createState() => _StudioDesktopAppShellState();
+  State<StudioDesktopAppShell> createState() => StudioDesktopAppShellState();
 }
 
-class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
+class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
   double _sidebarWidth = 260.0;
   bool _isSidebarVisible = true;
   bool _isDualSplitActive = false;
   double _dualSplitRatio = 0.50;
   late String _sidebarMode;
+
+  void toggleSidebar() => _toggleSidebar();
+  void toggleDualSplit() => _toggleDualSplit();
 
   @override
   void initState() {
