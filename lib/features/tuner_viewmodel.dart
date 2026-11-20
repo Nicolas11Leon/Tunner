@@ -726,6 +726,16 @@ class TunerViewModel extends ChangeNotifier {
     _selectedScoreNoteIndex = noteIndex;
     final note = currentMeasureNotes[noteIndex];
     _scorePlaybackCoordinator.previewNote(note);
+    if (!note.isRest && note.noteName.isNotEmpty) {
+      final freq = NoteEntity.frequencyForNote(note.noteName, a4Ref: _referencePitch);
+      if (freq > 20.0) {
+        _audioSynthesizer.playNoteTone(
+          frequency: freq,
+          duration: const Duration(milliseconds: 400),
+          volume: 0.7,
+        );
+      }
+    }
     notifyListeners();
   }
 
@@ -999,6 +1009,17 @@ class TunerViewModel extends ChangeNotifier {
           }
         }
       } else {
+        if (_isSmartWaitEnabled &&
+            _isPracticeMode &&
+            _expectedNote != null &&
+            !_expectedNote!.isRest &&
+            _expectedNote!.noteName != "--" &&
+            !_isNoteCorrect) {
+          // Smart Wait: retener el avance de compás/tick hasta que el alumno toque la nota esperada
+          notifyListeners();
+          return;
+        }
+
         if (_currentSubTick != -1 && subTick == 0) {
           final maxMeasures = _activePackage.totalMeasures;
           final nextIndex = (_currentMeasureIndex + 1) % maxMeasures;
@@ -2049,11 +2070,13 @@ class TunerViewModel extends ChangeNotifier {
   }
 
   void playReferenceTone([String noteName = "La4"]) {
+    if (_audioSynthesizer.isDiapasonPlaying) {
+      _audioSynthesizer.stopDiapasonTone();
+      notifyListeners();
+      return;
+    }
     final double freq = NoteEntity.frequencyForNote(noteName, a4Ref: _referencePitch);
     if (freq > 0) {
-      _frequency = freq;
-      _noteName = noteName;
-      _cents = 0.0;
       _audioSynthesizer.startDiapasonTone(freq);
       notifyListeners();
     }

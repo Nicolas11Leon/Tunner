@@ -30,12 +30,15 @@ class _QuickActionDockWidgetState extends State<QuickActionDockWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final vm = widget.viewModel;
-    final palette = widget.palette;
+    return ListenableBuilder(
+      listenable: widget.viewModel,
+      builder: (context, _) {
+        final vm = widget.viewModel;
+        final palette = widget.palette;
 
-    final isMetroActive = vm.isMetronomeActive;
-    final isRecording = vm.isRecording;
-    final detectedNote = vm.noteName.isNotEmpty ? vm.noteName : null;
+        final isMetroActive = vm.isMetronomeActive;
+        final isRecording = vm.isAudioRecording;
+        final detectedNote = vm.noteName.isNotEmpty ? vm.noteName : null;
 
     if (_isCollapsed) {
       return Align(
@@ -187,6 +190,8 @@ class _QuickActionDockWidgetState extends State<QuickActionDockWidget> {
           ],
         ),
       ),
+    );
+      },
     );
   }
 

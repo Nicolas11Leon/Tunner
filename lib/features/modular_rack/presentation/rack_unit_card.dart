@@ -460,7 +460,24 @@ class RackUnitCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        InstrumentEmulationSurfaceWidget(instrument: instrument),
+        InstrumentEmulationSurfaceWidget(
+          instrument: instrument,
+          onFrequencyTriggered: (freq) {
+            if (freq > 20.0) {
+              tuner.audioSynthesizer.playNoteTone(
+                frequency: freq,
+                duration: const Duration(milliseconds: 350),
+                volume: 0.7,
+              );
+            }
+          },
+          onDrumHitTriggered: (padIndex) {
+            tuner.audioSynthesizer.playMetronomeClick(
+              isDownbeat: padIndex == 0,
+              volume: 0.8,
+            );
+          },
+        ),
       ],
     );
   }

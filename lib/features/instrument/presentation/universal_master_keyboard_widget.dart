@@ -59,7 +59,8 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
   int _octaveShift = 4; // C4 por defecto
   MusicalPhraseEntity _selectedPhrase = MusicalPhraseEntity.majorConcertArpeggio;
   bool _isPlayingPhrase = false;
-  int? _activePlayingNote;
+  final Set<int> _activePlayingNotes = <int>{};
+  bool _isSustainActive = false;
   Timer? _phraseTimer;
 
   @override
@@ -131,21 +132,24 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
     final freqHz = _profile.calculateFrequencyForMidiNote(midiNote);
     widget.onNotePlayed?.call(freqHz);
 
+    final double duration = _isSustainActive ? 2.2 : 0.8;
+
     // Sintetizar muestras acústicas con timbre y envolvente ADSR real
     final floatSamples = ProceduralInstrumentSynthesizer.synthesizeCustomNote(
       customization: _profile,
       frequencyHz: freqHz,
-      durationSeconds: 0.8,
+      durationSeconds: duration,
     );
 
     // Emitir sonido físico audible en parlantes / auriculares
     final wavBytes = ProceduralInstrumentSynthesizer.floatBufferToWavBytes(floatSamples);
     _audioService.playPcmWav(wavBytes, volume: 0.85);
 
-    setState(() => _activePlayingNote = midiNote);
-    Future<void>.delayed(const Duration(milliseconds: 200), () {
-      if (mounted && _activePlayingNote == midiNote) {
-        setState(() => _activePlayingNote = null);
+    setState(() => _activePlayingNotes.add(midiNote));
+    final decayMs = _isSustainActive ? 900 : 220;
+    Future<void>.delayed(Duration(milliseconds: decayMs), () {
+      if (mounted) {
+        setState(() => _activePlayingNotes.remove(midiNote));
       }
     });
   }
@@ -155,7 +159,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
       _phraseTimer?.cancel();
       setState(() {
         _isPlayingPhrase = false;
-        _activePlayingNote = null;
+        _activePlayingNotes.clear();
       });
       return;
     }
@@ -176,7 +180,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
       if (noteIndex >= _selectedPhrase.notes.length) {
         setState(() {
           _isPlayingPhrase = false;
-          _activePlayingNote = null;
+          _activePlayingNotes.clear();
         });
         return;
       }
@@ -187,7 +191,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
       if (!note.isRest) {
         _playNote(note.midiNote);
       } else {
-        setState(() => _activePlayingNote = null);
+        setState(() => _activePlayingNotes.clear());
       }
 
       noteIndex++;
@@ -335,6 +339,17 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
                 tooltip: 'Subir Octava',
                 onPressed: _octaveShift < 7 ? () => setState(() => _octaveShift++) : null,
               ),
+              const SizedBox(width: 8),
+              IconButton(
+                key: const Key('keyboard_sustain_btn'),
+                icon: Icon(
+                  Icons.surround_sound_rounded,
+                  color: _isSustainActive ? primaryColor : Colors.white54,
+                  size: 22,
+                ),
+                tooltip: _isSustainActive ? 'Sostenido: ACTIVO' : 'Sostenido: INACTIVO',
+                onPressed: () => setState(() => _isSustainActive = !_isSustainActive),
+              ),
             ],
           ),
 
@@ -361,7 +376,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
                         final octave = i ~/ 7;
                         final noteIdx = i % 7;
                         final midiNote = baseMidi + octave * 12 + whiteOffsets[noteIdx];
-                        final isHit = _activePlayingNote == midiNote;
+                        final isHit = _activePlayingNotes.contains(midiNote);
 
                         return Expanded(
                           child: GestureDetector(
@@ -403,7 +418,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
                               final octave = i ~/ 7;
                               final noteIdx = i % 7;
                               final midiNote = baseMidi + octave * 12 + whiteOffsets[noteIdx] + 1;
-                              final isHit = _activePlayingNote == midiNote;
+                              final isHit = _activePlayingNotes.contains(midiNote);
 
                               return GestureDetector(
                                 onTapDown: (_) => _playNote(midiNote),
