@@ -5,10 +5,13 @@ import '../domain/sf2/sf2_models.dart';
 import '../domain/sf2/sf2_parser.dart';
 import '../domain/sf2/sf2_wavetable_oscillator.dart';
 import '../domain/sf2/tunner_acoustic_soundfont_bank.dart';
+import '../domain/sf2/i_soundfont_synthesizer_service.dart';
+
+export '../domain/sf2/i_soundfont_synthesizer_service.dart';
 
 /// Servicio de aplicación e infraestructura para la síntesis de audio SoundFont SF2.
 /// Maneja la carga de bancos, selección de preset y renderizado de notas a buffers WAV canónicos.
-class SoundFontSynthesizerService {
+class SoundFontSynthesizerService implements ISoundFontSynthesizerService {
   SoundFontSynthesizerService({
     Sf2SoundFont? initialBank,
   }) : _activeSoundFont = initialBank ?? TunnerAcousticSoundFontBank.buildAcousticEssentialsBank();
@@ -18,11 +21,15 @@ class SoundFontSynthesizerService {
   final Sf2WavetableOscillator _oscillator = const Sf2WavetableOscillator();
   final Sf2Parser _parser = const Sf2Parser();
 
+  @override
   Sf2SoundFont get activeSoundFont => _activeSoundFont;
+  @override
   int get activePatch => _activePatch;
+  @override
   List<Sf2Preset> get availablePresets => _activeSoundFont.presets;
 
   /// Cambia el banco activo parseando un archivo `.sf2` externo.
+  @override
   void loadSoundFontFromBytes(Uint8List sf2Bytes) {
     try {
       final parsed = _parser.parse(sf2Bytes);
@@ -35,17 +42,20 @@ class SoundFontSynthesizerService {
   }
 
   /// Restablece el banco SoundFont al esencial de Tunner.
+  @override
   void resetToEssentialsBank() {
     _activeSoundFont = TunnerAcousticSoundFontBank.buildAcousticEssentialsBank();
     _activePatch = 0;
   }
 
   /// Selecciona el instrumento activo por su número de patch.
+  @override
   void selectPatch(int patch) {
     _activePatch = patch;
   }
 
   /// Sintetiza una nota instrumental a un arreglo canónico de bytes WAV PCM de 16 bits.
+  @override
   Uint8List synthesizeNoteWav({
     required int midiPitch,
     double durationSeconds = 1.0,

@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../data/harmonic_reference_synth.dart';
+import '../domain/harmonic_reference_synth.dart';
 import '../domain/harmonic_role_entity.dart';
 import '../domain/harmonic_tutor_session_entity.dart';
 import '../domain/just_intonation_calculator.dart';

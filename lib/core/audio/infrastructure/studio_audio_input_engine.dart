@@ -84,8 +84,13 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
           inputChannels: 1,
         );
       }).toList();
-    } catch (e) {
-      debugPrint('StudioAudioInputEngine: Error listando dispositivos: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'StudioAudioInputEngine',
+        'Error listando dispositivos',
+        error: e,
+        stackTrace: st,
+      );
       return [AudioDeviceEntity.systemDefault()];
     }
   }
@@ -118,7 +123,10 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
     try {
       final hasPerm = await _recorder.hasPermission();
       if (!hasPerm) {
-        debugPrint('StudioAudioInputEngine: Permiso de micrófono denegado');
+        StudioDebugLogger.instance.warning(
+          'StudioAudioInputEngine',
+          'Permiso de microfono denegado',
+        );
         return;
       }
 
@@ -172,11 +180,21 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
         if (!_peakDbController.isClosed) {
           _peakDbController.add(frame.peakDb);
         }
-      }, onError: (e) {
-        debugPrint('StudioAudioInputEngine: Error en stream de audio: $e');
+      }, onError: (e, st) {
+        StudioDebugLogger.instance.warning(
+          'StudioAudioInputEngine',
+          'Error en stream de audio',
+          error: e,
+          stackTrace: st is StackTrace ? st : null,
+        );
       });
-    } catch (e) {
-      debugPrint('StudioAudioInputEngine: Error iniciando captura: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.error(
+        'StudioAudioInputEngine',
+        'Error iniciando captura',
+        error: e,
+        stackTrace: st,
+      );
       _isCapturing = false;
     }
   }
@@ -191,8 +209,13 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
       if (!_isTestEnvironment) {
         await _recorder.stop();
       }
-    } catch (e) {
-      debugPrint('StudioAudioInputEngine: Error deteniendo captura: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'StudioAudioInputEngine',
+        'Error deteniendo captura',
+        error: e,
+        stackTrace: st,
+      );
     } finally {
       _isCapturing = false;
       _ringBuffer.clear();

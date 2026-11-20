@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../domain/app_user_settings_entity.dart';
@@ -65,8 +64,13 @@ class JsonLocalPersistenceService implements ILocalPersistenceService {
 
       final jsonMap = jsonDecode(content) as Map<String, dynamic>;
       return AppUserSettingsEntity.fromMap(jsonMap);
-    } catch (e) {
-      debugPrint("Advertencia en JsonLocalPersistenceService.loadSettings: $e");
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'JsonLocalPersistenceService',
+        'Advertencia en loadSettings',
+        error: e,
+        stackTrace: st,
+      );
       return AppUserSettingsEntity.defaultSettings;
     }
   }
@@ -117,8 +121,13 @@ class JsonLocalPersistenceService implements ILocalPersistenceService {
           await tempFile.delete();
         }
       }
-    } catch (e) {
-      debugPrint("Error crítico al persistir configuraciones en JsonLocalPersistenceService: $e");
+    } catch (e, st) {
+      StudioDebugLogger.instance.error(
+        'JsonLocalPersistenceService',
+        'Error critico al persistir configuraciones',
+        error: e,
+        stackTrace: st,
+      );
     } finally {
       completer.complete();
     }
@@ -135,8 +144,13 @@ class JsonLocalPersistenceService implements ILocalPersistenceService {
       if (await tempFile.exists()) {
         await tempFile.delete();
       }
-    } catch (e) {
-      debugPrint("Advertencia al limpiar configuraciones en JsonLocalPersistenceService: $e");
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'JsonLocalPersistenceService',
+        'Advertencia al limpiar configuraciones',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 }

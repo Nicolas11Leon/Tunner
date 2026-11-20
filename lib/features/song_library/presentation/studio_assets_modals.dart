@@ -4,7 +4,7 @@ import '../../tuner_viewmodel.dart';
 import '../../sheet_music/domain/score_tree.dart';
 import '../../tuner/domain/tuning_preset_entity.dart';
 import '../domain/song_package_entity.dart';
-import '../data/song_decomposer_service.dart';
+import '../domain/song_decomposer_service.dart';
 
 /// Diálogos modales atómicos profesionales para creación e importación de assets musicales.
 class StudioAssetsModals {

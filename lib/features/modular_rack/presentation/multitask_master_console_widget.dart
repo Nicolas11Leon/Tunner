@@ -1,7 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/design_system/atoms/studio_text_controller_scope.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import 'modular_rack_viewmodel.dart';
 import 'studio_patchbay_modal.dart';
 import 'universal_instrument_search_modal.dart';
@@ -275,7 +275,9 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                               final tunerVM = context.read<TunerViewModel>();
                               if (tunerVM.isMetronomeActive) tunerVM.toggleMetronome();
                               if (tunerVM.isRecording) tunerVM.stopPracticeRecording();
-                            } catch (_) {}
+                            } catch (e) {
+                              StudioDebugLogger.instance.warning('MultitaskMasterConsoleWidget', 'TunerViewModel ausente: $e');
+                            }
                           }
                         : null,
                   ),
@@ -293,7 +295,9 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                       try {
                         final tunerVM = context.read<TunerViewModel>();
                         tunerVM.toggleMetronome();
-                      } catch (_) {}
+                      } catch (e) {
+                        StudioDebugLogger.instance.warning('MultitaskMasterConsoleWidget', 'TunerViewModel ausente: $e');
+                      }
                     },
                   ),
 
@@ -314,7 +318,9 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                         } else {
                           tunerVM.startPracticeRecording();
                         }
-                      } catch (_) {}
+                      } catch (e) {
+                        StudioDebugLogger.instance.warning('MultitaskMasterConsoleWidget', 'TunerViewModel ausente: $e');
+                      }
                     },
                   ),
                 ],
@@ -377,10 +383,7 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
             onPressed: () async {
               final name = controller.text.trim();
               if (name.isNotEmpty) {
-                final safeName = name.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
-                final tempDir = Directory.systemTemp.path;
-                final path = '$tempDir/$safeName.tunner';
-                await viewModel.saveProjectToFile(path, projectName: name);
+                final path = await viewModel.saveProjectToFile(projectName: name);
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

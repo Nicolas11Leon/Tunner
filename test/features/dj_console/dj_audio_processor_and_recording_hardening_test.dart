@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tunner/core/file_system/data/local_disk_studio_file_system_repository.dart';
 import 'package:tunner/features/dj_console/data/dj_audio_processor.dart';
 import 'package:tunner/features/dj_console/data/dj_mix_wav_encoder.dart';
 import 'package:tunner/features/dj_console/presentation/dj_console_view_model.dart';
@@ -79,7 +80,9 @@ void main() {
     });
 
     test('DjConsoleViewModel saveRecordingToDisk writes valid WAV file to disk', () async {
-      final vm = DjConsoleViewModel();
+      final vm = DjConsoleViewModel(
+        fileSystemRepository: LocalDiskStudioFileSystemRepository(),
+      );
       final tempDir = Directory.systemTemp.createTempSync('tunner_dj_test_');
       final targetFile = '${tempDir.path}/test_mix.wav';
 

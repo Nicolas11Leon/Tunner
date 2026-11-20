@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../logging/infrastructure/studio_debug_logger.dart';
 import '../domain/audio_device_matrix_entity.dart';
@@ -69,7 +68,7 @@ class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersi
       final jsonMap = jsonDecode(content) as Map<String, dynamic>;
       return AudioDeviceMatrixEntity.fromJson(jsonMap);
     } catch (e) {
-      debugPrint('Error al cargar la matriz de hardware de audio: $e');
+      StudioDebugLogger.instance.warning('StudioAudioHardwarePersistenceService', 'Error al cargar la matriz de hardware de audio: $e');
       return AudioDeviceMatrixEntity.defaultConfiguration();
     }
   }
@@ -91,7 +90,7 @@ class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersi
       }
       completer.complete();
     } catch (e) {
-      debugPrint('Error al guardar la matriz de hardware de audio: $e');
+      StudioDebugLogger.instance.warning('StudioAudioHardwarePersistenceService', 'Error al guardar la matriz de hardware de audio: $e');
       completer.completeError(e);
     } finally {
       if (_pendingSaveOperation == completer.future) {
@@ -108,7 +107,7 @@ class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersi
         await file.delete();
       }
     } catch (e) {
-      debugPrint('Error al limpiar la matriz de hardware de audio: $e');
+      StudioDebugLogger.instance.warning('StudioAudioHardwarePersistenceService', 'Error al limpiar la matriz de hardware de audio: $e');
     }
   }
 }

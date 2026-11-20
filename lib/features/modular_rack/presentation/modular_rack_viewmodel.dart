@@ -12,7 +12,6 @@ import '../../project_format/domain/patchbay_routing_connection.dart';
 import '../../project_format/domain/tunner_project_package.dart';
 import '../../project_format/domain/tunner_tool_preset.dart';
 import '../../project_format/domain/project_storage_repository.dart';
-import '../../project_format/data/local_project_storage_repository.dart';
 import '../../../core/audio/domain/i_studio_audio_engine.dart';
 import '../../../core/audio/infrastructure/studio_audio_input_engine.dart';
 
@@ -136,7 +135,7 @@ class ModularRackViewModel extends ChangeNotifier {
     ProjectStorageRepository? storageRepository,
     this.audioEngine,
     this.audioInputEngine,
-  })  : _storageRepo = storageRepository ?? LocalProjectStorageRepository() {
+  })  : _storageRepo = storageRepository ?? const NoOpProjectStorageRepository() {
     _initializeDefaultRack();
   }
 
@@ -540,11 +539,13 @@ class ModularRackViewModel extends ChangeNotifier {
   }
 
   /// Guarda el proyecto actual en disco con compresión binaria (.tunner).
-  Future<void> saveProjectToFile(String filePath, {String? projectName}) async {
+  Future<String> saveProjectToFile({String? filePath, String? projectName}) async {
     final package = createProjectPackage(
       projectName: projectName ?? 'Proyecto Tunner',
     );
-    await _storageRepo.saveProject(filePath, package);
+    final target = filePath ?? '${projectName?.toLowerCase().replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_') ?? "proyecto"}.tunner';
+    await _storageRepo.saveProject(target, package);
+    return target;
   }
 
   /// Carga y descomprime un proyecto desde disco (.tunner).
@@ -554,9 +555,11 @@ class ModularRackViewModel extends ChangeNotifier {
   }
 
   /// Exporta una herramienta a un archivo binario comprimido (.tnt).
-  Future<void> exportToolPresetToFile(String moduleId, String filePath) async {
+  Future<String> exportToolPresetToFile(String moduleId, [String? filePath]) async {
     final preset = exportToolPreset(moduleId);
-    await _storageRepo.saveToolPreset(filePath, preset);
+    final target = filePath ?? '${moduleId}_preset.tnt';
+    await _storageRepo.saveToolPreset(target, preset);
+    return target;
   }
 
   /// Importa una herramienta desde un archivo (.tnt).

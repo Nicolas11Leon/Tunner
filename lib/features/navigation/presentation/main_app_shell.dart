@@ -28,7 +28,7 @@ import '../../dj_console/presentation/dj_console_view_model.dart';
 import 'modals/studio_automations_modal.dart';
 import 'modals/studio_customizations_modal.dart';
 import 'modals/studio_settings_modal.dart';
-import '../../../core/file_system/data/studio_workspace_file_system_service.dart';
+import '../../../core/file_system/domain/i_studio_workspace_file_system.dart';
 import '../../../core/file_system/domain/studio_file_system_node.dart';
 import '../../../core/file_system/domain/studio_file_type.dart';
 import '../../../core/file_system/presentation/studio_vscode_explorer_widget.dart';
@@ -61,7 +61,7 @@ class _MainAppShellState extends State<MainAppShell> {
   late int _currentIndex;
   late final ModularRackViewModel _modularRackViewModel;
   late final DjConsoleViewModel _djConsoleViewModel;
-  late final StudioWorkspaceFileSystemService _fileSystemService;
+  late final IStudioWorkspaceFileSystem _fileSystemService;
   late final StudioAudioDeviceMatrixService _audioMatrixService;
   StudioAudioInputEngine? _ownedAudioInput;
   bool _ownsAudioMatrixService = false;
@@ -88,7 +88,7 @@ class _MainAppShellState extends State<MainAppShell> {
         ? root.createDjConsoleViewModel()
         : DjConsoleViewModel();
 
-    _fileSystemService = root?.fileSystemService ?? StudioWorkspaceFileSystemService();
+    _fileSystemService = root?.fileSystemService ?? NoOpStudioWorkspaceFileSystem();
     _fileSystemService.onOpenFile = _handleOpenFile;
     _fileSystemService.initializeWorkspace();
 

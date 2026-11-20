@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../../core/audio/domain/i_studio_audio_input_engine.dart';
 import '../../../core/audio/infrastructure/memory_studio_audio_input_engine.dart';
 import '../../../core/audio/infrastructure/studio_audio_input_engine.dart';
@@ -207,8 +208,13 @@ class PitchDetectorService implements IPitchDetectorService {
     try {
       final devices = await _inputEngine.listInputDevices();
       return devices.map((d) => d.label.isNotEmpty ? d.label : d.id).toList();
-    } catch (e) {
-      debugPrint("Error enumerando dispositivos de entrada: $e");
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'PitchDetectorService',
+        'Error enumerando dispositivos de entrada',
+        error: e,
+        stackTrace: st,
+      );
       return [];
     }
   }
@@ -231,11 +237,21 @@ class PitchDetectorService implements IPitchDetectorService {
 
       _audioSubscription = _inputEngine.pcmFrameStream.listen((frame) {
         _toWorkerPort?.send(frame.rawBytes);
-      }, onError: (error) {
-        debugPrint("Error en el flujo de audio de entrada: $error");
+      }, onError: (error, st) {
+        StudioDebugLogger.instance.warning(
+          'PitchDetectorService',
+          'Error en el flujo de audio de entrada',
+          error: error,
+          stackTrace: st is StackTrace ? st : null,
+        );
       });
-    } catch (e) {
-      debugPrint("Error al inicializar micrófono y DSP Isolate: $e");
+    } catch (e, st) {
+      StudioDebugLogger.instance.error(
+        'PitchDetectorService',
+        'Error al inicializar microfono y DSP Isolate',
+        error: e,
+        stackTrace: st,
+      );
       _isRecording = false;
       await stopRecording();
     }

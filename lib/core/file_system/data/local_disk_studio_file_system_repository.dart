@@ -1,8 +1,9 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import '../../../../features/dj_console/data/dj_audio_processor.dart';
-import '../../../../features/instrument/data/procedural_instrument_synthesizer.dart';
+import '../../logging/infrastructure/studio_debug_logger.dart';
+import '../../../../features/dj_console/domain/dj_audio_processor.dart';
+import '../../../../features/instrument/domain/procedural_instrument_synthesizer.dart';
 import '../../../../features/instrument/domain/universal_instrument_definition.dart';
 import '../domain/studio_file_system_node.dart';
 import '../domain/studio_file_system_repository.dart';
@@ -155,7 +156,9 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
           try {
             size = await entity.length();
             modified = (await entity.lastModified()).microsecondsSinceEpoch;
-          } catch (_) {}
+          } catch (e) {
+            StudioDebugLogger.instance.warning('LocalDiskStudioFileSystemRepository', 'Metadatos de archivo inaccesibles: $e');
+          }
 
           children.add(
             StudioFileEntity(
@@ -171,7 +174,7 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
         }
       }
     } catch (e) {
-      debugPrint('LocalDiskStudioFileSystemRepository: Error escaneando ${dir.path}: $e');
+      StudioDebugLogger.instance.warning('LocalDiskStudioFileSystemRepository', 'Error escaneando ${dir.path}: $e');
     }
 
     return StudioFolderEntity(
@@ -187,8 +190,17 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   @override
   Future<void> saveFile({required String relativePath, required Uint8List bytes}) async {
     final rootPath = await getRootPath();
-    final cleanRel = _normalizeRelativePath(relativePath);
-    final file = File('$rootPath/$cleanRel');
+    final File file;
+    if (relativePath.startsWith(rootPath)) {
+      file = File(relativePath);
+    } else if (File(relativePath).isAbsolute &&
+        File(relativePath).parent.existsSync() &&
+        File(relativePath).parent.path != '/') {
+      file = File(relativePath);
+    } else {
+      final cleanRel = _normalizeRelativePath(relativePath);
+      file = File('$rootPath/$cleanRel');
+    }
     await file.parent.create(recursive: true);
     await file.writeAsBytes(bytes, flush: true);
   }
@@ -196,8 +208,17 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   @override
   Future<Uint8List> readFile(String relativePath) async {
     final rootPath = await getRootPath();
-    final cleanRel = _normalizeRelativePath(relativePath);
-    final file = File('$rootPath/$cleanRel');
+    final File file;
+    if (relativePath.startsWith(rootPath)) {
+      file = File(relativePath);
+    } else if (File(relativePath).isAbsolute &&
+        File(relativePath).parent.existsSync() &&
+        File(relativePath).parent.path != '/') {
+      file = File(relativePath);
+    } else {
+      final cleanRel = _normalizeRelativePath(relativePath);
+      file = File('$rootPath/$cleanRel');
+    }
     if (!await file.exists()) {
       throw FileSystemException('El archivo físico no existe', file.path);
     }

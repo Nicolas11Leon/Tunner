@@ -1,21 +1,19 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import '../../audio_synthesizer/data/audio_synthesizer_service.dart';
-import '../../audio_synthesizer/data/memory_audio_synthesizer_service.dart';
+import '../../../core/file_system/domain/studio_file_system_repository.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../audio_synthesizer/domain/i_audio_synthesizer_service.dart';
-import '../../instrument/data/procedural_instrument_synthesizer.dart';
-import '../../song_library/data/song_decomposer_service.dart';
-import '../data/dj_audio_processor.dart';
-import '../data/dj_deck_audio_service.dart';
-import '../data/dj_gamepad_input_service.dart';
-import '../data/dj_hardware_catalog.dart';
-import '../data/dj_keymap_persistence_service.dart';
-import '../data/dj_mix_wav_encoder.dart';
-import '../data/dj_transition_sfx_synthesizer.dart';
-import '../data/memory_dj_deck_audio_player.dart';
+import '../../instrument/domain/procedural_instrument_synthesizer.dart';
+import '../../song_library/domain/song_decomposer_service.dart';
+import '../domain/dj_audio_processor.dart';
+import '../domain/dj_gamepad_input_service.dart';
+import '../domain/dj_hardware_catalog.dart';
+import '../domain/i_dj_keymap_persistence_service.dart';
+import '../domain/dj_mix_wav_encoder.dart';
+import '../domain/dj_transition_sfx_synthesizer.dart';
+import '../domain/memory_dj_deck_audio_player.dart';
 import '../domain/bpm_beat_tracker_engine.dart';
 import '../domain/dj_action.dart';
 import '../domain/dj_channel_fx_entity.dart';
@@ -38,10 +36,11 @@ import '../domain/i_dj_deck_audio_player.dart';
 /// for the Virtual DJ Performance Console with Hardware Skins and Gamepad support.
 class DjConsoleViewModel extends ChangeNotifier {
   final DjPerformanceOrchestrator _orchestrator;
-  final DjKeymapPersistenceService _persistenceService;
+  final IDjKeymapPersistenceService _persistenceService;
   final DjAudioProcessor _audioProcessor;
   final IDjDeckAudioPlayer _deckAudioPlayer;
   final IAudioSynthesizerService _audioSynthesizer;
+  final StudioFileSystemRepository _fileSystemRepository;
   late final DjGamepadInputService _inputService;
 
   Timer? _playbackTicker;
@@ -53,9 +52,6 @@ class DjConsoleViewModel extends ChangeNotifier {
   double _rotationAngleB = 0.0;
   bool _isDisposed = false;
   Uint8List? _lastRecordedWavBytes;
-
-  static bool get _isTestEnvironment =>
-      !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
 
   // Hardware Skins & Gamepad Mapping
   DjHardwareSkinEntity _activeSkin = DjHardwareCatalog.ddjFlx4();
@@ -82,18 +78,18 @@ class DjConsoleViewModel extends ChangeNotifier {
 
   DjConsoleViewModel({
     DjPerformanceOrchestrator? orchestrator,
-    DjKeymapPersistenceService? persistenceService,
+    IDjKeymapPersistenceService? persistenceService,
     DjAudioProcessor? audioProcessor,
     DjGamepadInputService? inputService,
     IDjDeckAudioPlayer? deckAudioPlayer,
     IAudioSynthesizerService? audioSynthesizer,
+    StudioFileSystemRepository? fileSystemRepository,
   })  : _orchestrator = orchestrator ?? DjPerformanceOrchestrator(),
-        _persistenceService = persistenceService ?? DjKeymapPersistenceService(),
+        _persistenceService = persistenceService ?? const NoOpDjKeymapPersistenceService(),
         _audioProcessor = audioProcessor ?? DjAudioProcessor(),
-        _deckAudioPlayer = deckAudioPlayer ??
-            (_isTestEnvironment ? MemoryDjDeckAudioPlayer() : DjDeckAudioService()),
-        _audioSynthesizer = audioSynthesizer ??
-            (_isTestEnvironment ? MemoryAudioSynthesizerService() : AudioSynthesizerService()) {
+        _deckAudioPlayer = deckAudioPlayer ?? MemoryDjDeckAudioPlayer(),
+        _audioSynthesizer = audioSynthesizer ?? const NoOpAudioSynthesizerService(),
+        _fileSystemRepository = fileSystemRepository ?? const NoOpStudioFileSystemRepository() {
     _inputService = inputService ??
         DjGamepadInputService(
           profile: DjControllerProfileEntity.defaultUnified(),
@@ -811,11 +807,10 @@ class DjConsoleViewModel extends ChangeNotifier {
     final bytes = _lastRecordedWavBytes ?? stopRecording();
     if (bytes == null || bytes.isEmpty) return false;
     try {
-      final file = File(filePath);
-      await file.parent.create(recursive: true);
-      await file.writeAsBytes(bytes, flush: true);
+      await _fileSystemRepository.saveFile(relativePath: filePath, bytes: bytes);
       return true;
-    } catch (_) {
+    } catch (e) {
+      StudioDebugLogger.instance.warning('DjConsoleViewModel', 'Error al guardar mezcla WAV en disco: $e');
       return false;
     }
   }

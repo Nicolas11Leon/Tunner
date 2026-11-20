@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../data/soundfont_synthesizer_service.dart';
+import '../domain/sf2/i_soundfont_synthesizer_service.dart';
 
 /// Modal bottom sheet para explorar y seleccionar timbres acústicos SoundFont SF2
 /// y probar su afinación con retorno auditivo inmediato.
 class InstrumentSoundFontSelectorModal extends StatefulWidget {
-  final SoundFontSynthesizerService synthService;
+  final ISoundFontSynthesizerService synthService;
   final Function(int patch, String name)? onInstrumentSelected;
 
   const InstrumentSoundFontSelectorModal({
@@ -15,7 +15,7 @@ class InstrumentSoundFontSelectorModal extends StatefulWidget {
 
   static Future<void> show(
     BuildContext context, {
-    required SoundFontSynthesizerService synthService,
+    required ISoundFontSynthesizerService synthService,
     Function(int patch, String name)? onInstrumentSelected,
   }) {
     return showModalBottomSheet(

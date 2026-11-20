@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../data/in_memory_media_vault_repository.dart';
-import '../data/universal_media_io_service.dart';
+import '../../../core/file_system/domain/i_platform_file_gateway.dart';
+import '../../../core/file_system/domain/studio_file_system_repository.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
+import '../domain/in_memory_media_vault_repository.dart';
 import '../domain/i_media_io_port.dart';
 import '../domain/media_asset_entity.dart';
 import '../domain/media_synergy_target.dart';
 import '../domain/timeline_project_entity.dart';
+import '../domain/universal_media_io_service.dart';
 
 /// Presentation ViewModel coordinating the Multimedia Vault catalog,
 /// synchronized multi-track timeline, universal import/export, and
@@ -15,6 +18,8 @@ import '../domain/timeline_project_entity.dart';
 class MediaVaultViewModel extends ChangeNotifier {
   final IMediaVaultRepository _repository;
   final IMediaIoService _ioService;
+  final IPlatformFileGateway? _fileGateway;
+  final StudioFileSystemRepository? _fileSystemRepository;
   final void Function(MediaAssetEntity asset, MediaSynergyTarget target)?
       onDispatchToTool;
 
@@ -33,11 +38,69 @@ class MediaVaultViewModel extends ChangeNotifier {
   MediaVaultViewModel({
     IMediaVaultRepository? repository,
     IMediaIoService? ioService,
+    IPlatformFileGateway? fileGateway,
+    StudioFileSystemRepository? fileSystemRepository,
     TimelineProjectEntity? initialTimeline,
     this.onDispatchToTool,
   })  : _repository = repository ?? InMemoryMediaVaultRepository(),
         _ioService = ioService ?? const UniversalMediaIoService(),
+        _fileGateway = fileGateway,
+        _fileSystemRepository = fileSystemRepository,
         _timeline = initialTimeline ?? TimelineProjectEntity.defaultWorkspace();
+
+  /// Abre el selector de archivos nativo de forma desacoplada e importa los bytes a la boveda.
+  Future<bool> pickAndImportFile({IPlatformFileGateway? gateway}) async {
+    try {
+      final gw = gateway ?? _fileGateway;
+      if (gw == null) return false;
+      final file = await gw.pickFile(
+        allowedExtensions: const <String>[
+          'wav',
+          'mid',
+          'midi',
+          'musicxml',
+          'xml',
+          'mxl',
+          'abc',
+          'pdf',
+          'json',
+        ],
+      );
+      if (file == null || file.bytes == null) {
+        return false;
+      }
+      final result = await importExternalBytes(
+        fileName: file.name,
+        bytes: file.bytes!,
+      );
+      return result.success;
+    } catch (e) {
+      StudioDebugLogger.instance.warning('MediaVaultViewModel', 'Error en seleccion de archivo: $e');
+      return false;
+    }
+  }
+
+  /// Exporta el timeline y lo persiste en disco sin dependencias directas de I/O en la UI.
+  Future<String?> exportTimelineToDisk(
+    MediaExportFormat format, {
+    IPlatformFileGateway? gateway,
+    StudioFileSystemRepository? repository,
+  }) async {
+    final result = await exportTimeline(format);
+    if (!result.success) return null;
+    try {
+      final gw = gateway ?? _fileGateway;
+      final repo = repository ?? _fileSystemRepository;
+      if (gw == null || repo == null) return null;
+      final dir = await gw.getDocumentsDirectoryPath();
+      final path = '$dir/${result.fileName}';
+      await repo.saveFile(relativePath: path, bytes: result.bytes);
+      return path;
+    } catch (e) {
+      StudioDebugLogger.instance.warning('MediaVaultViewModel', 'Error guardando exportacion en disco: $e');
+      return null;
+    }
+  }
 
   List<MediaAssetEntity> get allAssets => _repository.getAll();
 

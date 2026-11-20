@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../../core/theme/tunner_theme.dart';
 import '../../practice_evaluator/domain/practice_report_entity.dart';
 import '../../practice_recorder/domain/practice_recording_entity.dart';
@@ -150,7 +151,9 @@ class AppUserSettingsEntity {
       if (item is Map<String, dynamic>) {
         try {
           customPalettes.add(TunnerThemePalette.fromJson(item));
-        } catch (_) {}
+        } catch (e) {
+          StudioDebugLogger.instance.warning('AppUserSettingsEntity', 'Paleta corrupta omitida: $e');
+        }
       }
     }
 
@@ -160,7 +163,9 @@ class AppUserSettingsEntity {
       if (item is Map<String, dynamic>) {
         try {
           sessionHistory.add(PracticeReportEntity.fromMap(item));
-        } catch (_) {}
+        } catch (e) {
+          StudioDebugLogger.instance.warning('AppUserSettingsEntity', 'Sesion de practica corrupta omitida: $e');
+        }
       }
     }
 
@@ -170,7 +175,9 @@ class AppUserSettingsEntity {
       if (item is Map<String, dynamic>) {
         try {
           recordingHistory.add(PracticeRecordingEntity.fromMap(item));
-        } catch (_) {}
+        } catch (e) {
+          StudioDebugLogger.instance.warning('AppUserSettingsEntity', 'Grabacion corrupta omitida: $e');
+        }
       }
     }
 
@@ -180,7 +187,9 @@ class AppUserSettingsEntity {
       if (item is Map<String, dynamic>) {
         try {
           tuningPresets.add(TuningPresetEntity.fromMap(item));
-        } catch (_) {}
+        } catch (e) {
+          StudioDebugLogger.instance.warning('AppUserSettingsEntity', 'Preset de afinacion corrupto omitido: $e');
+        }
       }
     }
 
@@ -190,7 +199,9 @@ class AppUserSettingsEntity {
       if (item is Map<String, dynamic>) {
         try {
           workspaceScores.add(SongPackage.fromMap(item));
-        } catch (_) {}
+        } catch (e) {
+          StudioDebugLogger.instance.warning('AppUserSettingsEntity', 'Partitura corrupta omitida: $e');
+        }
       }
     }
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../design_system/studio_theme_provider.dart';
-import '../data/studio_workspace_file_system_service.dart';
+import '../domain/i_studio_workspace_file_system.dart';
 import '../domain/studio_file_system_node.dart';
 import '../domain/studio_file_type.dart';
 import 'studio_file_system_modals.dart';
@@ -8,7 +8,7 @@ import 'studio_file_system_modals.dart';
 /// Tile atomizado para renderizar un archivo en el explorador estilo VS Code.
 class StudioFileTreeTile extends StatelessWidget {
   final StudioFileEntity file;
-  final StudioWorkspaceFileSystemService service;
+  final IStudioWorkspaceFileSystem service;
   final int depth;
   final VoidCallback? onFileTapped;
 

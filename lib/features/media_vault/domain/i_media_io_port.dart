@@ -28,3 +28,33 @@ abstract class IMediaVaultRepository {
   void remove(String id);
   void clear();
 }
+
+/// Implementación nula / no-op para entornos sin orquestador configurado.
+class NoOpMediaIoService implements IMediaIoService {
+  const NoOpMediaIoService();
+
+  @override
+  Future<MediaImportResult> importBytes({
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    return const MediaImportResult(
+      success: false,
+      message: 'No media io service configured',
+    );
+  }
+
+  @override
+  Future<MediaExportResult> exportTimeline({
+    required TimelineProjectEntity project,
+    required Map<String, MediaAssetEntity> assetsById,
+    required MediaExportFormat format,
+  }) async {
+    return MediaExportResult(
+      bytes: Uint8List(0),
+      fileName: '',
+      success: false,
+      message: 'No media io service configured',
+    );
+  }
+}

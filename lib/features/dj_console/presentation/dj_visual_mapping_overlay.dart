@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../data/dj_hardware_catalog.dart';
+import '../domain/dj_hardware_catalog.dart';
 import '../domain/dj_action.dart';
 import '../domain/dj_hardware_skin_entity.dart';
 import '../domain/dj_keymap_profile_entity.dart';
