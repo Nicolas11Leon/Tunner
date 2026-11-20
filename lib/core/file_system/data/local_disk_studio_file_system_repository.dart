@@ -185,9 +185,13 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   Future<StudioFolderEntity> _scanDirectoryRecursively(Directory dir, String rootPath) async {
     final now = DateTime.now().microsecondsSinceEpoch;
     final dirPath = dir.path;
-    final relativePath = dirPath == rootPath ? '/' : dirPath.replaceFirst('$rootPath/', '/');
-    final folderName = dirPath == rootPath ? 'PROYECTO TUNNER' : dirPath.split(Platform.pathSeparator).last;
-    final folderId = dirPath == rootPath ? 'root' : 'folder_${relativePath.hashCode.abs()}';
+    final sep = Platform.pathSeparator;
+    final normRoot = rootPath.endsWith(sep) ? rootPath.substring(0, rootPath.length - 1) : rootPath;
+    final relativePath = dirPath == normRoot
+        ? '/'
+        : dirPath.replaceFirst('$normRoot$sep', '/').replaceAll('\\', '/');
+    final folderName = dirPath == normRoot ? 'PROYECTO TUNNER' : dirPath.split(sep).last;
+    final folderId = dirPath == normRoot ? 'root' : 'folder_${relativePath.hashCode.abs()}';
 
     final children = <StudioFileSystemNode>[];
 
@@ -206,7 +210,9 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
           children.add(subFolder);
         } else if (entity is File) {
           final fileName = entity.path.split(Platform.pathSeparator).last;
-          final fileRelPath = entity.path.replaceFirst('$rootPath/', '/');
+          final fileRelPath = entity.path
+              .replaceFirst('$normRoot$sep', '/')
+              .replaceAll('\\', '/');
           final fileType = StudioFileType.fromFileName(fileName);
           int size = 0;
           int modified = now;

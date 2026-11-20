@@ -169,7 +169,18 @@ class _StudioWorkspaceDockingContainerState
         // 1. Área Horizontal Superior (Izquierda + Centro + Derecha)
         final hasBottom = bottomPanels.isNotEmpty;
         final bottomHeight = hasBottom ? availableHeight * _layout.bottomSplitRatio : 0.0;
-        final topHeight = availableHeight - bottomHeight;
+        final topHeight = (availableHeight - bottomHeight).clamp(0.0, double.infinity);
+
+        final splitterWidth = (leftPanels.isNotEmpty ? 6.0 : 0.0) + (rightPanels.isNotEmpty ? 6.0 : 0.0);
+        final contentWidth = (totalWidth - splitterWidth).clamp(0.0, double.infinity);
+        double leftWidth = leftPanels.isNotEmpty ? contentWidth * _layout.leftSplitRatio : 0.0;
+        double rightWidth = rightPanels.isNotEmpty ? contentWidth * _layout.rightSplitRatio : 0.0;
+        final maxSideWidth = contentWidth * 0.85;
+        if (leftWidth + rightWidth > maxSideWidth && (leftWidth + rightWidth) > 0) {
+          final scale = maxSideWidth / (leftWidth + rightWidth);
+          leftWidth *= scale;
+          rightWidth *= scale;
+        }
 
         return Column(
           children: [
@@ -184,7 +195,7 @@ class _StudioWorkspaceDockingContainerState
                   // Panel Izquierdo
                   if (leftPanels.isNotEmpty) ...[
                     SizedBox(
-                      width: totalWidth * _layout.leftSplitRatio,
+                      width: leftWidth,
                       child: StudioDockDropZoneTarget(
                         zone: StudioDockZone.left,
                         onPanelDropped: (p) => _handlePanelDropped(p, StudioDockZone.left),
@@ -225,7 +236,7 @@ class _StudioWorkspaceDockingContainerState
                       },
                     ),
                     SizedBox(
-                      width: totalWidth * _layout.rightSplitRatio,
+                      width: rightWidth,
                       child: StudioDockDropZoneTarget(
                         zone: StudioDockZone.right,
                         onPanelDropped: (p) => _handlePanelDropped(p, StudioDockZone.right),
@@ -250,7 +261,7 @@ class _StudioWorkspaceDockingContainerState
                 },
               ),
               SizedBox(
-                height: bottomHeight - 6.0,
+                height: (bottomHeight - 6.0).clamp(0.0, double.infinity),
                 child: StudioDockDropZoneTarget(
                   zone: StudioDockZone.bottom,
                   onPanelDropped: (p) => _handlePanelDropped(p, StudioDockZone.bottom),

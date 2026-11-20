@@ -266,7 +266,10 @@ class VectorOmrEngine {
           r.centerY <= (staff.topY + staff.staffSpace * 2.5);
       final hasSize = r.width >= minDim && r.width <= maxDim &&
           r.height >= minDim && r.height <= maxDim;
-      return inX && inY && hasSize;
+      // Filtrar barras planas de silencio (redonda/blanca) con relacion ancho/alto > 2.2
+      final aspectRatio = r.height > 0 ? (r.width / r.height) : 99.0;
+      final isNotFlatRest = aspectRatio <= 2.2 && r.height >= (staff.staffSpace * 0.45);
+      return inX && inY && hasSize && isNotFlatRest;
     }).toList();
 
     if (candidates.isEmpty) {

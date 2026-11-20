@@ -145,35 +145,42 @@ class AudioToScoreTranscriptionEngine {
       while (offset + 8 <= bytes.length) {
         final chunkId = String.fromCharCodes(bytes.sublist(offset, offset + 4));
         final chunkSize = byteData.getUint32(offset + 4, Endian.little);
-        if (chunkId == 'fmt ') {
-          channels = byteData.getUint16(offset + 10, Endian.little);
-          sampleRate = byteData.getUint32(offset + 12, Endian.little);
+        if (chunkId == 'fmt ' && offset + 16 <= bytes.length) {
+          final parsedCh = byteData.getUint16(offset + 10, Endian.little);
+          final parsedSr = byteData.getUint32(offset + 12, Endian.little);
+          if (parsedCh > 0) channels = parsedCh;
+          if (parsedSr > 0) sampleRate = parsedSr;
         } else if (chunkId == 'data') {
           dataOffset = offset + 8;
-          dataLength = math.min(chunkSize, bytes.length - dataOffset);
+          dataLength = math.min(chunkSize, bytes.length - dataOffset).clamp(0, bytes.length);
           break;
         }
+        if (chunkSize == 0) break;
         offset += 8 + chunkSize;
       }
     }
 
-    final pcmBytes = Uint8List.sublistView(bytes, dataOffset, dataOffset + dataLength);
-    final totalSamples = pcmBytes.length ~/ (2 * channels);
+    final safeChannels = channels > 0 ? channels : 1;
+    final safeSampleRate = sampleRate > 0 ? sampleRate : 44100;
+    final safeStart = dataOffset.clamp(0, bytes.length);
+    final safeEnd = (safeStart + dataLength).clamp(safeStart, bytes.length);
+    final pcmBytes = Uint8List.sublistView(bytes, safeStart, safeEnd);
+    final totalSamples = pcmBytes.length ~/ (2 * safeChannels);
     final floats = Float64List(totalSamples);
     final byteData = ByteData.sublistView(pcmBytes);
 
     for (int i = 0; i < totalSamples; i++) {
       double sum = 0.0;
-      for (int c = 0; c < channels; c++) {
-        final byteIndex = (i * channels + c) * 2;
+      for (int c = 0; c < safeChannels; c++) {
+        final byteIndex = (i * safeChannels + c) * 2;
         if (byteIndex + 1 < pcmBytes.length) {
           sum += byteData.getInt16(byteIndex, Endian.little) / 32768.0;
         }
       }
-      floats[i] = sum / channels;
+      floats[i] = sum / safeChannels;
     }
 
-    return _DecodedAudio(samples: floats, sampleRate: sampleRate);
+    return _DecodedAudio(samples: floats, sampleRate: safeSampleRate);
   }
 
   List<_AudioSegment> _segmentFrames(

@@ -98,8 +98,9 @@ class TunnerOsKernel {
         earTrainingEngine = earTrainingEngine ?? EbbinghausSpacedRepetitionEngine(),
         vocalEvaluator = vocalEvaluator ?? const VocalStabilityEvaluator(),
         nativeDspBridge = nativeDspBridge ?? (masterDspChain?.bridge ?? NativeDspFfiBridge()),
-        masterDspChain = masterDspChain ?? StudioMasterDspChain(bridge: nativeDspBridge ?? (masterDspChain?.bridge ?? NativeDspFfiBridge())),
+        masterDspChain = masterDspChain ?? StudioMasterDspChain(),
         audioKernel = audioKernel ?? StudioOsAudioKernel() {
+    // Asegurar que masterDspChain reutilice exactamente la misma instancia cuando fue creada internamente.
     kernelBridge = StudioOsAudioKernelBridge(
       kernel: this.audioKernel!,
       matrixService: matrixService,

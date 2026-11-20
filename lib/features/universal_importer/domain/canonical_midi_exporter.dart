@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import '../../sheet_music/domain/score_tree.dart';
 import '../../song_library/domain/song_package_entity.dart';
@@ -39,8 +40,8 @@ class CanonicalMidiExporter {
   }) {
     final events = <_MidiEvent>[];
 
-    // 1. Meta Evento: Nombre de la pista en tick 0
-    final nameBytes = trackName.codeUnits;
+    // 1. Meta Evento: Nombre de la pista en tick 0 (UTF-8)
+    final nameBytes = utf8.encode(trackName);
     events.add(_MidiEvent(
       absoluteTick: 0,
       data: [0xFF, 0x03, ...encodeVlq(nameBytes.length), ...nameBytes],
@@ -115,8 +116,19 @@ class CanonicalMidiExporter {
       measureBaseTick += measureTicksTotal;
     }
 
-    // 6. Ordenar todos los eventos cronológicamente por absoluteTick
-    events.sort((a, b) => a.absoluteTick.compareTo(b.absoluteTick));
+    // 6. Ordenar cronológicamente por absoluteTick; a mismo tick, NoteOff precede a NoteOn
+    events.sort((a, b) {
+      final tickCmp = a.absoluteTick.compareTo(b.absoluteTick);
+      if (tickCmp != 0) return tickCmp;
+      final aIsOff = a.data.isNotEmpty &&
+          ((a.data[0] & 0xF0) == 0x80 ||
+              ((a.data[0] & 0xF0) == 0x90 && a.data.length > 2 && a.data[2] == 0));
+      final bIsOff = b.data.isNotEmpty &&
+          ((b.data[0] & 0xF0) == 0x80 ||
+              ((b.data[0] & 0xF0) == 0x90 && b.data.length > 2 && b.data[2] == 0));
+      if (aIsOff != bIsOff) return aIsOff ? -1 : 1;
+      return 0;
+    });
 
     // 7. Meta Evento: End of Track
     final int finalTick = events.isNotEmpty ? events.last.absoluteTick : 0;

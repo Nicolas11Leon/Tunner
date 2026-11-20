@@ -204,8 +204,11 @@ class BlindEarTrainerEngine {
     }
 
     if (sungFrequencyHz <= 0) {
+      final wrongInterval = MusicalInterval.values.firstWhere(
+        (v) => v != current.targetInterval,
+      );
       return submitIntervalChoice(
-        MusicalInterval.unison,
+        wrongInterval,
         responseTimeMs: responseTimeMs,
         centsDeviation: 999.0,
       );
@@ -237,9 +240,9 @@ class BlindEarTrainerEngine {
 
     for (final interval in MusicalInterval.values) {
       final target = interval.calculateTargetFrequency(baseHz, ascending: isAscending);
-      final diff = (target - freqHz).abs();
-      if (diff < minDiff) {
-        minDiff = diff;
+      final diffCents = MusicalInterval.calculateCentsDeviation(freqHz, target).abs();
+      if (diffCents < minDiff) {
+        minDiff = diffCents;
         best = interval;
       }
     }

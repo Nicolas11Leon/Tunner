@@ -13,6 +13,12 @@ import '../../dj_console/presentation/dj_console_modal.dart';
 import '../../dj_console/presentation/dj_console_view_model.dart';
 import '../../harmonic_tutor/presentation/harmonic_tutor_modal.dart';
 import '../../harmonic_tutor/presentation/harmonic_tutor_view_model.dart';
+import '../../score_editor/presentation/score_editor_modal.dart';
+import '../../exercise_generator/presentation/exercise_generator_modal.dart';
+import '../../chord_analyzer/presentation/chord_analyzer_modal.dart';
+import '../../vocal_autotune/presentation/vocal_autotune_modal.dart';
+import '../../metronome/presentation/tap_tempo_modal.dart';
+import '../../audio_synthesizer/presentation/instrument_soundfont_selector_modal.dart';
 
 /// Modal predictivo de búsqueda universal (Spotlight Search) para localizar y lanzar
 /// cualquier herramienta del software en menos de 2 segundos.
@@ -73,6 +79,7 @@ class _ToolSearchModalState extends State<ToolSearchModal> {
   }
 
   void _executeTool(AppToolItem tool) {
+    final parentContext = Navigator.of(context, rootNavigator: true).context;
     Navigator.of(context).pop();
 
     // 1. Si la herramienta redirige a una pestaña del shell
@@ -81,39 +88,72 @@ class _ToolSearchModalState extends State<ToolSearchModal> {
     }
 
     // 2. Si la herramienta tiene una acción modal asociada
-    if (tool.actionId != null) {
-      _handleAction(tool.actionId!);
+    if (tool.actionId != null && parentContext.mounted) {
+      _handleAction(tool.actionId!, parentContext);
     }
   }
 
-  void _handleAction(String actionId) {
+  void _handleAction(String actionId, BuildContext hostContext) {
     switch (actionId) {
       case 'open_mic_calibration':
-        MicrophoneCalibrationModal.show(context, widget.viewModel);
+        MicrophoneCalibrationModal.show(hostContext, widget.viewModel);
         break;
       case 'open_concert_pitch':
-        ConcertPitchSelectorModal.show(context);
+        ConcertPitchSelectorModal.show(hostContext);
         break;
       case 'open_temperament_selector':
-        TemperamentSelectorModal.show(context);
+        TemperamentSelectorModal.show(hostContext);
         break;
       case 'open_pedagogical_report':
-        PedagogicalReportModal.show(context);
+        PedagogicalReportModal.show(hostContext);
         break;
       case 'open_instrument_selector':
-        InstrumentSelectorModal.show(context, widget.viewModel);
+        InstrumentSelectorModal.show(hostContext, widget.viewModel);
         break;
       case 'open_score_importer':
+        SongDecomposerModal.show(hostContext, widget.viewModel);
+        break;
       case 'open_score_editor':
-        SongDecomposerModal.show(context, widget.viewModel);
+        ScoreEditorModal.show(hostContext);
+        break;
+      case 'open_exercise_generator':
+        ExerciseGeneratorModal.show(hostContext);
+        break;
+      case 'open_chord_analyzer':
+        ChordAnalyzerModal.show(hostContext, widget.viewModel);
+        break;
+      case 'open_autotune':
+        VocalAutoTuneModal.show(hostContext, widget.viewModel);
+        break;
+      case 'open_tap_tempo':
+        TapTempoModal.show(hostContext, widget.viewModel);
+        break;
+      case 'open_soundfont_bank':
+        InstrumentSoundFontSelectorModal.show(
+          hostContext,
+          synthService: widget.viewModel.soundFontSynthesizer,
+          onPlayPreviewWav: widget.viewModel.audioSynthesizer.playPcmWav,
+          onInstrumentSelected: (patch, name) => widget.viewModel.selectSoundFontPatch(patch),
+        );
+        break;
+      case 'focus_metronome':
+      case 'open_spectral_comparator':
+        widget.onNavigateToTab?.call(1);
+        break;
+      case 'open_drone_studio':
+        widget.onNavigateToTab?.call(3);
         break;
       case 'open_dj_console':
         final djVm = DjConsoleViewModel();
-        DjConsoleModal.show(context, djVm, widget.viewModel.currentPalette);
+        DjConsoleModal.show(hostContext, djVm, widget.viewModel.currentPalette).whenComplete(djVm.dispose);
         break;
       case 'open_harmonic_tutor':
         final tutorVm = HarmonicTutorViewModel();
-        HarmonicTutorModal.show(context, viewModel: tutorVm, palette: widget.viewModel.currentPalette);
+        HarmonicTutorModal.show(
+          hostContext,
+          viewModel: tutorVm,
+          palette: widget.viewModel.currentPalette,
+        ).whenComplete(tutorVm.dispose);
         break;
       default:
         break;

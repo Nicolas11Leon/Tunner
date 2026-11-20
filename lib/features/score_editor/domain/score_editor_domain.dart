@@ -30,41 +30,15 @@ class ScoreEditorOperations {
 
     final newEndTick = clampedStartTick + clampedDuration;
 
-    // Filtrar y recortar notas preexistentes que se solapen
-    final newNotes = <HierarchicalNote>[];
-    for (final existing in targetMeasure.notes) {
-      final existingStart = existing.startTick;
-      final existingEnd = existing.startTick + existing.durationTicks;
-
-      // Caso 1: La nota existente está completamente antes o después del nuevo rango
-      if (existingEnd <= clampedStartTick || existingStart >= newEndTick) {
-        newNotes.add(existing);
-      }
-      // Caso 2: La nota existente comienza antes del nuevo rango pero se solapa al final
-      else if (existingStart < clampedStartTick && existingEnd > clampedStartTick) {
-        final shortenedDuration = clampedStartTick - existingStart;
-        if (shortenedDuration > 0) {
-          newNotes.add(existing.copyWith(durationTicks: shortenedDuration));
-        }
-      }
-      // Caso 3: La nota existente comienza dentro del nuevo rango pero termina después
-      else if (existingStart >= clampedStartTick && existingEnd > newEndTick) {
-        final remainingStart = newEndTick;
-        final remainingDuration = existingEnd - newEndTick;
-        if (remainingDuration > 0) {
-          newNotes.add(existing.copyWith(
-            startTick: remainingStart,
-            durationTicks: remainingDuration,
-          ));
-        }
-      }
-    }
+    // Filtrar y recortar notas preexistentes que se solapen (preservando cabeza y cola)
+    final newNotes = _splitOverlappingNotes(targetMeasure.notes, clampedStartTick, newEndTick);
 
     // Insertar la nueva nota
     newNotes.add(HierarchicalNote(
       startTick: clampedStartTick,
       durationTicks: clampedDuration,
       noteName: noteName,
+      isRest: noteName == "--",
     ));
 
     // Ordenar cronológicamente por startTick
@@ -104,34 +78,7 @@ class ScoreEditorOperations {
     final newEndTick = clampedStartTick + clampedDuration;
 
     // Filtrar y recortar notas preexistentes que se solapen con el intervalo temporal
-    final newNotes = <HierarchicalNote>[];
-    for (final existing in targetMeasure.notes) {
-      final existingStart = existing.startTick;
-      final existingEnd = existing.startTick + existing.durationTicks;
-
-      // Caso 1: La nota existente está completamente antes o después del nuevo rango
-      if (existingEnd <= clampedStartTick || existingStart >= newEndTick) {
-        newNotes.add(existing);
-      }
-      // Caso 2: La nota existente comienza antes del nuevo rango pero se solapa al final
-      else if (existingStart < clampedStartTick && existingEnd > clampedStartTick) {
-        final shortenedDuration = clampedStartTick - existingStart;
-        if (shortenedDuration > 0) {
-          newNotes.add(existing.copyWith(durationTicks: shortenedDuration));
-        }
-      }
-      // Caso 3: La nota existente comienza dentro del nuevo rango pero termina después
-      else if (existingStart >= clampedStartTick && existingEnd > newEndTick) {
-        final remainingStart = newEndTick;
-        final remainingDuration = existingEnd - newEndTick;
-        if (remainingDuration > 0) {
-          newNotes.add(existing.copyWith(
-            startTick: remainingStart,
-            durationTicks: remainingDuration,
-          ));
-        }
-      }
-    }
+    final newNotes = _splitOverlappingNotes(targetMeasure.notes, clampedStartTick, newEndTick);
 
     // Insertar las notas del acorde
     final filteredNoteNames = noteNames.where((n) => n.isNotEmpty && n != '--').toSet().toList();
@@ -139,7 +86,7 @@ class ScoreEditorOperations {
       newNotes.add(HierarchicalNote(
         startTick: clampedStartTick,
         durationTicks: clampedDuration,
-        noteName: '--',
+        noteName: "--",
         isRest: true,
       ));
     } else {
@@ -182,7 +129,7 @@ class ScoreEditorOperations {
     final targetMeasure = package.score.measures[measureIndex];
     final updatedNotes = targetMeasure.notes.map((n) {
       if (n.startTick == startTick) {
-        return n.copyWith(noteName: "--");
+        return n.copyWith(noteName: "--", isRest: true);
       }
       return n;
     }).toList();
@@ -214,6 +161,7 @@ class ScoreEditorOperations {
           startTick: 0,
           durationTicks: ts.totalTicks,
           noteName: "--", // Silencio de compás completo
+          isRest: true,
         ),
       ],
     );
@@ -268,6 +216,43 @@ class ScoreEditorOperations {
     return package.copyWith(
       score: package.score.copyWith(measures: updatedMeasures),
     );
+  }
+
+  /// Recorta notas existentes al insertar un nuevo rango `[clampedStartTick, newEndTick)`,
+  /// preservando tanto la cabeza previa como la cola posterior si una nota larga lo envuelve.
+  static List<HierarchicalNote> _splitOverlappingNotes(
+    List<HierarchicalNote> existingNotes,
+    int clampedStartTick,
+    int newEndTick,
+  ) {
+    final newNotes = <HierarchicalNote>[];
+    for (final existing in existingNotes) {
+      final existingStart = existing.startTick;
+      final existingEnd = existing.startTick + existing.durationTicks;
+
+      if (existingEnd <= clampedStartTick || existingStart >= newEndTick) {
+        newNotes.add(existing);
+        continue;
+      }
+
+      if (existingStart < clampedStartTick && existingEnd > clampedStartTick) {
+        final shortenedDuration = clampedStartTick - existingStart;
+        if (shortenedDuration > 0) {
+          newNotes.add(existing.copyWith(durationTicks: shortenedDuration));
+        }
+      }
+
+      if (existingEnd > newEndTick) {
+        final remainingDuration = existingEnd - newEndTick;
+        if (remainingDuration > 0) {
+          newNotes.add(existing.copyWith(
+            startTick: newEndTick,
+            durationTicks: remainingDuration,
+          ));
+        }
+      }
+    }
+    return newNotes;
   }
 
   static String _transposeNoteName(String noteName, int semitones) {

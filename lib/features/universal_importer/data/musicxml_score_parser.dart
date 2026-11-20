@@ -46,7 +46,10 @@ class MusicXmlScoreParser implements IScoreParserService {
     int totalNotesCount = 0;
     final warnings = <String>[];
 
-    final xmlMeasures = document.findAllElements('measure');
+    final parts = document.findAllElements('part');
+    final xmlMeasures = parts.isNotEmpty
+        ? parts.first.findElements('measure')
+        : document.findAllElements('measure');
     if (xmlMeasures.isEmpty) {
       throw const FormatException('El archivo MusicXML no contiene ningún elemento <measure>.');
     }
@@ -76,7 +79,10 @@ class MusicXmlScoreParser implements IScoreParserService {
       final maxTicks = currentTimeSignature.totalTicks;
 
       for (final noteNode in measureNode.findElements('note')) {
-        // Ignorar notas de gracia o voces secundarias si superan el tiempo
+        // Ignorar notas de gracia o voces secundarias de acorde que no avanzan el cursor
+        if (noteNode.getElement('grace') != null || noteNode.getElement('chord') != null) {
+          continue;
+        }
         if (currentTick >= maxTicks) break;
 
         final isRest = noteNode.getElement('rest') != null;
@@ -229,11 +235,17 @@ class MusicXmlScoreParser implements IScoreParserService {
     final alter = int.tryParse(pitchNode.getElement('alter')?.innerText.trim() ?? '0') ?? 0;
     final octave = int.tryParse(pitchNode.getElement('octave')?.innerText.trim() ?? '4') ?? 4;
 
-    // Conversión de Step a nombre de nota silábica Tunner
+    // Conversión de Step a nombre de nota silábica Tunner con acarreo de octava en Cb / B#
+    int effectiveOctave = octave;
     String baseName;
     switch (step) {
       case 'C':
-        baseName = alter == 1 ? "Do#" : (alter == -1 ? "Si" : "Do");
+        if (alter == -1) {
+          baseName = "Si";
+          effectiveOctave = octave - 1;
+        } else {
+          baseName = alter == 1 ? "Do#" : "Do";
+        }
         break;
       case 'D':
         baseName = alter == 1 ? "Re#" : (alter == -1 ? "Do#" : "Re");
@@ -251,12 +263,17 @@ class MusicXmlScoreParser implements IScoreParserService {
         baseName = alter == 1 ? "La#" : (alter == -1 ? "Sol#" : "La");
         break;
       case 'B':
-        baseName = alter == 1 ? "Do" : (alter == -1 ? "La#" : "Si");
+        if (alter == 1) {
+          baseName = "Do";
+          effectiveOctave = octave + 1;
+        } else {
+          baseName = alter == -1 ? "La#" : "Si";
+        }
         break;
       default:
         baseName = "Do";
     }
 
-    return "$baseName$octave";
+    return "$baseName$effectiveOctave";
   }
 }

@@ -59,24 +59,46 @@ class PdfScoreParser implements IScoreParserService {
     // 1. Extraer flujos de contenido gráfico (descomprimiendo FlateDecode si aplica)
     final drawingStreams = _extractDrawingStreams(bytes, warnings);
 
-    // 2. Extraer primitivas geométricas de líneas y rectángulos a partir de los operadores de dibujo
-    final lines = <OmrLine>[];
-    final rects = <OmrRect>[];
+    // 2. Procesar cada pagina/stream por separado para no colapsar coordenadas multipagina
+    final allMeasures = <MeasureEntity>[];
+    int nextMeasureIdx = 0;
+    int detectedBpm = 120;
+    TimeSignature detectedTs = TimeSignature.commonTime44;
+    bool anyPrimitives = false;
 
     for (final streamText in drawingStreams) {
-      _parseGraphicOperators(streamText, lines, rects);
+      final pageLines = <OmrLine>[];
+      final pageRects = <OmrRect>[];
+      _parseGraphicOperators(streamText, pageLines, pageRects);
+      if (pageLines.isEmpty && pageRects.isEmpty) continue;
+      anyPrimitives = true;
+      final pageScore = _omrEngine.processGeometricElements(
+        lines: pageLines,
+        rects: pageRects,
+        title: title,
+      );
+      detectedBpm = pageScore.baseBpm;
+      if (pageScore.measures.isNotEmpty) {
+        detectedTs = pageScore.measures.first.timeSignature;
+      }
+      for (final m in pageScore.measures) {
+        allMeasures.add(m.copyWith(index: nextMeasureIdx++));
+      }
     }
 
-    if (lines.isEmpty && rects.isEmpty) {
+    if (!anyPrimitives) {
       warnings.add('No se encontraron instrucciones gráficas vectoriales en los flujos del PDF.');
     }
 
-    // 3. Procesar las primitivas geométricas con el motor Vector OMR
-    final score = _omrEngine.processGeometricElements(
-      lines: lines,
-      rects: rects,
-      title: title,
-    );
+    // 3. Consolidar partitura multipagina con el motor Vector OMR
+    final score = allMeasures.isNotEmpty
+        ? HierarchicalScore(title: title, baseBpm: detectedBpm, measures: allMeasures)
+        : _omrEngine.processGeometricElements(
+            lines: const [],
+            rects: const [],
+            title: title,
+            timeSignature: detectedTs,
+          );
 
     int totalNotes = 0;
     for (final m in score.measures) {

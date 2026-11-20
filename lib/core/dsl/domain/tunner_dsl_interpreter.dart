@@ -72,9 +72,15 @@ class TunnerDslInterpreter
       stopwatch.stop();
 
       final eventsAfter = activeKernel.eventHistory;
-      final newEvents = eventsAfter.sublist(
-        eventsBefore.clamp(0, eventsAfter.length),
-      );
+      final newEvents = isDryRun
+          ? const <StudioOsAudioEvent>[]
+          : (eventsBefore >= eventsAfter.length && eventsAfter.isNotEmpty)
+              ? eventsAfter.sublist(
+                  (eventsAfter.length - context.executedStatements).clamp(0, eventsAfter.length),
+                )
+              : eventsAfter.sublist(
+                  eventsBefore.clamp(0, eventsAfter.length),
+                );
 
       return TunnerDslExecutionReport(
         isSuccess: true,
@@ -157,6 +163,7 @@ class TunnerDslInterpreter
     context.executedStatements++;
     final midi = pitchToMidi(node.pitch);
     final freq = midiToFrequency(midi);
+    if (context.isDryRun) return;
 
     await context.kernel.dispatchNote(
       node.pitch,
@@ -180,6 +187,7 @@ class TunnerDslInterpreter
       midiNotes.add(m);
       frequencies.add(midiToFrequency(m));
     }
+    if (context.isDryRun) return;
 
     await context.kernel.dispatchChord(
       node.pitches,
@@ -195,6 +203,7 @@ class TunnerDslInterpreter
     TunnerDslExecutionContext context,
   ) async {
     context.executedStatements++;
+    if (context.isDryRun) return;
     await context.kernel.dispatchRest(node.durationFraction);
   }
 
@@ -204,6 +213,7 @@ class TunnerDslInterpreter
     TunnerDslExecutionContext context,
   ) async {
     context.executedStatements++;
+    if (context.isDryRun) return;
     await context.kernel.dispatchTransport(node.action);
   }
 
@@ -220,23 +230,44 @@ class TunnerDslInterpreter
     }
   }
 
-  /// Convierte una cadena de nota científica (ej. 'C4', 'A#4', 'Eb5') a número MIDI estándar (0-127).
+  /// Convierte una cadena de nota científica o solfeo (ej. 'C4', 'A#4', 'Eb5', 'Do4', 'Sol#4') a número MIDI (0-127).
   static int pitchToMidi(String pitch) {
     if (pitch.isEmpty) return 60; // C4 default
 
     final trimmed = pitch.trim();
-    final letter = trimmed[0].toUpperCase();
+    final upper = trimmed.toUpperCase();
+
+    const solfegeMap = {
+      'SOL': 'G',
+      'DO': 'C',
+      'RE': 'D',
+      'MI': 'E',
+      'FA': 'F',
+      'LA': 'A',
+      'SI': 'B',
+    };
+
+    String letter = upper[0];
+    int octaveIndex = 1;
+    for (final entry in solfegeMap.entries) {
+      if (upper.startsWith(entry.key)) {
+        letter = entry.value;
+        octaveIndex = entry.key.length;
+        break;
+      }
+    }
 
     var accidental = 0;
-    var octaveIndex = 1;
-
-    if (trimmed.length > 1) {
-      if (trimmed[1] == '#' || trimmed[1] == '♯') {
-        accidental = 1;
-        octaveIndex = 2;
-      } else if (trimmed[1] == 'b' || trimmed[1] == '♭') {
-        accidental = -1;
-        octaveIndex = 2;
+    while (octaveIndex < trimmed.length) {
+      final ch = trimmed[octaveIndex];
+      if (ch == '#' || ch == '♯') {
+        accidental++;
+        octaveIndex++;
+      } else if (ch == 'b' || ch == '♭' || ch == 'B') {
+        accidental--;
+        octaveIndex++;
+      } else {
+        break;
       }
     }
 

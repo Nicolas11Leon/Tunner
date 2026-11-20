@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/tunner_theme.dart';
+import '../../tuner/domain/note_entity.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/guided_lesson_entity.dart';
 
@@ -148,9 +149,9 @@ class GuidedLessonsModal extends StatelessWidget {
           const SizedBox(height: 8),
           Divider(color: palette.staffLinesColor.withValues(alpha: 0.2), height: 1),
 
-          // Cuerpo dinámico: Vista Activa vs. Catálogo de Lecciones
+          // Cuerpo dinámico: Vista Activa (incluye pantalla de completado) vs. Catálogo de Lecciones
           Expanded(
-            child: hasActive && progress != null
+            child: progress != null
                 ? _ActiveLessonPracticeView(
                     viewModel: viewModel,
                     progress: progress,
@@ -188,9 +189,13 @@ class _ActiveLessonPracticeView extends StatelessWidget {
     final targetHz = step.targetFrequencyHz;
     final tol = step.toleranceCents;
 
+    final detectedFreq = NoteEntity.frequencyForNote(viewModel.noteName);
+    final targetNoteFreq = NoteEntity.frequencyForNote(step.targetNoteName);
+    final bool sameMidiPitch = detectedFreq > 0 &&
+        targetNoteFreq > 0 &&
+        (detectedFreq / targetNoteFreq - 1.0).abs() < 0.01;
     final bool noteMatches = detectedPitch > 20.0 &&
-        (viewModel.noteName.toUpperCase().contains(step.targetNoteName.toUpperCase().substring(0, 1)) ||
-            (detectedPitch / targetHz >= 0.95 && detectedPitch / targetHz <= 1.05));
+        (sameMidiPitch || (detectedPitch / targetHz >= 0.95 && detectedPitch / targetHz <= 1.05));
     final bool inTune = noteMatches && detectedCents.abs() <= tol;
 
     final progressRatio = progress.stepProgressRatio.clamp(0.0, 1.0);

@@ -58,6 +58,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
   void dispose() {
     _note2Timer?.cancel();
     _stopTimer?.cancel();
+    widget.viewModel.stopReferenceTone();
     _focusNode.dispose();
     super.dispose();
   }

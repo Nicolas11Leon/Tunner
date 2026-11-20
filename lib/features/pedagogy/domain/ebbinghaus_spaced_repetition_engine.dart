@@ -288,9 +288,12 @@ class EbbinghausSpacedRepetitionEngine {
         newStabilityDays = item.stabilityDays * newEaseFactor;
       }
 
+      // Acotar estabilidad máxima a 10 años para evitar overflow de DateTime
+      newStabilityDays = newStabilityDays.clamp(0.15, 3650.0);
+
       // Intervalo óptimo de retención al 90%: t = -S * ln(0.90) ~= S * 0.10536 días
-      // Para repaso espaciado estándar, la próxima revisión se fija en S días
-      nextReview = now.add(Duration(microseconds: (newStabilityDays * 86400 * 1000000).round()));
+      final optimalDays = -newStabilityDays * math.log(0.90);
+      nextReview = now.add(Duration(microseconds: (optimalDays * 86400 * 1000000).round()));
 
       if (q == 5) {
         feedback = 'Consolidacion perfecta: afinacion pura y reflejo instantaneo.';
@@ -327,7 +330,7 @@ class EbbinghausSpacedRepetitionEngine {
 
     _items[itemId] = updated;
 
-    final nextRetention = updated.retentionAt(now);
+    final nextRetention = updated.retentionAt(nextReview);
 
     return EarTrainingEvaluationResult(
       updatedItem: updated,

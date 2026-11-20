@@ -56,6 +56,7 @@ class MidiScoreParser implements IScoreParserService {
 
     final List<_RawMidiNote> rawNotes = [];
     final List<AudioTrack> stemTracks = [];
+    TimeSignature detectedTimeSignature = TimeSignature.commonTime44;
 
     // 2. Procesar cada Track Chunk (MTrk)
     for (int t = 0; t < numTracks && offset + 8 <= bytes.length; t++) {
@@ -87,10 +88,11 @@ class MidiScoreParser implements IScoreParserService {
         int status = bytes[trackCursor];
         if (status < 0x80) {
           // Running status
+          if (runningStatus == 0) break;
           status = runningStatus;
         } else {
           trackCursor++;
-          runningStatus = status;
+          runningStatus = status >= 0xF0 ? 0 : status;
         }
 
         final eventType = status & 0xF0;
@@ -116,7 +118,24 @@ class MidiScoreParser implements IScoreParserService {
             if (microsecs > 0) {
               bpm = (60000000 / microsecs).round().clamp(20, 300);
             }
+          } else if (metaType == 0x58 && metaBytes.length >= 2) {
+            // Time Signature
+            final num = metaBytes[0];
+            final den = 1 << metaBytes[1];
+            if (num == 3 && den == 4) {
+              detectedTimeSignature = TimeSignature.waltzTime34;
+            } else if (num == 2 && den == 4) {
+              detectedTimeSignature = TimeSignature.marchTime24;
+            } else if (num == 6 && den == 8) {
+              detectedTimeSignature = TimeSignature.compoundTime68;
+            } else if (num > 0 && den > 0) {
+              detectedTimeSignature = TimeSignature(num, den);
+            }
           }
+        } else if (status == 0xF0 || status == 0xF7) {
+          // SysEx event
+          final len = _readVariableLength(bytes, trackCursor);
+          trackCursor = (len.nextOffset + len.value).clamp(0, trackEnd);
         } else if (eventType == 0x90 || eventType == 0x80) {
           // Note On o Note Off
           if (trackCursor + 1 >= trackEnd) break;
@@ -158,7 +177,7 @@ class MidiScoreParser implements IScoreParserService {
     }
 
     // 3. Cuantizar notas y estructurar compases
-    final measures = _quantizeToMeasures(rawNotes, ppq, bpm);
+    final measures = _quantizeToMeasures(rawNotes, ppq, bpm, detectedTimeSignature);
 
     final score = HierarchicalScore(
       title: songTitle,
@@ -193,7 +212,7 @@ class MidiScoreParser implements IScoreParserService {
   static _VlqResult _readVariableLength(Uint8List bytes, int offset) {
     int value = 0;
     int cursor = offset;
-    while (cursor < bytes.length) {
+    for (int i = 0; i < 4 && cursor < bytes.length; i++) {
       final b = bytes[cursor++];
       value = (value << 7) | (b & 0x7F);
       if ((b & 0x80) == 0) break;
@@ -201,14 +220,20 @@ class MidiScoreParser implements IScoreParserService {
     return _VlqResult(value, cursor);
   }
 
-  List<MeasureEntity> _quantizeToMeasures(List<_RawMidiNote> rawNotes, int ppq, int bpm) {
+  List<MeasureEntity> _quantizeToMeasures(
+    List<_RawMidiNote> rawNotes,
+    int ppq,
+    int bpm,
+    TimeSignature timeSignature,
+  ) {
+    final measureTicks = timeSignature.totalTicks;
     if (rawNotes.isEmpty) {
       // Compás vacío por defecto
       return [
         MeasureEntity(
           index: 0,
-          timeSignature: TimeSignature.commonTime44,
-          notes: [HierarchicalNote.rest(startTick: 0, durationTicks: 16)],
+          timeSignature: timeSignature,
+          notes: [HierarchicalNote.rest(startTick: 0, durationTicks: measureTicks)],
         )
       ];
     }
@@ -216,12 +241,11 @@ class MidiScoreParser implements IScoreParserService {
     // Ordenar notas cronológicamente
     rawNotes.sort((a, b) => a.startTick.compareTo(b.startTick));
 
-    // Cuantizar ticks MIDI a cuadrícula de Tunner (16 ticks por compás de 4/4)
-    // 1 negra = ppq ticks MIDI = 4 ticks Tunner.
+    // Cuantizar ticks MIDI a cuadrícula de Tunner (4 ticks por negra).
     final safePpq = ppq > 0 ? ppq : 480;
-    final ticksPerMeasureMidi = safePpq * 4;
+    final ticksPerMeasureMidi = ((safePpq * 4 * timeSignature.numerator) / timeSignature.denominator).round().clamp(1, 1 << 24);
     final maxMidiTick = rawNotes.map((n) => n.startTick + n.durationTicks).reduce((a, b) => a > b ? a : b);
-    final totalMeasuresCount = ((maxMidiTick / ticksPerMeasureMidi).ceil()).clamp(1, 100);
+    final totalMeasuresCount = ((maxMidiTick / ticksPerMeasureMidi).ceil()).clamp(1, 4096);
 
     final measures = <MeasureEntity>[];
 
@@ -237,9 +261,9 @@ class MidiScoreParser implements IScoreParserService {
       int currentTick = 0;
 
       for (final raw in notesInMeasure) {
-        // Calcular tick dentro del compás (0 a 15)
+        // Calcular tick dentro del compás (0 a measureTicks - 1)
         final localMidiStart = raw.startTick - measureStartMidi;
-        final startTick = ((localMidiStart * 4) / safePpq).round().clamp(0, 15);
+        final startTick = ((localMidiStart * 4) / safePpq).round().clamp(0, measureTicks - 1);
 
         // Si hay espacio antes de esta nota, rellenar con silencio
         if (startTick > currentTick) {
@@ -250,9 +274,9 @@ class MidiScoreParser implements IScoreParserService {
           currentTick = startTick;
         }
 
-        if (currentTick >= 16) break;
+        if (currentTick >= measureTicks) break;
 
-        final duration = ((raw.durationTicks * 4) / safePpq).round().clamp(1, 16 - currentTick);
+        final duration = ((raw.durationTicks * 4) / safePpq).round().clamp(1, measureTicks - currentTick);
         final noteName = _midiPitchToNoteName(raw.pitch);
 
         measureNotes.add(HierarchicalNote.note(
@@ -264,17 +288,17 @@ class MidiScoreParser implements IScoreParserService {
         currentTick += duration;
       }
 
-      // Rellenar resto del compás con silencio si no completó 16 ticks
-      if (currentTick < 16) {
+      // Rellenar resto del compás con silencio si no completó measureTicks
+      if (currentTick < measureTicks) {
         measureNotes.add(HierarchicalNote.rest(
           startTick: currentTick,
-          durationTicks: 16 - currentTick,
+          durationTicks: measureTicks - currentTick,
         ));
       }
 
       measures.add(MeasureEntity(
         index: m,
-        timeSignature: TimeSignature.commonTime44,
+        timeSignature: timeSignature,
         notes: measureNotes,
       ));
     }

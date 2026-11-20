@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/file_system/data/platform_file_gateway.dart';
 import '../../../core/theme/tunner_theme.dart';
 import '../domain/pedagogical_report_models.dart';
 import '../../tuner_viewmodel.dart';
@@ -360,6 +361,12 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
 
       final pdfBytes = vm.exportPedagogicalReportPdf(config);
       final sizeKb = (pdfBytes.length / 1024).toStringAsFixed(1);
+      const PlatformFileGateway()
+          .saveExportedBytes(
+            'tunner_pedagogical_report_${DateTime.now().millisecondsSinceEpoch}.pdf',
+            pdfBytes,
+          )
+          .catchError((_) => '');
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

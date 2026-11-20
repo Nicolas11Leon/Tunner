@@ -467,6 +467,15 @@ class _MainAppShellState extends State<MainAppShell> {
         onSelect: () => TaskQuickJumpModal.show(
           context: context,
           palette: viewModel.currentPalette,
+          onTaskSelected: (task) {
+            _navigateToTab(2);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Tarea seleccionada: ${task.code.formatted} - ${task.title}'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          },
         ),
       ),
       CommandItem(
@@ -1080,6 +1089,15 @@ class _MainAppShellState extends State<MainAppShell> {
               TaskQuickJumpModal.show(
                 context: context,
                 palette: viewModel.currentPalette,
+                onTaskSelected: (task) {
+                  _navigateToTab(2);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Tarea seleccionada: ${task.code.formatted} - ${task.title}'),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
               );
               return null;
             },

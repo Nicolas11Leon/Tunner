@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../../core/file_system/data/platform_file_gateway.dart';
 import '../../../core/file_system/domain/i_platform_file_gateway.dart';
 import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../tuner_viewmodel.dart';
@@ -24,14 +25,12 @@ class ScoreImportTabView extends StatefulWidget {
     IPlatformFileGateway? gateway,
   ]) async {
     try {
-      if (gateway != null) {
-        final picked = await gateway.pickFile(
-          allowedExtensions: const ['xml', 'musicxml', 'mxl', 'mid', 'midi', 'abc', 'wav', 'pdf'],
-        );
-        if (picked == null || picked.bytes == null) return null;
-        return (bytes: picked.bytes!, fileName: picked.name);
-      }
-      return null;
+      final effectiveGateway = gateway ?? const PlatformFileGateway();
+      final picked = await effectiveGateway.pickFile(
+        allowedExtensions: const ['xml', 'musicxml', 'mxl', 'mid', 'midi', 'abc', 'wav', 'pdf'],
+      );
+      if (picked == null || picked.bytes == null) return null;
+      return (bytes: picked.bytes!, fileName: picked.name);
     } catch (e) {
       StudioDebugLogger.instance.warning('ScoreImportTabView', 'Error en defaultNativeFilePicker: $e');
       return null;
