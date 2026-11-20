@@ -115,20 +115,22 @@ class _StudioCommandPromptBarState extends State<StudioCommandPromptBar> {
       // Muestra sugerencias principales por defecto
       _filteredSuggestions = widget.suggestions;
     } else if (query.startsWith('/')) {
-      final commandQuery = query.substring(1);
+      final commandToken = query.split(RegExp(r'\s+')).first;
+      final commandQuery = commandToken.length > 1 ? commandToken.substring(1) : '';
       _filteredSuggestions = widget.suggestions
           .where((s) =>
               s.trigger == '/' &&
-              (s.command.toLowerCase().contains(query) ||
+              (s.command.toLowerCase().startsWith(commandToken) ||
                   s.title.toLowerCase().contains(commandQuery) ||
                   s.description.toLowerCase().contains(commandQuery)))
           .toList();
     } else if (query.startsWith('@')) {
-      final moduleQuery = query.substring(1);
+      final moduleToken = query.split(RegExp(r'\s+')).first;
+      final moduleQuery = moduleToken.length > 1 ? moduleToken.substring(1) : '';
       _filteredSuggestions = widget.suggestions
           .where((s) =>
               s.trigger == '@' &&
-              (s.command.toLowerCase().contains(query) ||
+              (s.command.toLowerCase().startsWith(moduleToken) ||
                   s.title.toLowerCase().contains(moduleQuery)))
           .toList();
     } else {
@@ -363,7 +365,6 @@ class _StudioCommandPromptBarState extends State<StudioCommandPromptBar> {
   void _executeSuggestion(PromptSuggestion item) {
     final rawText = _controller.text;
     item.onExecute(rawText);
-    widget.onCommandExecuted?.call(item.command);
 
     _controller.clear();
     _removeOverlay();
@@ -392,9 +393,21 @@ class _StudioCommandPromptBarState extends State<StudioCommandPromptBar> {
       return;
     }
 
-    // Si coincide exactamente con un comando o hay uno seleccionado
-    if (_filteredSuggestions.isNotEmpty) {
-      _executeSuggestion(_filteredSuggestions[_selectedIndex]);
+    final commandToken = text.split(RegExp(r'\s+')).first.toLowerCase();
+
+    // Buscar si coincide con el comando base de alguna sugerencia disponible
+    PromptSuggestion? matchingSuggestion;
+    for (final s in _filteredSuggestions) {
+      if (s.command.toLowerCase() == commandToken) {
+        matchingSuggestion = s;
+        break;
+      }
+    }
+    matchingSuggestion ??= (_filteredSuggestions.isNotEmpty ? _filteredSuggestions[_selectedIndex] : null);
+
+    if (matchingSuggestion != null &&
+        (text.startsWith('/') || text.startsWith('@') || matchingSuggestion.command.toLowerCase() == commandToken)) {
+      _executeSuggestion(matchingSuggestion);
     } else {
       widget.onCommandExecuted?.call(text);
       _controller.clear();

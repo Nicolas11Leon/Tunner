@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/theme/tunner_theme.dart';
 
 /// Modelo de un elemento o comando ejecutable en la Command Palette.
@@ -54,7 +55,10 @@ class ProCommandPaletteModal extends StatefulWidget {
 
 class _ProCommandPaletteModalState extends State<ProCommandPaletteModal> {
   final TextEditingController _searchCtrl = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+  final ScrollController _scrollCtrl = ScrollController();
   String _query = '';
+  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -62,13 +66,65 @@ class _ProCommandPaletteModalState extends State<ProCommandPaletteModal> {
     _searchCtrl.addListener(() {
       setState(() {
         _query = _searchCtrl.text.trim().toLowerCase();
+        _selectedIndex = 0;
       });
     });
+
+    _focusNode.onKeyEvent = (node, event) {
+      if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+      final results = _filteredCommands;
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        if (results.isNotEmpty) {
+          setState(() {
+            _selectedIndex = (_selectedIndex + 1) % results.length;
+          });
+          _scrollToSelected();
+        }
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        if (results.isNotEmpty) {
+          setState(() {
+            _selectedIndex = (_selectedIndex - 1 + results.length) % results.length;
+          });
+          _scrollToSelected();
+        }
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.enter ||
+          event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+        if (results.isNotEmpty && _selectedIndex < results.length) {
+          final chosen = results[_selectedIndex];
+          Navigator.of(context).pop();
+          chosen.onSelect();
+          return KeyEventResult.handled;
+        }
+      } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+        Navigator.of(context).pop();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    };
+  }
+
+  void _scrollToSelected() {
+    if (!_scrollCtrl.hasClients) return;
+    const itemHeight = 60.0;
+    final targetOffset = (_selectedIndex * itemHeight).clamp(
+      0.0,
+      _scrollCtrl.position.maxScrollExtent,
+    );
+    _scrollCtrl.animateTo(
+      targetOffset,
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOutQuad,
+    );
   }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _focusNode.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -125,12 +181,20 @@ class _ProCommandPaletteModalState extends State<ProCommandPaletteModal> {
                         child: TextField(
                           key: const Key('command_palette_search_input'),
                           controller: _searchCtrl,
+                          focusNode: _focusNode,
                           autofocus: true,
                           style: TextStyle(
                             color: palette.textColor,
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
                           ),
+                          onSubmitted: (_) {
+                            if (results.isNotEmpty && _selectedIndex < results.length) {
+                              final chosen = results[_selectedIndex];
+                              Navigator.of(context).pop();
+                              chosen.onSelect();
+                            }
+                          },
                           decoration: InputDecoration(
                             hintText: 'Buscar comando, herramienta o instrumento (ej: metrónomo, guitarra)...',
                             hintStyle: TextStyle(
@@ -181,6 +245,7 @@ class _ProCommandPaletteModalState extends State<ProCommandPaletteModal> {
                           ),
                         )
                       : ListView.separated(
+                          controller: _scrollCtrl,
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           itemCount: results.length,
                           separatorBuilder: (_, _) => Divider(
@@ -189,77 +254,105 @@ class _ProCommandPaletteModalState extends State<ProCommandPaletteModal> {
                           ),
                           itemBuilder: (context, index) {
                             final cmd = results[index];
-                            return InkWell(
-                              key: Key('command_item_${cmd.id}'),
-                              onTap: () {
-                                Navigator.of(context).pop();
-                                cmd.onSelect();
-                              },
-                              hoverColor: palette.primaryAccent.withValues(alpha: 0.1),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 18,
-                                  vertical: 12,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: palette.primaryAccent.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(10),
+                            final isSelected = index == _selectedIndex;
+                            return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? palette.primaryAccent.withValues(alpha: 0.18)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                                border: isSelected
+                                    ? Border.all(
+                                        color: palette.primaryAccent.withValues(alpha: 0.5),
+                                        width: 1.2,
+                                      )
+                                    : null,
+                              ),
+                              child: InkWell(
+                                key: Key('command_item_${cmd.id}'),
+                                borderRadius: BorderRadius.circular(10),
+                                onTap: () {
+                                  Navigator.of(context).pop();
+                                  cmd.onSelect();
+                                },
+                                hoverColor: palette.primaryAccent.withValues(alpha: 0.1),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 10,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? palette.primaryAccent.withValues(alpha: 0.3)
+                                              : palette.primaryAccent.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(
+                                          cmd.icon,
+                                          color: palette.primaryAccent,
+                                          size: 20,
+                                        ),
                                       ),
-                                      child: Icon(
-                                        cmd.icon,
-                                        color: palette.primaryAccent,
-                                        size: 20,
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              cmd.title,
+                                              style: TextStyle(
+                                                color: palette.textColor,
+                                                fontSize: 14,
+                                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              cmd.subtitle,
+                                              style: TextStyle(
+                                                color: palette.textMutedColor,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            cmd.title,
+                                      if (isSelected)
+                                        Padding(
+                                          padding: const EdgeInsets.only(right: 8.0),
+                                          child: Icon(
+                                            Icons.keyboard_return_rounded,
+                                            size: 16,
+                                            color: palette.primaryAccent,
+                                          ),
+                                        ),
+                                      if (cmd.shortcutLabel != null)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: palette.scaffoldBackground,
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(
+                                              color: palette.staffLinesColor.withValues(alpha: 0.25),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            cmd.shortcutLabel!,
                                             style: TextStyle(
-                                              color: palette.textColor,
-                                              fontSize: 14,
+                                              color: palette.textMutedColor,
+                                              fontSize: 11,
+                                              fontFamily: 'monospace',
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            cmd.subtitle,
-                                            style: TextStyle(
-                                              color: palette.textMutedColor,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (cmd.shortcutLabel != null)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: palette.scaffoldBackground,
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(
-                                            color: palette.staffLinesColor.withValues(alpha: 0.25),
-                                          ),
                                         ),
-                                        child: Text(
-                                          cmd.shortcutLabel!,
-                                          style: TextStyle(
-                                            color: palette.textMutedColor,
-                                            fontSize: 11,
-                                            fontFamily: 'monospace',
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             );

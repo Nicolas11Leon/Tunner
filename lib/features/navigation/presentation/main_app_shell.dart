@@ -41,6 +41,9 @@ import '../../../core/audio/infrastructure/studio_audio_hardware_persistence_ser
 import '../../../core/audio/infrastructure/studio_audio_input_engine.dart';
 import '../../../core/audio/presentation/studio_master_hardware_console_widget.dart';
 import '../../../core/audio/presentation/studio_master_meter_mini_pill_widget.dart';
+import '../../instrument/presentation/universal_master_keyboard_widget.dart';
+import '../../score_editor/presentation/score_editor_modal.dart';
+import '../../metronome/presentation/tap_tempo_modal.dart';
 
 export 'studio_keyboard_intents.dart';
 /// el Tutor de Aprendizaje, el Estudio de Grabación y la Biblioteca de Canciones,
@@ -69,6 +72,7 @@ class _MainAppShellState extends State<MainAppShell> {
   late final StudioMasterClockService _masterClockService;
   bool _isTerminalOpen = false;
   late final TunnerOsKernel _terminalKernel;
+  final GlobalKey<StudioDesktopAppShellState> _desktopShellKey = GlobalKey<StudioDesktopAppShellState>();
 
   @override
   void initState() {
@@ -354,13 +358,13 @@ class _MainAppShellState extends State<MainAppShell> {
       ),
       CommandItem(
         id: 'toggle_record',
-        title: viewModel.isRecording ? 'Detener Grabación' : 'Grabar Toma de Práctica',
+        title: viewModel.isAudioRecording ? 'Detener Grabación' : 'Grabar Toma de Práctica',
         subtitle: 'Capturar audio en vivo para auto-evaluación',
         icon: Icons.fiber_manual_record,
         category: 'Grabación',
         shortcutLabel: 'R',
         onSelect: () {
-          if (viewModel.isRecording) {
+          if (viewModel.isAudioRecording) {
             viewModel.stopPracticeRecording();
           } else {
             viewModel.startPracticeRecording();
@@ -370,11 +374,11 @@ class _MainAppShellState extends State<MainAppShell> {
       CommandItem(
         id: 'tap_tempo',
         title: 'Calcular Tap Tempo',
-        subtitle: 'Pulsar tempo al compás de la música',
+        subtitle: 'Abrir calibrador interactivo de tempo al compás de la música',
         icon: Icons.touch_app,
         category: 'Metrónomo',
         shortcutLabel: 'B / T',
-        onSelect: () => viewModel.recordTapTempo(),
+        onSelect: () => TapTempoModal.show(context, viewModel),
       ),
       CommandItem(
         id: 'bpm_plus',
@@ -395,12 +399,21 @@ class _MainAppShellState extends State<MainAppShell> {
         onSelect: () => viewModel.decrementBpm(1),
       ),
       CommandItem(
+        id: 'tab_home',
+        title: 'Abrir Inicio y Dashboard General',
+        subtitle: 'Métricas de práctica, tomas de audio y proyectos recientes',
+        icon: Icons.dashboard_rounded,
+        category: 'Navegación',
+        shortcutLabel: '1 / F1 / Alt+1',
+        onSelect: () => _navigateToTab(0),
+      ),
+      CommandItem(
         id: 'tab_tuner',
         title: 'Abrir Afinador Estroboscópico',
         subtitle: 'Afinación de alta precisión de ±0.1 cents',
         icon: Icons.tune,
         category: 'Navegación',
-        shortcutLabel: 'A / 2',
+        shortcutLabel: '2 / F2 / Alt+2',
         onSelect: () => _navigateToTab(1),
       ),
       CommandItem(
@@ -409,7 +422,7 @@ class _MainAppShellState extends State<MainAppShell> {
         subtitle: 'Ejercicios interactivos con evaluación rushing/dragging',
         icon: Icons.school,
         category: 'Navegación',
-        shortcutLabel: 'L / 3',
+        shortcutLabel: '3 / F3 / Alt+3',
         onSelect: () => _navigateToTab(2),
       ),
       CommandItem(
@@ -418,7 +431,7 @@ class _MainAppShellState extends State<MainAppShell> {
         subtitle: 'Estudio multitarea con instrumentos y matriz de conexiones',
         icon: Icons.view_comfortable,
         category: 'Navegación',
-        shortcutLabel: '4',
+        shortcutLabel: '4 / F4 / Alt+4',
         onSelect: () => _navigateToTab(3),
       ),
       CommandItem(
@@ -427,8 +440,17 @@ class _MainAppShellState extends State<MainAppShell> {
         subtitle: 'Gestor y reproductor de partituras SMuFL',
         icon: Icons.menu_book,
         category: 'Navegación',
-        shortcutLabel: 'S / 5',
+        shortcutLabel: '5 / F5 / Alt+5',
         onSelect: () => _navigateToTab(4),
+      ),
+      CommandItem(
+        id: 'tab_dj',
+        title: 'Abrir Consola DJ Studio & Mezclador Stems',
+        subtitle: 'Controlador de doble plato, ecualización y mezcla 4-stems',
+        icon: Icons.album_rounded,
+        category: 'Navegación',
+        shortcutLabel: '6 / F6 / Alt+6',
+        onSelect: () => _navigateToTab(5),
       ),
       CommandItem(
         id: 'select_instrument',
@@ -438,6 +460,29 @@ class _MainAppShellState extends State<MainAppShell> {
         category: 'Instrumento',
         shortcutLabel: 'Cmd+I',
         onSelect: () => _openInstrumentSelector(viewModel),
+      ),
+      CommandItem(
+        id: 'master_keyboard',
+        title: 'Abrir Teclado Maestro Universal',
+        subtitle: 'Simulador táctil y polifónico de teclado con afinación tímbrica',
+        icon: Icons.piano_rounded,
+        category: 'Instrumento',
+        shortcutLabel: 'K',
+        onSelect: () => UniversalMasterKeyboardWidget.show(
+          context,
+          customization: _modularRackViewModel.customization,
+          onUpdated: _modularRackViewModel.updateCustomization,
+          audioSynthesizer: viewModel.audioSynthesizer,
+        ),
+      ),
+      CommandItem(
+        id: 'score_editor',
+        title: 'Abrir Estudio de Edición de Partituras SMuFL',
+        subtitle: 'Editor matricial de compases, notas, silencios y exportación MusicXML',
+        icon: Icons.edit_note_rounded,
+        category: 'Composición',
+        shortcutLabel: 'E',
+        onSelect: () => ScoreEditorModal.show(context),
       ),
       CommandItem(
         id: 'open_ear_trainer',
@@ -479,6 +524,110 @@ class _MainAppShellState extends State<MainAppShell> {
         ),
       ),
       CommandItem(
+        id: 'save_session',
+        title: 'Guardar Estado de Sesión y Proyecto',
+        subtitle: 'Persistir en almacenamiento local todo el estado de trabajo',
+        icon: Icons.save_rounded,
+        category: 'Archivo',
+        shortcutLabel: 'Ctrl+S',
+        onSelect: () {
+          viewModel.savePersistedState();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Espacio de trabajo guardado correctamente en almacenamiento local.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        },
+      ),
+      CommandItem(
+        id: 'new_score',
+        title: 'Crear Nueva Partitura en Blanco',
+        subtitle: 'Iniciar una composición con armadura y métrica limpia',
+        icon: Icons.note_add_rounded,
+        category: 'Archivo',
+        shortcutLabel: 'Ctrl+N',
+        onSelect: () => StudioAssetsModals.showNewScoreDialog(
+          context: context,
+          viewModel: viewModel,
+          onNavigateToTab: _navigateToTab,
+        ),
+      ),
+      CommandItem(
+        id: 'import_file',
+        title: 'Importar Archivo o Partitura',
+        subtitle: 'Cargar archivos MusicXML, MIDI, .tunner o presets',
+        icon: Icons.folder_open_rounded,
+        category: 'Archivo',
+        shortcutLabel: 'Ctrl+O',
+        onSelect: () => StudioAssetsModals.showImportScoreDialog(
+          context: context,
+          viewModel: viewModel,
+          onNavigateToTab: _navigateToTab,
+        ),
+      ),
+      CommandItem(
+        id: 'toggle_sidebar',
+        title: 'Alternar Barra Lateral y Explorador',
+        subtitle: 'Mostrar u ocultar el panel de archivos y herramientas',
+        icon: Icons.view_sidebar_rounded,
+        category: 'Interfaz',
+        shortcutLabel: 'Ctrl+B',
+        onSelect: () => _desktopShellKey.currentState?.toggleSidebar(),
+      ),
+      CommandItem(
+        id: 'toggle_dual_split',
+        title: 'Alternar Vista Dividida Dual',
+        subtitle: 'Trabajar en pantalla compartida con dos herramientas en paralelo',
+        icon: Icons.vertical_split_rounded,
+        category: 'Interfaz',
+        shortcutLabel: 'Ctrl+Shift+D',
+        onSelect: () => _desktopShellKey.currentState?.toggleDualSplit(),
+      ),
+      CommandItem(
+        id: 'toggle_terminal',
+        title: 'Alternar Terminal de Comandos OS',
+        subtitle: 'Abrir consola Unix de audio DSP y kernel del sistema',
+        icon: Icons.terminal_rounded,
+        category: 'Sistema',
+        shortcutLabel: 'F12 / Ctrl+~',
+        onSelect: () => setState(() => _isTerminalOpen = !_isTerminalOpen),
+      ),
+      CommandItem(
+        id: 'open_shortcuts',
+        title: 'Mapa de Atajos de Teclado',
+        subtitle: 'Consultar la guía completa de comandos rápidos de producción',
+        icon: Icons.keyboard_rounded,
+        category: 'Ayuda',
+        shortcutLabel: '?',
+        onSelect: () => _openShortcutsGuide(viewModel),
+      ),
+      CommandItem(
+        id: 'open_customizations',
+        title: 'Personalización Técnica DSP',
+        subtitle: 'Ajustar motor de detección, precisión en cents y tasa de refresco FPS',
+        icon: Icons.tune_rounded,
+        category: 'Ajustes',
+        onSelect: () => StudioCustomizationsModal.show(context, viewModel),
+      ),
+      CommandItem(
+        id: 'open_automations',
+        title: 'Panel de Automatizaciones de Estudio',
+        subtitle: 'Programar rampas de BPM y rutinas de calentamiento',
+        icon: Icons.access_time_rounded,
+        category: 'Ajustes',
+        onSelect: () => StudioAutomationsModal.show(context, viewModel),
+      ),
+      CommandItem(
+        id: 'open_matrix',
+        title: 'Matriz Universal de Enrutamiento de Audio',
+        subtitle: 'Consola maestra con vúmetros dBFS, buffers y reloj maestro',
+        icon: Icons.settings_input_component_rounded,
+        category: 'Audio',
+        shortcutLabel: 'Ctrl+Shift+I',
+        onSelect: _openMasterConsole,
+      ),
+      CommandItem(
         id: 'panic_mute',
         title: 'Silencio Total (Panic Mute)',
         subtitle: 'Detener de inmediato todos los sintetizadores y sonidos',
@@ -487,7 +636,7 @@ class _MainAppShellState extends State<MainAppShell> {
         shortcutLabel: '0',
         onSelect: () {
           if (viewModel.isMetronomeActive) viewModel.toggleMetronome();
-          if (viewModel.isRecording) viewModel.stopPracticeRecording();
+          if (viewModel.isAudioRecording) viewModel.stopPracticeRecording();
         },
       ),
     ];
@@ -875,18 +1024,35 @@ class _MainAppShellState extends State<MainAppShell> {
 
     final Map<ShortcutActivator, Intent> activeShortcuts = isDjActive
         ? <ShortcutActivator, Intent>{
-            // En modo DJ Pro, aislamos el teclado para que todas las teclas de mezcla (W, Q, E, A, S, D, I, U, O, J, K, L, Z, X, C, B, N, V, 1..4, 7..0, Space)
+            // En modo DJ Pro, aislamos el teclado para que todas las teclas de mezcla
             // se transmitan al motor DJ sin ser secuestradas por el transporte global.
             const SingleActivator(LogicalKeyboardKey.keyK, control: true): const OpenCommandPaletteIntent(),
             const SingleActivator(LogicalKeyboardKey.keyK, meta: true): const OpenCommandPaletteIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyF, control: true): const OpenCommandPaletteIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyF, meta: true): const OpenCommandPaletteIntent(),
             const SingleActivator(LogicalKeyboardKey.slash, shift: true): const OpenShortcutsGuideIntent(),
+            const SingleActivator(LogicalKeyboardKey.f1): const OpenShortcutsGuideIntent(),
+            const SingleActivator(LogicalKeyboardKey.f12): const ToggleTerminalIntent(),
             const SingleActivator(LogicalKeyboardKey.backquote, control: true): const ToggleTerminalIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyS, control: true): const SaveSessionIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyS, meta: true): const SaveSessionIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyO, control: true): const OpenFileIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyO, meta: true): const OpenFileIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyB, control: true): const ToggleSidebarIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyB, meta: true): const ToggleSidebarIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyD, control: true, shift: true): const ToggleDualSplitIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyD, meta: true, shift: true): const ToggleDualSplitIntent(),
             const SingleActivator(LogicalKeyboardKey.digit1, alt: true): const SwitchTabIntent(0),
             const SingleActivator(LogicalKeyboardKey.digit2, alt: true): const SwitchTabIntent(1),
             const SingleActivator(LogicalKeyboardKey.digit3, alt: true): const SwitchTabIntent(2),
             const SingleActivator(LogicalKeyboardKey.digit4, alt: true): const SwitchTabIntent(3),
             const SingleActivator(LogicalKeyboardKey.digit5, alt: true): const SwitchTabIntent(4),
             const SingleActivator(LogicalKeyboardKey.digit6, alt: true): const SwitchTabIntent(5),
+            const SingleActivator(LogicalKeyboardKey.f2): const SwitchTabIntent(1),
+            const SingleActivator(LogicalKeyboardKey.f3): const SwitchTabIntent(2),
+            const SingleActivator(LogicalKeyboardKey.f4): const SwitchTabIntent(3),
+            const SingleActivator(LogicalKeyboardKey.f5): const SwitchTabIntent(4),
+            const SingleActivator(LogicalKeyboardKey.f6): const SwitchTabIntent(5),
           }
         : <ShortcutActivator, Intent>{
             // Transporte Universal (Ableton / Logic / Pro Tools)
@@ -929,12 +1095,26 @@ class _MainAppShellState extends State<MainAppShell> {
             const SingleActivator(LogicalKeyboardKey.keyI, control: true, shift: true): const OpenMasterConsoleIntent(),
             const SingleActivator(LogicalKeyboardKey.keyI, meta: true, shift: true): const OpenMasterConsoleIntent(),
             const SingleActivator(LogicalKeyboardKey.slash, shift: true): const OpenShortcutsGuideIntent(),
+            const SingleActivator(LogicalKeyboardKey.f1): const OpenShortcutsGuideIntent(),
+            const SingleActivator(LogicalKeyboardKey.f12): const ToggleTerminalIntent(),
             const SingleActivator(LogicalKeyboardKey.backquote, control: true): const ToggleTerminalIntent(),
             const SingleActivator(LogicalKeyboardKey.keyE, shift: true): const OpenEarTrainerIntent(),
             const SingleActivator(LogicalKeyboardKey.keyC, shift: true): const OpenChordAnalyzerIntent(),
             const SingleActivator(LogicalKeyboardKey.keyJ): const JumpToTaskIntent(),
             const SingleActivator(LogicalKeyboardKey.keyJ, control: true): const JumpToTaskIntent(),
             const SingleActivator(LogicalKeyboardKey.keyJ, meta: true): const JumpToTaskIntent(),
+
+            // Atajos de gestión de archivos y DAW
+            const SingleActivator(LogicalKeyboardKey.keyS, control: true): const SaveSessionIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyS, meta: true): const SaveSessionIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyO, control: true): const OpenFileIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyO, meta: true): const OpenFileIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyN, control: true): const NewProjectIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyN, meta: true): const NewProjectIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyB, control: true): const ToggleSidebarIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyB, meta: true): const ToggleSidebarIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyD, control: true, shift: true): const ToggleDualSplitIntent(),
+            const SingleActivator(LogicalKeyboardKey.keyD, meta: true, shift: true): const ToggleDualSplitIntent(),
 
             // Pestañas directas
             const SingleActivator(LogicalKeyboardKey.digit1): const SwitchTabIntent(0),
@@ -943,6 +1123,19 @@ class _MainAppShellState extends State<MainAppShell> {
             const SingleActivator(LogicalKeyboardKey.digit4): const SwitchTabIntent(3),
             const SingleActivator(LogicalKeyboardKey.digit5): const SwitchTabIntent(4),
             const SingleActivator(LogicalKeyboardKey.digit6): const SwitchTabIntent(5),
+
+            // Pestañas Alt+1..6 y F2..F6
+            const SingleActivator(LogicalKeyboardKey.digit1, alt: true): const SwitchTabIntent(0),
+            const SingleActivator(LogicalKeyboardKey.digit2, alt: true): const SwitchTabIntent(1),
+            const SingleActivator(LogicalKeyboardKey.digit3, alt: true): const SwitchTabIntent(2),
+            const SingleActivator(LogicalKeyboardKey.digit4, alt: true): const SwitchTabIntent(3),
+            const SingleActivator(LogicalKeyboardKey.digit5, alt: true): const SwitchTabIntent(4),
+            const SingleActivator(LogicalKeyboardKey.digit6, alt: true): const SwitchTabIntent(5),
+            const SingleActivator(LogicalKeyboardKey.f2): const SwitchTabIntent(1),
+            const SingleActivator(LogicalKeyboardKey.f3): const SwitchTabIntent(2),
+            const SingleActivator(LogicalKeyboardKey.f4): const SwitchTabIntent(3),
+            const SingleActivator(LogicalKeyboardKey.f5): const SwitchTabIntent(4),
+            const SingleActivator(LogicalKeyboardKey.f6): const SwitchTabIntent(5),
           };
 
     return Shortcuts(
@@ -988,7 +1181,7 @@ class _MainAppShellState extends State<MainAppShell> {
           ToggleRecordIntent: _GuardedShortcutAction<ToggleRecordIntent>(
             isEnabledCheck: () => !_isTextInputFocused(),
             onInvokeAction: (_) {
-              if (viewModel.isRecording) {
+              if (viewModel.isAudioRecording) {
                 viewModel.stopPracticeRecording();
               } else {
                 viewModel.startPracticeRecording();
@@ -1109,6 +1302,55 @@ class _MainAppShellState extends State<MainAppShell> {
               return null;
             },
           ),
+          SaveSessionIntent: _GuardedShortcutAction<SaveSessionIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
+              viewModel.savePersistedState();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Sesión de trabajo guardada correctamente en almacenamiento local.'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+              return null;
+            },
+          ),
+          OpenFileIntent: _GuardedShortcutAction<OpenFileIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
+              StudioAssetsModals.showImportScoreDialog(
+                context: context,
+                viewModel: viewModel,
+                onNavigateToTab: _navigateToTab,
+              );
+              return null;
+            },
+          ),
+          NewProjectIntent: _GuardedShortcutAction<NewProjectIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
+              StudioAssetsModals.showNewScoreDialog(
+                context: context,
+                viewModel: viewModel,
+                onNavigateToTab: _navigateToTab,
+              );
+              return null;
+            },
+          ),
+          ToggleSidebarIntent: _GuardedShortcutAction<ToggleSidebarIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
+              _desktopShellKey.currentState?.toggleSidebar();
+              return null;
+            },
+          ),
+          ToggleDualSplitIntent: _GuardedShortcutAction<ToggleDualSplitIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
+              _desktopShellKey.currentState?.toggleDualSplit();
+              return null;
+            },
+          ),
         },
         child: Focus(
           autofocus: true,
@@ -1148,6 +1390,7 @@ class _MainAppShellState extends State<MainAppShell> {
                 return Stack(
                   children: [
                     StudioDesktopAppShell(
+                      key: _desktopShellKey,
                       currentBreadcrumb: _buildCurrentBreadcrumb(),
                       navigationSections: _buildNavigationSections(viewModel),
                       activeItemId: _buildCurrentActiveItemId(),

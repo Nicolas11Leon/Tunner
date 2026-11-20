@@ -36,6 +36,24 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
     return "$_selectedBaseNote$_selectedAccidental$_selectedOctave";
   }
 
+  void _insertCurrentNote(TunerViewModel vm, int safeMeasureIndex, int totalTicks) {
+    vm.insertOrUpdateScoreNote(
+      measureIndex: safeMeasureIndex,
+      startTick: _selectedStartTick,
+      durationTicks: _selectedDurationTicks,
+      noteName: _currentFormattedNoteName,
+    );
+    setState(() {
+      _selectedStartTick = (_selectedStartTick + _selectedDurationTicks).clamp(0, totalTicks - 1);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Nota $_currentFormattedNoteName insertada en compás ${safeMeasureIndex + 1}"),
+        duration: const Duration(milliseconds: 1000),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<TunerViewModel>();
@@ -45,7 +63,42 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
     final activeMeasure = vm.activePackage.score.measures[safeMeasureIndex];
     final totalTicks = activeMeasure.timeSignature.totalTicks;
 
-    return Container(
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+        if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+          setState(() {
+            _selectedStartTick = (_selectedStartTick + 1).clamp(0, totalTicks - 1);
+          });
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+          setState(() {
+            _selectedStartTick = (_selectedStartTick - 1).clamp(0, totalTicks - 1);
+          });
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+          setState(() {
+            _selectedOctave = (_selectedOctave + 1).clamp(1, 8);
+          });
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+          setState(() {
+            _selectedOctave = (_selectedOctave - 1).clamp(1, 8);
+          });
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+          _insertCurrentNote(vm, safeMeasureIndex, totalTicks);
+          return KeyEventResult.handled;
+        } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+          Navigator.of(context).pop();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Container(
       height: MediaQuery.of(context).size.height * 0.88,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
@@ -371,20 +424,7 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
                               "Insertar $_currentFormattedNoteName",
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                             ),
-                            onPressed: () {
-                              vm.insertOrUpdateScoreNote(
-                                measureIndex: safeMeasureIndex,
-                                startTick: _selectedStartTick,
-                                durationTicks: _selectedDurationTicks,
-                                noteName: _currentFormattedNoteName,
-                              );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text("Nota $_currentFormattedNoteName insertada en compás ${safeMeasureIndex + 1}"),
-                                  duration: const Duration(milliseconds: 1000),
-                                ),
-                              );
-                            },
+                            onPressed: () => _insertCurrentNote(vm, safeMeasureIndex, totalTicks),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -542,6 +582,7 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
