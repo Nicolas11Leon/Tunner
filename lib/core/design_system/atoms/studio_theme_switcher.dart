@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../molecules/studio_theme_manager_modal.dart';
 import '../studio_design_tokens.dart';
 import '../studio_theme_provider.dart';
+import '../../../features/tuner_viewmodel.dart';
 
 /// Feature-agnostic skin selector allowing instant switching between
 /// Tunner Studio palettes without affecting any functional state.
@@ -67,6 +69,10 @@ class StudioThemeSwitcher extends StatelessWidget {
               onChanged: (id) {
                 if (id != null) {
                   controller.selectById(id);
+                  try {
+                    final vm = Provider.of<TunerViewModel>(context, listen: false);
+                    vm.setPaletteById(id);
+                  } catch (_) {}
                 }
               },
             ),

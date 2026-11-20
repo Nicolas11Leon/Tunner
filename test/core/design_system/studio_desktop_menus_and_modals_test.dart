@@ -72,8 +72,8 @@ void main() {
       await tester.tap(find.text('Window'));
       await tester.pumpAndSettle();
 
-      expect(find.text('1. Afinador Estroboscópico Pro'), findsOneWidget);
-      await tester.tap(find.text('1. Afinador Estroboscópico Pro'));
+      expect(find.text('2. Afinador Estroboscópico Pro'), findsOneWidget);
+      await tester.tap(find.text('2. Afinador Estroboscópico Pro'));
       await tester.pumpAndSettle();
       expect(navigatedTabIndex, equals(1));
     });

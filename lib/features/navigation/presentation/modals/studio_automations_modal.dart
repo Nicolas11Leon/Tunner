@@ -92,16 +92,20 @@ class StudioAutomationsModal extends StatelessWidget {
                     title: 'Rampa Progresiva de Metrónomo',
                     description: 'Inicia el metrónomo al tempo actual (${viewModel.bpm.round()} BPM) e incrementa 2 BPM cada 4 compases de práctica.',
                     icon: Icons.trending_up_rounded,
-                    actionLabel: 'Activar Rampa',
+                    actionLabel: viewModel.isBpmRampActive ? 'Detener Rampa' : 'Activar Rampa',
                     onAction: () {
-                      if (!viewModel.isMetronomeActive) {
-                        viewModel.toggleMetronome();
+                      if (viewModel.isBpmRampActive) {
+                        viewModel.stopProgressiveBpmRamp();
+                      } else {
+                        viewModel.startProgressiveBpmRamp(stepBpm: 2, measuresInterval: 4);
                       }
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Rampa progresiva de metrónomo inicializada.'),
-                          duration: Duration(seconds: 2),
+                        SnackBar(
+                          content: Text(viewModel.isBpmRampActive
+                              ? 'Rampa progresiva de metrónomo detenida.'
+                              : 'Rampa progresiva de metrónomo inicializada (+2 BPM cada 4 compases).'),
+                          duration: const Duration(seconds: 2),
                         ),
                       );
                     },
@@ -113,9 +117,9 @@ class StudioAutomationsModal extends StatelessWidget {
                     title: 'Detección y Auto-Grabación WAV',
                     description: 'Arma el motor de audio para iniciar automáticamente una nueva toma de práctica en cuanto detecte sonido en el micrófono.',
                     icon: Icons.mic_rounded,
-                    actionLabel: viewModel.isRecording ? 'Detener Grabación' : 'Armar Auto-Grabación',
+                    actionLabel: viewModel.isAudioRecording ? 'Detener Grabación' : 'Armar Auto-Grabación',
                     onAction: () {
-                      if (viewModel.isRecording) {
+                      if (viewModel.isAudioRecording) {
                         viewModel.stopPracticeRecording();
                       } else {
                         viewModel.startPracticeRecording();
@@ -130,13 +134,20 @@ class StudioAutomationsModal extends StatelessWidget {
                     title: 'Calentamiento Técnico Guiado',
                     description: 'Inicia una secuencia de 5 minutos combinando sostenimiento de notas con afinador estroboscópico y dron de quintas armónicas.',
                     icon: Icons.fitness_center_rounded,
-                    actionLabel: 'Iniciar Calentamiento',
+                    actionLabel: viewModel.isWarmupActive ? 'Detener Calentamiento' : 'Iniciar Calentamiento',
                     onAction: () {
+                      if (viewModel.isWarmupActive) {
+                        viewModel.stopGuidedWarmupRoutine();
+                      } else {
+                        viewModel.startGuidedWarmupRoutine();
+                      }
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Sesión de calentamiento técnico iniciada.'),
-                          duration: Duration(seconds: 2),
+                        SnackBar(
+                          content: Text(viewModel.isWarmupActive
+                              ? 'Sesión de calentamiento técnico detenida.'
+                              : 'Sesión de calentamiento técnico iniciada (Afinador + Dron armónico).'),
+                          duration: const Duration(seconds: 2),
                         ),
                       );
                     },

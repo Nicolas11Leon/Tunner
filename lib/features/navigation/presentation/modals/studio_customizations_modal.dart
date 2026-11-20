@@ -238,10 +238,11 @@ class _StudioCustomizationsModalState extends State<StudioCustomizationsModal> {
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () {
+                      widget.viewModel.savePersistedState();
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Configuración aplicada: $_selectedEngine a $_targetFps FPS.'),
+                          content: Text('Configuración aplicada: $_selectedEngine a $_targetFps FPS con precisión de ±$_centsPrecision cents.'),
                           duration: const Duration(seconds: 2),
                         ),
                       );

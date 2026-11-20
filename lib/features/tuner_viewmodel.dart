@@ -2059,6 +2059,69 @@ class TunerViewModel extends ChangeNotifier {
     }
   }
 
+  Timer? _bpmRampTimer;
+  bool _isBpmRampActive = false;
+  bool get isBpmRampActive => _isBpmRampActive;
+
+  bool _isWarmupActive = false;
+  bool get isWarmupActive => _isWarmupActive;
+
+  /// Guarda de forma inmediata el estado completo de la sesión actual en el almacenamiento local.
+  Future<void> savePersistedState() async {
+    _triggerAutoSave();
+  }
+
+  /// Inicia una rampa progresiva de tempo que incrementa [stepBpm] periódicamente cada [measuresInterval] compases.
+  void startProgressiveBpmRamp({int stepBpm = 2, int measuresInterval = 4}) {
+    stopProgressiveBpmRamp();
+    _isBpmRampActive = true;
+    if (!isMetronomeActive) {
+      toggleMetronome();
+    }
+    void scheduleNextRamp() {
+      if (!_isBpmRampActive) return;
+      final secondsPerMeasure = (60.0 / math.max(30.0, _bpm.toDouble())) * 4.0;
+      final duration = Duration(milliseconds: (secondsPerMeasure * measuresInterval * 1000).toInt());
+      _bpmRampTimer?.cancel();
+      _bpmRampTimer = Timer(duration, () {
+        if (!_isBpmRampActive) return;
+        incrementBpm(stepBpm);
+        scheduleNextRamp();
+      });
+    }
+    scheduleNextRamp();
+    notifyListeners();
+  }
+
+  /// Detiene la rampa progresiva de tempo.
+  void stopProgressiveBpmRamp() {
+    _bpmRampTimer?.cancel();
+    _bpmRampTimer = null;
+    _isBpmRampActive = false;
+    notifyListeners();
+  }
+
+  /// Inicia una rutina guiada de calentamiento combinando afinación con dron armónico.
+  void startGuidedWarmupRoutine() {
+    _isWarmupActive = true;
+    if (!_isRecording) {
+      toggleRecording();
+    }
+    if (!isDronePlaying) {
+      toggleDrone();
+    }
+    notifyListeners();
+  }
+
+  /// Detiene la rutina guiada de calentamiento.
+  void stopGuidedWarmupRoutine() {
+    _isWarmupActive = false;
+    if (isDronePlaying) {
+      toggleDrone();
+    }
+    notifyListeners();
+  }
+
   @override
   void notifyListeners() {
     if (!_isDisposed) {
@@ -2071,6 +2134,7 @@ class TunerViewModel extends ChangeNotifier {
     if (_isDisposed) return;
     _isDisposed = true;
     _scorePlaybackCoordinator.dispose();
+    _bpmRampTimer?.cancel();
     _silenceTimer?.cancel();
     _pitchService.stopRecording();
     _metronomeService.stop();

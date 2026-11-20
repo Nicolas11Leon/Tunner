@@ -680,7 +680,7 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
         if (val == 'updates') {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Tunner v2.29.0 está actualizado con el motor acústico más reciente.'),
+              content: Text('Tunner v1.0.0 Pro Studio está actualizado con el motor acústico más reciente.'),
               duration: Duration(seconds: 2),
             ),
           );
@@ -753,18 +753,20 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
       label: 'Window',
       tokens: tokens,
       onSelected: (val) {
+        if (val == 'home') widget.onNavigateToTabIndex?.call(0);
         if (val == 'tuner') widget.onNavigateToTabIndex?.call(1);
-        if (val == 'metronome') widget.onNavigateToTabIndex?.call(0);
         if (val == 'learning') widget.onNavigateToTabIndex?.call(2);
         if (val == 'studio') widget.onNavigateToTabIndex?.call(3);
         if (val == 'library') widget.onNavigateToTabIndex?.call(4);
+        if (val == 'dj') widget.onNavigateToTabIndex?.call(5);
       },
       items: [
-        _buildPopupMenuItem('tuner', '1. Afinador Estroboscópico Pro', Icons.tune_rounded, tokens, shortcut: 'Alt+1'),
-        _buildPopupMenuItem('metronome', '2. Metrónomo Determinista', Icons.access_time_rounded, tokens, shortcut: 'Alt+2'),
+        _buildPopupMenuItem('home', '1. Inicio & Dashboard de Rendimiento', Icons.dashboard_rounded, tokens, shortcut: 'Alt+1'),
+        _buildPopupMenuItem('tuner', '2. Afinador Estroboscópico Pro', Icons.tune_rounded, tokens, shortcut: 'Alt+2'),
         _buildPopupMenuItem('learning', '3. Conservatorio & Pedagogía', Icons.school_outlined, tokens, shortcut: 'Alt+3'),
         _buildPopupMenuItem('studio', '4. Rack Modular de Estudio', Icons.dashboard_customize_outlined, tokens, shortcut: 'Alt+4'),
         _buildPopupMenuItem('library', '5. Biblioteca de Canciones', Icons.menu_book_outlined, tokens, shortcut: 'Alt+5'),
+        _buildPopupMenuItem('dj', '6. Consola DJ Studio & Stems', Icons.album_rounded, tokens, shortcut: 'Alt+6'),
       ],
     );
   }
