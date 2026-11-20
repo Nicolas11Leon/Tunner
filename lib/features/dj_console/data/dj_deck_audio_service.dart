@@ -18,6 +18,8 @@ class DjDeckAudioService implements IDjDeckAudioPlayer {
   final IStudioAudioEngine _audioEngine;
   final IStudioAudioChannel _channelA;
   final IStudioAudioChannel _channelB;
+  final bool _ownsChannelA;
+  final bool _ownsChannelB;
 
   Uint8List? _demoGrooveABytes;
   Uint8List? _demoGrooveBBytes;
@@ -25,20 +27,37 @@ class DjDeckAudioService implements IDjDeckAudioPlayer {
   static bool get _isTestEnvironment =>
       !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
 
-  DjDeckAudioService({
+  factory DjDeckAudioService({
     IStudioAudioEngine? audioEngine,
     AudioPlayer? playerA,
     AudioPlayer? playerB,
-  })  : _audioEngine = audioEngine ??
-            (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine()),
-        _channelA = playerA != null
-            ? StudioAudioChannel(channelId: 'dj_deck_a', injectedPlayer: playerA)
-            : (audioEngine ?? (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine()))
-                .getChannel('dj_deck_a'),
-        _channelB = playerB != null
-            ? StudioAudioChannel(channelId: 'dj_deck_b', injectedPlayer: playerB)
-            : (audioEngine ?? (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine()))
-                .getChannel('dj_deck_b') {
+  }) {
+    final resolvedEngine = audioEngine ??
+        (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine());
+    return DjDeckAudioService._(
+      audioEngine: resolvedEngine,
+      channelA: playerA != null
+          ? StudioAudioChannel(channelId: 'dj_deck_a', injectedPlayer: playerA)
+          : resolvedEngine.getChannel('dj_deck_a'),
+      ownsChannelA: playerA != null || audioEngine == null,
+      channelB: playerB != null
+          ? StudioAudioChannel(channelId: 'dj_deck_b', injectedPlayer: playerB)
+          : resolvedEngine.getChannel('dj_deck_b'),
+      ownsChannelB: playerB != null || audioEngine == null,
+    );
+  }
+
+  DjDeckAudioService._({
+    required IStudioAudioEngine audioEngine,
+    required IStudioAudioChannel channelA,
+    required bool ownsChannelA,
+    required IStudioAudioChannel channelB,
+    required bool ownsChannelB,
+  })  : _audioEngine = audioEngine,
+        _channelA = channelA,
+        _ownsChannelA = ownsChannelA,
+        _channelB = channelB,
+        _ownsChannelB = ownsChannelB {
     _initializeDemoGrooves();
   }
 
@@ -128,8 +147,16 @@ class DjDeckAudioService implements IDjDeckAudioPlayer {
 
   @override
   void dispose() {
-    _channelA.dispose();
-    _channelB.dispose();
+    if (_ownsChannelA) {
+      _channelA.dispose();
+    } else {
+      _channelA.stop();
+    }
+    if (_ownsChannelB) {
+      _channelB.dispose();
+    } else {
+      _channelB.stop();
+    }
   }
 
   /// Sintetiza proceduralmente un bucle musical rítmico audible completo (Kick, Sub-Bass y Hi-Hats).

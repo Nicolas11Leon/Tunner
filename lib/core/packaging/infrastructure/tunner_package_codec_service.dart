@@ -124,24 +124,7 @@ class TunnerPackageCodecService implements ITunnerPackageCodec {
     }
 
     // Validar proteccion anti-Zip-Slip y anti-Zip-Bomb
-    int totalDecompressedBytes = 0;
-    for (final file in archive.files) {
-      final normalized = file.name.replaceAll('\\', '/');
-      final segments = normalized.split('/');
-      if (segments.any((s) => s == '..' || s.contains('\x00')) || normalized.startsWith('/')) {
-        throw TunnerPackageCorruptedException(
-          filePath: file.name,
-          expectedHash: '',
-          actualHash: 'ZIP_SLIP_ATTEMPT',
-        );
-      }
-      totalDecompressedBytes += file.size;
-      if (totalDecompressedBytes > maxDecompressedSizeBytes) {
-        throw const TunnerPackageInvalidFormatException(
-          'Cuota maxima de descompresion superada (posible Zip Bomb).',
-        );
-      }
-    }
+    _validateArchiveEntries(archive);
 
     // 1. Localizar y deserializar manifest.json
     final manifestFile = archive.findFile(manifestFileName);
@@ -152,6 +135,13 @@ class TunnerPackageCodecService implements ITunnerPackageCodec {
     }
 
     final manifestBytes = _extractFileBytes(manifestFile);
+    int actualTotalBytes = manifestBytes.length;
+    if (actualTotalBytes > maxDecompressedSizeBytes) {
+      throw const TunnerPackageInvalidFormatException(
+        'Cuota maxima de descompresion superada (posible Zip Bomb).',
+      );
+    }
+
     final manifestContent = utf8.decode(manifestBytes);
     final Map<String, dynamic> manifestMap;
     try {
@@ -162,20 +152,39 @@ class TunnerPackageCodecService implements ITunnerPackageCodec {
 
     final manifest = TunnerProjectManifestEntity.fromJson(manifestMap);
 
-    // 2. Verificación criptográfica de integridad SHA-256
+    // 2. Verificación criptográfica bidireccional 1:1 de integridad SHA-256
+    final payloadEntries = <String, ArchiveFile>{};
+    for (final file in archive.files) {
+      if (!file.isFile) continue;
+      if (file.name == manifestFileName) continue;
+      payloadEntries[file.name] = file;
+    }
+
     if (verifyHashes) {
-      if (manifest.fileHashes.isEmpty) {
+      if (payloadEntries.isNotEmpty && manifest.fileHashes.isEmpty) {
         throw const TunnerPackageCorruptedException(
           filePath: manifestFileName,
           expectedHash: 'SHA-256 no vacio',
           actualHash: 'HASHES_VACIOS',
         );
       }
+
+      // Verificar que no existan archivos inyectados fuera de fileHashes
+      for (final entryName in payloadEntries.keys) {
+        if (!manifest.fileHashes.containsKey(entryName)) {
+          throw TunnerPackageCorruptedException(
+            filePath: entryName,
+            expectedHash: 'REGISTRADO_EN_MANIFEST',
+            actualHash: 'ARCHIVO_NO_FIRMADO',
+          );
+        }
+      }
+
       for (final entry in manifest.fileHashes.entries) {
         final expectedPath = entry.key;
         final expectedHash = entry.value;
 
-        final file = archive.findFile(expectedPath);
+        final file = payloadEntries[expectedPath] ?? archive.findFile(expectedPath);
         if (file == null) {
           throw TunnerPackageCorruptedException(
             filePath: expectedPath,
@@ -185,6 +194,12 @@ class TunnerPackageCodecService implements ITunnerPackageCodec {
         }
 
         final fileBytes = _extractFileBytes(file);
+        actualTotalBytes += fileBytes.length;
+        if (actualTotalBytes > maxDecompressedSizeBytes) {
+          throw const TunnerPackageInvalidFormatException(
+            'Cuota maxima de descompresion superada (posible Zip Bomb).',
+          );
+        }
         final actualHash = _computeSha256Hex(fileBytes);
         if (actualHash.toLowerCase() != expectedHash.toLowerCase()) {
           throw TunnerPackageCorruptedException(
@@ -244,6 +259,29 @@ class TunnerPackageCodecService implements ITunnerPackageCodec {
     );
   }
 
+  void _validateArchiveEntries(Archive archive) {
+    int totalDecompressedBytes = 0;
+    for (final file in archive.files) {
+      final normalized = file.name.replaceAll('\\', '/');
+      final segments = normalized.split('/');
+      if (segments.any((s) => s == '..' || s.contains('\x00')) ||
+          normalized.startsWith('/') ||
+          RegExp(r'^[A-Za-z]:').hasMatch(normalized)) {
+        throw TunnerPackageCorruptedException(
+          filePath: file.name,
+          expectedHash: '',
+          actualHash: 'ZIP_SLIP_ATTEMPT',
+        );
+      }
+      totalDecompressedBytes += file.size;
+      if (totalDecompressedBytes > maxDecompressedSizeBytes) {
+        throw const TunnerPackageInvalidFormatException(
+          'Cuota maxima de descompresion superada (posible Zip Bomb).',
+        );
+      }
+    }
+  }
+
   @override
   TunnerProjectManifestEntity readManifest(Uint8List packageBytes) {
     if (packageBytes.isEmpty) {
@@ -259,17 +297,7 @@ class TunnerPackageCodecService implements ITunnerPackageCodec {
       );
     }
 
-    for (final file in archive.files) {
-      final normalized = file.name.replaceAll('\\', '/');
-      final segments = normalized.split('/');
-      if (segments.any((s) => s == '..' || s.contains('\x00')) || normalized.startsWith('/')) {
-        throw TunnerPackageCorruptedException(
-          filePath: file.name,
-          expectedHash: '',
-          actualHash: 'ZIP_SLIP_ATTEMPT',
-        );
-      }
-    }
+    _validateArchiveEntries(archive);
 
     final manifestFile = archive.findFile(manifestFileName);
     if (manifestFile == null) {
@@ -279,6 +307,11 @@ class TunnerPackageCodecService implements ITunnerPackageCodec {
     }
 
     final manifestBytes = _extractFileBytes(manifestFile);
+    if (manifestBytes.length > maxDecompressedSizeBytes) {
+      throw const TunnerPackageInvalidFormatException(
+        'Cuota maxima de descompresion superada (posible Zip Bomb).',
+      );
+    }
     final manifestContent = utf8.decode(manifestBytes);
     final manifestMap = jsonDecode(manifestContent) as Map<String, dynamic>;
     return TunnerProjectManifestEntity.fromJson(manifestMap);

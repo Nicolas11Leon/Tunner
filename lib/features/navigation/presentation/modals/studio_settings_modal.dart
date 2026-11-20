@@ -146,7 +146,7 @@ class _StudioSettingsModalState extends State<StudioSettingsModal> {
                             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
                           ),
                           child: Slider(
-                            value: _referencePitch,
+                            value: _referencePitch.clamp(400.0, 480.0),
                             min: 400.0,
                             max: 480.0,
                             divisions: 160,

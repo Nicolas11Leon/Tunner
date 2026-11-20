@@ -940,45 +940,45 @@ class _MainAppShellState extends State<MainAppShell> {
       shortcuts: activeShortcuts,
       child: Actions(
         actions: <Type, Action<Intent>>{
-          TogglePlayIntent: CallbackAction<TogglePlayIntent>(
-            onInvoke: (_) {
-              if (_isTextInputFocused()) return null;
+          TogglePlayIntent: _GuardedShortcutAction<TogglePlayIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
               viewModel.toggleMetronome();
               return null;
             },
           ),
-          RewindToStartIntent: CallbackAction<RewindToStartIntent>(
-            onInvoke: (_) {
-              if (_isTextInputFocused()) return null;
+          RewindToStartIntent: _GuardedShortcutAction<RewindToStartIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
               viewModel.resetSongState();
               viewModel.selectMeasure(0);
               return null;
             },
           ),
-          ToggleCycleLoopIntent: CallbackAction<ToggleCycleLoopIntent>(
-            onInvoke: (_) {
-              if (_isTextInputFocused()) return null;
+          ToggleCycleLoopIntent: _GuardedShortcutAction<ToggleCycleLoopIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
               viewModel.togglePracticeMode();
               return null;
             },
           ),
-          NudgeMeasureBackIntent: CallbackAction<NudgeMeasureBackIntent>(
-            onInvoke: (_) {
-              if (_isTextInputFocused()) return null;
+          NudgeMeasureBackIntent: _GuardedShortcutAction<NudgeMeasureBackIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
               viewModel.previousMeasure();
               return null;
             },
           ),
-          NudgeMeasureForwardIntent: CallbackAction<NudgeMeasureForwardIntent>(
-            onInvoke: (_) {
-              if (_isTextInputFocused()) return null;
+          NudgeMeasureForwardIntent: _GuardedShortcutAction<NudgeMeasureForwardIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
               viewModel.nextMeasure();
               return null;
             },
           ),
-          ToggleRecordIntent: CallbackAction<ToggleRecordIntent>(
-            onInvoke: (_) {
-              if (_isTextInputFocused()) return null;
+          ToggleRecordIntent: _GuardedShortcutAction<ToggleRecordIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
               if (viewModel.isRecording) {
                 viewModel.stopPracticeRecording();
               } else {
@@ -987,23 +987,23 @@ class _MainAppShellState extends State<MainAppShell> {
               return null;
             },
           ),
-          TapTempoIntent: CallbackAction<TapTempoIntent>(
-            onInvoke: (_) {
-              if (_isTextInputFocused()) return null;
+          TapTempoIntent: _GuardedShortcutAction<TapTempoIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
               viewModel.recordTapTempo();
               return null;
             },
           ),
-          IncrementBpmIntent: CallbackAction<IncrementBpmIntent>(
-            onInvoke: (intent) {
-              if (_isTextInputFocused()) return null;
+          IncrementBpmIntent: _GuardedShortcutAction<IncrementBpmIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (intent) {
               viewModel.incrementBpm(intent.step);
               return null;
             },
           ),
-          DecrementBpmIntent: CallbackAction<DecrementBpmIntent>(
-            onInvoke: (intent) {
-              if (_isTextInputFocused()) return null;
+          DecrementBpmIntent: _GuardedShortcutAction<DecrementBpmIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (intent) {
               viewModel.decrementBpm(intent.step);
               return null;
             },
@@ -1011,38 +1011,38 @@ class _MainAppShellState extends State<MainAppShell> {
           CalibrateReferencePitchIntent: CallbackAction<CalibrateReferencePitchIntent>(
             onInvoke: (intent) => viewModel.setReferencePitch(viewModel.referencePitch + intent.deltaHz),
           ),
-          PanicMuteIntent: CallbackAction<PanicMuteIntent>(
-            onInvoke: (_) {
-              if (_isTextInputFocused()) return null;
+          PanicMuteIntent: _GuardedShortcutAction<PanicMuteIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
               if (viewModel.isMetronomeActive) viewModel.toggleMetronome();
               if (viewModel.isRecording) viewModel.stopPracticeRecording();
               return null;
             },
           ),
-          FocusTunerIntent: CallbackAction<FocusTunerIntent>(
-            onInvoke: (_) {
-              if (_isTextInputFocused()) return null;
+          FocusTunerIntent: _GuardedShortcutAction<FocusTunerIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
               _navigateToTab(1);
               return null;
             },
           ),
-          FocusMetronomeIntent: CallbackAction<FocusMetronomeIntent>(
-            onInvoke: (_) {
-              if (_isTextInputFocused()) return null;
+          FocusMetronomeIntent: _GuardedShortcutAction<FocusMetronomeIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
               viewModel.toggleMetronome();
               return null;
             },
           ),
-          FocusScoreIntent: CallbackAction<FocusScoreIntent>(
-            onInvoke: (_) {
-              if (_isTextInputFocused()) return null;
+          FocusScoreIntent: _GuardedShortcutAction<FocusScoreIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
               _navigateToTab(4);
               return null;
             },
           ),
-          FocusLessonsIntent: CallbackAction<FocusLessonsIntent>(
-            onInvoke: (_) {
-              if (_isTextInputFocused()) return null;
+          FocusLessonsIntent: _GuardedShortcutAction<FocusLessonsIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
               _navigateToTab(2);
               return null;
             },
@@ -1059,21 +1059,24 @@ class _MainAppShellState extends State<MainAppShell> {
           OpenCommandPaletteIntent: CallbackAction<OpenCommandPaletteIntent>(
             onInvoke: (_) => _openCommandPalette(viewModel),
           ),
-          OpenShortcutsGuideIntent: CallbackAction<OpenShortcutsGuideIntent>(
-            onInvoke: (_) => _openShortcutsGuide(viewModel),
+          OpenShortcutsGuideIntent: _GuardedShortcutAction<OpenShortcutsGuideIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) => _openShortcutsGuide(viewModel),
           ),
           ToggleTerminalIntent: CallbackAction<ToggleTerminalIntent>(
             onInvoke: (_) => setState(() => _isTerminalOpen = !_isTerminalOpen),
           ),
-          OpenEarTrainerIntent: CallbackAction<OpenEarTrainerIntent>(
-            onInvoke: (_) => BlindEarTrainerModal.show(context, viewModel),
+          OpenEarTrainerIntent: _GuardedShortcutAction<OpenEarTrainerIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) => BlindEarTrainerModal.show(context, viewModel),
           ),
-          OpenChordAnalyzerIntent: CallbackAction<OpenChordAnalyzerIntent>(
-            onInvoke: (_) => ChordAnalyzerModal.show(context, viewModel),
+          OpenChordAnalyzerIntent: _GuardedShortcutAction<OpenChordAnalyzerIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) => ChordAnalyzerModal.show(context, viewModel),
           ),
-          JumpToTaskIntent: CallbackAction<JumpToTaskIntent>(
-            onInvoke: (_) {
-              if (_isTextInputFocused()) return null;
+          JumpToTaskIntent: _GuardedShortcutAction<JumpToTaskIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (_) {
               TaskQuickJumpModal.show(
                 context: context,
                 palette: viewModel.currentPalette,
@@ -1081,9 +1084,9 @@ class _MainAppShellState extends State<MainAppShell> {
               return null;
             },
           ),
-          SwitchTabIntent: CallbackAction<SwitchTabIntent>(
-            onInvoke: (intent) {
-              if (_isTextInputFocused()) return null;
+          SwitchTabIntent: _GuardedShortcutAction<SwitchTabIntent>(
+            isEnabledCheck: () => !_isTextInputFocused(),
+            onInvokeAction: (intent) {
               _navigateToTab(intent.tabIndex);
               return null;
             },
@@ -1390,4 +1393,23 @@ class _MainAppShellState extends State<MainAppShell> {
       ),
     );
   }
+}
+
+class _GuardedShortcutAction<T extends Intent> extends Action<T> {
+  final bool Function() isEnabledCheck;
+  final Object? Function(T intent) onInvokeAction;
+
+  _GuardedShortcutAction({
+    required this.isEnabledCheck,
+    required this.onInvokeAction,
+  });
+
+  @override
+  bool isEnabled(T intent) => isEnabledCheck();
+
+  @override
+  bool consumesKey(T intent) => isEnabledCheck();
+
+  @override
+  Object? invoke(T intent) => onInvokeAction(intent);
 }
