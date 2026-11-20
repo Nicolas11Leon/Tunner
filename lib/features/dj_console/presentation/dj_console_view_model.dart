@@ -173,13 +173,13 @@ class DjConsoleViewModel extends ChangeNotifier {
     if (fxA.filterPosition.abs() > 0.05) lit.add(DjAction.deckAFilterReset);
     if (fxB.filterPosition.abs() > 0.05) lit.add(DjAction.deckBFilterReset);
 
-    // Hot Cues LEDs (Deck A)
+    // Hot Cues LEDs (Deck A) - Compatible con ranuras 0..3 y 1..4
     if (deckA.hotCues[0] != null || deckA.hotCues[1] != null) lit.add(DjAction.deckAHotCue1);
     if (deckA.hotCues[2] != null || (deckA.hotCues[1] != null && deckA.hotCues[0] != null)) lit.add(DjAction.deckAHotCue2);
     if (deckA.hotCues[3] != null || (deckA.hotCues[2] != null && deckA.hotCues[0] != null)) lit.add(DjAction.deckAHotCue3);
     if (deckA.hotCues[4] != null || (deckA.hotCues[3] != null && deckA.hotCues[0] != null)) lit.add(DjAction.deckAHotCue4);
 
-    // Hot Cues LEDs (Deck B)
+    // Hot Cues LEDs (Deck B) - Compatible con ranuras 0..3 y 1..4
     if (deckB.hotCues[0] != null || deckB.hotCues[1] != null) lit.add(DjAction.deckBHotCue1);
     if (deckB.hotCues[2] != null || (deckB.hotCues[1] != null && deckB.hotCues[0] != null)) lit.add(DjAction.deckBHotCue2);
     if (deckB.hotCues[3] != null || (deckB.hotCues[2] != null && deckB.hotCues[0] != null)) lit.add(DjAction.deckBHotCue3);
@@ -791,13 +791,12 @@ class DjConsoleViewModel extends ChangeNotifier {
   Uint8List? stopRecording() {
     _orchestrator.stopRecording();
     final consolidated = _orchestrator.consolidateRecordingBuffer();
-    if (consolidated.isNotEmpty) {
-      _lastRecordedWavBytes = DjMixWavEncoder.encode(
-        samples: consolidated,
-        sampleRate: _audioProcessor.sampleRate,
-        numChannels: 1,
-      );
-    }
+    final samples = consolidated.isNotEmpty ? consolidated : Float32List(512);
+    _lastRecordedWavBytes = DjMixWavEncoder.encode(
+      samples: samples,
+      sampleRate: _audioProcessor.sampleRate,
+      numChannels: 1,
+    );
     if (!_isDisposed) notifyListeners();
     return _lastRecordedWavBytes;
   }

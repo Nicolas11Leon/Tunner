@@ -47,6 +47,8 @@ import '../../instrument/presentation/universal_master_keyboard_widget.dart';
 import '../../score_editor/presentation/score_editor_modal.dart';
 import '../../metronome/presentation/tap_tempo_modal.dart';
 import '../../tuner/presentation/stem_mixer_modal.dart';
+import '../../media_vault/presentation/media_vault_viewmodel.dart';
+import '../../media_vault/presentation/media_vault_workspace_modal.dart';
 
 export 'studio_keyboard_intents.dart';
 /// el Tutor de Aprendizaje, el Estudio de Grabación y la Biblioteca de Canciones,
@@ -67,6 +69,7 @@ class _MainAppShellState extends State<MainAppShell> {
   late int _currentIndex;
   late final ModularRackViewModel _modularRackViewModel;
   late final DjConsoleViewModel _djConsoleViewModel;
+  late final MediaVaultViewModel _mediaVaultViewModel;
   late final IStudioWorkspaceFileSystem _fileSystemService;
   late final StudioAudioDeviceMatrixService _audioMatrixService;
   StudioAudioInputEngine? _ownedAudioInput;
@@ -94,6 +97,7 @@ class _MainAppShellState extends State<MainAppShell> {
     _djConsoleViewModel = root != null
         ? root.createDjConsoleViewModel()
         : DjConsoleViewModel();
+    _mediaVaultViewModel = MediaVaultViewModel();
 
     _fileSystemService = root?.fileSystemService ?? NoOpStudioWorkspaceFileSystem();
     _fileSystemService.onOpenFile = _handleOpenFile;
@@ -307,6 +311,7 @@ class _MainAppShellState extends State<MainAppShell> {
     _terminalKernel.dispose();
     _modularRackViewModel.dispose();
     _djConsoleViewModel.dispose();
+    _mediaVaultViewModel.dispose();
     if (_ownsAudioMatrixService) {
       _audioMatrixService.dispose();
     }
@@ -677,6 +682,14 @@ class _MainAppShellState extends State<MainAppShell> {
           if (viewModel.isMetronomeActive) viewModel.toggleMetronome();
           if (viewModel.isAudioRecording) viewModel.stopPracticeRecording();
         },
+      ),
+      CommandItem(
+        id: 'open_media_vault',
+        title: 'Bóveda Multimedia (Media Vault)',
+        subtitle: 'Línea de tiempo no lineal DAW, multipista y gestión de assets',
+        icon: Icons.video_library_rounded,
+        category: 'Producción',
+        onSelect: () => MediaVaultWorkspaceModal.show(context, viewModel: _mediaVaultViewModel),
       ),
     ];
 

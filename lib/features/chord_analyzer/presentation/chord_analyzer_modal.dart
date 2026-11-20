@@ -108,6 +108,15 @@ class ChordAnalyzerModal extends StatelessWidget {
                   onPressed: () => viewModel.toggleChordRecognition(),
                 ),
                 IconButton(
+                  key: const Key('chord_toggle_mic_btn'),
+                  icon: Icon(
+                    viewModel.isRecording ? Icons.mic : Icons.mic_off,
+                    color: viewModel.isRecording ? palette.primaryAccent : palette.textMutedColor,
+                  ),
+                  tooltip: viewModel.isRecording ? 'Apagar Micrófono' : 'Activar Micrófono',
+                  onPressed: () => viewModel.toggleRecording(),
+                ),
+                IconButton(
                   icon: Icon(Icons.close, color: palette.textMutedColor),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
