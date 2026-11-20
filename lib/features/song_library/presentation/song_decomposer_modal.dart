@@ -122,13 +122,13 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
     }
   }
 
-  void _executeDecomposition() {
+  Future<void> _executeDecomposition() async {
     final parsedMeasures = SongDecomposerService.parseMelodyText(
       _notationController.text,
       _timeSignature,
     );
 
-    final decomposedPackage = SongDecomposerService.decomposeCustomScore(
+    final decomposedPackage = await SongDecomposerService.decomposeCustomScoreAsync(
       title: _titleController.text.trim().isEmpty ? "Obra Descompuesta" : _titleController.text.trim(),
       composer: _composerController.text.trim().isEmpty ? "Músico Local" : _composerController.text.trim(),
       bpm: _bpm,
@@ -140,6 +140,7 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
       includeRhythm: _includeRhythm,
     );
 
+    if (!mounted) return;
     widget.viewModel.addSongPackage(decomposedPackage);
     widget.viewModel.loadSongPackage(decomposedPackage);
 

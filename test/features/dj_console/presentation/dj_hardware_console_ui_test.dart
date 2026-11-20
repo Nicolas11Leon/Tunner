@@ -124,6 +124,11 @@ void main() {
       await tester.tap(find.byKey(const Key('gamepad_chip_Xbox_Select')));
       await tester.pump(const Duration(milliseconds: 200));
       expect(viewModel.crossfader.position, closeTo(0.0, 1e-4));
+
+      // Pause active decks cleanly before FakeAsync invariant check
+      viewModel.togglePlay('A');
+      viewModel.togglePlay('B');
+      await tester.pump();
     });
 
     testWidgets('Toggling Learn Mode updates mode banner and allows zone selection', (tester) async {

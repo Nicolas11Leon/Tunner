@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:typed_data';
 import 'autotune_config_entity.dart';
 import 'scale_quantizer.dart';
@@ -115,6 +116,35 @@ class VocalAutoTuneProcessor {
       name: '${take.name} (AutoTuned)',
       pitchTrack: tunedPitchTrack,
     );
+  }
+
+  /// Ejecuta [processPracticeTake] fuera del hilo de UI mediante [Isolate.run].
+  Future<PracticeTakeEntity> processPracticeTakeAsync({
+    required PracticeTakeEntity take,
+    AutoTuneConfigEntity? customConfig,
+  }) {
+    final effectiveConfig = customConfig ?? _config;
+    return Isolate.run(() {
+      final worker = VocalAutoTuneProcessor(config: effectiveConfig);
+      return worker.processPracticeTake(take: take, customConfig: effectiveConfig);
+    });
+  }
+
+  /// Ejecuta [processWavBytes] fuera del hilo de UI mediante [Isolate.run].
+  Future<Uint8List> processWavBytesAsync({
+    required Uint8List wavBytes,
+    required List<TimedPitchSample> pitchTrack,
+    AutoTuneConfigEntity? customConfig,
+  }) {
+    final effectiveConfig = customConfig ?? _config;
+    return Isolate.run(() {
+      final worker = VocalAutoTuneProcessor(config: effectiveConfig);
+      return worker.processWavBytes(
+        wavBytes: wavBytes,
+        pitchTrack: pitchTrack,
+        customConfig: effectiveConfig,
+      );
+    });
   }
 
   /// Procesa un archivo WAV PCM de 16 bits aplicando TD-PSOLA por cada ventana sonora

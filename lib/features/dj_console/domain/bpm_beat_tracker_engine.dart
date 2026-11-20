@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -22,6 +23,16 @@ class BpmBeatTrackerEngine {
     int sampleRate = 44100,
   }) {
     return BpmBeatTrackerEngine(sampleRate: sampleRate).estimate(samples);
+  }
+
+  /// Estimates BPM off the UI thread using [Isolate.run].
+  static Future<double> estimateBpmAsync({
+    required Float32List samples,
+    int sampleRate = 44100,
+  }) {
+    return Isolate.run(
+      () => estimateBpm(samples: samples, sampleRate: sampleRate),
+    );
   }
 
   /// Estimates the dominant tempo (BPM) from the supplied mono or single-channel audio buffer.
