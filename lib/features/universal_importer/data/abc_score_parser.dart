@@ -41,6 +41,7 @@ class AbcScoreParser implements IScoreParserService {
     TimeSignature timeSignature = TimeSignature.commonTime44;
     double unitLengthTicks = 4.0; // 4 sub-ticks = 1 negra (1/4)
     final melodyLines = <String>[];
+    String keySignature = 'C';
 
     for (final rawLine in lines) {
       final line = rawLine.trim();
@@ -87,7 +88,7 @@ class AbcScoreParser implements IScoreParserService {
           }
         }
       } else if (line.startsWith('K:')) {
-        // Fin de cabecera principal, las líneas siguientes son música
+        keySignature = line.substring(2).trim();
         continue;
       } else if (!RegExp(r'^[A-Za-z]:').hasMatch(line)) {
         melodyLines.add(line);
@@ -95,7 +96,13 @@ class AbcScoreParser implements IScoreParserService {
     }
 
     final rawMusic = melodyLines.join(' ');
-    final measures = _parseMelodyToMeasures(rawMusic, unitLengthTicks, timeSignature);
+    final keyAccidentals = _keySignatureAccidentals(keySignature);
+    final measures = _parseMelodyToMeasures(
+      rawMusic,
+      unitLengthTicks,
+      timeSignature,
+      keyAccidentals: keyAccidentals,
+    );
 
     if (measures.isEmpty) {
       throw FormatException('El archivo "$fileName" no contiene notación ABC válida.');
@@ -142,10 +149,15 @@ class AbcScoreParser implements IScoreParserService {
   List<MeasureEntity> _parseMelodyToMeasures(
     String rawMusic,
     double unitLengthTicks,
-    TimeSignature timeSignature,
-  ) {
+    TimeSignature timeSignature, {
+    Map<String, String> keyAccidentals = const {},
+  }) {
+    // Eliminar símbolos de acordes ("Am7") y decoraciones (!fermata!) antes de tokenizar notas
+    final sanitizedMusic = rawMusic
+        .replaceAll(RegExp(r'"[^"]*"'), ' ')
+        .replaceAll(RegExp(r'![^!]*!'), ' ');
     // Normalizar delimitadores compuestos (|], [|, :|, |:) por barra simple |
-    final cleanMusic = rawMusic.replaceAll(RegExp(r'\[\||\|\]|:\||\|:'), '|');
+    final cleanMusic = sanitizedMusic.replaceAll(RegExp(r'\[\||\|\]|:\||\|:'), '|');
     final rawBarTokens = cleanMusic.split('|');
     final measures = <MeasureEntity>[];
     int measureIndex = 0;
@@ -154,7 +166,12 @@ class AbcScoreParser implements IScoreParserService {
       final barContent = rawBar.trim();
       if (barContent.isEmpty) continue;
 
-      final notes = _parseNotesInBar(barContent, unitLengthTicks, timeSignature.totalTicks);
+      final notes = _parseNotesInBar(
+        barContent,
+        unitLengthTicks,
+        timeSignature.totalTicks,
+        keyAccidentals: keyAccidentals,
+      );
       if (notes.isNotEmpty) {
         measures.add(MeasureEntity(
           index: measureIndex++,
@@ -167,9 +184,14 @@ class AbcScoreParser implements IScoreParserService {
     return measures;
   }
 
-  List<HierarchicalNote> _parseNotesInBar(String barText, double unitLengthTicks, int maxTicks) {
+  List<HierarchicalNote> _parseNotesInBar(
+    String barText,
+    double unitLengthTicks,
+    int maxTicks, {
+    Map<String, String> keyAccidentals = const {},
+  }) {
     final notes = <HierarchicalNote>[];
-    // Expresión regular para tokens de notas ABC en comillas dobles
+    // Expresión regular para tokens de notas ABC (ya limpios de acordes/ornamentos)
     final tokenRegex = RegExp(r"(\^{1,2}|_{1,2}|={0,1})([A-Ga-gzx])([,']*)(\d*(?:\/\d*)?)");
     final matches = tokenRegex.allMatches(barText);
     if (matches.isEmpty) return const [];
@@ -177,8 +199,11 @@ class AbcScoreParser implements IScoreParserService {
     int currentTick = 0;
 
     for (final match in matches) {
-      final accidental = match.group(1) ?? '';
+      final explicitAccidental = match.group(1) ?? '';
       final noteChar = match.group(2)!;
+      final accidental = explicitAccidental.isNotEmpty
+          ? explicitAccidental
+          : (keyAccidentals[noteChar.toUpperCase()] ?? '');
       final octaveMod = match.group(3) ?? '';
       final durationMod = match.group(4) ?? '';
 
@@ -261,5 +286,37 @@ class AbcScoreParser implements IScoreParserService {
     octave = octave.clamp(1, 8);
 
     return '$baseSolfege$accSymbol$octave';
+  }
+
+  Map<String, String> _keySignatureAccidentals(String keyRaw) {
+    final k = keyRaw.trim().split(RegExp(r'\s+')).first.toUpperCase();
+    switch (k) {
+      case 'G':
+      case 'EM':
+        return const {'F': '^'};
+      case 'D':
+      case 'BM':
+        return const {'F': '^', 'C': '^'};
+      case 'A':
+      case 'F#M':
+        return const {'F': '^', 'C': '^', 'G': '^'};
+      case 'E':
+      case 'C#M':
+        return const {'F': '^', 'C': '^', 'G': '^', 'D': '^'};
+      case 'F':
+      case 'DM':
+        return const {'B': '_'};
+      case 'BB':
+      case 'GM':
+        return const {'B': '_', 'E': '_'};
+      case 'EB':
+      case 'CM':
+        return const {'B': '_', 'E': '_', 'A': '_'};
+      case 'AB':
+      case 'FM':
+        return const {'B': '_', 'E': '_', 'A': '_', 'D': '_'};
+      default:
+        return const {};
+    }
   }
 }

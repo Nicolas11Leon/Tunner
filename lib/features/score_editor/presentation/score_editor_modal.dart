@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../../core/file_system/data/platform_file_gateway.dart';
 import '../../../core/theme/tunner_theme.dart';
 import '../../tuner_viewmodel.dart';
 
@@ -467,6 +468,12 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
                                   duration: const Duration(seconds: 2),
                                 ),
                               );
+                              const PlatformFileGateway()
+                                  .saveExportedBytes(
+                                    'tunner_score_${DateTime.now().millisecondsSinceEpoch}.mid',
+                                    midiBytes,
+                                  )
+                                  .catchError((_) => '');
                             },
                           ),
                         ),
@@ -518,6 +525,12 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
                                   duration: const Duration(seconds: 2),
                                 ),
                               );
+                              const PlatformFileGateway()
+                                  .saveExportedBytes(
+                                    'tunner_score_${DateTime.now().millisecondsSinceEpoch}.pdf',
+                                    pdfBytes,
+                                  )
+                                  .catchError((_) => '');
                             },
                           ),
                         ),

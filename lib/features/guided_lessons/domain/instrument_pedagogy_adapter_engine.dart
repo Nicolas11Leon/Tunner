@@ -179,7 +179,7 @@ class InstrumentPedagogyAdapterEngine {
     if (basePitch.endsWith('#')) {
       isSharp = true;
       basePitch = basePitch.substring(0, basePitch.length - 1);
-    } else if (basePitch.endsWith('b') || basePitch.endsWith('♭')) {
+    } else if (basePitch.length > 1 && (basePitch.endsWith('b') || basePitch.endsWith('♭'))) {
       isFlat = true;
       basePitch = basePitch.substring(0, basePitch.length - 1);
     }

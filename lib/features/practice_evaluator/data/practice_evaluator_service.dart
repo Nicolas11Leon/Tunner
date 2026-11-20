@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:tunner/features/sheet_music/domain/score_tree.dart';
+import '../../tuner/domain/note_entity.dart';
 import '../../practice_recorder/domain/practice_recording_entity.dart';
 import '../domain/i_practice_evaluator_service.dart';
 import '../domain/note_evaluation_entity.dart';
@@ -66,9 +67,13 @@ class PracticeEvaluatorService implements IPracticeEvaluatorService {
       );
     }
 
-    // Normalización de notas (ej: "Do4" == "do4")
-    final bool noteMatches = targetSoundingNote.trim().toLowerCase() ==
-        detectedNoteName.trim().toLowerCase();
+    // Normalización enarmónica por frecuencia MIDI (ej: "Do#4" == "Reb4" == "C#4")
+    final double targetFreq = NoteEntity.frequencyForNote(targetSoundingNote);
+    final double detectedFreq = NoteEntity.frequencyForNote(detectedNoteName);
+    final bool noteMatches = (targetFreq > 0 && detectedFreq > 0)
+        ? (targetFreq / detectedFreq - 1.0).abs() < 0.01
+        : targetSoundingNote.trim().toLowerCase() ==
+            detectedNoteName.trim().toLowerCase();
 
     final double centsAbs = detectedCents.abs();
     final bool isPitchAccurate = noteMatches && centsAbs <= toleranceCents;

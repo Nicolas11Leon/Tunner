@@ -92,6 +92,7 @@ class AlgorithmicExerciseGenerator {
         startTick: currentTick,
         durationTicks: remainingTicks,
         noteName: "--",
+        isRest: true,
       ));
       measures.add(MeasureEntity(
         index: measureIndex,
@@ -106,7 +107,7 @@ class AlgorithmicExerciseGenerator {
         index: 0,
         timeSignature: TimeSignature.commonTime44,
         notes: [
-          HierarchicalNote(startTick: 0, durationTicks: 16, noteName: "--"),
+          HierarchicalNote(startTick: 0, durationTicks: 16, noteName: "--", isRest: true),
         ],
       ));
     }

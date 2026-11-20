@@ -35,19 +35,17 @@ class SmuflGlyphPathEngine {
         ..color = color
         ..style = PaintingStyle.fill;
 
-      // Corte central característico con BlendMode.clear
-      final innerPaint = Paint()
-        ..color = Colors.transparent
-        ..blendMode = BlendMode.clear;
+      // Corte central caracteristico con PathFillType.evenOdd (sin saveLayer)
       final innerRect = Rect.fromCenter(
         center: Offset.zero,
         width: radiusX * 0.95,
         height: radiusY * 0.42,
       );
-      canvas.saveLayer(rect.inflate(4), Paint());
-      canvas.drawOval(rect, outerPaint);
-      canvas.drawOval(innerRect, innerPaint);
-      canvas.restore();
+      final wholePath = Path()
+        ..fillType = PathFillType.evenOdd
+        ..addOval(rect)
+        ..addOval(innerRect);
+      canvas.drawPath(wholePath, outerPaint);
     } else {
       // Rotación canónica de 14 grados (~0.244 radianes)
       canvas.rotate(-14.0 * math.pi / 180.0);
@@ -411,7 +409,7 @@ class SmuflGlyphPathEngine {
     // Si está por debajo de la línea 1 (step < 0)
     if (stepFromLine1 < 0) {
       for (int step = -2; step >= stepFromLine1; step -= 2) {
-        final lineY = noteCenter.dy - ((stepFromLine1 - step) * (staffSpace / 2.0));
+        final lineY = noteCenter.dy + ((stepFromLine1 - step) * (staffSpace / 2.0));
         canvas.drawLine(
           Offset(noteCenter.dx - halfWidth, lineY),
           Offset(noteCenter.dx + halfWidth, lineY),
@@ -423,7 +421,7 @@ class SmuflGlyphPathEngine {
     // Si está por encima de la línea 5 (step > 8)
     if (stepFromLine1 > 8) {
       for (int step = 10; step <= stepFromLine1; step += 2) {
-        final lineY = noteCenter.dy + ((step - stepFromLine1) * (staffSpace / 2.0));
+        final lineY = noteCenter.dy + ((stepFromLine1 - step) * (staffSpace / 2.0));
         canvas.drawLine(
           Offset(noteCenter.dx - halfWidth, lineY),
           Offset(noteCenter.dx + halfWidth, lineY),

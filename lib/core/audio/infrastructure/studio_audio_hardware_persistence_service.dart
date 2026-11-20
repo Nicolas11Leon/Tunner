@@ -80,13 +80,18 @@ class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersi
 
     try {
       final file = await _getTargetFile();
-      final tempFile = File('${file.path}.tmp');
+      final tempFile = File('${file.path}.${DateTime.now().microsecondsSinceEpoch}.tmp');
 
       final jsonString = jsonEncode(matrix.toJson());
       await tempFile.writeAsString(jsonString, flush: true);
 
-      if (await tempFile.exists()) {
+      try {
         await tempFile.rename(file.path);
+      } catch (_) {
+        await file.writeAsString(jsonString, flush: true);
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
       }
       completer.complete();
     } catch (e) {

@@ -24,10 +24,13 @@ class CanonicalAbcExporter {
     final buffer = StringBuffer();
 
     // 1. Cabeceras estándar ABC
+    final ts = score.measures.isNotEmpty
+        ? score.measures.first.timeSignature
+        : TimeSignature.commonTime44;
     buffer.writeln('X: 1');
     buffer.writeln('T: $title');
     buffer.writeln('C: $composer');
-    buffer.writeln('M: 4/4');
+    buffer.writeln('M: ${ts.numerator}/${ts.denominator}');
     buffer.writeln('L: 1/4');
     buffer.writeln('Q: 1/4=${score.baseBpm}');
     buffer.writeln('K: C');
@@ -112,7 +115,7 @@ class CanonicalAbcExporter {
     if (ticks == 2) return '/2';
     if (ticks == 1) return '/4';
     if (ticks == 6) return '3/2';
-    return (ticks / 4.0).toStringAsFixed(1);
+    return '$ticks/4';
   }
 
   ({String step, int alter, int octave}) _parseSolfegeNote(String rawName) {
@@ -131,12 +134,18 @@ class CanonicalAbcExporter {
 
     final upper = name.toUpperCase();
     String step = 'C';
+    bool matchedSolfege = false;
     for (final entry in solfegeMap.entries) {
       if (upper.startsWith(entry.key)) {
         step = entry.value;
         name = name.substring(entry.key.length);
+        matchedSolfege = true;
         break;
       }
+    }
+    if (!matchedSolfege && name.isNotEmpty && RegExp(r'[A-G]').hasMatch(upper[0])) {
+      step = upper[0];
+      name = name.substring(1);
     }
 
     int alter = 0;

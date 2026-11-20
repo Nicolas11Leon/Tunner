@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'package:crypto/crypto.dart';
 import 'pedagogical_report_models.dart';
 
 /// Compilador en Pure Dart de reportes analíticos y certificados de conservatorio
@@ -55,7 +56,7 @@ class PedagogicalReportPdfGenerator {
     b.writeln('/F2 20 Tf'); // Helvetica-Bold 20pt
     b.writeln('1 1 1 rg'); // Blanco
     b.writeln('35 798 Td');
-    b.writeln('(${_sanitize("TUNER ACOUSTIC STUDIO")}) Tj');
+    b.writeln('(${_sanitize("TUNNER ACOUSTIC STUDIO")}) Tj');
     b.writeln('ET');
 
     // Subtítulo cabecera
@@ -152,19 +153,21 @@ class PedagogicalReportPdfGenerator {
       accentB: 0.1,
     );
 
-    _drawKpiCard(
-      b,
-      x: startX + 3 * (cardW + cardGap),
-      y: cardY,
-      w: cardW,
-      h: cardH,
-      title: 'Jitter de Pulso',
-      value: '${session.rhythmJitterMs.toStringAsFixed(1)} ms',
-      subtitle: 'Tempo: ${session.rhythmMeanBpm.toStringAsFixed(0)} BPM',
-      accentR: 0.6,
-      accentG: 0.3,
-      accentB: 0.85,
-    );
+    if (config.includeRhythmJitter) {
+      _drawKpiCard(
+        b,
+        x: startX + 3 * (cardW + cardGap),
+        y: cardY,
+        w: cardW,
+        h: cardH,
+        title: 'Jitter de Pulso',
+        value: '${session.rhythmJitterMs.toStringAsFixed(1)} ms',
+        subtitle: 'Tempo: ${session.rhythmMeanBpm.toStringAsFixed(0)} BPM',
+        accentR: 0.6,
+        accentG: 0.3,
+        accentB: 0.85,
+      );
+    }
 
     // 4. Lienzo Vectorial de Micro-Entonacion (y=415 a y=595, alto=180)
     if (config.includeIntonationGraph) {
@@ -235,9 +238,9 @@ class PedagogicalReportPdfGenerator {
 
     // Separador ornamental dorado central
     b.writeln('q');
-    b.writeln('0.75 0.6 0.2 RG 1.5 w');
+    b.writeln('0.75 0.6 0.2 RG 0.75 0.6 0.2 rg 1.5 w');
     b.writeln('180 705 m 415 705 l S');
-    b.writeln('297.64 705 4 0 360 arc f'); // Pequeño círculo central
+    _appendCirclePath(b, 297.64, 705.0, 4.0, op: 'f');
     b.writeln('Q');
 
     // 4. Gran Titulo del Certificado
@@ -324,8 +327,16 @@ class PedagogicalReportPdfGenerator {
     // 10. Código de Autenticación Criptográfica Local y Fecha
     final dateStr =
         '${session.sessionDate.year}-${session.sessionDate.month.toString().padLeft(2, '0')}-${session.sessionDate.day.toString().padLeft(2, '0')}';
-    final tokenHash =
-        'TN-${session.sessionDate.millisecondsSinceEpoch.toRadixString(16).toUpperCase()}-${session.inTuneNotesCount.toRadixString(16).toUpperCase()}';
+    final digest = sha256
+        .convert(
+          utf8.encode(
+            '${config.studentName}|${session.sessionTitle}|${session.sessionDate.toIso8601String()}|${session.tuningAccuracyPercentage.toStringAsFixed(2)}|${session.inTuneNotesCount}',
+          ),
+        )
+        .toString()
+        .substring(0, 16)
+        .toUpperCase();
+    final tokenHash = 'TN-$digest';
 
     b.writeln('BT');
     b.writeln('/F1 8 Tf');
@@ -436,15 +447,15 @@ class PedagogicalReportPdfGenerator {
     b.writeln('0.4 0.75 0.5 RG 1 w');
     b.writeln('$plotX $midY m ${plotX + plotW} $midY l S');
 
-    // Etiquetas del eje Y
+    // Etiquetas del eje Y (posicionamiento absoluto Tm)
     b.writeln('BT');
     b.writeln('/F1 7 Tf');
     b.writeln('0.45 0.5 0.55 rg');
-    b.writeln('${x + 8} ${midY + (45.0 * centsScale) - 3} Td');
+    b.writeln('1 0 0 1 ${x + 8} ${midY + (45.0 * centsScale) - 3} Tm');
     b.writeln('(${_sanitize("+50c")}) Tj');
-    b.writeln('${x + 8} ${midY - 3} Td');
+    b.writeln('1 0 0 1 ${x + 8} ${midY - 3} Tm');
     b.writeln('(${_sanitize("  0c")}) Tj');
-    b.writeln('${x + 8} ${midY - (45.0 * centsScale) - 3} Td');
+    b.writeln('1 0 0 1 ${x + 8} ${midY - (45.0 * centsScale) - 3} Tm');
     b.writeln('(${_sanitize("-50c")}) Tj');
     b.writeln('ET');
 
@@ -581,26 +592,26 @@ class PedagogicalReportPdfGenerator {
     final len = 20.0;
     b.writeln('$cx $cy m ${cx + (dx * len)} $cy l S');
     b.writeln('$cx $cy m $cx ${cy + (dy * len)} l S');
-    b.writeln('${cx + (dx * 6)} ${cy + (dy * 6)} 2.5 0 360 arc f');
+    _appendCirclePath(b, cx + (dx * 6), cy + (dy * 6), 2.5, op: 'f');
   }
 
   void _drawAcousticSeal(StringBuffer b, double cx, double cy) {
     b.writeln('q');
     b.writeln('0.75 0.6 0.2 RG 1.5 w');
     // Círculo exterior
-    b.writeln('$cx $cy 38 0 360 arc S');
+    _appendCirclePath(b, cx, cy, 38.0, op: 'S');
     // Círculo interior
     b.writeln('0.15 0.2 0.3 RG 0.8 w');
-    b.writeln('$cx $cy 32 0 360 arc S');
+    _appendCirclePath(b, cx, cy, 32.0, op: 'S');
 
-    // Letras dentro del sello
+    // Letras dentro del sello (posicionamiento absoluto Tm)
     b.writeln('BT');
     b.writeln('/F2 8 Tf');
     b.writeln('0.75 0.6 0.2 rg');
-    b.writeln('${cx - 24} ${cy + 6} Td');
-    b.writeln('(${_sanitize("TUNER")}) Tj');
+    b.writeln('1 0 0 1 ${cx - 18} ${cy + 6} Tm');
+    b.writeln('(${_sanitize("TUNNER")}) Tj');
     b.writeln('/F1 6.5 Tf');
-    b.writeln('${cx - 27} ${cy - 8} Td');
+    b.writeln('1 0 0 1 ${cx - 24} ${cy - 8} Tm');
     b.writeln('(${_sanitize("ACCREDITED")}) Tj');
     b.writeln('ET');
     b.writeln('Q');
@@ -667,13 +678,14 @@ class PedagogicalReportPdfGenerator {
     objects.add(infoObject);
     final infoObjIndex = objects.length;
 
-    // Ensamble binario de tabla xref y trailer
+    // Ensamble binario de tabla xref y trailer (cabecera binaria en latin1 1:1)
     final header = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
+    final headerBytes = latin1.encode(header);
     final bytesBuilder = BytesBuilder();
-    bytesBuilder.add(utf8.encode(header));
+    bytesBuilder.add(headerBytes);
 
     final offsets = <int>[];
-    int currentOffset = header.length;
+    int currentOffset = headerBytes.length;
 
     for (int i = 0; i < objects.length; i++) {
       offsets.add(currentOffset);
@@ -704,6 +716,23 @@ class PedagogicalReportPdfGenerator {
 
     bytesBuilder.add(utf8.encode(xrefBuilder.toString()));
     return bytesBuilder.toBytes();
+  }
+
+  /// Aproxima un circulo en el Content Stream PDF mediante 4 curvas de Bezier cubicas (`c`).
+  void _appendCirclePath(
+    StringBuffer b,
+    double cx,
+    double cy,
+    double r, {
+    required String op,
+  }) {
+    const k = 0.55228475;
+    final c = r * k;
+    b.writeln('${cx + r} $cy m');
+    b.writeln('${cx + r} ${cy + c} ${cx + c} ${cy + r} $cx ${cy + r} c');
+    b.writeln('${cx - c} ${cy + r} ${cx - r} ${cy + c} ${cx - r} $cy c');
+    b.writeln('${cx - r} ${cy - c} ${cx - c} ${cy - r} $cx ${cy - r} c');
+    b.writeln('${cx + c} ${cy - r} ${cx + r} ${cy - c} ${cx + r} $cy c $op');
   }
 
   /// Sanitiza cadenas para literales seguros en sintaxis PDF (...)

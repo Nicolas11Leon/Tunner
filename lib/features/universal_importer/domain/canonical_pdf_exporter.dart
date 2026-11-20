@@ -165,9 +165,10 @@ class CanonicalPdfExporter {
 
     double currentX = marginLeft + 35.0;
 
-    // 4. Métrica de Compás (Time Signature 4/4) en el primer sistema
+    // 4. Métrica de Compás real en el primer sistema
     if (isFirstSystem) {
-      _renderTimeSignature(buf, x: currentX, bottomY: staffBottomY);
+      final ts = measures.isNotEmpty ? measures.first.timeSignature : TimeSignature.commonTime44;
+      _renderTimeSignature(buf, x: currentX, bottomY: staffBottomY, timeSignature: ts);
       currentX += 28.0;
     }
 
@@ -223,16 +224,21 @@ class CanonicalPdfExporter {
     buf.writeln('${x - 2.0} $gLineY m ${x + 6.0} $gLineY l ${x + 6.0} ${gLineY - 4.0} l $x ${gLineY - 4.0} l f');
   }
 
-  /// Renderiza la indicación métrica 4/4 en el pentagrama.
-  void _renderTimeSignature(StringBuffer buf, {required double x, required double bottomY}) {
+  /// Renderiza la indicación métrica real en el pentagrama.
+  void _renderTimeSignature(
+    StringBuffer buf, {
+    required double x,
+    required double bottomY,
+    TimeSignature timeSignature = TimeSignature.commonTime44,
+  }) {
     buf.writeln('BT');
     buf.writeln('/F1 14 Tf');
     // Numerador en la mitad superior
     buf.writeln('1 0 0 1 $x ${bottomY + (staffSpace * 2.2)} Tm');
-    buf.writeln('(4) Tj');
+    buf.writeln('(${timeSignature.numerator}) Tj');
     // Denominador en la mitad inferior
     buf.writeln('1 0 0 1 $x ${bottomY + (staffSpace * 0.4)} Tm');
-    buf.writeln('(4) Tj');
+    buf.writeln('(${timeSignature.denominator}) Tj');
     buf.writeln('ET');
   }
 
@@ -298,10 +304,10 @@ class CanonicalPdfExporter {
       buf.writeln('${x - rx} $y m');
       buf.writeln('${x - rx} ${y + ry} ${x + rx} ${y + ry} ${x + rx} $y c');
       buf.writeln('${x + rx} ${y - ry} ${x - rx} ${y - ry} ${x - rx} $y c f');
-    }
 
-    // Marcador complementario de rectángulo acotado para reconocimiento estricto OMR
-    buf.writeln('${x - 3.5} ${y - 3.0} 7.0 6.0 re f');
+      // Marcador complementario de rectángulo acotado solo para cabezas rellenas
+      buf.writeln('${x - 3.5} ${y - 3.0} 7.0 6.0 re f');
+    }
   }
 
   /// Dibuja la plica vertical y banderas para figuras de menor duración.
@@ -423,14 +429,16 @@ class CanonicalPdfExporter {
     };
 
     String letter = 'E';
+    bool matchedSolfege = false;
     for (final entry in solfegePrefixes.entries) {
       if (name.startsWith(entry.key)) {
         letter = entry.value;
         name = name.substring(entry.key.length);
+        matchedSolfege = true;
         break;
       }
     }
-    if (name.startsWith(RegExp(r'[A-G]'))) {
+    if (!matchedSolfege && name.startsWith(RegExp(r'[A-G]'))) {
       letter = name[0];
       name = name.substring(1);
     }

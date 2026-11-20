@@ -60,7 +60,13 @@ class RealSheetMusicPainter extends CustomPainter {
   /// Línea 1 = 0, Línea 2 = 2, Línea 3 (centro) = 4, Línea 4 = 6, Línea 5 = 8.
   int getNoteStep(String note) {
     if (note.isEmpty || note == "--") return -100;
-    String raw = note.replaceAll(RegExp(r'[0-9#b♭♯]'), '').toLowerCase();
+    String raw = note
+        .replaceAll(RegExp(r'\d+'), '')
+        .replaceAll(RegExp(r'[#♭♯]+$'), '')
+        .toLowerCase();
+    if (raw.length > 1 && raw.endsWith('b')) {
+      raw = raw.substring(0, raw.length - 1);
+    }
     int octave = int.tryParse(note.replaceAll(RegExp(r'[^0-9]'), '')) ?? 4;
 
     int diatonic = 0;

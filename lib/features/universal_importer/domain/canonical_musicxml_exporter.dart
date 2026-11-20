@@ -73,6 +73,9 @@ class CanonicalMusicXmlExporter {
         buffer.writeln('          <line>2</line>');
         buffer.writeln('        </clef>');
         buffer.writeln('      </attributes>');
+        buffer.writeln('      <direction placement="above">');
+        buffer.writeln('        <sound tempo="${score.baseBpm}"/>');
+        buffer.writeln('      </direction>');
       }
 
       // Notas del compás
@@ -118,6 +121,9 @@ class CanonicalMusicXmlExporter {
     sb.writeln('        <duration>${note.durationTicks}</duration>');
     sb.writeln('        <voice>1</voice>');
     sb.writeln('        <type>${_ticksToNoteType(note.durationTicks)}</type>');
+    if (note.durationTicks == 12 || note.durationTicks == 6 || note.durationTicks == 3) {
+      sb.writeln('        <dot/>');
+    }
     sb.writeln('      </note>');
 
     return sb.toString();
