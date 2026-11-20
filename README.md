@@ -2,7 +2,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![CI Pipeline](https://github.com/Nicolas11Leon/Tunner/actions/workflows/ci.yml/badge.svg)](https://github.com/Nicolas11Leon/Tunner/actions/workflows/ci.yml)
-[![Tests: 1082 Passing](https://img.shields.io/badge/Tests-1082%20Passing-brightgreen.svg)]()
+[![Tests: 1154 Passing](https://img.shields.io/badge/Tests-1154%20Passing-brightgreen.svg)]()
 [![Code Quality: 0 Issues](https://img.shields.io/badge/Lints-0%20Issues-success.svg)]()
 [![Architecture: Clean Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-informational.svg)]()
 [![Privacy: 100% Offline--First](https://img.shields.io/badge/Privacy-100%25%20Offline--First-blueviolet.svg)]()
@@ -287,8 +287,8 @@ tunner/
 │   │   ├── tuner_viewmodel.dart    # Orquestador principal con Inversion de Dependencias
 │   │   └── tuner_screen.dart       # Pantalla tradicional unificada del laboratorio acustico
 │   └── main.dart                   # Punto de entrada de la aplicacion
-├── test/                           # 634 pruebas unitarias, de integracion y de widgets
-├── docs/                           # 68 Casos de Uso, 62 ADRs, 66 Planes de Implementacion
+├── test/                           # 1,154 pruebas unitarias, de integracion y de widgets
+├── docs/                           # 132 Casos de Uso, 121 ADRs, 80+ Planes de Implementacion
 └── CONTRIBUTING.md                  # Guia detallada para colaboradores del proyecto
 ```
 
@@ -311,9 +311,9 @@ cd Tunner
 flutter pub get
 
 # 3. Analisis estatico de codigo (0 advertencias garantizadas)
-flutter analyze
+flutter analyze --no-fatal-infos
 
-# 4. Ejecucion de la suite completa de pruebas (617 pruebas passing)
+# 4. Ejecucion de la suite completa de pruebas (1,154 pruebas passing)
 flutter test
 ```
 
