@@ -1,7 +1,113 @@
-part of '../../../tuner_viewmodel.dart';
+import 'dart:async';
 
-extension TunerViewModelRecorderPart on TunerViewModel {
-  // --- Métodos de Grabación de Práctica & Auto-Escucha (Loopback) ---
+import 'package:flutter/foundation.dart';
+
+import '../../../core/file_system/domain/i_platform_file_gateway.dart';
+import '../../audio_synthesizer/domain/i_audio_synthesizer_service.dart';
+import '../../persistence/domain/app_user_settings_entity.dart';
+import '../../persistence/domain/i_local_persistence_service.dart';
+import '../domain/i_audio_playback_service.dart';
+import '../domain/i_practice_recorder_service.dart';
+import '../domain/multitrack_session_entity.dart';
+import '../domain/practice_recording_entity.dart';
+
+/// Controlador cohesivo dedicado a la grabación de práctica, reproducción de tomas,
+/// sesiones multipista (comparador espectral) y persistencia offline del estudio.
+class PracticeRecorderController {
+  final IPracticeRecorderService _recorderService;
+  final IAudioPlaybackService _playbackService;
+  final ILocalPersistenceService _persistenceService;
+  final IAudioSynthesizerService _audioSynthesizer;
+  final IPlatformFileGateway _platformFileGateway;
+  final Future<String> Function()? _recordingPathProvider;
+  final VoidCallback _onNotify;
+  final VoidCallback _onAutoSave;
+
+  bool _isAudioRecording = false;
+  Duration _recordingDuration = Duration.zero;
+  Timer? _recordingTimer;
+  final Stopwatch _recordingStopwatch = Stopwatch();
+  final List<double> _currentWaveformPeaks = [];
+  final List<TimedPitchSample> _currentPitchTrack = [];
+  final List<TimedSpectralSample> _currentSpectralTrack = [];
+
+  PracticeRecordingEntity? _activeRecording;
+  final List<PracticeRecordingEntity> _recordingHistory = [];
+  late MultiTrackSessionEntity _multiTrackSession;
+
+  bool _isPlayingAudio = false;
+  Duration _playbackPosition = Duration.zero;
+  Duration _playbackDuration = Duration.zero;
+  double _playbackSpeed = 1.0;
+
+  final Completer<void> _initCompleter = Completer<void>();
+
+  PracticeRecorderController({
+    required IPracticeRecorderService recorderService,
+    required IAudioPlaybackService playbackService,
+    required ILocalPersistenceService persistenceService,
+    required IAudioSynthesizerService audioSynthesizer,
+    required IPlatformFileGateway platformFileGateway,
+    required String initialTitle,
+    required int initialBpm,
+    required VoidCallback onNotify,
+    required VoidCallback onAutoSave,
+    Future<String> Function()? recordingPathProvider,
+  })  : _recorderService = recorderService,
+        _playbackService = playbackService,
+        _persistenceService = persistenceService,
+        _audioSynthesizer = audioSynthesizer,
+        _platformFileGateway = platformFileGateway,
+        _recordingPathProvider = recordingPathProvider,
+        _onNotify = onNotify,
+        _onAutoSave = onAutoSave {
+    initDefaultMultiTrackSession(title: initialTitle, bpm: initialBpm);
+  }
+
+  bool get isAudioRecording => _isAudioRecording;
+  Duration get recordingDuration => _recordingDuration;
+  List<double> get currentWaveformPeaks => List.unmodifiable(_currentWaveformPeaks);
+  List<TimedPitchSample> get currentPitchTrack => List.unmodifiable(_currentPitchTrack);
+  List<TimedPitchSample> get rawCurrentPitchTrack => _currentPitchTrack;
+  PracticeRecordingEntity? get activeRecording => _activeRecording;
+  List<PracticeRecordingEntity> get recordingHistory => List.unmodifiable(_recordingHistory);
+  List<PracticeRecordingEntity> get rawRecordingHistory => _recordingHistory;
+  MultiTrackSessionEntity get multiTrackSession => _multiTrackSession;
+  bool get isPlayingAudio => _isPlayingAudio;
+  Duration get playbackPosition => _playbackPosition;
+  Duration get playbackDuration => _playbackDuration;
+  double get playbackSpeed => _playbackSpeed;
+  Future<void> get isInitialized => _initCompleter.future;
+
+  void addWaveformPeak(double peak) {
+    _currentWaveformPeaks.add(peak);
+    if (_currentWaveformPeaks.length > 60) {
+      _currentWaveformPeaks.removeAt(0);
+    }
+  }
+
+  void updatePlaybackPosition(Duration pos) {
+    _playbackPosition = pos;
+  }
+
+  void updatePlaybackDuration(Duration dur) {
+    _playbackDuration = dur;
+  }
+
+  void markPlaybackComplete() {
+    _isPlayingAudio = false;
+    _playbackPosition = Duration.zero;
+  }
+
+  void setMultiTrackSession(MultiTrackSessionEntity session) {
+    _multiTrackSession = session;
+  }
+
+  void clearMultiTrackTracks() {
+    _currentWaveformPeaks.clear();
+    _currentPitchTrack.clear();
+    _currentSpectralTrack.clear();
+  }
 
   Future<String> _getRecordingPath() async {
     if (_recordingPathProvider != null) {
@@ -20,7 +126,6 @@ extension TunerViewModelRecorderPart on TunerViewModel {
     }
   }
 
-  /// Inicia la grabación acústica de la interpretación en segundo plano.
   Future<void> startPracticeRecording() async {
     if (_isAudioRecording) return;
     if (_isPlayingAudio) {
@@ -42,17 +147,19 @@ extension TunerViewModelRecorderPart on TunerViewModel {
       _recordingTimer?.cancel();
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         _recordingDuration += const Duration(seconds: 1);
-        notifyListeners();
+        _onNotify();
       });
-      notifyListeners();
+      _onNotify();
     } catch (_) {
       _isAudioRecording = false;
-      notifyListeners();
+      _onNotify();
     }
   }
 
-  /// Detiene la grabación activa y consolida la toma como [PracticeRecordingEntity] y [PracticeTakeEntity].
-  Future<void> stopPracticeRecording() async {
+  Future<void> stopPracticeRecording({
+    required String songTitle,
+    required int bpm,
+  }) async {
     if (!_isAudioRecording) return;
     _recordingTimer?.cancel();
     _recordingTimer = null;
@@ -62,20 +169,20 @@ extension TunerViewModelRecorderPart on TunerViewModel {
     final filePath = await _recorderService.stopRecording();
     if (filePath != null && _recordingDuration.inMilliseconds >= 500) {
       final recording = PracticeRecordingEntity(
-        id: "rec_${DateTime.now().millisecondsSinceEpoch}",
+        id: 'rec_${DateTime.now().millisecondsSinceEpoch}',
         filePath: filePath,
         recordedAt: DateTime.now(),
         duration: _recordingDuration,
-        songTitle: _activePackage.title,
-        bpm: _bpm,
+        songTitle: songTitle,
+        bpm: bpm,
         waveformPeaks: List.unmodifiable(_currentWaveformPeaks),
       );
       _activeRecording = recording;
       _recordingHistory.insert(0, recording);
 
       final take = PracticeTakeEntity(
-        id: "take_${DateTime.now().millisecondsSinceEpoch}",
-        name: "Toma ${_multiTrackSession.takes.length + 1}",
+        id: 'take_${DateTime.now().millisecondsSinceEpoch}',
+        name: 'Toma ${_multiTrackSession.takes.length + 1}',
         timestamp: DateTime.now(),
         duration: _recordingDuration,
         filePath: filePath,
@@ -88,88 +195,103 @@ extension TunerViewModelRecorderPart on TunerViewModel {
         selectedTakeAId: _multiTrackSession.takes.isNotEmpty ? _multiTrackSession.takes.last.id : take.id,
         selectedTakeBId: take.id,
       );
-      _triggerAutoSave();
+      _onAutoSave();
     }
-    notifyListeners();
+    _onNotify();
   }
 
-  /// Alterna entre iniciar y detener la grabación de práctica con un solo toque.
-  Future<void> togglePracticeRecording() async {
+  Future<void> togglePracticeRecording({
+    required String songTitle,
+    required int bpm,
+  }) async {
     if (_isAudioRecording) {
-      await stopPracticeRecording();
+      await stopPracticeRecording(songTitle: songTitle, bpm: bpm);
     } else {
       await startPracticeRecording();
     }
   }
 
-  /// Reproduce la toma de práctica activa o la toma especificada en [targetRecording].
-  Future<void> playActiveRecording([PracticeRecordingEntity? targetRecording]) async {
+  Future<void> playActiveRecording({
+    PracticeRecordingEntity? targetRecording,
+    required double referencePitch,
+  }) async {
     final toPlay = targetRecording ?? _activeRecording;
     if (toPlay == null) return;
     _activeRecording = toPlay;
     if (toPlay.filePath.isNotEmpty) {
       await _playbackService.play(toPlay.filePath);
       _isPlayingAudio = true;
-      notifyListeners();
+      _onNotify();
     } else {
-      // Síntesis acústica procedimental de la toma demo
       _isPlayingAudio = true;
-      notifyListeners();
+      _onNotify();
       await _audioSynthesizer.playNoteTone(
-        frequency: _referencePitch,
+        frequency: referencePitch,
         duration: const Duration(seconds: 4),
         volume: 0.8,
       );
       _isPlayingAudio = false;
-      notifyListeners();
+      _onNotify();
     }
   }
 
-  /// Pausa la auto-escucha de la toma activa.
   Future<void> pauseActiveRecording() async {
     await _playbackService.pause();
     _isPlayingAudio = false;
-    notifyListeners();
+    _onNotify();
   }
 
-  /// Detiene la reproducción y regresa al inicio de la toma.
   Future<void> stopActiveRecordingPlayback() async {
     await _playbackService.stop();
     _isPlayingAudio = false;
     _playbackPosition = Duration.zero;
-    notifyListeners();
+    _onNotify();
   }
 
-  /// Salta a una posición temporal específica dentro de la toma de audio.
   Future<void> seekPlayback(Duration position) async {
     await _playbackService.seek(position);
     _playbackPosition = position;
-    notifyListeners();
+    _onNotify();
   }
 
-  /// Ajusta la velocidad de reproducción de auto-escucha (ej. 0.75x, 1.0x, 1.25x).
   Future<void> setPlaybackSpeed(double speed) async {
     _playbackSpeed = speed;
     await _playbackService.setPlaybackRate(speed);
-    notifyListeners();
+    _onNotify();
   }
 
-  /// Descarta la toma activa actual.
   void discardActiveRecording() {
     if (_isPlayingAudio) {
       stopActiveRecordingPlayback();
     }
     if (_activeRecording != null) {
       _recordingHistory.removeWhere((r) => r.id == _activeRecording!.id);
-      _triggerAutoSave();
+      _onAutoSave();
     }
     _activeRecording = null;
-    notifyListeners();
+    _onNotify();
   }
 
-  // --- Métodos de Gestión Multi-Pista y Comparador Espectral ---
+  void deletePracticeRecordingById(String id) {
+    _recordingHistory.removeWhere((r) => r.id == id);
+    if (_activeRecording?.id == id) {
+      _activeRecording = _recordingHistory.isNotEmpty ? _recordingHistory.first : null;
+    }
+    _onAutoSave();
+    _onNotify();
+  }
 
-  void _recordSampleForMultiTrack(double pitch, double cents, String noteName, {bool isSilent = false}) {
+  void recordSampleForMultiTrack({
+    required double pitch,
+    required double cents,
+    required String noteName,
+    required bool isAutoTuneEnabled,
+    required double autoTuneTargetHz,
+    required double autoTuneCentsDev,
+    required String autoTuneTargetNote,
+    required String? expectedNoteName,
+    bool isSilent = false,
+  }) {
     final timeMs = _recordingStopwatch.isRunning
         ? _recordingStopwatch.elapsedMilliseconds
         : _recordingDuration.inMilliseconds;
@@ -177,17 +299,17 @@ extension TunerViewModelRecorderPart on TunerViewModel {
       return;
     }
 
-    final isAutoTuned = _autoTuneProcessor.config.isEnabled && _lastAutoTuneResult.targetFrequencyHz > 20.0;
-    final correctedPitch = isAutoTuned ? _lastAutoTuneResult.targetFrequencyHz : null;
-    final effectiveCents = isAutoTuned ? _lastAutoTuneResult.centsDeviation : cents;
-    final effectiveNoteName = isAutoTuned ? _lastAutoTuneResult.targetNoteName : noteName;
+    final isAutoTuned = isAutoTuneEnabled && autoTuneTargetHz > 20.0;
+    final correctedPitch = isAutoTuned ? autoTuneTargetHz : null;
+    final effectiveCents = isAutoTuned ? autoTuneCentsDev : cents;
+    final effectiveNoteName = isAutoTuned ? autoTuneTargetNote : noteName;
 
     _currentPitchTrack.add(
       TimedPitchSample(
         timeMs: timeMs,
         frequencyHz: pitch,
         centsDeviation: effectiveCents,
-        targetNoteName: _expectedNote?.noteName ?? effectiveNoteName,
+        targetNoteName: expectedNoteName ?? effectiveNoteName,
         isSilent: isSilent || pitch <= 20.0,
         correctedPitchHz: correctedPitch,
         isAutoTuned: isAutoTuned,
@@ -199,19 +321,19 @@ extension TunerViewModelRecorderPart on TunerViewModel {
           timeMs: timeMs,
           spectralCentroidHz: pitch * 2.6,
           thdPercent: 3.2,
-          rmsEnergy: (_currentWaveformPeaks.isNotEmpty ? _currentWaveformPeaks.last : 0.25),
+          rmsEnergy: _currentWaveformPeaks.isNotEmpty ? _currentWaveformPeaks.last : 0.25,
         ),
       );
     }
   }
 
-  void _initDefaultMultiTrackSession() {
+  void initDefaultMultiTrackSession({required String title, required int bpm}) {
     final now = DateTime.now();
     _multiTrackSession = MultiTrackSessionEntity(
-      id: "session_${now.millisecondsSinceEpoch}",
-      title: _activePackage.title,
+      id: 'session_${now.millisecondsSinceEpoch}',
+      title: title,
       createdAt: now,
-      bpm: _bpm,
+      bpm: bpm,
       takes: [
         PracticeTakeEntity(
           id: 'take_1',
@@ -264,7 +386,7 @@ extension TunerViewModelRecorderPart on TunerViewModel {
       selectedTakeAId: takeAId ?? _multiTrackSession.selectedTakeAId,
       selectedTakeBId: takeBId ?? _multiTrackSession.selectedTakeBId,
     );
-    notifyListeners();
+    _onNotify();
   }
 
   void addPracticeTake(PracticeTakeEntity take) {
@@ -273,7 +395,7 @@ extension TunerViewModelRecorderPart on TunerViewModel {
       selectedTakeAId: _multiTrackSession.takes.isNotEmpty ? _multiTrackSession.takes.last.id : take.id,
       selectedTakeBId: take.id,
     );
-    notifyListeners();
+    _onNotify();
   }
 
   void setTakeMute(String takeId, bool isMuted) {
@@ -281,7 +403,7 @@ extension TunerViewModelRecorderPart on TunerViewModel {
       return t.id == takeId ? t.copyWith(isMuted: isMuted) : t;
     }).toList();
     _multiTrackSession = _multiTrackSession.copyWith(takes: updated);
-    notifyListeners();
+    _onNotify();
   }
 
   void setTakeSolo(String takeId, bool isSolo) {
@@ -289,7 +411,7 @@ extension TunerViewModelRecorderPart on TunerViewModel {
       return t.id == takeId ? t.copyWith(isSolo: isSolo) : t;
     }).toList();
     _multiTrackSession = _multiTrackSession.copyWith(takes: updated);
-    notifyListeners();
+    _onNotify();
   }
 
   void setTakeGain(String takeId, double gain) {
@@ -297,17 +419,17 @@ extension TunerViewModelRecorderPart on TunerViewModel {
       return t.id == takeId ? t.copyWith(gain: gain) : t;
     }).toList();
     _multiTrackSession = _multiTrackSession.copyWith(takes: updated);
-    notifyListeners();
+    _onNotify();
   }
 
   Future<void> playTakeAudio(PracticeTakeEntity take) async {
     if (take.filePath.isNotEmpty) {
       await _playbackService.play(take.filePath);
       _isPlayingAudio = true;
-      notifyListeners();
+      _onNotify();
     } else {
       _isPlayingAudio = true;
-      notifyListeners();
+      _onNotify();
       final freq = take.pitchTrack.isNotEmpty ? take.pitchTrack.first.frequencyHz : 440.0;
       await _audioSynthesizer.playNoteTone(
         frequency: freq,
@@ -315,79 +437,19 @@ extension TunerViewModelRecorderPart on TunerViewModel {
         volume: 0.75,
       );
       _isPlayingAudio = false;
-      notifyListeners();
+      _onNotify();
     }
   }
 
-  Future<void> get isInitialized => _initCompleter.future;
-
-  /// Carga asíncronamente las preferencias y estado persistido desde almacenamiento offline.
-  Future<void> loadPersistedState() async {
+  Future<void> loadSettingsInto(void Function(AppUserSettingsEntity settings) applySettings) async {
     try {
       final settings = await _persistenceService.loadSettings();
-      _referencePitch = settings.referencePitch.clamp(415.0, 466.0);
-      _isSmartWaitEnabled = settings.isSmartWaitEnabled;
-      if (settings.bpm >= 20 && settings.bpm <= 300) {
-        _bpm = settings.bpm;
-        _scorePlaybackCoordinator.bpm = _bpm.toDouble();
-      }
-
-      if (settings.customPalettes.isNotEmpty) {
-        _customPalettes.clear();
-        _customPalettes.addAll(settings.customPalettes);
-      }
-
-      final targetPalette = availablePalettes.firstWhere(
-        (p) => p.id == settings.selectedThemeId,
-        orElse: () => TunnerThemePalette.obsidianStudio,
-      );
-      _currentPalette = targetPalette;
-      _themeMode = targetPalette.mode;
-
-      final targetInstrument = InstrumentProfileEntity.standardInstruments.firstWhere(
-        (inst) => inst.id == settings.selectedInstrumentId,
-        orElse: () => InstrumentProfileEntity.flute,
-      );
-      _activeInstrument = targetInstrument;
-      _displayMode = settings.displayMode;
-      _selectedTemperament = TemperamentEngine.getById(settings.selectedTemperamentId);
-      _temperamentRootKey = settings.temperamentRootKey;
-      _learnerProfile = settings.learnerProfile;
-      _activeWorkspace = settings.activeWorkspace;
-
-      if (settings.sessionHistory.isNotEmpty) {
-        _sessionHistory.clear();
-        _sessionHistory.addAll(settings.sessionHistory);
-        _lastReport = _sessionHistory.last;
-      }
-
       if (settings.recordingHistory.isNotEmpty) {
         _recordingHistory.clear();
         _recordingHistory.addAll(settings.recordingHistory);
         _activeRecording = _recordingHistory.first;
       }
-
-      if (settings.tuningPresets.isNotEmpty) {
-        _tuningPresets.clear();
-        _tuningPresets.addAll(settings.tuningPresets);
-      }
-
-      if (settings.workspaceScores.isNotEmpty) {
-        _workspaceScores.clear();
-        _workspaceScores.addAll(settings.workspaceScores);
-      }
-
-      if (_shouldSeedDefaults) {
-        _seedDefaultWorkspaceIfEmpty();
-      }
-
-      _micProfile = settings.micCalibrationProfile;
-      _acousticRigorProfile = settings.acousticRigorProfile;
-      _isInstrumentIsolationActive = _acousticRigorProfile.enableInstrumentIsolation;
-      _pitchService.updateCalibrationProfile(_micProfile);
-      _syncInstrumentAcousticFilter();
-
-      notifyListeners();
+      applySettings(settings);
     } catch (_) {
       // Ignorar fallas de carga silenciosamente
     } finally {
@@ -397,12 +459,7 @@ extension TunerViewModelRecorderPart on TunerViewModel {
     }
   }
 
-  /// Inicializa semillas por defecto en el espacio de trabajo local para garantizar
-  /// que la interfaz de usuario no muestre contadores vacíos al arrancar el estudio.
-  void _seedDefaultWorkspaceIfEmpty() {
-    if (_workspaceScores.isEmpty && _curatedLibrary.isNotEmpty) {
-      _workspaceScores.addAll(_curatedLibrary.take(3));
-    }
+  void seedDefaultRecordingsIfEmpty() {
     if (_recordingHistory.isEmpty) {
       _recordingHistory.addAll([
         PracticeRecordingEntity(
@@ -426,59 +483,18 @@ extension TunerViewModelRecorderPart on TunerViewModel {
       ]);
       _activeRecording = _recordingHistory.first;
     }
-    if (_tuningPresets.isEmpty) {
-      _tuningPresets.addAll([
-        TuningPresetEntity(
-          id: 'preset_philharmonic_442',
-          name: 'Afinación Filarmónica',
-          referencePitchHz: 442.0,
-          temperamentId: 'equal',
-          rootKey: 0,
-          description: 'Estándar orquestal europeo moderno (442 Hz)',
-          createdAt: DateTime.now().subtract(const Duration(days: 1)),
-        ),
-        TuningPresetEntity(
-          id: 'preset_baroque_415',
-          name: 'Afinación Barroca',
-          referencePitchHz: 415.0,
-          temperamentId: 'werckmeister_iii',
-          rootKey: 0,
-          description: 'Afinación historicista barroca a 415 Hz en Werckmeister III',
-          createdAt: DateTime.now().subtract(const Duration(days: 2)),
-        ),
-      ]);
-    }
   }
 
-  /// Método público para forzar y esperar la persistencia de estado atómica en disco.
-  Future<void> savePersistedState() => _triggerAutoSave();
-
-  /// Persiste el estado consolidado de la aplicación en disco local atómicamente.
-  Future<void> _triggerAutoSave() async {
+  Future<void> saveSettings(AppUserSettingsEntity settings) async {
     try {
-      final settings = AppUserSettingsEntity(
-        referencePitch: _referencePitch,
-        selectedThemeId: _currentPalette.id,
-        selectedInstrumentId: _activeInstrument.id,
-        bpm: _bpm,
-        isSmartWaitEnabled: _isSmartWaitEnabled,
-        displayMode: _displayMode,
-        selectedTemperamentId: _selectedTemperament.id,
-        temperamentRootKey: _temperamentRootKey,
-        customPalettes: _customPalettes,
-        sessionHistory: _sessionHistory,
-        recordingHistory: _recordingHistory,
-        tuningPresets: _tuningPresets,
-        workspaceScores: _workspaceScores,
-        learnerProfile: _learnerProfile,
-        activeWorkspace: _activeWorkspace,
-        micCalibrationProfile: _micProfile,
-        acousticRigorProfile: _acousticRigorProfile,
-      );
       await _persistenceService.saveSettings(settings);
     } catch (_) {
       // Ignorar fallas de guardado secundarias
     }
   }
 
+  void dispose() {
+    _recordingTimer?.cancel();
+    _recordingStopwatch.stop();
+  }
 }
