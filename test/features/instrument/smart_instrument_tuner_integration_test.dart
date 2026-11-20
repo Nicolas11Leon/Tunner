@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tunner/features/audio_synthesizer/data/soundfont_synthesizer_service.dart';
 import 'package:tunner/features/audio_synthesizer/data/memory_audio_synthesizer_service.dart';
 import 'package:tunner/features/metronome/domain/i_metronome_service.dart';
 import 'package:tunner/features/persistence/data/memory_persistence_service.dart';
@@ -33,6 +34,7 @@ void main() {
         metronomeService: _MockMetroService(),
         persistenceService: MemoryPersistenceService(),
         audioSynthesizerService: memorySynthesizer,
+        soundFontSynthesizer: SoundFontSynthesizerService(),
       );
       await viewModel.isInitialized;
     });

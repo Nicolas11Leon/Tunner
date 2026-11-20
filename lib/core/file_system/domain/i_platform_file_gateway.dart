@@ -19,4 +19,22 @@ abstract class IPlatformFileGateway {
   Future<PlatformPickedFile?> pickFile({List<String>? allowedExtensions});
   Future<String> getDocumentsDirectoryPath();
   Future<String> getTemporaryDirectoryPath();
+  Future<String> saveExportedBytes(String fileName, Uint8List bytes);
+}
+
+/// Implementación en memoria sin dependencias de plataforma para pruebas y fallbacks desacoplados.
+class NoOpPlatformFileGateway implements IPlatformFileGateway {
+  const NoOpPlatformFileGateway();
+
+  @override
+  Future<PlatformPickedFile?> pickFile({List<String>? allowedExtensions}) async => null;
+
+  @override
+  Future<String> getDocumentsDirectoryPath() async => '';
+
+  @override
+  Future<String> getTemporaryDirectoryPath() async => '';
+
+  @override
+  Future<String> saveExportedBytes(String fileName, Uint8List bytes) async => '';
 }

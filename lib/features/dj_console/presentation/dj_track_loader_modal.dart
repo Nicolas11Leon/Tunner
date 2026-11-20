@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../core/design_system/studio_theme_provider.dart';
-import '../../../core/file_system/data/platform_file_gateway.dart';
 import '../../../core/file_system/domain/i_platform_file_gateway.dart';
 import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../song_library/domain/song_decomposer_service.dart';
@@ -101,7 +100,7 @@ class DjTrackLoaderModal extends StatefulWidget {
       builder: (_) => DjTrackLoaderModal(
         deckId: deckId,
         viewModel: viewModel,
-        fileGateway: fileGateway ?? const PlatformFileGateway(),
+        fileGateway: fileGateway ?? viewModel.fileGateway,
       ),
     );
   }

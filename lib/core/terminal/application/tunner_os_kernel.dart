@@ -1,11 +1,4 @@
 import 'dart:async';
-import '../../../../features/audio_synthesizer/domain/polyphonic/polyphonic_synth_voice.dart';
-import '../../../../features/audio_synthesizer/domain/polyphonic/polyphonic_voice_pool.dart';
-import '../../../../features/pedagogy/domain/ebbinghaus_spaced_repetition_engine.dart';
-import '../../../../features/pedagogy/domain/pedagogical_certificate_pdf_generator.dart';
-import '../../../../features/pedagogy/domain/vocal_stability_evaluator.dart';
-import '../../../../features/sheet_music/domain/score_playback_coordinator.dart';
-import '../../../../features/tuner_viewmodel.dart';
 import '../../audio/domain/ffi/i_native_dsp_bridge.dart';
 import '../../audio/domain/i_studio_audio_engine.dart';
 import '../../audio/domain/i_studio_audio_input_engine.dart';
@@ -15,6 +8,7 @@ import '../../audio/infrastructure/studio_master_clock_service.dart';
 import '../../audio/infrastructure/ffi/native_dsp_ffi_bridge.dart';
 import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../../audio/infrastructure/studio_master_dsp_chain.dart';
+import '../../dsl/domain/i_synth_voice_pool_port.dart';
 import '../../dsl/domain/studio_os_audio_kernel.dart';
 import '../../dsl/domain/tunner_dsl_interpreter.dart';
 import '../../dsl/domain/tunner_dsl_parser.dart';
@@ -23,6 +17,7 @@ import '../../dsl/infrastructure/studio_os_audio_kernel_bridge.dart';
 import '../../file_system/domain/studio_file_system_node.dart';
 import '../../file_system/domain/studio_file_system_repository.dart';
 import '../domain/i_terminal_command_handler.dart';
+import '../domain/i_terminal_feature_ports.dart';
 import '../domain/tunner_os_command_entity.dart';
 
 /// Núcleo de interpretación de comandos y automatización del sistema Tunner OS.
@@ -34,9 +29,9 @@ class TunnerOsKernel {
   final StudioFileSystemRepository? fileSystemRepository;
   final StudioAudioDeviceMatrixService? matrixService;
   final StudioMasterClockService? clockService;
-  PolyphonicVoicePool? _synthVoicePool;
-  ScorePlaybackCoordinator? scorePlaybackCoordinator;
-  TunerViewModel? _viewModel;
+  ISynthVoicePoolPort? _synthVoicePool;
+  ITerminalScorePort? scorePlaybackCoordinator;
+  ITerminalProjectPort? _projectPort;
   final void Function(String themeId)? onSetTheme;
   final void Function(String deckId, String trackTitle)? onDjLoadTrack;
   final void Function(String deckId)? onDjTogglePlay;
@@ -45,8 +40,8 @@ class TunnerOsKernel {
   final void Function(double val)? onDjSetCrossfader;
   SchroederReverbEngine? reverbEngine;
   BinauralPannerEngine? spatialEngine;
-  EbbinghausSpacedRepetitionEngine? earTrainingEngine;
-  VocalStabilityEvaluator? vocalEvaluator;
+  ITerminalEarTrainingPort? earTrainingEngine;
+  ITerminalVocalPedagogyPort? vocalEvaluator;
   INativeDspBridge? nativeDspBridge;
   StudioMasterDspChain? masterDspChain;
   StudioOsAudioKernel? audioKernel;
@@ -55,16 +50,16 @@ class TunnerOsKernel {
   late final TunnerDslInterpreter dslInterpreter;
   final Map<String, ITerminalCommandHandler> _customHandlers = {};
 
-  PolyphonicVoicePool? get synthVoicePool => _synthVoicePool;
-  set synthVoicePool(PolyphonicVoicePool? value) {
+  ISynthVoicePoolPort? get synthVoicePool => _synthVoicePool;
+  set synthVoicePool(ISynthVoicePoolPort? value) {
     _synthVoicePool = value;
     kernelBridge.synthVoicePool = value;
   }
 
-  TunerViewModel? get viewModel => _viewModel;
-  set viewModel(TunerViewModel? value) {
-    _viewModel = value;
-    kernelBridge.onBpmUpdate = value != null ? (bpm) => value.updateBpm(bpm) : null;
+  ITerminalProjectPort? get projectPort => _projectPort;
+  set projectPort(ITerminalProjectPort? value) {
+    _projectPort = value;
+    kernelBridge.onBpmUpdate = value != null ? (bpm) => value.updateBpm(bpm.round()) : null;
   }
 
   TunnerOsKernel({
@@ -74,9 +69,9 @@ class TunnerOsKernel {
     this.fileSystemRepository,
     this.matrixService,
     this.clockService,
-    PolyphonicVoicePool? synthVoicePool,
+    ISynthVoicePoolPort? synthVoicePool,
     this.scorePlaybackCoordinator,
-    TunerViewModel? viewModel,
+    ITerminalProjectPort? projectPort,
     this.onSetTheme,
     this.onDjLoadTrack,
     this.onDjTogglePlay,
@@ -85,18 +80,16 @@ class TunnerOsKernel {
     this.onDjSetCrossfader,
     SchroederReverbEngine? reverbEngine,
     BinauralPannerEngine? spatialEngine,
-    EbbinghausSpacedRepetitionEngine? earTrainingEngine,
-    VocalStabilityEvaluator? vocalEvaluator,
+    this.earTrainingEngine,
+    this.vocalEvaluator,
     INativeDspBridge? nativeDspBridge,
     StudioMasterDspChain? masterDspChain,
     StudioOsAudioKernel? audioKernel,
     List<ITerminalCommandHandler>? customHandlers,
   })  : _synthVoicePool = synthVoicePool,
-        _viewModel = viewModel,
+        _projectPort = projectPort,
         reverbEngine = reverbEngine ?? SchroederReverbEngine(),
         spatialEngine = spatialEngine ?? BinauralPannerEngine(),
-        earTrainingEngine = earTrainingEngine ?? EbbinghausSpacedRepetitionEngine(),
-        vocalEvaluator = vocalEvaluator ?? const VocalStabilityEvaluator(),
         nativeDspBridge = nativeDspBridge ?? (masterDspChain?.bridge ?? NativeDspFfiBridge()),
         masterDspChain = masterDspChain ?? StudioMasterDspChain(),
         audioKernel = audioKernel ?? StudioOsAudioKernel() {
@@ -106,7 +99,7 @@ class TunnerOsKernel {
       matrixService: matrixService,
       synthVoicePool: _synthVoicePool,
       clockService: clockService,
-      onBpmUpdate: _viewModel != null ? (bpm) => _viewModel!.updateBpm(bpm) : null,
+      onBpmUpdate: _projectPort != null ? (bpm) => _projectPort!.updateBpm(bpm.round()) : null,
       reverbEngine: this.reverbEngine,
       spatialEngine: this.spatialEngine,
     );
@@ -643,7 +636,7 @@ ARCHIVOS DEL PROYECTO ACTUAL:
     if (args.isEmpty || args[0] == 'status') {
       return TunnerOsCommandResult.success(
         "SINTETIZADOR POLIFÓNICO SMuFL:\n"
-        "  Forma de Onda  : ${synthVoicePool!.waveform.name.toUpperCase()}\n"
+        "  Forma de Onda  : ${synthVoicePool!.dslWaveformName.toUpperCase()}\n"
         "  Polifonía      : ${synthVoicePool!.activeVoiceCount} / ${synthVoicePool!.maxPolyphony} voces activas\n"
         "  Ataque (A)     : ${(synthVoicePool!.attackSeconds * 1000).round()} ms\n"
         "  Decaimiento (D): ${(synthVoicePool!.decaySeconds * 1000).round()} ms\n"
@@ -664,27 +657,27 @@ ARCHIVOS DEL PROYECTO ACTUAL:
         switch (rawWave) {
           case 'sine':
           case 'seno':
-            synthVoicePool!.waveform = SynthWaveform.sine;
+            synthVoicePool!.setDslWaveform(DslSynthWaveform.sine);
             break;
           case 'saw':
           case 'sawtooth':
           case 'sierra':
-            synthVoicePool!.waveform = SynthWaveform.sawtooth;
+            synthVoicePool!.setDslWaveform(DslSynthWaveform.sawtooth);
             break;
           case 'pulse':
           case 'pulso':
           case 'cuadrada':
-            synthVoicePool!.waveform = SynthWaveform.pulse;
+            synthVoicePool!.setDslWaveform(DslSynthWaveform.pulse);
             break;
           case 'tri':
           case 'triangle':
           case 'triangulo':
-            synthVoicePool!.waveform = SynthWaveform.triangle;
+            synthVoicePool!.setDslWaveform(DslSynthWaveform.triangle);
             break;
           default:
             return TunnerOsCommandResult.error("Forma de onda desconocida: $rawWave. Opciones: sine, saw, pulse, tri");
         }
-        return TunnerOsCommandResult.success("[OK] Forma de onda del sintetizador: ${synthVoicePool!.waveform.name.toUpperCase()}");
+        return TunnerOsCommandResult.success("[OK] Forma de onda del sintetizador: ${synthVoicePool!.dslWaveformName.toUpperCase()}");
 
       case 'adsr':
         if (args.length < 5) {
@@ -711,7 +704,7 @@ ARCHIVOS DEL PROYECTO ACTUAL:
         }
         final noteName = args[1];
         final vel = args.length >= 3 ? double.tryParse(args[2]) ?? 0.8 : 0.8;
-        final midi = ScorePlaybackCoordinator.noteNameToMidi(noteName);
+        final midi = terminalNoteNameToMidi(noteName);
         if (midi < 0) {
           return TunnerOsCommandResult.error("Nota musical no válida: '$noteName'. Ejemplos: Do4, C4, Mi5, Fa#4, Sol3");
         }
@@ -746,10 +739,10 @@ ARCHIVOS DEL PROYECTO ACTUAL:
     switch (action) {
       case 'play':
       case 'start':
-        if (scorePlaybackCoordinator!.activeScore == null) {
+        if (!scorePlaybackCoordinator!.hasActiveScore) {
           return TunnerOsCommandResult.error("No hay una partitura activa para reproducir.");
         }
-        scorePlaybackCoordinator!.startPlayback(score: scorePlaybackCoordinator!.activeScore!);
+        scorePlaybackCoordinator!.startActiveScore();
         return TunnerOsCommandResult.success("[OK] Reproducción de partitura iniciada");
 
       case 'pause':
@@ -777,14 +770,14 @@ ARCHIVOS DEL PROYECTO ACTUAL:
     final sub = args.isEmpty ? 'info' : args[0].toLowerCase();
     switch (sub) {
       case 'info':
-        final title = viewModel?.activePackage.title ?? 'Untitled Project';
-        final composer = viewModel?.activePackage.composer ?? 'Tunner Artist';
-        final bpmVal = viewModel?.bpm ?? 120;
+        final title = projectPort?.activeTitle ?? 'Untitled Project';
+        final composer = projectPort?.activeComposer ?? 'Tunner Artist';
+        final bpmVal = projectPort?.bpm ?? 120;
         final matrixInfo = matrixService != null
             ? 'Conectada (${matrixService!.matrix.channelRoutings.length} canales activos)'
             : 'Desconectada';
         final synthInfo = synthVoicePool != null
-            ? '${synthVoicePool!.waveform.name} (Voces activas: ${synthVoicePool!.activeVoiceCount})'
+            ? '${synthVoicePool!.dslWaveformName} (Voces activas: ${synthVoicePool!.activeVoiceCount})'
             : 'No inicializado';
         return TunnerOsCommandResult.success('''
 PROYECTO ACTIVO EN TUNNER STUDIO:
@@ -797,17 +790,17 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
 '''.trim());
 
       case 'export':
-        if (viewModel == null) {
+        if (projectPort == null) {
           return TunnerOsCommandResult.error(
-            'No se puede exportar: TunerViewModel no esta enlazado al kernel.',
+            'No se puede exportar: Puerto de proyecto no enlazado al kernel.',
           );
         }
         final customTitle = args.length > 1 ? args.sublist(1).join(' ').replaceAll('"', '') : null;
         try {
-          final bytes = viewModel!.exportCurrentProjectToTunner(projectTitle: customTitle);
+          final bytes = projectPort!.exportCurrentProjectToTunner(projectTitle: customTitle);
           return TunnerOsCommandResult.success('''
 [OK] Proyecto exportado exitosamente a formato canonico .tunner:
-- Titulo: ${customTitle ?? viewModel!.activePackage.title}
+- Titulo: ${customTitle ?? projectPort!.activeTitle}
 - Peso del archivo: ${bytes.lengthInBytes} bytes
 - Integridad: Hashes SHA-256 generados y sellados en manifest.json
 '''.trim());
@@ -944,8 +937,8 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
     final now = DateTime.now();
 
     if (args.isEmpty || args[0].toLowerCase() == 'status') {
-      final all = earTrainingEngine!.allItems;
-      final due = earTrainingEngine!.getDueItems(now: now);
+      final all = earTrainingEngine!.getAllItems(now);
+      final due = earTrainingEngine!.getDueItems(now);
       final avgRetention = earTrainingEngine!.overallRetentionAverage(now) * 100.0;
       final mastered = all.where((i) => i.repetitions >= 3).length;
 
@@ -962,7 +955,7 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
     switch (subCmd) {
       case 'review':
       case 'due':
-        final due = earTrainingEngine!.getDueItems(now: now);
+        final due = earTrainingEngine!.getDueItems(now);
         if (due.isEmpty) {
           return TunnerOsCommandResult.success(
             '[OK] No hay ejercicios pendientes de repaso. Retencion auditiva por encima del 90%.',
@@ -970,7 +963,7 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
         }
         final buffer = StringBuffer('EJERCICIOS PENDIENTES DE REPASO:\n-------------------------------\n');
         for (final item in due) {
-          final ret = (item.retentionAt(now) * 100).toStringAsFixed(1);
+          final ret = item.retentionPercent.toStringAsFixed(1);
           buffer.writeln(
             '- ${item.id} | ${item.name} (${item.semitones} st) | Retencion: $ret% | Estabilidad: ${item.stabilityDays.toStringAsFixed(2)}d',
           );
@@ -978,10 +971,10 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
         return TunnerOsCommandResult.success(buffer.toString().trim());
 
       case 'list':
-        final all = earTrainingEngine!.allItems;
+        final all = earTrainingEngine!.getAllItems(now);
         final buffer = StringBuffer('CATALOGO DE ENTRENAMIENTO AUDITIVO:\n----------------------------------\n');
         for (final item in all) {
-          final ret = (item.retentionAt(now) * 100).toStringAsFixed(1);
+          final ret = item.retentionPercent.toStringAsFixed(1);
           buffer.writeln(
             '- ${item.id.padRight(28)}: ${item.name.padRight(32)} [$ret% ret | ${item.stabilityDays.toStringAsFixed(1)}d stab | ${item.repetitions} reps]',
           );
@@ -1102,9 +1095,11 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
         targetFrequencyHz: targetHz,
       );
 
-      final pdfBytes = PedagogicalCertificatePdfGenerator.generateCertificatePdf(
+      final pdfBytes = vocalEvaluator!.generateCertificatePdf(
         studentName: studentName,
-        evaluation: eval,
+        frequenciesHz: freqs,
+        amplitudes: amps,
+        targetFrequencyHz: targetHz,
       );
 
       return TunnerOsCommandResult.success('''

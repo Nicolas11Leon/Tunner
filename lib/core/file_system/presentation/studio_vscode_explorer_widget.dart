@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design_system/atoms/studio_listenable_builder.dart';
 import '../../design_system/studio_theme_provider.dart';
 import '../domain/i_studio_workspace_file_system.dart';
 import '../domain/studio_file_system_node.dart';
@@ -23,7 +24,7 @@ class StudioVsCodeExplorerWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = StudioThemeScope.tokensOf(context);
 
-    return ListenableBuilder(
+    return StudioListenableBuilder(
       listenable: service,
       builder: (context, _) {
         final filteredRoot = service.filteredRootFolder;

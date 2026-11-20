@@ -2,9 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../logging/infrastructure/studio_debug_logger.dart';
-import '../../../../features/dj_console/domain/dj_audio_processor.dart';
-import '../../../../features/instrument/domain/procedural_instrument_synthesizer.dart';
-import '../../../../features/instrument/domain/universal_instrument_definition.dart';
+import '../domain/i_workspace_seed_provider.dart';
 import '../domain/studio_file_system_node.dart';
 import '../domain/studio_file_system_repository.dart';
 import '../domain/studio_file_type.dart';
@@ -14,10 +12,14 @@ import '../domain/studio_file_type.dart';
 /// y carpetas en el almacenamiento local del usuario (`~/Documents/TunnerProjects`).
 class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository {
   final String? _customRootPath;
+  final IWorkspaceSeedProvider? _seedProvider;
   String? _resolvedRootPath;
 
-  LocalDiskStudioFileSystemRepository({String? customRootPath})
-      : _customRootPath = customRootPath;
+  LocalDiskStudioFileSystemRepository({
+    String? customRootPath,
+    IWorkspaceSeedProvider? seedProvider,
+  })  : _customRootPath = customRootPath,
+        _seedProvider = seedProvider;
 
   /// Obtiene la ruta física absoluta de la carpeta raíz del espacio de trabajo.
   Future<String> getRootPath() async {
@@ -154,25 +156,16 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
       flush: true,
     );
 
-    // Archivo de afinación pura A4 (440 Hz) con envolvente procedural
-    final a4Samples = ProceduralInstrumentSynthesizer.synthesizeNote(
-      instrument: UniversalInstrumentDefinition.fluteConcert,
-      frequencyHz: 440.0,
-      durationSeconds: 2.5,
-    );
-    final a4WavBytes = ProceduralInstrumentSynthesizer.floatBufferToWavBytes(a4Samples);
-    final demoTake = File('${audioDir.path}/Toma_Acustica_440Hz.wav');
-    await demoTake.writeAsBytes(a4WavBytes, flush: true);
-
-    // Archivo de bucle rítmico Club Groove 124 BPM
-    final grooveSamples = DjAudioProcessor().generateDemoGroove(
-      bpm: 124.0,
-      frequencyHz: 55.0,
-      durationMs: 7740,
-    );
-    final grooveWavBytes = ProceduralInstrumentSynthesizer.floatBufferToWavBytes(grooveSamples);
-    final demoGroove = File('${audioDir.path}/Loop_Club_Groove_124BPM.wav');
-    await demoGroove.writeAsBytes(grooveWavBytes, flush: true);
+    // Archivos semilla binarios provistos por adaptador externo (sin acoplar core a features)
+    if (_seedProvider != null) {
+      final binarySeeds = await _seedProvider.buildSeedBinaryFiles();
+      for (final entry in binarySeeds.entries) {
+        final safePath = _resolveSafePath(entry.key, rootDir.path);
+        final outFile = File(safePath);
+        await outFile.parent.create(recursive: true);
+        await outFile.writeAsBytes(entry.value, flush: true);
+      }
+    }
 
     final demoPreset = File('${tuningsDir.path}/Temperamento_Pitagorico.tpreset');
     await demoPreset.writeAsString('{"presetName": "Pitagórico", "referenceA4": 440.0}', flush: true);

@@ -12,3 +12,19 @@ abstract class IScoreParserService {
     required String fileName,
   });
 }
+
+/// Implementación nula / no-op en dominio puro para entornos sin decodificadores configurados.
+class NoOpScoreParserService implements IScoreParserService {
+  const NoOpScoreParserService();
+
+  @override
+  bool canParse(String fileName, Uint8List bytes) => false;
+
+  @override
+  Future<ParsedScoreResult> parseScoreData({
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    throw UnsupportedError('No score parser service configured');
+  }
+}

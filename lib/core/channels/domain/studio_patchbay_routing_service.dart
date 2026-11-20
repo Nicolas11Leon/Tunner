@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
+import '../../domain/i_studio_listenable.dart';
 import 'studio_channel_bus.dart';
 import 'studio_modular_plug.dart';
 import 'studio_patchbay_matrix_entity.dart';
@@ -10,7 +11,7 @@ export 'i_studio_patchbay_routing_service.dart';
 /// Servicio de orquestación y enrutamiento en memoria de la matriz de parcheo.
 /// Provee soporte full-duplex para sincronización reactiva de parámetros de reproducción
 /// (BPM, tonalidad Camelot, título, transporte y buffers PCM) entre herramientas conectadas.
-class StudioPatchbayRoutingService extends ChangeNotifier implements IStudioPatchbayRoutingService {
+class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStudioPatchbayRoutingService {
   static final StudioPatchbayRoutingService _instance = StudioPatchbayRoutingService._internal();
   factory StudioPatchbayRoutingService() => _instance;
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design_system/atoms/studio_listenable_builder.dart';
 import '../../design_system/studio_theme_provider.dart';
 import '../domain/i_studio_patchbay_routing_service.dart';
 import '../domain/studio_channel_bus.dart';
@@ -19,7 +20,7 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = StudioThemeScope.tokensOf(context);
 
-    return ListenableBuilder(
+    return StudioListenableBuilder(
       listenable: routingService,
       builder: (context, _) {
         final channels = routingService.channels;

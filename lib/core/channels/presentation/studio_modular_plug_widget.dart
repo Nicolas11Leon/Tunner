@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design_system/atoms/studio_listenable_builder.dart';
 import '../../design_system/studio_theme_provider.dart';
 import '../domain/i_studio_patchbay_routing_service.dart';
 import '../domain/studio_modular_plug.dart';
@@ -25,7 +26,7 @@ class StudioModularPlugWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = StudioThemeScope.tokensOf(context);
 
-    return ListenableBuilder(
+    return StudioListenableBuilder(
       listenable: routingService,
       builder: (context, _) {
         final currentPlug = routingService.plugs[plug.id] ?? plug;
@@ -142,7 +143,7 @@ class StudioModularPlugWidget extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(tokens.borderRadiusLarge)),
       ),
       builder: (ctx) {
-        return ListenableBuilder(
+        return StudioListenableBuilder(
           listenable: routingService,
           builder: (ctx, _) {
             final channels = routingService.channels;

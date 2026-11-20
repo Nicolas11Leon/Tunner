@@ -13,3 +13,21 @@ abstract class ILocalPersistenceService {
   /// Elimina los datos persistidos y restablece las configuraciones por defecto.
   Future<void> clearSettings();
 }
+
+/// Implementación en memoria para pruebas aisladas sin escritura en disco.
+class InMemoryLocalPersistenceService implements ILocalPersistenceService {
+  AppUserSettingsEntity _settings = AppUserSettingsEntity.defaultSettings;
+
+  @override
+  Future<AppUserSettingsEntity> loadSettings() async => _settings;
+
+  @override
+  Future<void> saveSettings(AppUserSettingsEntity settings) async {
+    _settings = settings;
+  }
+
+  @override
+  Future<void> clearSettings() async {
+    _settings = AppUserSettingsEntity.defaultSettings;
+  }
+}

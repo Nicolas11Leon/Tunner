@@ -145,7 +145,9 @@ void main() {
 
   group('UX Wave 3 - TunerViewModel Reference Tone & Note Preview Tests', () {
     testWidgets('playReferenceTone realiza toggle limpio y no falsea pitch', (tester) async {
-      final vm = TunerViewModel();
+      final vm = TunerViewModel(
+        audioSynthesizerService: MemoryAudioSynthesizerService(),
+      );
       expect(vm.isDiapasonPlaying, isFalse);
 
       // Iniciar tono

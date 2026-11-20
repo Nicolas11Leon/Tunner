@@ -13,15 +13,26 @@ import '../core/file_system/data/local_disk_studio_file_system_repository.dart';
 import '../core/file_system/data/platform_file_gateway.dart';
 import '../core/file_system/data/studio_workspace_file_system_service.dart';
 import '../core/file_system/domain/i_platform_file_gateway.dart';
+import '../core/logging/infrastructure/studio_debug_logger.dart';
+import '../core/packaging/infrastructure/tunner_package_codec_service.dart';
 import '../features/tuner_viewmodel.dart';
 import '../features/tuner/data/pitch_detector_service.dart';
+import '../features/metronome/data/metronome_service.dart';
 import '../features/audio_synthesizer/data/audio_synthesizer_service.dart';
+import '../features/audio_synthesizer/data/soundfont_synthesizer_service.dart';
+import '../features/audio_synthesizer/data/stem_export_persistence_service.dart';
+import '../features/persistence/data/json_local_persistence_service.dart';
 import '../features/practice_recorder/data/audio_playback_service.dart';
+import '../features/practice_recorder/data/practice_recorder_service.dart';
+import '../features/universal_importer/data/universal_score_importer_service.dart';
 import '../features/dj_console/presentation/dj_console_view_model.dart';
 import '../features/dj_console/data/dj_deck_audio_service.dart';
 import '../features/dj_console/data/dj_keymap_persistence_service.dart';
+import '../features/media_vault/data/universal_media_io_service.dart';
+import '../features/media_vault/presentation/media_vault_viewmodel.dart';
 import '../features/modular_rack/presentation/modular_rack_viewmodel.dart';
 import '../features/project_format/data/local_project_storage_repository.dart';
+import 'studio_workspace_seed_provider.dart';
 
 /// Composition Root único de Tunner Studio.
 /// Centraliza la instanciación e inyección de dependencias de infraestructura y dominio,
@@ -71,8 +82,11 @@ class StudioCompositionRoot {
       persistenceService: StudioAudioHardwarePersistenceService(),
     );
     final clockService = StudioMasterClockService(initialBpm: 120.0);
+    final diskRepo = LocalDiskStudioFileSystemRepository(
+      seedProvider: const StudioWorkspaceSeedProvider(),
+    );
     final fsService = isolatedServices
-        ? StudioWorkspaceFileSystemService.isolated()
+        ? StudioWorkspaceFileSystemService.isolated(fileSystemRepository: diskRepo)
         : StudioWorkspaceFileSystemService();
     final patchbay = isolatedServices
         ? StudioPatchbayRoutingService.isolated()
@@ -107,6 +121,18 @@ class StudioCompositionRoot {
       audioSynthesizerService: AudioSynthesizerService(audioEngine: audioEngine),
       playbackService: AudioPlaybackService(audioEngine: audioEngine),
       pitchService: PitchDetectorService(inputEngine: audioInputEngine),
+      metronomeService: MetronomeService(),
+      recorderService: PracticeRecorderService(),
+      persistenceService: JsonLocalPersistenceService(
+        documentsPathProvider: platformFileGateway.getDocumentsDirectoryPath,
+      ),
+      scoreImporterService: const UniversalScoreImporterService(),
+      exportPersistenceService: StemExportPersistenceService(
+        documentsPathProvider: platformFileGateway.getDocumentsDirectoryPath,
+      ),
+      soundFontSynthesizer: SoundFontSynthesizerService(),
+      packageCodec: const TunnerPackageCodecService(),
+      logger: StudioDebugLogger.instance,
     );
   }
 
@@ -115,8 +141,20 @@ class StudioCompositionRoot {
     return DjConsoleViewModel(
       deckAudioPlayer: DjDeckAudioService(audioEngine: audioEngine),
       audioSynthesizer: AudioSynthesizerService(audioEngine: audioEngine),
-      fileSystemRepository: LocalDiskStudioFileSystemRepository(),
+      fileSystemRepository: LocalDiskStudioFileSystemRepository(
+        seedProvider: const StudioWorkspaceSeedProvider(),
+      ),
       persistenceService: DjKeymapPersistenceService(),
+      fileGateway: platformFileGateway,
+    );
+  }
+
+  /// Crea el ViewModel de la Bóveda Multimedia con servicios de I/O inyectados.
+  MediaVaultViewModel createMediaVaultViewModel() {
+    return MediaVaultViewModel(
+      ioService: const UniversalMediaIoService(),
+      fileGateway: platformFileGateway,
+      fileSystemRepository: fileSystemService.fileSystemRepository,
     );
   }
 

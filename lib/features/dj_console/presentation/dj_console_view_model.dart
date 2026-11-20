@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import '../../../core/file_system/domain/i_platform_file_gateway.dart';
 import '../../../core/file_system/domain/studio_file_system_repository.dart';
 import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../audio_synthesizer/domain/i_audio_synthesizer_service.dart';
@@ -42,6 +43,7 @@ class DjConsoleViewModel extends ChangeNotifier {
   final IDjDeckAudioPlayer _deckAudioPlayer;
   final IAudioSynthesizerService _audioSynthesizer;
   final StudioFileSystemRepository _fileSystemRepository;
+  final IPlatformFileGateway _fileGateway;
   late final DjGamepadInputService _inputService;
 
   Timer? _playbackTicker;
@@ -85,12 +87,14 @@ class DjConsoleViewModel extends ChangeNotifier {
     IDjDeckAudioPlayer? deckAudioPlayer,
     IAudioSynthesizerService? audioSynthesizer,
     StudioFileSystemRepository? fileSystemRepository,
+    IPlatformFileGateway? fileGateway,
   })  : _orchestrator = orchestrator ?? DjPerformanceOrchestrator(),
         _persistenceService = persistenceService ?? const NoOpDjKeymapPersistenceService(),
         _audioProcessor = audioProcessor ?? DjAudioProcessor(),
         _deckAudioPlayer = deckAudioPlayer ?? MemoryDjDeckAudioPlayer(),
         _audioSynthesizer = audioSynthesizer ?? const NoOpAudioSynthesizerService(),
-        _fileSystemRepository = fileSystemRepository ?? const NoOpStudioFileSystemRepository() {
+        _fileSystemRepository = fileSystemRepository ?? const NoOpStudioFileSystemRepository(),
+        _fileGateway = fileGateway ?? const NoOpPlatformFileGateway() {
     _inputService = inputService ??
         DjGamepadInputService(
           profile: DjControllerProfileEntity.defaultUnified(),
@@ -111,6 +115,7 @@ class DjConsoleViewModel extends ChangeNotifier {
 
   IDjDeckAudioPlayer get deckAudioPlayer => _deckAudioPlayer;
   IAudioSynthesizerService get audioSynthesizer => _audioSynthesizer;
+  IPlatformFileGateway get fileGateway => _fileGateway;
 
   void _initAudioEngine() {
     _deckAudioPlayer.loadDeckTrack('A');

@@ -28,6 +28,7 @@ void main() {
       viewModel = TunerViewModel(
         audioDeviceMatrixService: matrixService,
         polyphonicVoicePool: voicePool,
+        packageCodec: const TunnerPackageCodecService(),
       );
     });
 

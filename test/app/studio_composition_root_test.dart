@@ -22,6 +22,9 @@ class _FakePlatformFileGateway implements IPlatformFileGateway {
   Future<String> getTemporaryDirectoryPath() async => '/tmp/tunner_test_temp';
 
   @override
+  Future<String> saveExportedBytes(String fileName, Uint8List bytes) async => '/tmp/$fileName';
+
+  @override
   Future<PlatformPickedFile?> pickFile({List<String>? allowedExtensions}) async {
     return fileToReturn;
   }

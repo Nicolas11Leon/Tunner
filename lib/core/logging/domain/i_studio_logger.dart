@@ -16,3 +16,24 @@ abstract class IStudioLogger {
     StackTrace? stackTrace,
   });
 }
+
+/// Implementación silenciosa en dominio puro para pruebas y fallbacks desacoplados.
+class NoOpStudioLogger implements IStudioLogger {
+  const NoOpStudioLogger();
+
+  @override
+  void warning(
+    String tag,
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+  }) {}
+
+  @override
+  void error(
+    String tag,
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+  }) {}
+}

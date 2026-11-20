@@ -47,6 +47,7 @@ import '../../instrument/presentation/universal_master_keyboard_widget.dart';
 import '../../score_editor/presentation/score_editor_modal.dart';
 import '../../metronome/presentation/tap_tempo_modal.dart';
 import '../../tuner/presentation/stem_mixer_modal.dart';
+import '../../../app/terminal_feature_adapters.dart';
 import '../../media_vault/presentation/media_vault_viewmodel.dart';
 import '../../media_vault/presentation/media_vault_workspace_modal.dart';
 
@@ -97,7 +98,9 @@ class _MainAppShellState extends State<MainAppShell> {
     _djConsoleViewModel = root != null
         ? root.createDjConsoleViewModel()
         : DjConsoleViewModel();
-    _mediaVaultViewModel = MediaVaultViewModel();
+    _mediaVaultViewModel = root != null
+        ? root.createMediaVaultViewModel()
+        : MediaVaultViewModel();
 
     _fileSystemService = root?.fileSystemService ?? NoOpStudioWorkspaceFileSystem();
     _fileSystemService.onOpenFile = _handleOpenFile;
@@ -115,8 +118,8 @@ class _MainAppShellState extends State<MainAppShell> {
       _ownsAudioMatrixService = false;
       _masterClockService = root.masterClockService;
       _ownsClockService = false;
-    } else if (existingVm?.audioDeviceMatrixService != null) {
-      _audioMatrixService = existingVm!.audioDeviceMatrixService!;
+    } else if (existingVm?.audioDeviceMatrixService is StudioAudioDeviceMatrixService) {
+      _audioMatrixService = existingVm!.audioDeviceMatrixService! as StudioAudioDeviceMatrixService;
       _ownsAudioMatrixService = false;
       _masterClockService = StudioMasterClockService(initialBpm: 120.0);
       _ownsClockService = true;
@@ -160,6 +163,8 @@ class _MainAppShellState extends State<MainAppShell> {
       onNavigateTab: _navigateToTab,
       matrixService: _audioMatrixService,
       clockService: _masterClockService,
+      earTrainingEngine: EbbinghausTerminalAdapter(),
+      vocalEvaluator: const VocalPedagogyTerminalAdapter(),
       onDjLoadTrack: (deckId, track) {
         if (track.toLowerCase().contains('elisa')) {
           _djConsoleViewModel.loadCuratedSong(deckId, 'elisa');
@@ -183,8 +188,8 @@ class _MainAppShellState extends State<MainAppShell> {
     super.didChangeDependencies();
     final vm = context.read<TunerViewModel>();
     _terminalKernel.synthVoicePool = vm.polyphonicVoicePool;
-    _terminalKernel.scorePlaybackCoordinator = vm.scorePlaybackCoordinator;
-    _terminalKernel.viewModel = vm;
+    _terminalKernel.scorePlaybackCoordinator = ScorePlaybackTerminalAdapter(vm.scorePlaybackCoordinator);
+    _terminalKernel.projectPort = TunerProjectTerminalAdapter(vm);
   }
 
   void _handleOpenFile(StudioFileEntity file) {

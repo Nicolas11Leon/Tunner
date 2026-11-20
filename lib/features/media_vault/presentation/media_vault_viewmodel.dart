@@ -10,7 +10,6 @@ import '../domain/i_media_io_port.dart';
 import '../domain/media_asset_entity.dart';
 import '../domain/media_synergy_target.dart';
 import '../domain/timeline_project_entity.dart';
-import '../data/universal_media_io_service.dart';
 
 /// Presentation ViewModel coordinating the Multimedia Vault catalog,
 /// synchronized multi-track timeline, universal import/export, and
@@ -43,7 +42,7 @@ class MediaVaultViewModel extends ChangeNotifier {
     TimelineProjectEntity? initialTimeline,
     this.onDispatchToTool,
   })  : _repository = repository ?? InMemoryMediaVaultRepository(),
-        _ioService = ioService ?? const UniversalMediaIoService(),
+        _ioService = ioService ?? const NoOpMediaIoService(),
         _fileGateway = fileGateway,
         _fileSystemRepository = fileSystemRepository,
         _timeline = initialTimeline ?? TimelineProjectEntity.defaultWorkspace();

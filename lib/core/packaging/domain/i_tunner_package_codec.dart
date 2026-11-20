@@ -32,3 +32,24 @@ abstract class ITunnerPackageCodec {
   /// sin descomprimir el resto de contenidos o pistas de audio en memoria.
   TunnerProjectManifestEntity readManifest(Uint8List packageBytes);
 }
+
+/// Implementación nula / no-op en dominio puro para entornos sin códec configurado.
+class NoOpTunnerPackageCodec implements ITunnerPackageCodec {
+  const NoOpTunnerPackageCodec();
+
+  @override
+  Uint8List encodePackage(TunnerProjectPackageEntity package) => Uint8List(0);
+
+  @override
+  TunnerProjectPackageEntity decodePackage(
+    Uint8List packageBytes, {
+    bool verifyHashes = true,
+  }) {
+    throw UnsupportedError('No tunner package codec configured');
+  }
+
+  @override
+  TunnerProjectManifestEntity readManifest(Uint8List packageBytes) {
+    throw UnsupportedError('No tunner package codec configured');
+  }
+}
