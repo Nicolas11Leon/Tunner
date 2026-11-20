@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../domain/sf2/i_soundfont_synthesizer_service.dart';
 
@@ -6,17 +7,20 @@ import '../domain/sf2/i_soundfont_synthesizer_service.dart';
 class InstrumentSoundFontSelectorModal extends StatefulWidget {
   final ISoundFontSynthesizerService synthService;
   final Function(int patch, String name)? onInstrumentSelected;
+  final void Function(Uint8List wavBytes)? onPlayPreviewWav;
 
   const InstrumentSoundFontSelectorModal({
     super.key,
     required this.synthService,
     this.onInstrumentSelected,
+    this.onPlayPreviewWav,
   });
 
   static Future<void> show(
     BuildContext context, {
     required ISoundFontSynthesizerService synthService,
     Function(int patch, String name)? onInstrumentSelected,
+    void Function(Uint8List wavBytes)? onPlayPreviewWav,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -28,6 +32,7 @@ class InstrumentSoundFontSelectorModal extends StatefulWidget {
       builder: (ctx) => InstrumentSoundFontSelectorModal(
         synthService: synthService,
         onInstrumentSelected: onInstrumentSelected,
+        onPlayPreviewWav: onPlayPreviewWav,
       ),
     );
   }
@@ -77,10 +82,13 @@ class _InstrumentSoundFontSelectorModalState
       _isSynthesizing = true;
     });
 
-    widget.synthService.synthesizeNoteWav(
+    final wavBytes = widget.synthService.synthesizeNoteWav(
       midiPitch: midiPitch,
       durationSeconds: 0.8,
     );
+    if (wavBytes.isNotEmpty) {
+      widget.onPlayPreviewWav?.call(wavBytes);
+    }
 
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) {

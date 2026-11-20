@@ -150,7 +150,7 @@ void main() {
       expect(viewModel.cents, closeTo(13.69, 0.5));
 
       // Esperar que el temporizador de silencio termine limpiamente
-      await tester.pump(const Duration(milliseconds: 70));
+      await tester.pump(const Duration(milliseconds: 360));
     });
   });
 }

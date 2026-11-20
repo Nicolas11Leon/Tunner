@@ -8,6 +8,8 @@ import '../domain/just_intonation_calculator.dart';
 /// for the Dynamic Just Intonation & Adaptive Harmonic Tuning Tutor.
 class HarmonicTutorViewModel extends ChangeNotifier {
   final HarmonicReferenceSynth _synth;
+  final void Function(Float32List samples, int sampleRate)? onPlayDroneSamples;
+  final VoidCallback? onStopDrone;
 
   HarmonicTutorSessionEntity _session;
   HarmonicRole? _forcedRole;
@@ -17,6 +19,8 @@ class HarmonicTutorViewModel extends ChangeNotifier {
   HarmonicTutorViewModel({
     HarmonicReferenceSynth? synth,
     HarmonicTutorSessionEntity? initialSession,
+    this.onPlayDroneSamples,
+    this.onStopDrone,
   })  : _synth = synth ?? HarmonicReferenceSynth(),
         _session = initialSession ?? const HarmonicTutorSessionEntity() {
     _updateAnalysis(261.63); // Initial analysis at unison
@@ -72,6 +76,7 @@ class HarmonicTutorViewModel extends ChangeNotifier {
       _regenerateDrone();
     } else {
       _currentDroneBuffer = null;
+      onStopDrone?.call();
     }
     if (!_isDisposed) notifyListeners();
   }
@@ -79,12 +84,16 @@ class HarmonicTutorViewModel extends ChangeNotifier {
   void _regenerateDrone() {
     // Generate guide voices: Root + Fifth (plus Third if applicable)
     final voices = _session.chordType.roles.take(2).toList();
-    _currentDroneBuffer = _synth.generateChordBuffer(
+    final buffer = _synth.generateChordBuffer(
       rootFrequency: _session.rootFrequency,
       roles: voices,
       durationMs: 2000,
       volume: 0.40,
     );
+    _currentDroneBuffer = buffer;
+    if (buffer.isNotEmpty) {
+      onPlayDroneSamples?.call(buffer, _synth.sampleRate);
+    }
   }
 
   void _updateAnalysis(double userFrequency) {

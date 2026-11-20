@@ -127,13 +127,14 @@ class NoteEntity {
     return '${solfegeNotes[idx]}$octave';
   }
 
-  /// Calcula la frecuencia matemática teórica (en Hz) para un nombre de nota dado (ej: "La4", "Do4", "Mi4", "A4", "Bb3")
+  /// Calcula la frecuencia matemática teórica (en Hz) para un nombre de nota dado (ej: "La4", "Do4", "Mi4", "A4", "Bb3", "Cb4", "B#3")
   /// basada en la afinación temperada con concierto A4 = 440.0 Hz (o personalizable).
   static double frequencyForNote(String noteWithNameAndOctave, {double a4Ref = 440.0}) {
     if (noteWithNameAndOctave == "--" || noteWithNameAndOctave.isEmpty) return 0.0;
 
+    final normalized = noteWithNameAndOctave.trim().replaceAll('♭', 'b').replaceAll('♯', '#');
     // Separar nombre de nota y octava (ej: "Do4" -> note: "Do", octave: 4; "Fa#5" -> note: "Fa#", octave: 5; "Bb3" -> note: "Bb", octave: 3)
-    final match = RegExp(r'^([A-Za-z#]+)(-?\d+)$').firstMatch(noteWithNameAndOctave);
+    final match = RegExp(r'^([A-Za-z#]+)(-?\d+)$').firstMatch(normalized);
     if (match == null) return 0.0;
 
     final noteNamePart = match.group(1);
@@ -143,8 +144,16 @@ class NoteEntity {
     final noteIndex = parseNoteIndex(noteNamePart);
     if (noteIndex == null) return 0.0;
 
-    // Fórmula estándar: número MIDI = (octava + 1) * 12 + noteIndex
-    final int midi = (octavePart + 1) * 12 + noteIndex;
+    final lowerNote = noteNamePart.toLowerCase();
+    int octaveOffset = 0;
+    if (lowerNote == 'cb' || lowerNote == 'dob') {
+      octaveOffset = -1;
+    } else if (lowerNote == 'b#' || lowerNote == 'si#') {
+      octaveOffset = 1;
+    }
+
+    // Fórmula estándar: número MIDI = (octava + octaveOffset + 1) * 12 + noteIndex
+    final int midi = (octavePart + octaveOffset + 1) * 12 + noteIndex;
 
     // Frecuencia = a4Ref * 2^((midi - 69) / 12)
     return a4Ref * pow(2.0, (midi - 69) / 12.0);

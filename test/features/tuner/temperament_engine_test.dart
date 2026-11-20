@@ -75,14 +75,14 @@ void main() {
       expect(werckIV.id, 'werckmeister_iv');
 
       expect(engine.getCentsOffset(noteIndex: 0, temperament: werckIV), 0.0);
-      expect(engine.getCentsOffset(noteIndex: 1, temperament: werckIV), -6.0); // C#
-      expect(engine.getCentsOffset(noteIndex: 2, temperament: werckIV), -4.0); // D
-      expect(engine.getCentsOffset(noteIndex: 4, temperament: werckIV), -8.0); // E
-      expect(engine.getCentsOffset(noteIndex: 5, temperament: werckIV), 2.0); // F
-      expect(engine.getCentsOffset(noteIndex: 6, temperament: werckIV), -10.0); // F#
-      expect(engine.getCentsOffset(noteIndex: 7, temperament: werckIV), -4.0); // G
-      expect(engine.getCentsOffset(noteIndex: 10, temperament: werckIV), 0.0); // Bb
-      expect(engine.getCentsOffset(noteIndex: 11, temperament: werckIV), -8.0); // B
+      expect(engine.getCentsOffset(noteIndex: 1, temperament: werckIV), closeTo(-9.78, 0.02)); // C#
+      expect(engine.getCentsOffset(noteIndex: 2, temperament: werckIV), closeTo(-3.91, 0.02)); // D
+      expect(engine.getCentsOffset(noteIndex: 4, temperament: werckIV), closeTo(-7.82, 0.02)); // E
+      expect(engine.getCentsOffset(noteIndex: 5, temperament: werckIV), closeTo(-1.96, 0.02)); // F
+      expect(engine.getCentsOffset(noteIndex: 6, temperament: werckIV), closeTo(-11.73, 0.02)); // F#
+      expect(engine.getCentsOffset(noteIndex: 7, temperament: werckIV), closeTo(-5.87, 0.02)); // G
+      expect(engine.getCentsOffset(noteIndex: 10, temperament: werckIV), closeTo(3.91, 0.02)); // Bb
+      expect(engine.getCentsOffset(noteIndex: 11, temperament: werckIV), closeTo(-13.69, 0.02)); // B
     });
 
     test('Neidhardt 1724 (Grosse Stadt) circulating temperament produces smooth progressive offsets', () {

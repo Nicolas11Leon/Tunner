@@ -96,10 +96,17 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                     icon: const Icon(Icons.piano, color: Color(0xFF38BDF8), size: 22),
                     tooltip: 'Teclado Maestro & Reproductor de Estrofas',
                     onPressed: () {
+                      TunerViewModel? tunerVm;
+                      try {
+                        tunerVm = context.read<TunerViewModel>();
+                      } catch (_) {
+                        tunerVm = null;
+                      }
                       UniversalMasterKeyboardWidget.show(
                         context,
                         customization: viewModel.customization,
                         onUpdated: viewModel.updateCustomization,
+                        audioSynthesizer: tunerVm?.audioSynthesizer,
                       );
                     },
                   ),

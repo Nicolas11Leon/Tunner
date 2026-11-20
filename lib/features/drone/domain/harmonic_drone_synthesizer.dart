@@ -34,6 +34,7 @@ class HarmonicDroneSynthesizer {
       temperament: activeTemperament,
       a4Ref: a4Ref,
       rootKey: temperamentRootKey,
+      anchorA4: true,
     );
 
     // Frecuencia de la quinta armónica (7 semitonos arriba)
@@ -43,6 +44,7 @@ class HarmonicDroneSynthesizer {
             temperament: activeTemperament,
             a4Ref: a4Ref,
             rootKey: temperamentRootKey,
+            anchorA4: true,
           )
         : 0.0;
 
@@ -53,6 +55,7 @@ class HarmonicDroneSynthesizer {
             temperament: activeTemperament,
             a4Ref: a4Ref,
             rootKey: temperamentRootKey,
+            anchorA4: true,
           )
         : 0.0;
 

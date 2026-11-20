@@ -36,6 +36,9 @@ extension TunerViewModelRecorderPart on TunerViewModel {
     try {
       await _recorderService.startRecording(destinationPath: path);
       _isAudioRecording = true;
+      _recordingStopwatch
+        ..reset()
+        ..start();
       _recordingTimer?.cancel();
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         _recordingDuration += const Duration(seconds: 1);
@@ -53,6 +56,7 @@ extension TunerViewModelRecorderPart on TunerViewModel {
     if (!_isAudioRecording) return;
     _recordingTimer?.cancel();
     _recordingTimer = null;
+    _recordingStopwatch.stop();
     _isAudioRecording = false;
 
     final filePath = await _recorderService.stopRecording();
@@ -153,7 +157,9 @@ extension TunerViewModelRecorderPart on TunerViewModel {
   // --- Métodos de Gestión Multi-Pista y Comparador Espectral ---
 
   void _recordSampleForMultiTrack(double pitch, double cents, String noteName, {bool isSilent = false}) {
-    final timeMs = _recordingDuration.inMilliseconds;
+    final timeMs = _recordingStopwatch.isRunning
+        ? _recordingStopwatch.elapsedMilliseconds
+        : _recordingDuration.inMilliseconds;
     if (_currentPitchTrack.isNotEmpty && (timeMs - _currentPitchTrack.last.timeMs).abs() < 20) {
       return;
     }
@@ -298,7 +304,8 @@ extension TunerViewModelRecorderPart on TunerViewModel {
       _referencePitch = settings.referencePitch.clamp(415.0, 466.0);
       _isSmartWaitEnabled = settings.isSmartWaitEnabled;
       if (settings.bpm >= 20 && settings.bpm <= 300) {
-        updateBpm(settings.bpm);
+        _bpm = settings.bpm;
+        _scorePlaybackCoordinator.bpm = _bpm.toDouble();
       }
 
       if (settings.customPalettes.isNotEmpty) {
@@ -410,7 +417,7 @@ extension TunerViewModelRecorderPart on TunerViewModel {
           id: 'preset_baroque_415',
           name: 'Afinación Barroca',
           referencePitchHz: 415.0,
-          temperamentId: 'werckmeister',
+          temperamentId: 'werckmeister_iii',
           rootKey: 0,
           description: 'Afinación historicista barroca a 415 Hz en Werckmeister III',
           createdAt: DateTime.now().subtract(const Duration(days: 2)),

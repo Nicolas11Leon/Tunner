@@ -105,7 +105,8 @@ class Sf2WavetableOscillator {
     int velocity = 100,
     Sf2EnvelopeParams envelope = const Sf2EnvelopeParams(),
   }) {
-    final totalSamples = (durationSeconds * outputSampleRate).round();
+    final totalDuration = durationSeconds + envelope.releaseSeconds;
+    final totalSamples = (totalDuration * outputSampleRate).round();
     if (totalSamples <= 0) return Float64List(0);
 
     final out = Float64List(totalSamples);
