@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../data/dj_transition_sfx_synthesizer.dart';
+import '../domain/dj_transition_sfx_synthesizer.dart';
 import '../domain/dj_deck_entity.dart';
 
 /// 60/120 FPS Dual Parallel RGB Spectral Waveform & Beatgrid Phase Meter Painter.

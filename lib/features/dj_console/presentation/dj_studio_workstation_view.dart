@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import '../../song_library/data/song_decomposer_service.dart';
-import '../data/dj_audio_processor.dart';
-import '../../../core/channels/data/studio_patchbay_routing_service.dart';
+import '../../song_library/domain/song_decomposer_service.dart';
+import '../domain/dj_audio_processor.dart';
+import '../../../core/channels/domain/studio_patchbay_routing_service.dart';
 import '../../../core/channels/domain/studio_modular_plug.dart';
 import '../../../core/channels/domain/studio_plug_type.dart';
 import '../../../core/channels/presentation/studio_channel_patchbay_bar_widget.dart';

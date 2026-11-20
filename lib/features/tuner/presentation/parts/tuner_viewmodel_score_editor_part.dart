@@ -220,7 +220,7 @@ extension TunerViewModelScoreEditorPart on TunerViewModel {
       notifyListeners();
       return result;
     } catch (e) {
-      debugPrint("Error al transcribir audio a partitura: $e");
+      StudioDebugLogger.instance.warning('TunerViewModel', "Error al transcribir audio a partitura: $e");
       return null;
     }
   }

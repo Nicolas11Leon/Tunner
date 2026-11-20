@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../audio_synthesizer/data/audio_synthesizer_service.dart';
 import '../../audio_synthesizer/domain/i_audio_synthesizer_service.dart';
 import '../domain/instrument_customization_profile.dart';
 import '../domain/musical_phrase_entity.dart';
-import '../data/procedural_instrument_synthesizer.dart';
+import '../domain/procedural_instrument_synthesizer.dart';
 import 'instrument_customization_modal.dart';
 import 'visual_interface_profile_ui_ext.dart';
 
@@ -66,7 +65,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
   void initState() {
     super.initState();
     _profile = widget.customization;
-    _audioService = widget.audioSynthesizer ?? AudioSynthesizerService();
+    _audioService = widget.audioSynthesizer ?? const NoOpAudioSynthesizerService();
   }
 
   @override

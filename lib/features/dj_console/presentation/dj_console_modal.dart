@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import '../../../core/channels/data/studio_patchbay_routing_service.dart';
+import '../../../core/channels/domain/studio_patchbay_routing_service.dart';
 import '../../../core/channels/domain/studio_modular_plug.dart';
 import '../../../core/channels/domain/studio_plug_type.dart';
 import '../../../core/channels/presentation/studio_channel_patchbay_bar_widget.dart';
@@ -13,7 +13,7 @@ import '../../media_vault/domain/media_asset_entity.dart';
 import '../../media_vault/domain/media_synergy_target.dart';
 import '../../media_vault/presentation/media_vault_viewmodel.dart';
 import '../../media_vault/presentation/media_vault_workspace_modal.dart';
-import '../data/dj_hardware_catalog.dart';
+import '../domain/dj_hardware_catalog.dart';
 import '../domain/dj_channel_fx_entity.dart';
 import '../domain/dj_crossfader_entity.dart';
 import '../domain/dj_deck_entity.dart';

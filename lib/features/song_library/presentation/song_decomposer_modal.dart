@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../sheet_music/domain/score_tree.dart';
 import '../../tuner_viewmodel.dart';
-import '../data/song_decomposer_service.dart';
+import '../domain/song_decomposer_service.dart';
 import '../../universal_importer/presentation/score_import_tab_view.dart';
 
 /// Modal interactivo de estudio para la creación, importación y descomposición pedagógica

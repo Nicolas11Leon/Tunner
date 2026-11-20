@@ -1,8 +1,4 @@
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/design_system/atoms/studio_badge.dart';
 import '../../../core/design_system/atoms/studio_button.dart';
@@ -56,67 +52,32 @@ class _MediaVaultWorkspaceModalState extends State<MediaVaultWorkspaceModal> {
   }
 
   Future<void> _handleImportFile() async {
-    try {
-      final file = await FilePicker.pickFile(
-        type: FileType.custom,
-        allowedExtensions: const <String>[
-          'wav',
-          'mid',
-          'midi',
-          'musicxml',
-          'xml',
-          'mxl',
-          'abc',
-          'pdf',
-          'json',
-        ],
-      );
-      if (file == null) {
-        return;
-      }
-      final bytes = await file.readAsBytes();
-      await widget.viewModel.importExternalBytes(
-        fileName: file.name,
-        bytes: bytes,
-      );
-    } catch (_) {
-      // File picker canceled or unavailable on headless test runner.
-    }
+    await widget.viewModel.pickAndImportFile();
   }
 
   Future<void> _handleExport(MediaExportFormat format) async {
-    final result = await widget.viewModel.exportTimeline(format);
+    final savedPath = await widget.viewModel.exportTimelineToDisk(format);
     if (!mounted) {
       return;
     }
     final tokens = StudioThemeScope.of(context);
-    if (result.success) {
-      String savedPathNote = '';
-      try {
-        final dir = await getApplicationDocumentsDirectory();
-        final outFile = File('${dir.path}/${result.fileName}');
-        await outFile.writeAsBytes(result.bytes, flush: true);
-        savedPathNote = ' | Guardado en ${outFile.path}';
-      } catch (_) {
-        // Headless test environment without path_provider channel.
-      }
-      if (!mounted) {
-        return;
-      }
+    if (savedPath != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: tokens.panelHeaderBackground,
           content: Text(
-            '${result.message}$savedPathNote',
+            'Exportación completada | Guardado en $savedPath',
             style: TextStyle(color: tokens.textPrimary, fontSize: 12),
           ),
         ),
       );
     } else {
+      final result = await widget.viewModel.exportTimeline(format);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.message),
-          backgroundColor: tokens.accentDanger,
+          backgroundColor: result.success ? tokens.panelHeaderBackground : tokens.accentDanger,
         ),
       );
     }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../design_system/studio_theme_provider.dart';
-import '../data/studio_workspace_file_system_service.dart';
+import '../domain/i_studio_workspace_file_system.dart';
 import '../domain/studio_file_system_node.dart';
 import 'studio_file_system_modals.dart';
 import 'studio_file_tree_tile.dart';
@@ -8,7 +8,7 @@ import 'studio_file_tree_tile.dart';
 /// Tile atomizado recursivo para renderizar una carpeta en el explorador estilo VS Code.
 class StudioFolderTreeTile extends StatelessWidget {
   final StudioFolderEntity folder;
-  final StudioWorkspaceFileSystemService service;
+  final IStudioWorkspaceFileSystem service;
   final int depth;
   final VoidCallback? onFileTapped;
 

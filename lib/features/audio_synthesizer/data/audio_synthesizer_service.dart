@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../../core/audio/domain/i_studio_audio_channel.dart';
 import '../../../core/audio/domain/i_studio_audio_engine.dart';
 import '../../../core/audio/infrastructure/memory_studio_audio_engine.dart';
@@ -76,8 +77,13 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
       await _clickChannel.setVolume(clampedVolume);
       await _clickChannel.loadSource(bytes: bytes, loop: false, title: 'Click');
       await _clickChannel.play();
-    } catch (e) {
-      debugPrint('Error emitiendo clic de metrónomo: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'AudioSynthesizerService',
+        'Error emitiendo clic de metronomo',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -95,8 +101,13 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
       await _diapasonChannel.setVolume(clampedVolume);
       await _diapasonChannel.loadSource(bytes: toneBytes, loop: true, title: 'Diapason');
       await _diapasonChannel.play();
-    } catch (e) {
-      debugPrint('Error iniciando tono de diapasón: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'AudioSynthesizerService',
+        'Error iniciando tono de diapason',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -107,8 +118,13 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
 
     try {
       await _diapasonChannel.stop();
-    } catch (e) {
-      debugPrint('Error deteniendo diapasón: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'AudioSynthesizerService',
+        'Error deteniendo diapason',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -129,8 +145,13 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
       await _noteChannel.setVolume(clampedVolume);
       await _noteChannel.loadSource(bytes: wavBytes, loop: false, title: 'Note');
       await _noteChannel.play();
-    } catch (e) {
-      debugPrint('Error reproduciendo nota musical: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'AudioSynthesizerService',
+        'Error reproduciendo nota musical',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -143,8 +164,13 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
       await _noteChannel.setVolume(clampedVolume);
       await _noteChannel.loadSource(bytes: wavBytes, loop: false, title: 'PCM WAV');
       await _noteChannel.play();
-    } catch (e) {
-      debugPrint('Error emitiendo audio PCM WAV: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'AudioSynthesizerService',
+        'Error emitiendo audio PCM WAV',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -160,8 +186,13 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
       await _droneChannel.setVolume(clampedVolume);
       await _droneChannel.loadSource(bytes: wavBytes, loop: true, title: 'Drone Loop');
       await _droneChannel.play();
-    } catch (e) {
-      debugPrint('Error iniciando bucle de dron: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'AudioSynthesizerService',
+        'Error iniciando bucle de dron',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -170,8 +201,13 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
     _isDroneLoopPlaying = false;
     try {
       await _droneChannel.stop();
-    } catch (e) {
-      debugPrint('Error deteniendo dron: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'AudioSynthesizerService',
+        'Error deteniendo dron',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 

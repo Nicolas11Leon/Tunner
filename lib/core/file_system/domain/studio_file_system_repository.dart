@@ -27,3 +27,36 @@ abstract class StudioFileSystemRepository {
     required String newRelativePath,
   });
 }
+
+/// Implementación no-op para entornos sin acceso físico a disco o pruebas aisladas.
+class NoOpStudioFileSystemRepository implements StudioFileSystemRepository {
+  const NoOpStudioFileSystemRepository();
+
+  @override
+  Future<StudioFolderEntity> loadRootWorkspace() async =>
+      const StudioFolderEntity(
+        id: 'root',
+        name: 'Root',
+        relativePath: '/',
+        modifiedAtMicros: 0,
+        isExpanded: true,
+      );
+
+  @override
+  Future<void> saveFile({required String relativePath, required Uint8List bytes}) async {}
+
+  @override
+  Future<Uint8List> readFile(String relativePath) async => Uint8List(0);
+
+  @override
+  Future<void> deletePath(String relativePath) async {}
+
+  @override
+  Future<void> createFolder(String relativePath) async {}
+
+  @override
+  Future<void> movePath({
+    required String oldRelativePath,
+    required String newRelativePath,
+  }) async {}
+}

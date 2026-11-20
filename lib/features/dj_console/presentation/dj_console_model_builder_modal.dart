@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/tunner_theme.dart';
-import '../data/dj_console_blueprint_storage_service.dart';
+import '../domain/i_dj_console_blueprint_storage_service.dart';
 import '../domain/dj_action.dart';
 import '../domain/dj_console_blueprint_entity.dart';
 import '../domain/dj_skin_zone_entity.dart';
@@ -13,7 +13,7 @@ import 'dj_console_view_model.dart';
 class DjConsoleModelBuilderModal extends StatefulWidget {
   final DjConsoleViewModel viewModel;
   final TunnerThemePalette palette;
-  final DjConsoleBlueprintStorageService storageService;
+  final IDjConsoleBlueprintStorageService storageService;
 
   const DjConsoleModelBuilderModal({
     super.key,
@@ -26,16 +26,16 @@ class DjConsoleModelBuilderModal extends StatefulWidget {
     BuildContext context,
     DjConsoleViewModel viewModel,
     TunnerThemePalette palette, {
-    DjConsoleBlueprintStorageService? storageService,
+    IDjConsoleBlueprintStorageService? storageService,
   }) {
-    final service = storageService ?? DjConsoleBlueprintStorageService();
+    final effectiveStorage = storageService ?? const NoOpDjConsoleBlueprintStorageService();
     return showDialog(
       context: context,
       barrierDismissible: true,
       builder: (ctx) => DjConsoleModelBuilderModal(
         viewModel: viewModel,
         palette: palette,
-        storageService: service,
+        storageService: effectiveStorage,
       ),
     );
   }

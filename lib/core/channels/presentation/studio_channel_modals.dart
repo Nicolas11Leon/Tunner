@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../data/studio_patchbay_routing_service.dart';
+import '../domain/i_studio_patchbay_routing_service.dart';
 import '../domain/studio_channel_bus.dart';
 
 /// Paleta de colores canónicos neón para canales de estudio.
@@ -18,7 +18,7 @@ class StudioChannelPalette {
 
 /// Diálogo modal interactivo para crear un nuevo canal nombrado de estudio.
 class StudioCreateChannelModal extends StatefulWidget {
-  final StudioPatchbayRoutingService routingService;
+  final IStudioPatchbayRoutingService routingService;
   final ValueChanged<StudioChannelBus>? onChannelCreated;
 
   const StudioCreateChannelModal({
@@ -29,7 +29,7 @@ class StudioCreateChannelModal extends StatefulWidget {
 
   static Future<StudioChannelBus?> show(
     BuildContext context, {
-    required StudioPatchbayRoutingService routingService,
+    required IStudioPatchbayRoutingService routingService,
   }) {
     return showDialog<StudioChannelBus>(
       context: context,
@@ -218,7 +218,7 @@ class _StudioCreateChannelModalState extends State<StudioCreateChannelModal> {
 
 /// Diálogo interactivo para renombrar un canal existente.
 class StudioRenameChannelModal extends StatefulWidget {
-  final StudioPatchbayRoutingService routingService;
+  final IStudioPatchbayRoutingService routingService;
   final StudioChannelBus channel;
 
   const StudioRenameChannelModal({
@@ -229,7 +229,7 @@ class StudioRenameChannelModal extends StatefulWidget {
 
   static Future<void> show(
     BuildContext context, {
-    required StudioPatchbayRoutingService routingService,
+    required IStudioPatchbayRoutingService routingService,
     required StudioChannelBus channel,
   }) {
     return showDialog<void>(

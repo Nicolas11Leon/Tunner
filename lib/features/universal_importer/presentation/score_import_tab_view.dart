@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../../../core/file_system/domain/i_platform_file_gateway.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../tuner_viewmodel.dart';
 
 /// Callback para seleccionar un archivo local de forma desacoplada y testeable.
@@ -19,18 +20,20 @@ class ScoreImportTabView extends StatefulWidget {
   });
 
   /// Implementación por defecto que invoca el diálogo de selección nativo del dispositivo.
-  static Future<({Uint8List bytes, String fileName})?> defaultNativeFilePicker() async {
+  static Future<({Uint8List bytes, String fileName})?> defaultNativeFilePicker([
+    IPlatformFileGateway? gateway,
+  ]) async {
     try {
-      final file = await FilePicker.pickFile(
-        type: FileType.custom,
-        allowedExtensions: const ['xml', 'musicxml', 'mxl', 'mid', 'midi', 'abc', 'wav', 'pdf'],
-      );
-
-      if (file == null) return null;
-      final fileBytes = await file.readAsBytes();
-      return (bytes: fileBytes, fileName: file.name);
+      if (gateway != null) {
+        final picked = await gateway.pickFile(
+          allowedExtensions: const ['xml', 'musicxml', 'mxl', 'mid', 'midi', 'abc', 'wav', 'pdf'],
+        );
+        if (picked == null || picked.bytes == null) return null;
+        return (bytes: picked.bytes!, fileName: picked.name);
+      }
+      return null;
     } catch (e) {
-      debugPrint('Error en defaultNativeFilePicker: $e');
+      StudioDebugLogger.instance.warning('ScoreImportTabView', 'Error en defaultNativeFilePicker: $e');
       return null;
     }
   }

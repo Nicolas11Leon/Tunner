@@ -114,8 +114,13 @@ class StudioMasterCaptureService implements IStudioMasterCaptureService {
         await _randomAccessFile!.close();
         _randomAccessFile = null;
       }
-    } catch (e) {
-      debugPrint('Error al finalizar el archivo WAV maestro: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.error(
+        'StudioMasterCaptureService',
+        'Error al finalizar el archivo WAV maestro',
+        error: e,
+        stackTrace: st,
+      );
     }
 
     final path = _currentFilePath;

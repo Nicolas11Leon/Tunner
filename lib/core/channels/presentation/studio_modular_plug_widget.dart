@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../design_system/studio_theme_provider.dart';
-import '../data/studio_patchbay_routing_service.dart';
+import '../domain/i_studio_patchbay_routing_service.dart';
 import '../domain/studio_modular_plug.dart';
 import 'studio_channel_modals.dart';
 
@@ -9,7 +9,7 @@ import 'studio_channel_modals.dart';
 /// y sincronizar bidireccionalmente los parámetros de audio y reproducción.
 class StudioModularPlugWidget extends StatelessWidget {
   final StudioModularPlug plug;
-  final StudioPatchbayRoutingService routingService;
+  final IStudioPatchbayRoutingService routingService;
   final double size;
   final bool showLabel;
 

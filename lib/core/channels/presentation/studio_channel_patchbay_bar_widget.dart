@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../design_system/studio_theme_provider.dart';
-import '../data/studio_patchbay_routing_service.dart';
+import '../domain/i_studio_patchbay_routing_service.dart';
 import '../domain/studio_channel_bus.dart';
 import 'studio_channel_modals.dart';
 
@@ -8,7 +8,7 @@ import 'studio_channel_modals.dart';
 /// Soporta canales troncales y personalizados nombrables con monitorización
 /// reactiva en tiempo real de BPM, tonalidad armónica y estado de transporte.
 class StudioChannelPatchbayBarWidget extends StatelessWidget {
-  final StudioPatchbayRoutingService routingService;
+  final IStudioPatchbayRoutingService routingService;
 
   const StudioChannelPatchbayBarWidget({
     super.key,
