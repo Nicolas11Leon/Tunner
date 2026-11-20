@@ -52,6 +52,10 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
+# DSP Native Library
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../native/dsp" "${CMAKE_BINARY_DIR}/native/dsp")
+add_dependencies(${BINARY_NAME} tunner_dsp)
+
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
@@ -79,6 +83,9 @@ install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}
   COMPONENT Runtime)
 
 install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime)
+
+install(TARGETS tunner_dsp RUNTIME DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
 if(PLUGIN_BUNDLED_LIBRARIES)
