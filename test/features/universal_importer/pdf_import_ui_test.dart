@@ -11,6 +11,7 @@ import 'package:tunner/features/practice_recorder/data/audio_playback_service.da
 import 'package:tunner/features/practice_recorder/data/practice_recorder_service.dart';
 import 'package:tunner/features/tuner/domain/i_pitch_detector_service.dart';
 import 'package:tunner/features/tuner_viewmodel.dart';
+import 'package:tunner/features/universal_importer/data/universal_score_importer_service.dart';
 import 'package:tunner/features/universal_importer/presentation/score_import_tab_view.dart';
 
 class _FakePitchService extends IPitchDetectorService {
@@ -52,6 +53,7 @@ void main() {
       recorderService: PracticeRecorderService(),
       playbackService: AudioPlaybackService(),
       persistenceService: persistenceService,
+      scoreImporterService: const UniversalScoreImporterService(),
       audioSynthesizerService: MemoryAudioSynthesizerService(),
     );
   });

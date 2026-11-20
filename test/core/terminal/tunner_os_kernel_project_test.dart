@@ -1,9 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tunner/app/terminal_feature_adapters.dart';
 import 'package:tunner/core/audio/infrastructure/memory_audio_hardware_persistence_service.dart';
 import 'package:tunner/core/audio/infrastructure/memory_studio_audio_engine.dart';
 import 'package:tunner/core/audio/infrastructure/memory_studio_audio_input_engine.dart';
 import 'package:tunner/core/audio/infrastructure/memory_studio_master_capture_service.dart';
 import 'package:tunner/core/audio/infrastructure/studio_audio_device_matrix_service.dart';
+import 'package:tunner/core/packaging/infrastructure/tunner_package_codec_service.dart';
 import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
 import 'package:tunner/features/audio_synthesizer/domain/polyphonic/polyphonic_voice_pool.dart';
 import 'package:tunner/features/tuner_viewmodel.dart';
@@ -26,11 +28,12 @@ void main() {
       viewModel = TunerViewModel(
         audioDeviceMatrixService: matrixService,
         polyphonicVoicePool: voicePool,
+        packageCodec: const TunnerPackageCodecService(),
       );
       kernel = TunnerOsKernel(
         matrixService: matrixService,
         synthVoicePool: voicePool,
-        viewModel: viewModel,
+        projectPort: TunerProjectTerminalAdapter(viewModel),
       );
     });
 
@@ -65,7 +68,7 @@ void main() {
       final headlessKernel = TunnerOsKernel();
       final res = await headlessKernel.execute('project export');
       expect(res.isSuccess, isFalse);
-      expect(res.message, contains('No se puede exportar: TunerViewModel no esta enlazado al kernel.'));
+      expect(res.message, contains('No se puede exportar: Puerto de proyecto no enlazado al kernel.'));
     });
   });
 }

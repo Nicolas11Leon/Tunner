@@ -1,9 +1,10 @@
 import 'dart:io';
+import '../domain/i_stem_export_persistence_service.dart';
 import '../domain/stem_export_entity.dart';
 
 /// Servicio de infraestructura para escribir paquetes de stems y secuencias MIDI
 /// en el almacenamiento local offline del dispositivo.
-class StemExportPersistenceService {
+class StemExportPersistenceService implements IStemExportPersistenceService {
   final Future<String> Function()? documentsPathProvider;
 
   StemExportPersistenceService({this.documentsPathProvider});
@@ -28,6 +29,7 @@ class StemExportPersistenceService {
 
   /// Guarda en disco todos los archivos binarios contenidos en un [ExportBundleResult].
   /// Retorna la lista de rutas absolutas generadas.
+  @override
   Future<List<String>> saveExportBundle(
     ExportBundleResult bundle, {
     String? customSubfolder,

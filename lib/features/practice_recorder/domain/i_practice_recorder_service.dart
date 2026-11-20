@@ -23,3 +23,29 @@ abstract class IPracticeRecorderService {
   /// Libera recursos del hardware de audio.
   void dispose();
 }
+
+/// Implementación nula / no-op en dominio puro para pruebas y entornos aislados.
+class NoOpPracticeRecorderService implements IPracticeRecorderService {
+  const NoOpPracticeRecorderService();
+
+  @override
+  Future<void> startRecording({required String destinationPath}) async {}
+
+  @override
+  Future<String?> stopRecording() async => null;
+
+  @override
+  Future<void> pauseRecording() async {}
+
+  @override
+  Future<void> resumeRecording() async {}
+
+  @override
+  bool get isRecording => false;
+
+  @override
+  Stream<double> get amplitudeStream => const Stream<double>.empty();
+
+  @override
+  void dispose() {}
+}

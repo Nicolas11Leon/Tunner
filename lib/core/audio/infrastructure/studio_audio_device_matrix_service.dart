@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../logging/infrastructure/studio_debug_logger.dart';
 import '../domain/audio_device_entity.dart';
 import '../domain/audio_device_matrix_entity.dart';
+import '../domain/i_studio_audio_device_matrix_port.dart';
 import '../domain/i_studio_audio_engine.dart';
 import '../domain/i_studio_audio_hardware_persistence_service.dart';
 import '../domain/i_studio_audio_input_engine.dart';
@@ -14,7 +15,7 @@ import 'studio_master_capture_service.dart';
 
 /// Servicio de infraestructura que gestiona la matriz de enrutamiento de dispositivos,
 /// la cadena de masterización DSP y la captura de audio en vivo de Tunner Studio.
-class StudioAudioDeviceMatrixService extends ChangeNotifier {
+class StudioAudioDeviceMatrixService extends ChangeNotifier implements IStudioAudioDeviceMatrixPort {
   final IStudioAudioEngine _outputEngine;
   final IStudioAudioInputEngine _inputEngine;
   final IStudioAudioHardwarePersistenceService? _persistenceService;
@@ -50,6 +51,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
     _startMeterLoop();
   }
 
+  @override
   AudioDeviceMatrixEntity get matrix => _matrix;
   StudioStereoLevelMeterData get masterMeterData => _masterMeterData;
   Stream<StudioStereoLevelMeterData> get masterMeterStream => _meterController.stream;
@@ -245,6 +247,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier {
   }
 
   /// Restaura de forma atómica una configuración completa de matriz de audio.
+  @override
   void restoreMatrix(AudioDeviceMatrixEntity newMatrix) {
     _matrix = newMatrix;
     _initDspChain();

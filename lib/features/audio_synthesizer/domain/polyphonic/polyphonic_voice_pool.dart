@@ -10,6 +10,7 @@ import 'polyphonic_synth_voice.dart';
 /// permitiendo la ejecución de acordes complejos, notas simultáneas y control centralizado
 /// de envolvente ADSR y forma de onda.
 class PolyphonicVoicePool implements ISynthVoicePoolPort {
+  @override
   final int maxPolyphony;
   final List<PolyphonicSynthVoice> _voices;
 
@@ -60,15 +61,23 @@ class PolyphonicVoicePool implements ISynthVoicePoolPort {
 
   // Getters
   List<PolyphonicSynthVoice> get voices => List.unmodifiable(_voices);
+  @override
   int get activeVoiceCount => _voices.where((v) => v.isActive).length;
   SynthWaveform get waveform => _waveform;
+  @override
+  String get dslWaveformName => _waveform.name;
   double get pulseWidth => _pulseWidth;
+  @override
   double get masterGain => _masterGain;
   double get sampleRate => _sampleRate;
 
+  @override
   double get attackSeconds => _voices.first.envelope.attackSeconds;
+  @override
   double get decaySeconds => _voices.first.envelope.decaySeconds;
+  @override
   double get sustainLevel => _voices.first.envelope.sustainLevel;
+  @override
   double get releaseSeconds => _voices.first.envelope.releaseSeconds;
 
   // Setters globales aplicados a todas las voces

@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
+import '../../domain/i_studio_listenable.dart';
 import 'studio_file_system_node.dart';
 import 'studio_file_system_repository.dart';
 import 'studio_file_type.dart';
@@ -7,7 +8,7 @@ import 'studio_file_type.dart';
 typedef StudioOpenFileCallback = void Function(StudioFileEntity file);
 
 /// Puerto abstracto de dominio para la orquestación reactiva del espacio de trabajo de archivos.
-abstract class IStudioWorkspaceFileSystem implements Listenable {
+abstract class IStudioWorkspaceFileSystem implements IStudioListenable {
   StudioFolderEntity get rootFolder;
   StudioFolderEntity get filteredRootFolder;
   String? get selectedNodeId;
@@ -45,7 +46,7 @@ abstract class IStudioWorkspaceFileSystem implements Listenable {
 }
 
 /// Implementación en memoria sin dependencias de I/O para pruebas y UI desacoplada.
-class NoOpStudioWorkspaceFileSystem extends ChangeNotifier implements IStudioWorkspaceFileSystem {
+class NoOpStudioWorkspaceFileSystem with StudioPureNotifierMixin implements IStudioWorkspaceFileSystem {
   NoOpStudioWorkspaceFileSystem({
     StudioFolderEntity? rootFolder,
   }) : _rootFolder = rootFolder ??

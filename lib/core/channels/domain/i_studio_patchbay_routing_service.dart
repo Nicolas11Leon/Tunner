@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
+import '../../domain/i_studio_listenable.dart';
 import 'studio_channel_bus.dart';
 import 'studio_modular_plug.dart';
 import 'studio_patchbay_matrix_entity.dart';
@@ -14,7 +15,7 @@ typedef StudioSignalDeliveryCallback = void Function(
 typedef StudioChannelParamCallback = void Function(StudioChannelBus bus);
 
 /// Contrato abstracto de dominio para la matriz reactiva de enrutamiento y parcheo.
-abstract class IStudioPatchbayRoutingService implements Listenable {
+abstract class IStudioPatchbayRoutingService implements IStudioListenable {
   StudioPatchbayMatrixEntity get matrix;
   List<StudioChannelBus> get channels;
   Map<String, StudioModularPlug> get plugs;

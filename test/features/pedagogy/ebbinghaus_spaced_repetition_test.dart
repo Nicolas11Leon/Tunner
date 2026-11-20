@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tunner/app/terminal_feature_adapters.dart';
 import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
 import 'package:tunner/features/pedagogy/domain/ebbinghaus_spaced_repetition_engine.dart';
 
@@ -267,7 +268,9 @@ void main() {
     late TunnerOsKernel kernel;
 
     setUp(() {
-      kernel = TunnerOsKernel();
+      kernel = TunnerOsKernel(
+        earTrainingEngine: EbbinghausTerminalAdapter(),
+      );
     });
 
     test('train status muestra el resumen pedagogico', () async {
@@ -299,7 +302,7 @@ void main() {
       expect(res.message, contains('Nueva Estabilidad: 1.00 dias'));
 
       // Verificar que el item cambio en el motor
-      final p5 = kernel.earTrainingEngine!.getItem('interval_P5')!;
+      final p5 = kernel.earTrainingEngine!.getItem('interval_P5', DateTime.now())!;
       expect(p5.repetitions, equals(1));
     });
 
@@ -308,7 +311,7 @@ void main() {
       final res = await kernel.execute('train reset');
       expect(res.isSuccess, isTrue);
       expect(res.message, contains('[OK] Catalogo de entrenamiento auditivo reiniciado'));
-      expect(kernel.earTrainingEngine!.getItem('interval_P5')!.repetitions, equals(0));
+      expect(kernel.earTrainingEngine!.getItem('interval_P5', DateTime.now())!.repetitions, equals(0));
     });
   });
 }

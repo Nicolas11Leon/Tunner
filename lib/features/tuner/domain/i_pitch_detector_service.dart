@@ -30,3 +30,12 @@ abstract class IPitchDetectorService {
   Future<void> setInputDevice(String deviceId) async {}
 }
 
+/// Implementación nula / no-op en dominio puro para pruebas y entornos aislados.
+class NoOpPitchDetectorService extends IPitchDetectorService {
+  @override
+  Future<void> startRecording() async {}
+
+  @override
+  Future<void> stopRecording() async {}
+}
+

@@ -4,43 +4,35 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
-import '../core/logging/infrastructure/studio_debug_logger.dart';
-import '../core/file_system/data/platform_file_gateway.dart';
+import '../core/logging/domain/i_studio_logger.dart';
 import '../core/file_system/domain/i_platform_file_gateway.dart';
 import 'tuner/domain/tuning_preset_entity.dart';
 import '../core/theme/tunner_theme.dart';
 import 'tuner/domain/note_entity.dart';
 import 'tuner/domain/i_pitch_detector_service.dart';
-import 'tuner/data/pitch_detector_service.dart';
 import 'metronome/domain/tempo_entity.dart';
 import 'metronome/domain/i_metronome_service.dart';
-import 'metronome/data/metronome_service.dart';
 import 'sheet_music/domain/score_tree.dart';
 import 'sheet_music/presentation/real_sheet_music_painter.dart';
 import 'mixer/domain/mixer_track_entity.dart';
 import 'song_library/domain/song_package_entity.dart';
-import 'song_library/data/song_decomposer_service.dart';
+import 'song_library/domain/song_decomposer_service.dart';
 import 'practice_evaluator/domain/i_practice_evaluator_service.dart';
 import 'practice_evaluator/domain/note_evaluation_entity.dart';
+import 'practice_evaluator/domain/practice_evaluator_service.dart';
 import 'practice_evaluator/domain/practice_report_entity.dart';
-import 'practice_evaluator/data/practice_evaluator_service.dart';
 import 'instrument/domain/instrument_profile_entity.dart';
 import 'instrument/domain/i_instrument_transposition_service.dart';
-import 'instrument/data/instrument_transposition_service.dart';
+import 'instrument/domain/instrument_transposition_service.dart';
 import 'practice_recorder/domain/practice_recording_entity.dart';
 import 'practice_recorder/domain/multitrack_session_entity.dart';
 import 'practice_recorder/domain/i_practice_recorder_service.dart';
 import 'practice_recorder/domain/i_audio_playback_service.dart';
-import 'practice_recorder/data/practice_recorder_service.dart';
-import 'practice_recorder/data/audio_playback_service.dart';
 import 'persistence/domain/app_user_settings_entity.dart';
 import 'persistence/domain/i_local_persistence_service.dart';
-import 'persistence/data/json_local_persistence_service.dart';
 import 'universal_importer/domain/i_score_parser_service.dart';
 import 'universal_importer/domain/parsed_score_result_entity.dart';
-import 'universal_importer/data/universal_score_importer_service.dart';
 import 'audio_synthesizer/domain/i_audio_synthesizer_service.dart';
-import 'audio_synthesizer/data/audio_synthesizer_service.dart';
 import 'audio_synthesizer/domain/polyphonic/polyphonic_voice_pool.dart';
 import 'sheet_music/domain/score_playback_coordinator.dart';
 import 'score_editor/domain/score_editor_domain.dart';
@@ -67,14 +59,14 @@ import 'metronome/domain/tap_tempo_engine.dart';
 import 'metronome/domain/tap_tempo_result.dart';
 import 'pedagogy_report/domain/pedagogical_report_models.dart';
 import 'pedagogy_report/domain/pedagogical_report_pdf_generator.dart';
-import 'audio_synthesizer/data/soundfont_synthesizer_service.dart';
+import 'audio_synthesizer/domain/sf2/i_soundfont_synthesizer_service.dart';
 import 'audio_synthesizer/domain/sf2/sf2_models.dart';
 import 'pedagogy_profiles/domain/learner_profile_entity.dart';
 import 'pedagogy_profiles/domain/adaptive_scaffolding_engine.dart';
 import 'workspaces/domain/workspace_type.dart';
+import 'audio_synthesizer/domain/i_stem_export_persistence_service.dart';
 import 'audio_synthesizer/domain/stem_export_entity.dart';
 import 'audio_synthesizer/domain/stem_audio_synthesizer.dart';
-import 'audio_synthesizer/data/stem_export_persistence_service.dart';
 import 'guided_lessons/domain/guided_lesson_entity.dart';
 import 'guided_lessons/domain/curated_guided_lessons.dart';
 import 'guided_lessons/domain/guided_lesson_evaluator.dart';
@@ -92,8 +84,7 @@ import 'audio_synthesizer/domain/polyphonic/polyphonic_synth_voice.dart';
 import '../core/packaging/domain/i_tunner_package_codec.dart';
 import '../core/packaging/domain/tunner_project_manifest_entity.dart';
 import '../core/packaging/domain/tunner_project_package_entity.dart';
-import '../core/packaging/infrastructure/tunner_package_codec_service.dart';
-import '../core/audio/infrastructure/studio_audio_device_matrix_service.dart';
+import '../core/audio/domain/i_studio_audio_device_matrix_port.dart';
 import '../core/audio/domain/audio_device_matrix_entity.dart';
 
 part 'tuner/presentation/parts/tuner_viewmodel_recorder_part.dart';
@@ -235,7 +226,7 @@ class TunerViewModel extends ChangeNotifier {
 
   // Motor de Exportación de Stems y MIDI
   final StemAudioSynthesizer _stemSynthesizer;
-  final StemExportPersistenceService _exportPersistenceService;
+  final IStemExportPersistenceService _exportPersistenceService;
   ExportBundleResult? _lastExportBundle;
   bool _isExportingStems = false;
 
@@ -254,7 +245,7 @@ class TunerViewModel extends ChangeNotifier {
   VocalScoreConversionResult? _lastVocalConversionResult;
 
   // Motor de Síntesis SoundFont SF2 y Timbres Acústicos
-  final SoundFontSynthesizerService _soundFontSynthesizer;
+  final ISoundFontSynthesizerService _soundFontSynthesizer;
 
   // Motor de Síntesis Polifónica SMuFL y Coordinador de Partitura
   final PolyphonicVoicePool _polyphonicVoicePool;
@@ -263,7 +254,8 @@ class TunerViewModel extends ChangeNotifier {
 
   // Empaquetador Canónico de Proyectos .tunner
   ITunnerPackageCodec packageCodec;
-  final StudioAudioDeviceMatrixService? _audioDeviceMatrixService;
+  final IStudioAudioDeviceMatrixPort? _audioDeviceMatrixService;
+  final IStudioLogger _logger;
 
   // Calibración y Adaptación Acústica del Micrófono (UC-41)
   MicrophoneCalibrationProfile _micProfile = const MicrophoneCalibrationProfile();
@@ -306,42 +298,42 @@ class TunerViewModel extends ChangeNotifier {
     IAudioSynthesizerService? audioSynthesizerService,
     AcousticEchoSuppressor? echoSuppressor,
     StemAudioSynthesizer? stemSynthesizer,
-    StemExportPersistenceService? exportPersistenceService,
+    IStemExportPersistenceService? exportPersistenceService,
     PolyphonicMultiToneDetector? multiToneDetector,
     GuidedLessonEvaluator? guidedLessonEvaluator,
     VocalAutoTuneProcessor? autoTuneProcessor,
-    SoundFontSynthesizerService? soundFontSynthesizer,
+    ISoundFontSynthesizerService? soundFontSynthesizer,
     PolyphonicVoicePool? polyphonicVoicePool,
     ScorePlaybackCoordinator? scorePlaybackCoordinator,
     ITunnerPackageCodec? packageCodec,
-    StudioAudioDeviceMatrixService? audioDeviceMatrixService,
+    IStudioAudioDeviceMatrixPort? audioDeviceMatrixService,
     IPlatformFileGateway? platformFileGateway,
+    IStudioLogger? logger,
     Future<String> Function()? documentsDirectoryProvider,
     Future<String> Function()? recordingPathProvider,
     bool seedDefaults = false,
   })  : _shouldSeedDefaults = seedDefaults,
-        _pitchService = pitchService ?? PitchDetectorService(),
-        _metronomeService = metronomeService ?? MetronomeService(),
+        _pitchService = pitchService ?? NoOpPitchDetectorService(),
+        _metronomeService = metronomeService ?? NoOpMetronomeService(),
         _evaluatorService = evaluatorService ?? const PracticeEvaluatorService(),
         _transpositionService = transpositionService ?? const InstrumentTranspositionService(),
-        _recorderService = recorderService ?? PracticeRecorderService(),
-        _playbackService = playbackService ?? AudioPlaybackService(),
-        _persistenceService = persistenceService ??
-            JsonLocalPersistenceService(documentsPathProvider: documentsDirectoryProvider ?? recordingPathProvider),
-        _scoreImporterService = scoreImporterService ?? const UniversalScoreImporterService(),
-        _audioSynthesizer = audioSynthesizerService ?? AudioSynthesizerService(),
+        _recorderService = recorderService ?? const NoOpPracticeRecorderService(),
+        _playbackService = playbackService ?? const NoOpAudioPlaybackService(),
+        _persistenceService = persistenceService ?? InMemoryLocalPersistenceService(),
+        _scoreImporterService = scoreImporterService ?? const NoOpScoreParserService(),
+        _audioSynthesizer = audioSynthesizerService ?? const NoOpAudioSynthesizerService(),
         _echoSuppressor = echoSuppressor ?? AcousticEchoSuppressor(),
-        _platformFileGateway = platformFileGateway ?? const PlatformFileGateway(),
+        _platformFileGateway = platformFileGateway ?? const NoOpPlatformFileGateway(),
         _stemSynthesizer = stemSynthesizer ?? const StemAudioSynthesizer(),
-        _exportPersistenceService = exportPersistenceService ??
-            StemExportPersistenceService(documentsPathProvider: documentsDirectoryProvider ?? recordingPathProvider),
+        _exportPersistenceService = exportPersistenceService ?? const NoOpStemExportPersistenceService(),
         _multiToneDetector = multiToneDetector ?? PolyphonicMultiToneDetector(),
         _guidedLessonEvaluator = guidedLessonEvaluator ?? GuidedLessonEvaluator(),
         _autoTuneProcessor = autoTuneProcessor ?? VocalAutoTuneProcessor(),
-        _soundFontSynthesizer = soundFontSynthesizer ?? SoundFontSynthesizerService(),
+        _soundFontSynthesizer = soundFontSynthesizer ?? const NoOpSoundFontSynthesizerService(),
         _polyphonicVoicePool = polyphonicVoicePool ?? PolyphonicVoicePool(),
-        packageCodec = packageCodec ?? const TunnerPackageCodecService(),
+        packageCodec = packageCodec ?? const NoOpTunnerPackageCodec(),
         _audioDeviceMatrixService = audioDeviceMatrixService,
+        _logger = logger ?? const NoOpStudioLogger(),
         _recordingPathProvider = recordingPathProvider {
     _scorePlaybackCoordinator = scorePlaybackCoordinator ??
         ScorePlaybackCoordinator(
@@ -374,7 +366,8 @@ class TunerViewModel extends ChangeNotifier {
   List<TunnerThemePalette> get customPalettes => List.unmodifiable(_customPalettes);
   AppDisplayMode get displayMode => _displayMode;
   bool get isEssentialMode => _displayMode == AppDisplayMode.essential;
-  SoundFontSynthesizerService get soundFontSynthesizer => _soundFontSynthesizer;
+  ISoundFontSynthesizerService get soundFontSynthesizer => _soundFontSynthesizer;
+  IPlatformFileGateway get platformFileGateway => _platformFileGateway;
   int get activeSoundFontPatch => _soundFontSynthesizer.activePatch;
   List<Sf2Preset> get availableSoundFontPresets => _soundFontSynthesizer.availablePresets;
 
@@ -746,7 +739,7 @@ class TunerViewModel extends ChangeNotifier {
   }
 
   // Acceso a servicios de hardware y empaquetado canónico
-  StudioAudioDeviceMatrixService? get audioDeviceMatrixService => _audioDeviceMatrixService;
+  IStudioAudioDeviceMatrixPort? get audioDeviceMatrixService => _audioDeviceMatrixService;
 
   /// Exporta el estado completo de la sesión actual a un paquete canónico binario `.tunner`.
   Uint8List exportCurrentProjectToTunner({
@@ -842,7 +835,7 @@ class TunerViewModel extends ChangeNotifier {
         final pkgMap = pkg.scoreJson!['songPackage'] as Map<String, dynamic>;
         _activePackage = SongPackage.fromMap(pkgMap);
       } catch (e) {
-        StudioDebugLogger.instance.warning('TunerViewModel', 'Error deserializando songPackage en proyecto: $e');
+        _logger.warning('TunerViewModel', 'Error deserializando songPackage en proyecto: $e');
       }
     }
 
@@ -1652,8 +1645,8 @@ class TunerViewModel extends ChangeNotifier {
       _isMetronomePlaying = true;
       final ts = currentMeasureTimeSignature;
       final metro = _metronomeService;
-      if (metro is MetronomeService) {
-        await metro.start(
+      if (metro is IMeteredMetronomeService) {
+        await metro.startWithMeter(
           _bpm,
           ticksPerMeasure: ts.totalTicks,
           meterDenominator: ts.denominator,
@@ -1711,8 +1704,8 @@ class TunerViewModel extends ChangeNotifier {
       _metronomeService.stop().then((_) {
         if (_isMetronomePlaying && !_isDisposed) {
           final metro = _metronomeService;
-          if (metro is MetronomeService) {
-            metro.start(
+          if (metro is IMeteredMetronomeService) {
+            metro.startWithMeter(
               _bpm,
               ticksPerMeasure: ts.totalTicks,
               meterDenominator: ts.denominator,
@@ -1764,7 +1757,7 @@ class TunerViewModel extends ChangeNotifier {
       notifyListeners();
       return result;
     } catch (e) {
-      StudioDebugLogger.instance.warning('TunerViewModel', "Error al importar partitura: $e");
+      _logger.warning('TunerViewModel', "Error al importar partitura: $e");
       return null;
     }
   }
@@ -1849,7 +1842,7 @@ class TunerViewModel extends ChangeNotifier {
       final parsed = await importScoreFromBytes(picked.bytes!, picked.name);
       return parsed;
     } catch (e) {
-      StudioDebugLogger.instance.warning('TunerViewModel', "Error al seleccionar archivo en FilePicker: $e");
+      _logger.warning('TunerViewModel', "Error al seleccionar archivo en FilePicker: $e");
       return null;
     }
   }
@@ -2039,8 +2032,8 @@ class TunerViewModel extends ChangeNotifier {
       _metronomeService.stop().then((_) {
         if (_isMetronomePlaying && !_isDisposed) {
           final metro = _metronomeService;
-          if (metro is MetronomeService) {
-            metro.start(
+          if (metro is IMeteredMetronomeService) {
+            metro.startWithMeter(
               _bpm,
               ticksPerMeasure: ts.totalTicks,
               meterDenominator: ts.denominator,
