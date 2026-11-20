@@ -18,6 +18,7 @@ class TdPsolaPitchShifter {
   }) {
     final int len = inputSamples.length;
     if (len == 0) return Float64List(0);
+    if (len < 48) return Float64List.fromList(inputSamples);
 
     // Bypass transparente si no hay tono vocal o el cambio es imperceptible
     if (detectedPitchHz <= 20.0 || (pitchShiftRatio - 1.0).abs() < 0.005) {

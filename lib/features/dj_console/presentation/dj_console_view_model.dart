@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import '../../../core/file_system/domain/studio_file_system_repository.dart';
 import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../audio_synthesizer/domain/i_audio_synthesizer_service.dart';
@@ -205,9 +206,9 @@ class DjConsoleViewModel extends ChangeNotifier {
 
   Future<void> _initPersistenceAndKeyHandler() async {
     final profile = await _persistenceService.loadActiveProfile();
+    if (_isDisposed) return;
     _orchestrator.setKeymapProfile(profile);
-    HardwareKeyboard.instance.addHandler(_handleHardwareKeyEvent);
-    if (!_isDisposed) notifyListeners();
+    notifyListeners();
   }
 
   void _startTicker() {
@@ -246,12 +247,11 @@ class DjConsoleViewModel extends ChangeNotifier {
         final sliceB = Float32List(sliceLength);
 
         if (deckA.isPlaying) {
-          final samples = _deckSamplesA ??
-              _audioProcessor.generateDemoGroove(
-                bpm: deckA.effectiveBpm,
-                frequencyHz: 55.0,
-                durationMs: 4000,
-              );
+          final samples = _deckSamplesA ??= _audioProcessor.generateDemoGroove(
+            bpm: deckA.effectiveBpm,
+            frequencyHz: 55.0,
+            durationMs: 4000,
+          );
           final maxStart = math.max(1, samples.length - sliceLength);
           final startSample =
               ((deckA.currentPositionMs / 1000.0) * sampleRate).round() % maxStart;
@@ -261,12 +261,11 @@ class DjConsoleViewModel extends ChangeNotifier {
         }
 
         if (deckB.isPlaying) {
-          final samples = _deckSamplesB ??
-              _audioProcessor.generateDemoGroove(
-                bpm: deckB.effectiveBpm,
-                frequencyHz: 65.4,
-                durationMs: 4000,
-              );
+          final samples = _deckSamplesB ??= _audioProcessor.generateDemoGroove(
+            bpm: deckB.effectiveBpm,
+            frequencyHz: 65.4,
+            durationMs: 4000,
+          );
           final maxStart = math.max(1, samples.length - sliceLength);
           final startSample =
               ((deckB.currentPositionMs / 1000.0) * sampleRate).round() % maxStart;
@@ -324,7 +323,11 @@ class DjConsoleViewModel extends ChangeNotifier {
   }
 
   bool _handleHardwareKeyEvent(KeyEvent event) {
-    if (event is! KeyDownEvent) return false;
+    if (_isDisposed || event is! KeyDownEvent) return false;
+    final primaryFocus = FocusManager.instance.primaryFocus;
+    if (primaryFocus?.context?.widget is EditableText) {
+      return false;
+    }
 
     final keyLabel = event.logicalKey.keyLabel.isNotEmpty
         ? event.logicalKey.keyLabel
@@ -789,7 +792,7 @@ class DjConsoleViewModel extends ChangeNotifier {
       _lastRecordedWavBytes = DjMixWavEncoder.encode(
         samples: consolidated,
         sampleRate: _audioProcessor.sampleRate,
-        numChannels: 2,
+        numChannels: 1,
       );
     }
     if (!_isDisposed) notifyListeners();
@@ -1088,7 +1091,6 @@ class DjConsoleViewModel extends ChangeNotifier {
     _inputService.dispose();
     _deckAudioPlayer.dispose();
     _audioSynthesizer.dispose();
-    HardwareKeyboard.instance.removeHandler(_handleHardwareKeyEvent);
     super.dispose();
   }
 }

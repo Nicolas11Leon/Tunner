@@ -46,17 +46,74 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
 
   /// Limpia la ruta relativa eliminando barras iniciales duplicadas y previene path traversal.
   String _normalizeRelativePath(String relPath) {
-    var clean = relPath.replaceAll('\\', '/');
+    final normalized = relPath.replaceAll('\\', '/');
+    if (RegExp(r'^[A-Za-z]:').hasMatch(normalized)) {
+      throw ArgumentError('Ruta absoluta con letra de unidad no permitida: $relPath');
+    }
+    var clean = normalized;
     while (clean.startsWith('/')) {
       clean = clean.substring(1);
     }
-    final segments = clean.split('/');
-    for (final seg in segments) {
-      if (seg == '..' || seg.contains('\x00')) {
+    final rawSegments = clean.split('/');
+    final cleanSegments = <String>[];
+    for (final seg in rawSegments) {
+      if (seg == '..' || seg == '.' || seg.contains('\x00')) {
         throw ArgumentError('Secuencia de Path Traversal no permitida: $relPath');
       }
+      if (seg.isNotEmpty) {
+        cleanSegments.add(seg);
+      }
     }
-    return clean;
+    return cleanSegments.join('/');
+  }
+
+  /// Resuelve y verifica que [relPath] permanezca estrictamente confinado dentro de [rootPath]
+  /// incluso tras resolver enlaces simbólicos.
+  String _resolveSafePath(String relPath, String rootPath, {bool allowRoot = false}) {
+    final normRoot = rootPath.replaceAll('\\', '/').replaceAll(RegExp(r'/+$'), '');
+    final normInput = relPath.replaceAll('\\', '/');
+    String relCandidate = normInput;
+    if (normInput == normRoot) {
+      relCandidate = '';
+    } else if (normInput.startsWith('$normRoot/')) {
+      relCandidate = normInput.substring(normRoot.length + 1);
+    }
+
+    final cleanRel = _normalizeRelativePath(relCandidate);
+    if (!allowRoot && cleanRel.isEmpty) {
+      throw ArgumentError('No se permite operar directamente sobre la raiz del espacio de trabajo');
+    }
+
+    final rootDir = Directory(rootPath);
+    if (!rootDir.existsSync()) {
+      rootDir.createSync(recursive: true);
+    }
+    final canonicalRoot = rootDir.resolveSymbolicLinksSync();
+    final targetPath = cleanRel.isEmpty
+        ? canonicalRoot
+        : '$canonicalRoot${Platform.pathSeparator}${cleanRel.replaceAll('/', Platform.pathSeparator)}';
+
+    // Verificar contención por enlaces simbólicos en el ancestro existente más cercano
+    var probe = Directory(targetPath);
+    final trailingSegments = <String>[];
+    while (!probe.existsSync() && probe.parent.path != probe.path) {
+      trailingSegments.add(probe.path.split(Platform.pathSeparator).last);
+      probe = probe.parent;
+    }
+    final canonicalBase = probe.existsSync() ? probe.resolveSymbolicLinksSync() : probe.absolute.path;
+    final canonicalTarget = trailingSegments.isEmpty
+        ? canonicalBase
+        : '$canonicalBase${Platform.pathSeparator}${trailingSegments.reversed.join(Platform.pathSeparator)}';
+
+    final isInside = canonicalTarget == canonicalRoot ||
+        canonicalTarget.startsWith('$canonicalRoot${Platform.pathSeparator}');
+    if (!isInside) {
+      throw ArgumentError('Acceso denegado fuera del sandbox del workspace: $relPath');
+    }
+    if (!allowRoot && canonicalTarget == canonicalRoot) {
+      throw ArgumentError('No se permite operar directamente sobre la raiz del espacio de trabajo');
+    }
+    return canonicalTarget;
   }
 
   @override
@@ -190,17 +247,8 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   @override
   Future<void> saveFile({required String relativePath, required Uint8List bytes}) async {
     final rootPath = await getRootPath();
-    final File file;
-    if (relativePath.startsWith(rootPath)) {
-      file = File(relativePath);
-    } else if (File(relativePath).isAbsolute &&
-        File(relativePath).parent.existsSync() &&
-        File(relativePath).parent.path != '/') {
-      file = File(relativePath);
-    } else {
-      final cleanRel = _normalizeRelativePath(relativePath);
-      file = File('$rootPath/$cleanRel');
-    }
+    final safePath = _resolveSafePath(relativePath, rootPath);
+    final file = File(safePath);
     await file.parent.create(recursive: true);
     await file.writeAsBytes(bytes, flush: true);
   }
@@ -208,17 +256,8 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   @override
   Future<Uint8List> readFile(String relativePath) async {
     final rootPath = await getRootPath();
-    final File file;
-    if (relativePath.startsWith(rootPath)) {
-      file = File(relativePath);
-    } else if (File(relativePath).isAbsolute &&
-        File(relativePath).parent.existsSync() &&
-        File(relativePath).parent.path != '/') {
-      file = File(relativePath);
-    } else {
-      final cleanRel = _normalizeRelativePath(relativePath);
-      file = File('$rootPath/$cleanRel');
-    }
+    final safePath = _resolveSafePath(relativePath, rootPath);
+    final file = File(safePath);
     if (!await file.exists()) {
       throw FileSystemException('El archivo físico no existe', file.path);
     }
@@ -228,8 +267,8 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   @override
   Future<void> createFolder(String relativePath) async {
     final rootPath = await getRootPath();
-    final cleanRel = _normalizeRelativePath(relativePath);
-    final dir = Directory('$rootPath/$cleanRel');
+    final safePath = _resolveSafePath(relativePath, rootPath);
+    final dir = Directory(safePath);
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
@@ -238,19 +277,15 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   @override
   Future<void> deletePath(String relativePath) async {
     final rootPath = await getRootPath();
-    final cleanRel = _normalizeRelativePath(relativePath);
-    if (cleanRel.isEmpty || cleanRel == '.' || cleanRel == '/') {
-      throw ArgumentError('No se permite eliminar la raiz del espacio de trabajo');
-    }
-    final absPath = '$rootPath/$cleanRel';
+    final safePath = _resolveSafePath(relativePath, rootPath, allowRoot: false);
 
-    final file = File(absPath);
+    final file = File(safePath);
     if (await file.exists()) {
       await file.delete();
       return;
     }
 
-    final dir = Directory(absPath);
+    final dir = Directory(safePath);
     if (await dir.exists()) {
       await dir.delete(recursive: true);
     }
@@ -259,14 +294,8 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   @override
   Future<void> movePath({required String oldRelativePath, required String newRelativePath}) async {
     final rootPath = await getRootPath();
-    final cleanOld = _normalizeRelativePath(oldRelativePath);
-    final cleanNew = _normalizeRelativePath(newRelativePath);
-    if (cleanOld.isEmpty || cleanNew.isEmpty) {
-      throw ArgumentError('Ruta de origen o destino no valida para mover');
-    }
-
-    final oldPath = '$rootPath/$cleanOld';
-    final newPath = '$rootPath/$cleanNew';
+    final oldPath = _resolveSafePath(oldRelativePath, rootPath, allowRoot: false);
+    final newPath = _resolveSafePath(newRelativePath, rootPath, allowRoot: false);
 
     final oldFile = File(oldPath);
     if (await oldFile.exists()) {

@@ -299,10 +299,18 @@ class StemAudioSynthesizer {
       totalSamples: totalSamples,
     );
 
-    // 2. Obtener ganancias efectivas del mezclador virtual
-    final melodyGain = mixerConsole.getEffectiveGain("voice");
-    final metroGain = mixerConsole.getEffectiveGain("metronome");
-    final accompGain = mixerConsole.getEffectiveGain("piano");
+    // 2. Obtener ganancias efectivas del mezclador virtual de forma dinamica por rol/posicion
+    final double melodyGain = _resolveRoleGain(
+      mixerConsole,
+      preferredIds: const ['voice', 'melody', 'lead_vocal', 'lead_stem', 'violins'],
+      fallbackIndex: 0,
+    );
+    final double metroGain = mixerConsole.getEffectiveGain("metronome");
+    final double accompGain = _resolveRoleGain(
+      mixerConsole,
+      preferredIds: const ['piano', 'left_hand', 'continuo', 'harmony_stem', 'orchestra_brass'],
+      fallbackIndex: 1,
+    );
 
     // 3. Generar Master Mixdown si está solicitado
     if (config.includeMasterMixdown) {
@@ -411,5 +419,24 @@ class StemAudioSynthesizer {
       files: files,
       createdAt: DateTime.now(),
     );
+  }
+
+  static double _resolveRoleGain(
+    MixerConsoleEntity mixerConsole, {
+    required List<String> preferredIds,
+    required int fallbackIndex,
+  }) {
+    for (final id in preferredIds) {
+      if (mixerConsole.stems.any((t) => t.id == id)) {
+        return mixerConsole.getEffectiveGain(id);
+      }
+    }
+    if (fallbackIndex < mixerConsole.stems.length) {
+      return mixerConsole.getEffectiveGain(mixerConsole.stems[fallbackIndex].id);
+    }
+    if (mixerConsole.stems.isNotEmpty) {
+      return mixerConsole.getEffectiveGain(mixerConsole.stems.first.id);
+    }
+    return 0.8;
   }
 }

@@ -22,6 +22,7 @@ class TunnerOsTerminalDrawer extends StatefulWidget {
 class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
   final TextEditingController _inputController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  final FocusNode _drawerListenerFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
 
   final List<TunnerOsCommandHistoryItem> _history = [];
@@ -35,12 +36,12 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
       TunnerOsCommandHistoryItem(
         commandLine: 'system.boot',
         result: TunnerOsCommandResult.success(
-          'TUNNER OS KERNEL v2.5 [AUDIO WORKSTATION ENGINE]\nEscribe "help" para ver los comandos disponibles o usa los chips rápidos.',
+          'TUNNER OS KERNEL v1.0.0 [AUDIO WORKSTATION ENGINE]\nEscribe "help" para ver los comandos disponibles o usa los chips rápidos.',
         ),
       ),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
+      if (mounted) _focusNode.requestFocus();
     });
   }
 
@@ -48,6 +49,7 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
   void dispose() {
     _inputController.dispose();
     _focusNode.dispose();
+    _drawerListenerFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -61,6 +63,7 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
     _historyNavIndex = -1;
 
     final result = await widget.kernel.execute(cmd);
+    if (!mounted) return;
 
     setState(() {
       if (result.message == 'CLEAR_SCREEN') {
@@ -76,6 +79,7 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
@@ -117,7 +121,7 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
   @override
   Widget build(BuildContext context) {
     return KeyboardListener(
-      focusNode: FocusNode(),
+      focusNode: _drawerListenerFocusNode,
       onKeyEvent: _onKeyDown,
       child: Container(
         height: 280,

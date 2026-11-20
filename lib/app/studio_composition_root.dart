@@ -9,6 +9,7 @@ import '../core/audio/infrastructure/studio_master_dsp_chain.dart';
 import '../core/channels/data/studio_patchbay_routing_service.dart';
 import '../core/design_system/data/studio_theme_catalog_service.dart';
 import '../core/design_system/studio_theme_provider.dart';
+import '../core/file_system/data/local_disk_studio_file_system_repository.dart';
 import '../core/file_system/data/platform_file_gateway.dart';
 import '../core/file_system/data/studio_workspace_file_system_service.dart';
 import '../core/file_system/domain/i_platform_file_gateway.dart';
@@ -18,7 +19,9 @@ import '../features/audio_synthesizer/data/audio_synthesizer_service.dart';
 import '../features/practice_recorder/data/audio_playback_service.dart';
 import '../features/dj_console/presentation/dj_console_view_model.dart';
 import '../features/dj_console/data/dj_deck_audio_service.dart';
+import '../features/dj_console/data/dj_keymap_persistence_service.dart';
 import '../features/modular_rack/presentation/modular_rack_viewmodel.dart';
+import '../features/project_format/data/local_project_storage_repository.dart';
 
 /// Composition Root único de Tunner Studio.
 /// Centraliza la instanciación e inyección de dependencias de infraestructura y dominio,
@@ -100,6 +103,7 @@ class StudioCompositionRoot {
       seedDefaults: seedDefaults,
       audioDeviceMatrixService: audioMatrixService,
       platformFileGateway: platformFileGateway,
+      documentsDirectoryProvider: platformFileGateway.getDocumentsDirectoryPath,
       audioSynthesizerService: AudioSynthesizerService(audioEngine: audioEngine),
       playbackService: AudioPlaybackService(audioEngine: audioEngine),
       pitchService: PitchDetectorService(inputEngine: audioInputEngine),
@@ -111,6 +115,8 @@ class StudioCompositionRoot {
     return DjConsoleViewModel(
       deckAudioPlayer: DjDeckAudioService(audioEngine: audioEngine),
       audioSynthesizer: AudioSynthesizerService(audioEngine: audioEngine),
+      fileSystemRepository: LocalDiskStudioFileSystemRepository(),
+      persistenceService: DjKeymapPersistenceService(),
     );
   }
 
@@ -119,6 +125,7 @@ class StudioCompositionRoot {
     return ModularRackViewModel(
       audioEngine: audioEngine,
       audioInputEngine: audioInputEngine,
+      storageRepository: LocalProjectStorageRepository(),
     );
   }
 

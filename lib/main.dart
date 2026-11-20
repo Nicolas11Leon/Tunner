@@ -20,14 +20,16 @@ void main() {
         ),
         ChangeNotifierProvider.value(value: compositionRoot.themeController),
       ],
-      child: const TunnerApp(),
+      child: TunnerApp(compositionRoot: compositionRoot),
     ),
   );
 }
 
 /// Aplicación principal Tunner: Laboratorio Acústico y Partituras de Conservatorio.
 class TunnerApp extends StatefulWidget {
-  const TunnerApp({super.key});
+  final StudioCompositionRoot? compositionRoot;
+
+  const TunnerApp({super.key, this.compositionRoot});
 
   @override
   State<TunnerApp> createState() => _TunnerAppState();
@@ -41,6 +43,7 @@ class _TunnerAppState extends State<TunnerApp> {
   @override
   void dispose() {
     _fallbackThemeController.dispose();
+    widget.compositionRoot?.dispose();
     super.dispose();
   }
 

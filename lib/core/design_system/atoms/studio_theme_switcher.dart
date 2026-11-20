@@ -34,7 +34,16 @@ class StudioThemeSwitcher extends StatelessWidget {
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               key: const Key('studio_theme_switcher_dropdown'),
-              value: tokens.id,
+              value: StudioDesignTokens.presets.any((p) => p.id == tokens.id) ? tokens.id : null,
+              hint: Text(
+                tokens.displayName,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
               isDense: true,
               dropdownColor: tokens.panelHeaderBackground,
               icon: Icon(

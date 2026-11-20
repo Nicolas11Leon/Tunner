@@ -76,7 +76,12 @@ class _StudioCommandPromptBarState extends State<StudioCommandPromptBar> {
   void didUpdateWidget(StudioCommandPromptBar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.suggestions != widget.suggestions) {
-      _filterSuggestions(_controller.text);
+      _applySuggestionFilter(_controller.text);
+      if (_overlayEntry != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _overlayEntry?.markNeedsBuild();
+        });
+      }
     }
   }
 
@@ -89,6 +94,7 @@ class _StudioCommandPromptBarState extends State<StudioCommandPromptBar> {
   }
 
   void _onFocusChanged() {
+    if (mounted) setState(() {});
     if (_focusNode.hasFocus) {
       _showOverlay();
     } else {
@@ -103,43 +109,46 @@ class _StudioCommandPromptBarState extends State<StudioCommandPromptBar> {
     }
   }
 
-  void _filterSuggestions(String rawQuery) {
+  void _applySuggestionFilter(String rawQuery) {
     final query = rawQuery.trim().toLowerCase();
+    if (query.isEmpty) {
+      // Muestra sugerencias principales por defecto
+      _filteredSuggestions = widget.suggestions;
+    } else if (query.startsWith('/')) {
+      final commandQuery = query.substring(1);
+      _filteredSuggestions = widget.suggestions
+          .where((s) =>
+              s.trigger == '/' &&
+              (s.command.toLowerCase().contains(query) ||
+                  s.title.toLowerCase().contains(commandQuery) ||
+                  s.description.toLowerCase().contains(commandQuery)))
+          .toList();
+    } else if (query.startsWith('@')) {
+      final moduleQuery = query.substring(1);
+      _filteredSuggestions = widget.suggestions
+          .where((s) =>
+              s.trigger == '@' &&
+              (s.command.toLowerCase().contains(query) ||
+                  s.title.toLowerCase().contains(moduleQuery)))
+          .toList();
+    } else {
+      _filteredSuggestions = widget.suggestions
+          .where((s) =>
+              s.command.toLowerCase().contains(query) ||
+              s.title.toLowerCase().contains(query) ||
+              s.description.toLowerCase().contains(query) ||
+              s.category.toLowerCase().contains(query))
+          .toList();
+    }
 
+    if (_selectedIndex >= _filteredSuggestions.length) {
+      _selectedIndex = 0;
+    }
+  }
+
+  void _filterSuggestions(String rawQuery) {
     setState(() {
-      if (query.isEmpty) {
-        // Muestra sugerencias principales por defecto
-        _filteredSuggestions = widget.suggestions;
-      } else if (query.startsWith('/')) {
-        final commandQuery = query.substring(1);
-        _filteredSuggestions = widget.suggestions
-            .where((s) =>
-                s.trigger == '/' &&
-                (s.command.toLowerCase().contains(query) ||
-                    s.title.toLowerCase().contains(commandQuery) ||
-                    s.description.toLowerCase().contains(commandQuery)))
-            .toList();
-      } else if (query.startsWith('@')) {
-        final moduleQuery = query.substring(1);
-        _filteredSuggestions = widget.suggestions
-            .where((s) =>
-                s.trigger == '@' &&
-                (s.command.toLowerCase().contains(query) ||
-                    s.title.toLowerCase().contains(moduleQuery)))
-            .toList();
-      } else {
-        _filteredSuggestions = widget.suggestions
-            .where((s) =>
-                s.command.toLowerCase().contains(query) ||
-                s.title.toLowerCase().contains(query) ||
-                s.description.toLowerCase().contains(query) ||
-                s.category.toLowerCase().contains(query))
-            .toList();
-      }
-
-      if (_selectedIndex >= _filteredSuggestions.length) {
-        _selectedIndex = 0;
-      }
+      _applySuggestionFilter(rawQuery);
     });
 
     _overlayEntry?.markNeedsBuild();

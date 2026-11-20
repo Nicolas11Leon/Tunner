@@ -129,12 +129,8 @@ class AppUserSettingsEntity {
               : sessionHistory)
           .map((s) => s.toMap())
           .toList(),
-      // Conservar las 50 grabaciones mas recientes
-      'recordingHistory': (recordingHistory.length > 50
-              ? recordingHistory.sublist(recordingHistory.length - 50)
-              : recordingHistory)
-          .map((r) => r.toMap())
-          .toList(),
+      // Conservar las 50 grabaciones mas recientes (insertadas en indice 0)
+      'recordingHistory': recordingHistory.take(50).map((r) => r.toMap()).toList(),
       'tuningPresets': tuningPresets.map((t) => t.toMap()).toList(),
       'workspaceScores': workspaceScores.map((s) => s.toMap()).toList(),
       'learnerProfile': learnerProfile.toJson(),

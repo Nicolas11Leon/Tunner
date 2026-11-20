@@ -14,6 +14,7 @@ class TunnerBinaryProjectCodec {
   static const List<int> toolMagicBytes = [0x54, 0x4E, 0x54, 0x50];
 
   static const int currentVersion = 1;
+  static const int maxDecompressedPayloadBytes = 64 * 1024 * 1024;
 
   final ZLibCodec _zlib = ZLibCodec(level: ZLibOption.maxLevel);
 
@@ -50,11 +51,19 @@ class TunnerBinaryProjectCodec {
     }
 
     final compressedPayload = bytes.sublist(5);
-    final decompressed = _zlib.decode(compressedPayload);
+    final decompressed = _decodeBounded(compressedPayload);
     final jsonStr = utf8.decode(decompressed);
     final jsonMap = jsonDecode(jsonStr) as Map<String, dynamic>;
 
     return TunnerProjectPackage.fromJson(jsonMap);
+  }
+
+  List<int> _decodeBounded(List<int> compressedPayload) {
+    final decompressed = _zlib.decode(compressedPayload);
+    if (decompressed.length > maxDecompressedPayloadBytes) {
+      throw const FormatException('El proyecto excede el limite maximo de descompresion segura.');
+    }
+    return decompressed;
   }
 
   /// Codifica y comprime una herramienta individual a bytes binarios (.tnt).
@@ -90,7 +99,7 @@ class TunnerBinaryProjectCodec {
     }
 
     final compressedPayload = bytes.sublist(5);
-    final decompressed = _zlib.decode(compressedPayload);
+    final decompressed = _decodeBounded(compressedPayload);
     final jsonStr = utf8.decode(decompressed);
     final jsonMap = jsonDecode(jsonStr) as Map<String, dynamic>;
 

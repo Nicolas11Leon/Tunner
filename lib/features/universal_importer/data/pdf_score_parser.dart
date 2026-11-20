@@ -175,9 +175,14 @@ class PdfScoreParser implements IScoreParserService {
 
       if (isFlate) {
         try {
+          const int maxPdfStreamBytes = 32 * 1024 * 1024;
           final decompressed = ZLibDecoder().decodeBytes(rawStreamBytes);
+          if (decompressed.length > maxPdfStreamBytes) {
+            throw const FormatException('Stream PDF FlateDecode supera la cuota maxima segura.');
+          }
           streams.add(latin1.decode(decompressed, allowInvalid: true));
-        } catch (_) {
+        } catch (e) {
+          if (e is FormatException) rethrow;
           // Si falla zlib, intentar interpretarlo como texto plano
           streams.add(latin1.decode(rawStreamBytes, allowInvalid: true));
         }

@@ -210,6 +210,7 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                   ),
                   if (widget.secondaryView != null) ...[
                     IconButton(
+                      key: const Key('desktop_dual_split_btn'),
                       icon: Icon(
                         _isDualSplitActive ? Icons.vertical_split_rounded : Icons.splitscreen_rounded,
                         size: 16,
@@ -556,8 +557,16 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                                         crossAxisAlignment: CrossAxisAlignment.stretch,
                                         children: [
                                           SizedBox(
-                                            width: (constraints.maxWidth * _dualSplitRatio)
-                                                .clamp(200.0, constraints.maxWidth - 200.0),
+                                            width: () {
+                                              final minPane = constraints.maxWidth * 0.35 < 200.0
+                                                  ? constraints.maxWidth * 0.35
+                                                  : 200.0;
+                                              final maxPane = (constraints.maxWidth - minPane) > minPane
+                                                  ? (constraints.maxWidth - minPane)
+                                                  : minPane;
+                                              return (constraints.maxWidth * _dualSplitRatio)
+                                                  .clamp(minPane, maxPane);
+                                            }(),
                                             child: widget.activeView,
                                           ),
                                           StudioSplitter(

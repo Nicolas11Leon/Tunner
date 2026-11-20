@@ -75,6 +75,7 @@ set @comp.ratio = 3.5;
 
     final cmd = 'dsl $code';
     final result = await widget.kernel.execute(cmd);
+    if (!mounted) return;
 
     setState(() {
       _isEvaluating = false;

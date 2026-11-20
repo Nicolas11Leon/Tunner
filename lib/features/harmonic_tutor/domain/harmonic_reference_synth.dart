@@ -67,11 +67,12 @@ class HarmonicReferenceSynth {
   }
 
   static double _softLimit(double x) {
-    if (x > 1.0) {
-      return 1.0 - (1.0 / (1.0 + (x - 1.0)));
-    } else if (x < -1.0) {
-      return -1.0 + (1.0 / (1.0 - (x + 1.0)));
-    }
-    return x;
+    const double threshold = 0.85;
+    final double absX = x.abs();
+    if (absX <= threshold) return x;
+    final double excess = ((absX - threshold) / (1.0 - threshold)).clamp(0.0, 20.0);
+    final double e2x = math.exp(2.0 * excess);
+    final double shaped = threshold + (1.0 - threshold) * ((e2x - 1.0) / (e2x + 1.0));
+    return x.isNegative ? -shaped : shaped;
   }
 }

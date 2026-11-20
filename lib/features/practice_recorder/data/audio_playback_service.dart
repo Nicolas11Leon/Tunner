@@ -14,6 +14,7 @@ import '../domain/i_audio_playback_service.dart';
 class AudioPlaybackService implements IAudioPlaybackService {
   final IStudioAudioEngine _audioEngine;
   final IStudioAudioChannel _channel;
+  final bool _ownsChannel;
   StreamSubscription<dynamic>? _stateSub;
 
   final StreamController<Duration> _positionController = StreamController<Duration>.broadcast();
@@ -23,15 +24,28 @@ class AudioPlaybackService implements IAudioPlaybackService {
   static bool get _isTestEnvironment =>
       !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
 
-  AudioPlaybackService({
+  factory AudioPlaybackService({
     IStudioAudioEngine? audioEngine,
     AudioPlayer? player,
-  })  : _audioEngine = audioEngine ??
-            (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine()),
-        _channel = player != null
-            ? StudioAudioChannel(channelId: 'practice_take', injectedPlayer: player)
-            : (audioEngine ?? (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine()))
-                .getChannel('practice_take') {
+  }) {
+    final resolvedEngine = audioEngine ??
+        (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine());
+    return AudioPlaybackService._(
+      audioEngine: resolvedEngine,
+      channel: player != null
+          ? StudioAudioChannel(channelId: 'practice_take', injectedPlayer: player)
+          : resolvedEngine.getChannel('practice_take'),
+      ownsChannel: player != null || audioEngine == null,
+    );
+  }
+
+  AudioPlaybackService._({
+    required IStudioAudioEngine audioEngine,
+    required IStudioAudioChannel channel,
+    required bool ownsChannel,
+  })  : _audioEngine = audioEngine,
+        _channel = channel,
+        _ownsChannel = ownsChannel {
     _stateSub = _channel.stateStream.listen((state) {
       _positionController.add(Duration(milliseconds: state.currentPositionMs));
       _durationController.add(Duration(milliseconds: state.durationMs));
@@ -88,6 +102,10 @@ class AudioPlaybackService implements IAudioPlaybackService {
     _positionController.close();
     _durationController.close();
     _completeController.close();
-    _channel.dispose();
+    if (_ownsChannel) {
+      _channel.dispose();
+    } else {
+      _channel.stop();
+    }
   }
 }

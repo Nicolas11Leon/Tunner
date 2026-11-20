@@ -80,10 +80,10 @@ void main() {
     });
 
     test('DjConsoleViewModel saveRecordingToDisk writes valid WAV file to disk', () async {
-      final vm = DjConsoleViewModel(
-        fileSystemRepository: LocalDiskStudioFileSystemRepository(),
-      );
       final tempDir = Directory.systemTemp.createTempSync('tunner_dj_test_');
+      final vm = DjConsoleViewModel(
+        fileSystemRepository: LocalDiskStudioFileSystemRepository(customRootPath: tempDir.path),
+      );
       final targetFile = '${tempDir.path}/test_mix.wav';
 
       try {
