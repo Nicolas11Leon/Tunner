@@ -362,10 +362,13 @@ class _SpectralComparatorModalState extends State<SpectralComparatorModal> {
   }
 
   void _auditionTake(PracticeTakeEntity take) {
-    setState(() => _auditioningTakeId = take.id);
-    if (take.filePath.isNotEmpty) {
-      widget.viewModel.playTakeAudio(take);
+    if (_auditioningTakeId == take.id && widget.viewModel.isPlayingAudio) {
+      widget.viewModel.stopActiveRecordingPlayback();
+      setState(() => _auditioningTakeId = null);
+      return;
     }
+    setState(() => _auditioningTakeId = take.id);
+    widget.viewModel.playTakeAudio(take);
   }
 
   Widget _buildMetricCard({

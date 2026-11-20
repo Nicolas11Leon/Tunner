@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/file_system/data/platform_file_gateway.dart';
 import '../../../core/theme/tunner_theme.dart';
+import '../../tuner/domain/note_entity.dart';
 import '../../tuner_viewmodel.dart';
 
 /// Modal de edición interactiva de partituras SMuFL y exportación canónica MusicXML/MIDI.
@@ -30,6 +31,45 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
   String _selectedAccidental = ""; // "", "#", "b"
   int _selectedOctave = 4;
   bool _isRestMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final vm = context.read<TunerViewModel>();
+      setState(() {
+        _selectedMeasureIndex = vm.currentMeasureIndex.clamp(0, vm.activePackage.totalMeasures - 1);
+        final selectedIndex = vm.selectedScoreNoteIndex;
+        if (selectedIndex != null &&
+            selectedIndex >= 0 &&
+            selectedIndex < vm.currentMeasureNotes.length) {
+          final note = vm.currentMeasureNotes[selectedIndex];
+          _selectedStartTick = note.startTick;
+          _selectedDurationTicks = note.durationTicks;
+          if (note.isRest || note.noteName == "--") {
+            _isRestMode = true;
+          } else {
+            _isRestMode = false;
+            final clean = note.noteName.trim();
+            final octaveMatch = RegExp(r'[-+]?[0-9]+').firstMatch(clean);
+            if (octaveMatch != null) {
+              _selectedOctave = int.tryParse(octaveMatch.group(0)!) ?? 4;
+            }
+            if (clean.contains('#')) {
+              _selectedAccidental = '#';
+            } else if (clean.contains('b')) {
+              _selectedAccidental = 'b';
+            } else {
+              _selectedAccidental = '';
+            }
+            final base = clean.replaceAll(RegExp(r'[-+]?[0-9#b]+'), '').trim();
+            if (base.isNotEmpty) _selectedBaseNote = base;
+          }
+        }
+      });
+    });
+  }
 
   String get _currentFormattedNoteName {
     if (_isRestMode) return "--";
@@ -99,7 +139,7 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
         return KeyEventResult.ignored;
       },
       child: Container(
-      height: MediaQuery.of(context).size.height * 0.88,
+      height: MediaQuery.of(context).size.height * 0.72,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
         color: palette.scaffoldBackground,
@@ -406,6 +446,36 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
                     ],
 
                     const SizedBox(height: 16),
+
+                    // Tarjeta de previsualización gráfica de la nota a insertar
+                    Container(
+                      key: const Key('score_editor_note_preview_card'),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: palette.cardBackground,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: palette.primaryAccent.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.music_note, color: palette.primaryAccent, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Vista Previa: $_currentFormattedNoteName",
+                            style: TextStyle(color: palette.textColor, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          const Spacer(),
+                          Text(
+                            _isRestMode
+                                ? "Silencio"
+                                : "${NoteEntity.frequencyForNote(_currentFormattedNoteName, a4Ref: vm.referencePitch).toStringAsFixed(1)} Hz",
+                            style: TextStyle(color: palette.primaryAccent, fontSize: 12, fontFamily: 'monospace'),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
 
                     // Botones de Inserción y Eliminación
                     Row(

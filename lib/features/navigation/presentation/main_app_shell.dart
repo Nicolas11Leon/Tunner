@@ -24,7 +24,6 @@ import '../../../core/design_system/studio_design_system.dart';
 import '../../acoustic_lab/presentation/harmonic_spectrogram_modal.dart';
 import '../../drone/presentation/harmonic_drone_modal.dart';
 import '../../song_library/presentation/studio_assets_modals.dart';
-import '../../song_library/presentation/song_decomposer_modal.dart';
 import '../../modular_rack/presentation/modular_rack_viewmodel.dart';
 import '../../dj_console/presentation/dj_studio_workstation_view.dart';
 import '../../dj_console/presentation/dj_console_view_model.dart';
@@ -47,6 +46,7 @@ import '../../../core/audio/presentation/studio_master_meter_mini_pill_widget.da
 import '../../instrument/presentation/universal_master_keyboard_widget.dart';
 import '../../score_editor/presentation/score_editor_modal.dart';
 import '../../metronome/presentation/tap_tempo_modal.dart';
+import '../../tuner/presentation/stem_mixer_modal.dart';
 
 export 'studio_keyboard_intents.dart';
 /// el Tutor de Aprendizaje, el Estudio de Grabación y la Biblioteca de Canciones,
@@ -1419,7 +1419,7 @@ class _MainAppShellState extends State<MainAppShell> {
                       viewModel: viewModel,
                       onNavigateToTab: _navigateToTab,
                     ),
-                    onOpenMixerModal: () => SongDecomposerModal.show(context, viewModel),
+                    onOpenMixerModal: () => StemMixerModal.show(context, viewModel),
                   ),
                   DjStudioWorkstationView(viewModel: _djConsoleViewModel),
                 ],

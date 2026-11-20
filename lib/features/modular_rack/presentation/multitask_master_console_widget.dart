@@ -281,7 +281,7 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                             try {
                               final tunerVM = context.read<TunerViewModel>();
                               if (tunerVM.isMetronomeActive) tunerVM.toggleMetronome();
-                              if (tunerVM.isRecording) tunerVM.stopPracticeRecording();
+                              if (tunerVM.isAudioRecording) tunerVM.stopPracticeRecording();
                             } catch (e) {
                               StudioDebugLogger.instance.warning('MultitaskMasterConsoleWidget', 'TunerViewModel ausente: $e');
                             }
@@ -320,7 +320,7 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                       viewModel.toggleMasterRecording();
                       try {
                         final tunerVM = context.read<TunerViewModel>();
-                        if (tunerVM.isRecording) {
+                        if (tunerVM.isAudioRecording) {
                           tunerVM.stopPracticeRecording();
                         } else {
                           tunerVM.startPracticeRecording();

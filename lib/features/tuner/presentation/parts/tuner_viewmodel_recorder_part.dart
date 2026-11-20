@@ -107,9 +107,22 @@ extension TunerViewModelRecorderPart on TunerViewModel {
     final toPlay = targetRecording ?? _activeRecording;
     if (toPlay == null) return;
     _activeRecording = toPlay;
-    await _playbackService.play(toPlay.filePath);
-    _isPlayingAudio = true;
-    notifyListeners();
+    if (toPlay.filePath.isNotEmpty) {
+      await _playbackService.play(toPlay.filePath);
+      _isPlayingAudio = true;
+      notifyListeners();
+    } else {
+      // Síntesis acústica procedimental de la toma demo
+      _isPlayingAudio = true;
+      notifyListeners();
+      await _audioSynthesizer.playNoteTone(
+        frequency: _referencePitch,
+        duration: const Duration(seconds: 4),
+        volume: 0.8,
+      );
+      _isPlayingAudio = false;
+      notifyListeners();
+    }
   }
 
   /// Pausa la auto-escucha de la toma activa.
@@ -291,6 +304,17 @@ extension TunerViewModelRecorderPart on TunerViewModel {
     if (take.filePath.isNotEmpty) {
       await _playbackService.play(take.filePath);
       _isPlayingAudio = true;
+      notifyListeners();
+    } else {
+      _isPlayingAudio = true;
+      notifyListeners();
+      final freq = take.pitchTrack.isNotEmpty ? take.pitchTrack.first.frequencyHz : 440.0;
+      await _audioSynthesizer.playNoteTone(
+        frequency: freq,
+        duration: const Duration(seconds: 2),
+        volume: 0.75,
+      );
+      _isPlayingAudio = false;
       notifyListeners();
     }
   }
