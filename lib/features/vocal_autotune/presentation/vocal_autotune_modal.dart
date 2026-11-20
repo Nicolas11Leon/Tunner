@@ -733,6 +733,23 @@ SingleChildScrollView(
                     ],
                   ),
                 ),
+                IconButton(
+                  key: Key('play_take_btn_${take.id}'),
+                  icon: Icon(
+                    viewModel.isPlayingAudio ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                    color: palette.primaryAccent,
+                    size: 24,
+                  ),
+                  tooltip: viewModel.isPlayingAudio ? 'Pausar Audición' : 'Escuchar Toma',
+                  onPressed: () {
+                    if (viewModel.isPlayingAudio) {
+                      viewModel.stopActiveRecordingPlayback();
+                    } else {
+                      viewModel.playTakeAudio(take);
+                    }
+                  },
+                ),
+                const SizedBox(width: 6),
                 ElevatedButton.icon(
                   key: Key('autotune_take_btn_${take.id}'),
                   onPressed: () {

@@ -234,6 +234,30 @@ class _DjVisualMappingOverlayState extends State<DjVisualMappingOverlay> {
                     }
                   }
                 },
+                onPanStart: (details) {
+                  final localPos = details.localPosition;
+                  final nx = localPos.dx / constraints.maxWidth;
+                  final ny = localPos.dy / constraints.maxHeight;
+
+                  final hitZone = widget.skin.findZoneAt(nx, ny);
+                  if (hitZone != null) {
+                    if (widget.isLearnModeActive) {
+                      widget.onZoneSelected?.call(hitZone);
+                    } else {
+                      widget.onActionTriggered?.call(hitZone.action);
+                    }
+                  }
+                },
+                onPanUpdate: (details) {
+                  final localPos = details.localPosition;
+                  final nx = localPos.dx / constraints.maxWidth;
+                  final ny = localPos.dy / constraints.maxHeight;
+
+                  final hitZone = widget.skin.findZoneAt(nx, ny);
+                  if (hitZone != null && !widget.isLearnModeActive) {
+                    widget.onActionTriggered?.call(hitZone.action);
+                  }
+                },
                 child: RepaintBoundary(
                   child: CustomPaint(
                     size: Size(constraints.maxWidth, constraints.maxHeight),

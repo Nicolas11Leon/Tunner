@@ -695,9 +695,11 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                 if (vm.recorder.isRecording) {
                   final duration = vm.recorder.durationSeconds;
                   final bytes = vm.stopRecording();
+                  final filename = 'dj_mix_${DateTime.now().millisecondsSinceEpoch}.wav';
+                  vm.saveRecordingToDisk(filename);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Sesión guardada ($duration seg, ${bytes?.lengthInBytes ?? 0} bytes WAV)'),
+                      content: Text('Sesión guardada como $filename ($duration seg, ${bytes?.lengthInBytes ?? 0} bytes WAV)'),
                       backgroundColor: const Color(0xFF10B981),
                     ),
                   );
