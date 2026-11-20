@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../../domain/ffi/i_native_dsp_bridge.dart';
 import '../../domain/ffi/native_dsp_bridge_fallback.dart';
@@ -77,6 +78,16 @@ class NativeDspFfiBridge implements INativeDspBridge {
   }
 
   void _initDynamicLibrary(String? customLibraryPath) {
+    if (kIsWeb) {
+      _dylib = null;
+      _applyGainNative = null;
+      _vectorSumNative = null;
+      _autoCorrelateNative = null;
+      _isNative = false;
+      _activeEngineName = 'Pure Dart SIMD Fallback (Web Environment)';
+      return;
+    }
+
     try {
       if (customLibraryPath != null && customLibraryPath.isNotEmpty) {
         _dylib = DynamicLibrary.open(customLibraryPath);
@@ -117,6 +128,7 @@ class NativeDspFfiBridge implements INativeDspBridge {
   }
 
   static String? _getPlatformLibraryName() {
+    if (kIsWeb) return null;
     if (Platform.isLinux || Platform.isAndroid) {
       return 'libtunner_dsp.so';
     } else if (Platform.isMacOS || Platform.isIOS) {

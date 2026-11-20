@@ -28,5 +28,7 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Tunner Studio requiere acceso al microfono para afinacion acustica en tiempo real, metronomo y grabacion pedagogica.</string>
 </dict>
 </plist>
