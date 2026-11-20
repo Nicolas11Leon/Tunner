@@ -491,7 +491,10 @@ class HomeDashboardScreen extends StatelessWidget {
                         icon: Icons.album,
                         accentColor: const Color(0xFF00E5FF),
                         palette: palette,
-                        onTap: () => onNavigateToTab(5),
+                        onTap: () {
+                          viewModel.updateBpm(126);
+                          onNavigateToTab(5);
+                        },
                       ),
                       _TemplateCard(
                         key: const Key('template_take_acoustic'),
@@ -501,7 +504,10 @@ class HomeDashboardScreen extends StatelessWidget {
                         icon: Icons.graphic_eq,
                         accentColor: const Color(0xFF10B981),
                         palette: palette,
-                        onTap: () => onNavigateToTab(3),
+                        onTap: () {
+                          viewModel.setReferencePitch(440.0);
+                          onNavigateToTab(3);
+                        },
                       ),
                       _TemplateCard(
                         key: const Key('template_preset_philharmonic'),
@@ -511,7 +517,10 @@ class HomeDashboardScreen extends StatelessWidget {
                         icon: Icons.tune,
                         accentColor: const Color(0xFFF59E0B),
                         palette: palette,
-                        onTap: () => onNavigateToTab(1),
+                        onTap: () {
+                          viewModel.setReferencePitch(442.0);
+                          onNavigateToTab(1);
+                        },
                       ),
                     ],
                   ),

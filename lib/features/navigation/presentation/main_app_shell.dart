@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../app/studio_composition_root.dart';
 import '../../tuner_viewmodel.dart';
+import '../../song_library/domain/song_package_entity.dart';
+import '../../instrument/domain/instrument_customization_profile.dart';
 import 'studio_keyboard_intents.dart';
 import 'studio_prompt_suggestions_builder.dart';
 import 'home_dashboard_screen.dart';
@@ -181,12 +184,21 @@ class _MainAppShellState extends State<MainAppShell> {
   }
 
   void _handleOpenFile(StudioFileEntity file) {
+    final vm = context.read<TunerViewModel>();
     switch (file.fileType) {
       case StudioFileType.score:
         _navigateToTab(4);
+        if (file.payload is SongPackage) {
+          vm.loadSongPackage(file.payload as SongPackage);
+        } else if (file.payload is Uint8List) {
+          vm.importScoreFromBytes(file.payload as Uint8List, file.name);
+        } else if (file.payload is String) {
+          final bytes = Uint8List.fromList(utf8.encode(file.payload as String));
+          vm.importScoreFromBytes(bytes, file.name);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Partitura abierta en el Editor: ${file.name}'),
+            content: Text('Partitura cargada en el Editor: ${file.name}'),
             backgroundColor: const Color(0xFF10B981),
             duration: const Duration(seconds: 2),
           ),
@@ -211,6 +223,21 @@ class _MainAppShellState extends State<MainAppShell> {
         break;
       case StudioFileType.tuningPreset:
         _navigateToTab(1);
+        if (file.payload is Map<String, dynamic>) {
+          final map = file.payload as Map<String, dynamic>;
+          final pitch = (map['referencePitch'] as num?)?.toDouble();
+          if (pitch != null) vm.setReferencePitch(pitch);
+          final temperamentId = map['temperamentId'] as String?;
+          if (temperamentId != null) vm.setTemperament(temperamentId);
+        } else if (file.payload is String) {
+          try {
+            final map = jsonDecode(file.payload as String) as Map<String, dynamic>;
+            final pitch = (map['referencePitch'] as num?)?.toDouble();
+            if (pitch != null) vm.setReferencePitch(pitch);
+            final temperamentId = map['temperamentId'] as String?;
+            if (temperamentId != null) vm.setTemperament(temperamentId);
+          } catch (_) {}
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Preset de afinación activado: ${file.name}'),
@@ -221,6 +248,9 @@ class _MainAppShellState extends State<MainAppShell> {
         break;
       case StudioFileType.rackTool:
         _navigateToTab(3);
+        if (file.payload is InstrumentCustomizationProfile) {
+          _modularRackViewModel.updateCustomization(file.payload as InstrumentCustomizationProfile);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Módulo de rack cargado: ${file.name}'),
@@ -231,6 +261,9 @@ class _MainAppShellState extends State<MainAppShell> {
         break;
       case StudioFileType.djBlueprint:
         _navigateToTab(5);
+        if (file.payload is String) {
+          _djConsoleViewModel.selectSkin(file.payload as String);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Modelo de consola DJ aplicado: ${file.name}'),
@@ -241,6 +274,12 @@ class _MainAppShellState extends State<MainAppShell> {
         break;
       case StudioFileType.project:
         _navigateToTab(0);
+        if (file.payload is Uint8List) {
+          vm.importProjectFromTunnerBytes(file.payload as Uint8List);
+        } else if (file.payload is String) {
+          final bytes = Uint8List.fromList(utf8.encode(file.payload as String));
+          vm.importProjectFromTunnerBytes(bytes);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Proyecto Tunner restaurado íntegramente: ${file.name}'),
@@ -1396,7 +1435,9 @@ class _MainAppShellState extends State<MainAppShell> {
                       activeItemId: _buildCurrentActiveItemId(),
                       currentTabIndex: _currentIndex,
                       activeView: viewportContent,
-                      secondaryView: ModularStudioRackView(viewModel: _modularRackViewModel),
+                      secondaryView: _currentIndex == 3
+                          ? const TunerScreen()
+                          : ModularStudioRackView(viewModel: _modularRackViewModel),
                       onOpenSearch: () => _openCommandPalette(viewModel),
                       onOpenShortcuts: () => _openShortcutsGuide(viewModel),
                       onOpenHelp: () => _openShortcutsGuide(viewModel),
@@ -1419,6 +1460,7 @@ class _MainAppShellState extends State<MainAppShell> {
                         viewModel: viewModel,
                       ),
                       onMenuSaveWorkspace: () {
+                        viewModel.savePersistedState();
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Espacio de trabajo guardado correctamente en almacenamiento local.'),
@@ -1435,9 +1477,9 @@ class _MainAppShellState extends State<MainAppShell> {
                         _terminalKernel.execute(cmd);
                         setState(() => _isTerminalOpen = true);
                       },
-                      isRecording: viewModel.isRecording,
+                      isRecording: viewModel.isAudioRecording,
                       onToggleRecording: () {
-                        if (viewModel.isRecording) {
+                        if (viewModel.isAudioRecording) {
                           viewModel.stopPracticeRecording();
                         } else {
                           viewModel.startPracticeRecording();
