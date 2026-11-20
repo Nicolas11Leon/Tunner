@@ -26,6 +26,7 @@ import 'dj_parallel_waveform_painter.dart';
 import 'dj_track_loader_modal.dart';
 import 'dj_vertical_channel_strip.dart';
 import 'dj_visual_mapping_overlay.dart';
+import 'widgets/dj_hot_cue_pad_grid.dart';
 import 'vector_jog_wheel.dart';
 
 /// Espacio de Trabajo Nativo de la Consola DJ Pro (DjStudioWorkstationView).
@@ -1343,46 +1344,13 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
             style: TextStyle(color: Colors.white38, fontSize: 9.5, fontWeight: FontWeight.bold, letterSpacing: 0.8),
           ),
           const SizedBox(height: 4),
-          Row(
-            children: List.generate(4, (idx) {
-              final isSet = deck.hotCues[idx] != null;
-              final isHotCuePushed = _viewModel.momentaryLitAction ==
-                  (deckId == 'A'
-                      ? [DjAction.deckAHotCue1, DjAction.deckAHotCue2, DjAction.deckAHotCue3, DjAction.deckAHotCue4][idx]
-                      : [DjAction.deckBHotCue1, DjAction.deckBHotCue2, DjAction.deckBHotCue3, DjAction.deckBHotCue4][idx]);
-              return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(right: idx < 3 ? 4 : 0),
-                  child: OutlinedButton(
-                    onPressed: () => _viewModel.triggerHotCue(deckId, idx),
-                    onLongPress: () => _viewModel.clearHotCue(deckId, idx),
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: isHotCuePushed
-                          ? accentColor
-                          : (isSet ? accentColor.withValues(alpha: 0.35) : Colors.transparent),
-                      side: BorderSide(
-                        color: isHotCuePushed
-                            ? Colors.white
-                            : (isSet ? accentColor : Colors.white12),
-                        width: isHotCuePushed ? 2.0 : 1.0,
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      minimumSize: Size.zero,
-                    ),
-                    child: Text(
-                      '${idx + 1}',
-                      style: TextStyle(
-                        color: isHotCuePushed
-                            ? Colors.black
-                            : (isSet ? accentColor : Colors.white54),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
+          DjHotCuePadGrid(
+            deckId: deckId,
+            deck: deck,
+            accentColor: accentColor,
+            momentaryLitAction: _viewModel.momentaryLitAction,
+            onTriggerHotCue: (idx) => _viewModel.triggerHotCue(deckId, idx),
+            onClearHotCue: (idx) => _viewModel.clearHotCue(deckId, idx),
           ),
         ],
       ),

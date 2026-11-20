@@ -178,17 +178,16 @@ class DjConsoleViewModel extends ChangeNotifier {
     if (fxA.filterPosition.abs() > 0.05) lit.add(DjAction.deckAFilterReset);
     if (fxB.filterPosition.abs() > 0.05) lit.add(DjAction.deckBFilterReset);
 
-    // Hot Cues LEDs (Deck A) - Compatible con ranuras 0..3 y 1..4
-    if (deckA.hotCues[0] != null || deckA.hotCues[1] != null) lit.add(DjAction.deckAHotCue1);
-    if (deckA.hotCues[2] != null || (deckA.hotCues[1] != null && deckA.hotCues[0] != null)) lit.add(DjAction.deckAHotCue2);
-    if (deckA.hotCues[3] != null || (deckA.hotCues[2] != null && deckA.hotCues[0] != null)) lit.add(DjAction.deckAHotCue3);
-    if (deckA.hotCues[4] != null || (deckA.hotCues[3] != null && deckA.hotCues[0] != null)) lit.add(DjAction.deckAHotCue4);
-
-    // Hot Cues LEDs (Deck B) - Compatible con ranuras 0..3 y 1..4
-    if (deckB.hotCues[0] != null || deckB.hotCues[1] != null) lit.add(DjAction.deckBHotCue1);
-    if (deckB.hotCues[2] != null || (deckB.hotCues[1] != null && deckB.hotCues[0] != null)) lit.add(DjAction.deckBHotCue2);
-    if (deckB.hotCues[3] != null || (deckB.hotCues[2] != null && deckB.hotCues[0] != null)) lit.add(DjAction.deckBHotCue3);
-    if (deckB.hotCues[4] != null || (deckB.hotCues[3] != null && deckB.hotCues[0] != null)) lit.add(DjAction.deckBHotCue4);
+    _collectHotCueLitActions(
+      deckA.hotCues,
+      const [DjAction.deckAHotCue1, DjAction.deckAHotCue2, DjAction.deckAHotCue3, DjAction.deckAHotCue4],
+      lit,
+    );
+    _collectHotCueLitActions(
+      deckB.hotCues,
+      const [DjAction.deckBHotCue1, DjAction.deckBHotCue2, DjAction.deckBHotCue3, DjAction.deckBHotCue4],
+      lit,
+    );
 
     // Momentary action pulse (e.g. CUE hit, pad hit)
     if (_momentaryLitAction != null) {
@@ -196,6 +195,17 @@ class DjConsoleViewModel extends ChangeNotifier {
     }
 
     return lit;
+  }
+
+  void _collectHotCueLitActions(
+    Map<int, int> hotCues,
+    List<DjAction> actions,
+    Set<DjAction> lit,
+  ) {
+    if (hotCues[0] != null || hotCues[1] != null) lit.add(actions[0]);
+    if (hotCues[2] != null || (hotCues[1] != null && hotCues[0] != null)) lit.add(actions[1]);
+    if (hotCues[3] != null || (hotCues[2] != null && hotCues[0] != null)) lit.add(actions[2]);
+    if (hotCues[4] != null || (hotCues[3] != null && hotCues[0] != null)) lit.add(actions[3]);
   }
 
   void _triggerMomentaryPulse(DjAction action) {
