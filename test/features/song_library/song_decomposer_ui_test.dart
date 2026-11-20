@@ -127,6 +127,7 @@ void main() {
     expect(decomposeBtn, findsOneWidget);
 
     await tester.tap(decomposeBtn);
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await tester.pumpAndSettle();
 
     // Verify song was added and active package updated

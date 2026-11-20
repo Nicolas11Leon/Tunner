@@ -1,3 +1,5 @@
+import 'dart:isolate';
+
 import '../../mixer/domain/mixer_track_entity.dart';
 import '../../sheet_music/domain/score_tree.dart';
 import '../../instrument/domain/instrument_profile_entity.dart';
@@ -526,6 +528,35 @@ class SongDecomposerService {
       title: "${score.title} (${instrument.name})",
       baseBpm: score.baseBpm,
       measures: adaptedMeasures,
+    );
+  }
+
+  /// Ejecuta [decomposeCustomScore] en un Isolate secundario para mantener la fluidez de la UI.
+  static Future<SongPackage> decomposeCustomScoreAsync({
+    required String title,
+    required String composer,
+    required int bpm,
+    required TimeSignature timeSignature,
+    required List<MeasureEntity> measures,
+    List<AudioTrack>? customTracks,
+    bool includeLead = true,
+    bool includePiano = true,
+    bool includeBass = true,
+    bool includeRhythm = true,
+  }) {
+    return Isolate.run(
+      () => SongDecomposerService.decomposeCustomScore(
+        title: title,
+        composer: composer,
+        bpm: bpm,
+        timeSignature: timeSignature,
+        measures: measures,
+        customTracks: customTracks,
+        includeLead: includeLead,
+        includePiano: includePiano,
+        includeBass: includeBass,
+        includeRhythm: includeRhythm,
+      ),
     );
   }
 }

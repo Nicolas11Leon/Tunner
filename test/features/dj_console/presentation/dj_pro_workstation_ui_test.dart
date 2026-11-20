@@ -106,6 +106,12 @@ void main() {
       await tester.tap(find.byKey(const Key('smart_automix_btn')));
       await tester.pump();
       expect(viewModel.automix.isActive, isTrue);
+
+      viewModel.cancelSmartAutomix();
+      if (viewModel.deckA.isPlaying) viewModel.togglePlay('A');
+      if (viewModel.deckB.isPlaying) viewModel.togglePlay('B');
+      await tester.pump();
+      expect(viewModel.automix.isActive, isFalse);
     });
   });
 }

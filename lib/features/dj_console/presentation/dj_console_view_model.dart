@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -109,8 +110,35 @@ class DjConsoleViewModel extends ChangeNotifier {
     };
 
     _initPersistenceAndKeyHandler();
-    _startTicker();
     _initAudioEngine();
+  }
+
+  /// Indica si el ticker periódico de 30 Hz está activo en este momento.
+  bool get isTickerActive => _playbackTicker?.isActive ?? false;
+
+  bool get _hasActiveTickerWork =>
+      deckA.isPlaying ||
+      deckB.isPlaying ||
+      recorder.isRecording ||
+      _orchestrator.automix.isActive;
+
+  void _syncTickerLifecycle() {
+    if (_isDisposed) return;
+    if (_hasActiveTickerWork) {
+      if (_playbackTicker == null || !_playbackTicker!.isActive) {
+        _startTicker();
+      }
+    } else {
+      _playbackTicker?.cancel();
+      _playbackTicker = null;
+    }
+  }
+
+  @override
+  void notifyListeners() {
+    if (_isDisposed) return;
+    _syncTickerLifecycle();
+    super.notifyListeners();
   }
 
   IDjDeckAudioPlayer get deckAudioPlayer => _deckAudioPlayer;
@@ -885,6 +913,70 @@ class DjConsoleViewModel extends ChangeNotifier {
     _syncAudioVolumes();
     if (!_isDisposed) notifyListeners();
     return estimatedBpm;
+  }
+
+  /// Versión asíncrona de [loadTrackWithBeatTracking] que ejecuta estimación de BPM,
+  /// detección armónica Camelot, resumen espectral y codificación WAV en un Isolate secundario.
+  Future<double> loadTrackWithBeatTrackingAsync(
+    String deckId, {
+    required String title,
+    required String artist,
+    required Float32List audioSamples,
+    int sampleRate = 44100,
+  }) async {
+    final analysis = await Isolate.run(() {
+      final estimatedBpm = BpmBeatTrackerEngine.estimateBpm(
+        samples: audioSamples,
+        sampleRate: sampleRate,
+      );
+      final estimatedKey = DjHarmonicCamelotEngine.estimateCamelotKeyFromSamples(
+        audioSamples,
+        sampleRate: sampleRate,
+      );
+      final spectralSummary =
+          DjTransitionSfxSynthesizer.computeSpectralWaveformSummary(
+        audioSamples,
+        sampleRate: sampleRate,
+      );
+      final wavBytes = ProceduralInstrumentSynthesizer.floatBufferToWavBytes(
+        audioSamples,
+        sampleRate: sampleRate,
+      );
+      return (
+        bpm: estimatedBpm,
+        camelotCode: estimatedKey.code,
+        spectralSummary: spectralSummary,
+        wavBytes: wavBytes,
+      );
+    });
+
+    if (_isDisposed) return analysis.bpm;
+
+    if (deckId == 'A') {
+      _deckSamplesA = audioSamples;
+      _waveformA = analysis.spectralSummary;
+    } else {
+      _deckSamplesB = audioSamples;
+      _waveformB = analysis.spectralSummary;
+    }
+    final durationMs = ((audioSamples.length / sampleRate) * 1000.0).round();
+    _orchestrator.loadTrack(
+      deckId,
+      title: title,
+      artist: artist,
+      bpm: analysis.bpm,
+      durationMs: durationMs,
+      camelotKey: analysis.camelotCode,
+    );
+    _deckAudioPlayer.loadDeckTrack(
+      deckId,
+      wavBytes: analysis.wavBytes,
+      title: title,
+      bpm: analysis.bpm,
+    );
+    _syncAudioVolumes();
+    notifyListeners();
+    return analysis.bpm;
   }
 
   /// Carga una canción curada de la biblioteca oficial en la pletina especificada,

@@ -16,6 +16,9 @@ class ScorePlaybackCoordinator {
   final PolyphonicVoicePool voicePool;
 
   Timer? _playbackTimer;
+  final Stopwatch _clockStopwatch = Stopwatch();
+  int _scheduledTickCount = 0;
+  int _tickIntervalUs = 125000;
   bool _isPlaying = false;
   int _currentMeasureIndex = 0;
   int _currentSubTick = 0;
@@ -103,6 +106,7 @@ class ScorePlaybackCoordinator {
   void pausePlayback() {
     _playbackTimer?.cancel();
     _playbackTimer = null;
+    _clockStopwatch.stop();
     _isPlaying = false;
     voicePool.allNotesOff();
     onPlaybackStopped?.call();
@@ -112,6 +116,9 @@ class ScorePlaybackCoordinator {
   void stopPlayback() {
     _playbackTimer?.cancel();
     _playbackTimer = null;
+    _clockStopwatch.stop();
+    _clockStopwatch.reset();
+    _scheduledTickCount = 0;
     _isPlaying = false;
     _currentMeasureIndex = 0;
     _currentSubTick = 0;
@@ -122,15 +129,37 @@ class ScorePlaybackCoordinator {
 
   void _restartTimer() {
     _playbackTimer?.cancel();
+    _playbackTimer = null;
     // 1 sub-tick = 1 semicorchea (resolución base 1/16).
     // Duración de una negra = 60 / BPM segundos.
     // Duración de 1 sub-tick = (60 / BPM) / 4 = 15 / BPM segundos.
-    final tickDurationSeconds = 15.0 / _bpm;
-    final tickDurationMs = math.max(10, (tickDurationSeconds * 1000).round());
+    final tickDurationUs = ((15.0 / _bpm) * 1000000.0).round();
+    _tickIntervalUs = math.max(10000, tickDurationUs);
+    _scheduledTickCount = 0;
+    _clockStopwatch
+      ..reset()
+      ..start();
 
-    _playbackTimer = Timer.periodic(Duration(milliseconds: tickDurationMs), (timer) {
+    _scheduleNextClockPulse();
+  }
+
+  void _scheduleNextClockPulse() {
+    if (!_isPlaying) return;
+    final nextDeadlineUs = (_scheduledTickCount + 1) * _tickIntervalUs;
+    final remainingUs = math.max(1000, nextDeadlineUs - _clockStopwatch.elapsedMicroseconds);
+    _playbackTimer = Timer(Duration(microseconds: remainingUs), _onClockPulse);
+  }
+
+  void _onClockPulse() {
+    if (!_isPlaying) return;
+    final elapsedUs = _clockStopwatch.elapsedMicroseconds;
+    while (_isPlaying && elapsedUs >= (_scheduledTickCount + 1) * _tickIntervalUs) {
+      _scheduledTickCount++;
       _advanceTick();
-    });
+    }
+    if (_isPlaying) {
+      _scheduleNextClockPulse();
+    }
   }
 
   void _advanceTick() {
@@ -196,6 +225,7 @@ class ScorePlaybackCoordinator {
   void dispose() {
     _playbackTimer?.cancel();
     _playbackTimer = null;
+    _clockStopwatch.stop();
     voicePool.panic();
   }
 }
