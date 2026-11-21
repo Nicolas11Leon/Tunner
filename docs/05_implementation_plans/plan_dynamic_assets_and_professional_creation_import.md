@@ -61,9 +61,9 @@ Reemplazar los elementos de demostración hardcodeados en el árbol lateral por 
 
 ### Paso 3: Conexión Reactiva en `MainAppShell`
 - [x] Vincular las carpetas del sidebar a las listas vivas de `TunerViewModel`:
-  - 📁 `Biblioteca de Partituras`: enlazar a partituras creadas/importadas del usuario.
-  - 📁 `Tomas de Audio & WAV`: enlazar a `viewModel.recordingHistory`.
-  - 📁 `Presets de Afinación`: enlazar a calibraciones guardadas.
+  - `Biblioteca de Partituras`: enlazar a partituras creadas/importadas del usuario.
+  - `Tomas de Audio & WAV`: enlazar a `viewModel.recordingHistory`.
+  - `Presets de Afinación`: enlazar a calibraciones guardadas.
 - [x] Proveer los callbacks de creación e importación en cada carpeta.
 
 ### Paso 4: Pruebas y Validación

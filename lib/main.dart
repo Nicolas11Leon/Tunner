@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'app/studio_composition_root.dart';
 import 'core/design_system/studio_theme_provider.dart';
+import 'core/logging/infrastructure/studio_debug_logger.dart';
 import 'core/theme/tunner_theme.dart';
 import 'features/navigation/presentation/main_app_shell.dart';
 import 'features/tuner_viewmodel.dart';
@@ -71,7 +72,13 @@ class _TunnerAppState extends State<TunnerApp> {
     StudioThemeController studioThemeController;
     try {
       studioThemeController = context.watch<StudioThemeController>();
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'TunnerApp',
+        'StudioThemeController no encontrado en arbol; usando fallback: $e',
+        error: e,
+        stackTrace: st,
+      );
       studioThemeController = _fallbackThemeController;
     }
 

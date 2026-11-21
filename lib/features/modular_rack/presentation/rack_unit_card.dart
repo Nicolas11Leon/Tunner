@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/design_system/atoms/studio_text_controller_scope.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../domain/rack_module_entity.dart';
 import '../domain/port_id.dart';
 import 'modular_rack_viewmodel.dart';
@@ -370,7 +371,13 @@ class RackUnitCard extends StatelessWidget {
     try {
       final vm = Provider.of<TunerViewModel>(context, listen: true);
       return vm;
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'RackUnitCard',
+        'TunerViewModel no montado en contexto; usando fallback: $e',
+        error: e,
+        stackTrace: st,
+      );
       return _fallbackViewModel;
     }
   }

@@ -834,9 +834,13 @@ class DjConsoleViewModel extends ChangeNotifier {
   Uint8List? stopRecording() {
     _orchestrator.stopRecording();
     final consolidated = _orchestrator.consolidateRecordingBuffer();
-    final samples = consolidated.isNotEmpty ? consolidated : Float32List(512);
+    if (consolidated.isEmpty) {
+      _lastRecordedWavBytes = null;
+      if (!_isDisposed) notifyListeners();
+      return null;
+    }
     _lastRecordedWavBytes = DjMixWavEncoder.encode(
-      samples: samples,
+      samples: consolidated,
       sampleRate: _audioProcessor.sampleRate,
       numChannels: 1,
     );
@@ -968,7 +972,7 @@ class DjConsoleViewModel extends ChangeNotifier {
       durationMs: durationMs,
       camelotKey: analysis.camelotCode,
     );
-    _deckAudioPlayer.loadDeckTrack(
+    await _deckAudioPlayer.loadDeckTrack(
       deckId,
       wavBytes: analysis.wavBytes,
       title: title,

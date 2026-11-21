@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../design_system/studio_design_tokens.dart';
 import '../../design_system/studio_theme_provider.dart';
+import '../../logging/infrastructure/studio_debug_logger.dart';
 import '../domain/studio_master_audio_mixer.dart';
 import '../infrastructure/studio_audio_device_matrix_service.dart';
 
@@ -22,7 +23,13 @@ class StudioMasterMeterMiniPillWidget extends StatelessWidget {
     StudioDesignTokens tokens;
     try {
       tokens = StudioThemeScope.tokensOf(context);
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'StudioMasterMeterMiniPillWidget',
+        'StudioThemeScope no encontrado; usando studioDark: $e',
+        error: e,
+        stackTrace: st,
+      );
       tokens = StudioDesignTokens.studioDark;
     }
 

@@ -316,7 +316,7 @@ startxref
                         () => ScoreImportTabView.defaultNativeFilePicker(widget.viewModel.platformFileGateway);
                     final picked = await picker();
                     if (picked != null) {
-                      _processBytes(picked.bytes, picked.fileName);
+                      await _processBytes(picked.bytes, picked.fileName);
                     }
                   },
           ),

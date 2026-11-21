@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+import '../../../logging/infrastructure/studio_debug_logger.dart';
 import '../../domain/ffi/i_native_dsp_bridge.dart';
 import '../../domain/ffi/native_dsp_bridge_fallback.dart';
 
@@ -129,7 +130,13 @@ class NativeDspFfiBridge implements INativeDspBridge {
         _isNative = true;
         _activeEngineName = 'Native C/Rust SIMD (${customLibraryPath ?? _getPlatformLibraryName()})';
       }
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'NativeDspFfiBridge',
+        'Libreria nativa DSP no disponible, usando fallback Pure Dart: $e',
+        error: e,
+        stackTrace: st,
+      );
       _dylib = null;
       _applyGainNative = null;
       _vectorSumNative = null;
@@ -199,7 +206,13 @@ class NativeDspFfiBridge implements INativeDspBridge {
       nativeList.setAll(0, buffer);
       fn(ptr, length, gain);
       buffer.setAll(0, nativeList);
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'NativeDspFfiBridge',
+        'Fallback applyGain a Pure Dart: $e',
+        error: e,
+        stackTrace: st,
+      );
       _fallback.applyGain(buffer, gain);
     }
   }
@@ -222,7 +235,13 @@ class NativeDspFfiBridge implements INativeDspBridge {
       ptrB.asTypedList(length).setRange(0, length, b);
       fn(ptrA, ptrB, ptrOut, length);
       out.setRange(0, length, ptrOut.asTypedList(length));
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'NativeDspFfiBridge',
+        'Fallback vectorSum a Pure Dart: $e',
+        error: e,
+        stackTrace: st,
+      );
       _fallback.vectorSum(a, b, out);
     }
   }
@@ -243,7 +262,13 @@ class NativeDspFfiBridge implements INativeDspBridge {
       ptrIn.asTypedList(inLen).setAll(0, input);
       fn(ptrIn, inLen, ptrOut, outLen);
       output.setAll(0, ptrOut.asTypedList(outLen));
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'NativeDspFfiBridge',
+        'Fallback autoCorrelate a Pure Dart: $e',
+        error: e,
+        stackTrace: st,
+      );
       _fallback.autoCorrelate(input, output);
     }
   }

@@ -5,7 +5,7 @@ Aprobado.
 
 ## Contexto
 El usuario y la dirección de producto de Tunner requieren una experiencia de escritorio de grado profesional (similar a Antigravity IDE, Visual Studio Code y Adobe Audition / Creative Cloud), descartando esquemas de navegación móvil o tab-bars simplistas en pantallas de alta resolución.
-La captura de referencia enviada por el creador muestra una distribución jerárquica basada en carpetas colapsables con chevron, iconos de carpeta (`folder` / `folder_open`), nodos anidados de sesiones de trabajo con drag handle / status dot y badges de tiempo, accesos superiores a Automatizaciones/Personalizaciones, y un acceso fijo en la base a Ajustes (`⚙ Settings`).
+La captura de referencia enviada por el creador muestra una distribución jerárquica basada en carpetas colapsables con chevron, iconos de carpeta (`folder` / `folder_open`), nodos anidados de sesiones de trabajo con drag handle / status dot y badges de tiempo, accesos superiores a Automatizaciones/Personalizaciones, y un acceso fijo en la base a Ajustes (`Settings`).
 
 ## Decisión
 1. **Molécula `StudioTreeView` Multivel:**

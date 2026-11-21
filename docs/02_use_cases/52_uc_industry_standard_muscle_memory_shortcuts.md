@@ -5,7 +5,25 @@ Proporcionar a los músicos y productores un conjunto completo de comandos rápi
 
 ---
 
-## 2. Diagrama de Flujo / Secuencia de Control de Transporte (Mermaid)
+## 2. Diagrama de Casos de Uso (Mermaid)
+
+```mermaid
+flowchart LR
+    Musico["Músico / Productor"]
+    UC1(["Play / Stop Metrónomo (Espacio)"])
+    UC2(["Rebobinar al Inicio (Enter)"])
+    UC3(["Nudge Rítmico (, / .)"])
+    UC4(["Bucle Continuo (C)"])
+
+    Musico --> UC1
+    Musico --> UC2
+    Musico --> UC3
+    Musico --> UC4
+```
+
+---
+
+## 3. Diagrama de Flujo / Secuencia de Control de Transporte (Mermaid)
 
 ```mermaid
 sequenceDiagram
@@ -34,13 +52,15 @@ sequenceDiagram
 
 ---
 
-## 3. Precondiciones
-1. La aplicación Tunner está activa y con foco en cualquier pestaña.
-2. Los controladores de teclado o pedales Bluetooth envían eventos de teclado estándar del sistema operativo.
+## 4. Precondiciones y Postcondiciones
+1. **Precondición:** La aplicación Tunner está activa y con foco en cualquier pestaña.
+2. **Precondición:** Los controladores de teclado o pedales Bluetooth envían eventos de teclado estándar del sistema operativo.
+3. **Postcondición:** El estado de transporte y el playhead se actualizan de forma determinística sin interferir con campos de texto enfocados.
 
 ---
 
-## 4. Flujo Principal
+## 5. Flujo Principal y Flujos Alternativos
 1. El usuario presiona una tecla de transporte estándar (`Espacio`, `Enter`, `C`, `R`, `,`, `.`).
 2. El despachador de atajos en `MainAppShell` intercepta la tecla y ejecuta la acción atómica correspondiente en el `TunerViewModel`.
-3. La interfaz visual y el motor de sonido responden en tiempo real ($< 16\text{ ms}$).
+3. La interfaz visual y el motor de sonido responden en tiempo real (< 16 ms).
+4. **Flujo Alternativo:** Si un `TextField` o `EditableText` tiene el foco activo, el despachador ignora los atajos de una sola tecla para permitir la escritura normal.

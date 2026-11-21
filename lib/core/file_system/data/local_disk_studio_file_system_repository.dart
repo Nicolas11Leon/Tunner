@@ -39,7 +39,13 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
     try {
       final docDir = await getApplicationDocumentsDirectory();
       _resolvedRootPath = '${docDir.path}/TunnerProjects';
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'LocalDiskStudioFileSystemRepository',
+        'Fallback a directorio temporal por error en path_provider: $e',
+        error: e,
+        stackTrace: st,
+      );
       final fallbackDir = Directory.systemTemp.createTempSync('tunner_projects_fallback_');
       _resolvedRootPath = fallbackDir.path;
     }

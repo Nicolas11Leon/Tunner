@@ -99,7 +99,13 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                       TunerViewModel? tunerVm;
                       try {
                         tunerVm = context.read<TunerViewModel>();
-                      } catch (_) {
+                      } catch (e, st) {
+                        StudioDebugLogger.instance.warning(
+                          'MultitaskMasterConsoleWidget',
+                          'TunerViewModel opcional no montado en contexto: $e',
+                          error: e,
+                          stackTrace: st,
+                        );
                         tunerVm = null;
                       }
                       UniversalMasterKeyboardWidget.show(

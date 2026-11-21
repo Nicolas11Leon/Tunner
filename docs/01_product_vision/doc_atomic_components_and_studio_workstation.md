@@ -24,7 +24,7 @@ La solución erradica de forma definitiva el uso de emojis informales, elementos
 
 ### 2.1 Planteamiento del Problema
 La interfaz gráfica previa incorporaba inconsistencias que restaban profesionalismo:
-1. **Presencia de caracteres emoji:** Se utilizaban emojis en selectores de instrumentos (`🎻`, `🎸`, `🥁`), botones de rack (`🔥`, `🎼`) y diálogos (`👂`, `🪵`), lo que transmitía una apariencia amateur impropia de un software de conservatorio y laboratorio acústico.
+1. **Presencia de caracteres emoji:** Se utilizaban emojis en selectores de instrumentos (``, ``, ``), botones de rack (``, ``) y diálogos (``, ``), lo que transmitía una apariencia amateur impropia de un software de conservatorio y laboratorio acústico.
 2. **Text Reflow en Métricas Numéricas:** La actualización en tiempo real de frecuencias (Hz), desviaciones (cents) y tempo (BPM) producía vibración y saltos visuales debido al ancho variable de las fuentes proporcionales.
 3. **Acoplamiento Visual:** Las pantallas instanciaban estilos hardcodeados y colores literales, dificultando la aplicación de temas profesionales de alto contraste.
 

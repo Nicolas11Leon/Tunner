@@ -272,7 +272,13 @@ class StudioAudioChannel implements IStudioAudioChannel {
           if (state != PlayerState.playing) {
             try {
               await p.resume();
-            } catch (_) {
+            } catch (e, st) {
+              StudioDebugLogger.instance.warning(
+                'StudioAudioChannel',
+                '[$channelId] resume() fallo, recargando fuente de audio: $e',
+                error: e,
+                stackTrace: st,
+              );
               if (_loadedFilePath != null && _loadedFilePath!.isNotEmpty) {
                 await p.play(DeviceFileSource(_loadedFilePath!));
               } else if (_loadedBytes != null && _loadedBytes!.isNotEmpty) {

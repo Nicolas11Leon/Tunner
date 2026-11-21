@@ -411,7 +411,7 @@ class TunerViewModel extends ChangeNotifier
     await _pitchService.setInputDevice(deviceId);
     _micProfile = _micProfile.copyWith(deviceId: deviceId);
     notifyListeners();
-    _triggerAutoSave();
+    await _triggerAutoSave();
   }
 
   /// Inicia el proceso de perfilado del piso de ruido ambiental (1.5 segundos).
@@ -475,7 +475,7 @@ class TunerViewModel extends ChangeNotifier
     _pitchService.onRmsLevelChanged = prevRmsCallback;
     _isCalibratingNoiseFloor = false;
     notifyListeners();
-    _triggerAutoSave();
+    await _triggerAutoSave();
   }
 
   MixerConsoleEntity get mixerConsole => _mixerConsole;
@@ -1569,7 +1569,7 @@ class TunerViewModel extends ChangeNotifier
   }
 
   @override
-  void toggleRecording() async {
+  Future<void> toggleRecording() async {
     if (_isRecording) {
       await _pitchService.stopRecording();
       _silenceTimer?.cancel();
@@ -1584,7 +1584,7 @@ class TunerViewModel extends ChangeNotifier
     notifyListeners();
   }
 
-  void startSongWithCountIn() async {
+  Future<void> startSongWithCountIn() async {
     if (_isMetronomePlaying) {
       await _metronomeService.stop();
       _isMetronomePlaying = false;
@@ -1710,7 +1710,7 @@ class TunerViewModel extends ChangeNotifier
       addSongPackage(result.package);
       _workspaceScores.removeWhere((p) => p.id == result.package.id);
       _workspaceScores.insert(0, result.package);
-      _triggerAutoSave();
+      await _triggerAutoSave();
       notifyListeners();
       return result;
     } catch (e) {
@@ -1960,7 +1960,8 @@ class TunerViewModel extends ChangeNotifier
         return true;
       }
       return false;
-    } catch (_) {
+    } catch (e, st) {
+      _logger.warning('TunerViewModel', 'Error al importar paleta JSON: $e', error: e, stackTrace: st);
       return false;
     }
   }
@@ -2060,7 +2061,7 @@ class TunerViewModel extends ChangeNotifier
   void startGuidedWarmupRoutine() {
     _isWarmupActive = true;
     if (!_isRecording) {
-      toggleRecording();
+      unawaited(toggleRecording());
     }
     if (!isDronePlaying) {
       toggleDrone();

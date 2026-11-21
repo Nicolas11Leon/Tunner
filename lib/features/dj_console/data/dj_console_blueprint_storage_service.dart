@@ -108,11 +108,7 @@ class DjConsoleBlueprintStorageService implements IDjConsoleBlueprintStorageServ
   @override
   Future<DjConsoleBlueprintEntity?> loadBlueprintById(String id) async {
     final all = await loadAllBlueprints();
-    try {
-      return all.firstWhere((b) => b.id == id);
-    } catch (_) {
-      return null;
-    }
+    return all.where((b) => b.id == id).firstOrNull;
   }
 
   /// Guarda una nueva consola o actualiza una existente.
