@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../mixer/domain/mixer_track_entity.dart';
 import '../../song_library/domain/song_package_entity.dart';
 import '../../transcription/domain/audio_to_score_transcription_engine.dart';
@@ -65,8 +66,13 @@ class UniversalScoreImporterService implements IScoreParserService {
     if (_compressedMusicXmlParser.canParse(fileName, bytes)) {
       try {
         return await _compressedMusicXmlParser.parseScoreData(bytes: bytes, fileName: fileName);
-      } catch (_) {
-        // Continuar con otros parsers si falla
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'UniversalScoreImporterService',
+          'Fallo parser .mxl para "$fileName", probando siguientes parsers: $e',
+          error: e,
+          stackTrace: st,
+        );
       }
     }
 
@@ -96,25 +102,27 @@ class UniversalScoreImporterService implements IScoreParserService {
     }
 
     // Autodetección heurística por contenido
-    try {
-      return await _musicXmlParser.parseScoreData(bytes: bytes, fileName: fileName);
-    } catch (_) {
+    final fallbackParsers = <IScoreParserService>[
+      _musicXmlParser,
+      _midiParser,
+      _abcParser,
+      _pdfParser,
+    ];
+    for (final parser in fallbackParsers) {
       try {
-        return await _midiParser.parseScoreData(bytes: bytes, fileName: fileName);
-      } catch (_) {
-        try {
-          return await _abcParser.parseScoreData(bytes: bytes, fileName: fileName);
-        } catch (_) {
-          try {
-            return await _pdfParser.parseScoreData(bytes: bytes, fileName: fileName);
-          } catch (_) {
-            throw FormatException(
-              'Formato no reconocido para "$fileName". Tunner soporta MusicXML (.mxl, .musicxml, .xml), MIDI (.mid, .midi), ABC (.abc), PDF (.pdf) y Audio WAV (.wav).',
-            );
-          }
-        }
+        return await parser.parseScoreData(bytes: bytes, fileName: fileName);
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'UniversalScoreImporterService',
+          'Intento heuristico ${parser.runtimeType} fallo para "$fileName": $e',
+          error: e,
+          stackTrace: st,
+        );
       }
     }
+    throw FormatException(
+      'Formato no reconocido para "$fileName". Tunner soporta MusicXML (.mxl, .musicxml, .xml), MIDI (.mid, .midi), ABC (.abc), PDF (.pdf) y Audio WAV (.wav).',
+    );
   }
 
   /// Transcribe un archivo de audio directamente a un [ParsedScoreResult].

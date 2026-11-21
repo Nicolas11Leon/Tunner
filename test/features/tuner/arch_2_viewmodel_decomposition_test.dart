@@ -48,7 +48,7 @@ void main() {
       });
 
       expect(vm.telemetryListenable.value.isRecording, isFalse);
-      vm.toggleRecording();
+      await vm.toggleRecording();
       await Future<void>.delayed(Duration.zero);
 
       expect(vm.telemetryListenable.value.isRecording, isTrue);

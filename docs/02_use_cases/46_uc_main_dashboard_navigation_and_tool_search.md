@@ -87,11 +87,11 @@ sequenceDiagram
 ### 4.2 Flujo Principal (Happy Path)
 1. El usuario abre la app y observa la pantalla de **Inicio (Dashboard)** con bienvenida amigable y el instrumento musical seleccionado.
 2. Observa tarjetas visuales grandes:
-   - 🎯 **Afinador de Precisión:** Con botón directo para iniciar afinación inmediata.
-   - 🎓 **Aprender a Tocar:** Acceso al tutor interactivo y lecciones adaptadas.
-   - 🎙️ **Estudio de Grabación & Práctica:** Registro de tomas, comparador espectral y métricas.
-   - 🎼 **Biblioteca de Canciones & Partituras:** Acceso a repertorio curado, importador MusicXML y descompositor.
-   - 🔬 **Laboratorio Acústico:** Drones armónicos, temperamentos históricos y autotune.
+   - **Afinador de Precisión:** Con botón directo para iniciar afinación inmediata.
+   - **Aprender a Tocar:** Acceso al tutor interactivo y lecciones adaptadas.
+   - **Estudio de Grabación & Práctica:** Registro de tomas, comparador espectral y métricas.
+   - **Biblioteca de Canciones & Partituras:** Acceso a repertorio curado, importador MusicXML y descompositor.
+   - **Laboratorio Acústico:** Drones armónicos, temperamentos históricos y autotune.
 3. El usuario puede tocar cualquier tarjeta o usar la **Barra de Navegación Inferior** para cambiar de módulo al instante.
 4. Si necesita una función específica, toca el buscador superior, escribe lo que busca y la app lo lleva directamente a dicha función.
 

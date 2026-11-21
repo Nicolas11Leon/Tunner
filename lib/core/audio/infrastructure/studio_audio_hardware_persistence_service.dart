@@ -87,7 +87,13 @@ class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersi
 
       try {
         await tempFile.rename(file.path);
-      } catch (_) {
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'StudioAudioHardwarePersistenceService',
+          'Renombrado atomico fallback a escritura directa: $e',
+          error: e,
+          stackTrace: st,
+        );
         await file.writeAsString(jsonString, flush: true);
         if (await tempFile.exists()) {
           await tempFile.delete();

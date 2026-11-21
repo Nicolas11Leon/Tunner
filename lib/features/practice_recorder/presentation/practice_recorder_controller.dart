@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/file_system/domain/i_platform_file_gateway.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../audio_synthesizer/domain/i_audio_synthesizer_service.dart';
 import '../../persistence/domain/app_user_settings_entity.dart';
 import '../../persistence/domain/i_local_persistence_service.dart';
@@ -116,11 +117,23 @@ class PracticeRecorderController {
     try {
       final dirPath = await _platformFileGateway.getDocumentsDirectoryPath();
       return '$dirPath/take_${DateTime.now().millisecondsSinceEpoch}.wav';
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'PracticeRecorderController',
+        'Fallback a directorio temporal para grabacion: $e',
+        error: e,
+        stackTrace: st,
+      );
       try {
         final tempDir = await _platformFileGateway.getTemporaryDirectoryPath();
         return '$tempDir/tunner_take_${DateTime.now().millisecondsSinceEpoch}.wav';
-      } catch (_) {
+      } catch (tempError, tempSt) {
+        StudioDebugLogger.instance.warning(
+          'PracticeRecorderController',
+          'Fallback a ruta relativa para grabacion: $tempError',
+          error: tempError,
+          stackTrace: tempSt,
+        );
         return 'tunner_take_${DateTime.now().millisecondsSinceEpoch}.wav';
       }
     }
@@ -150,7 +163,13 @@ class PracticeRecorderController {
         _onNotify();
       });
       _onNotify();
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'PracticeRecorderController',
+        'Error al iniciar grabacion de practica: $e',
+        error: e,
+        stackTrace: st,
+      );
       _isAudioRecording = false;
       _onNotify();
     }
@@ -450,8 +469,13 @@ class PracticeRecorderController {
         _activeRecording = _recordingHistory.first;
       }
       applySettings(settings);
-    } catch (_) {
-      // Ignorar fallas de carga silenciosamente
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'PracticeRecorderController',
+        'Error cargando configuracion inicial de practica: $e',
+        error: e,
+        stackTrace: st,
+      );
     } finally {
       if (!_initCompleter.isCompleted) {
         _initCompleter.complete();
@@ -488,8 +512,13 @@ class PracticeRecorderController {
   Future<void> saveSettings(AppUserSettingsEntity settings) async {
     try {
       await _persistenceService.saveSettings(settings);
-    } catch (_) {
-      // Ignorar fallas de guardado secundarias
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'PracticeRecorderController',
+        'Error persistiendo configuracion de practica: $e',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 

@@ -14,7 +14,7 @@ abstract class IGuidedLessonSessionPort {
   bool get hasActiveGuidedLesson;
   GuidedLessonProgressEntity? get activeLessonProgress;
 
-  void toggleRecording();
+  Future<void> toggleRecording();
   void startGuidedLesson(GuidedLessonEntity lesson);
   void cancelGuidedLesson();
   void jumpToLessonStep(int stepIndex);
@@ -29,7 +29,7 @@ abstract class IChordAnalyzerSessionPort {
   List<double> get activeChromaVector;
   PolyphonicMultiToneAnalysisResult get polyphonicAnalysisResult;
 
-  void toggleRecording();
+  Future<void> toggleRecording();
   void toggleChordRecognition();
 }
 

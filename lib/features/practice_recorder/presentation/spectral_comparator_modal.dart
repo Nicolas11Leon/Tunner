@@ -50,11 +50,7 @@ class _SpectralComparatorModalState extends State<SpectralComparatorModal> {
   PracticeTakeEntity? _getTake(String? id) {
     if (id == null) return null;
     final takes = widget.viewModel.multiTrackSession.takes;
-    try {
-      return takes.firstWhere((t) => t.id == id);
-    } catch (_) {
-      return null;
-    }
+    return takes.where((t) => t.id == id).firstOrNull;
   }
 
   @override

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../universal_importer/data/universal_score_importer_service.dart';
 import '../domain/i_media_io_port.dart';
 import '../domain/media_asset_entity.dart';
@@ -110,8 +111,14 @@ class UniversalMediaIoService implements IMediaIoService {
             importedAssets: <MediaAssetEntity>[asset],
             message: 'Partitura/MIDI "${asset.title}" importada correctamente.',
           );
-        } catch (_) {
+        } catch (e, st) {
           // Fallback to raw asset registration if score parser rejects malformed tags.
+          StudioDebugLogger.instance.warning(
+            'UniversalMediaIoService',
+            'Parser de partitura rechazo "$fileName", registrando como activo raw: $e',
+            error: e,
+            stackTrace: st,
+          );
         }
       }
 
@@ -429,7 +436,13 @@ z4 |]
         success: false,
         message: 'El JSON no contiene una lista de activos "assets".',
       );
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'UniversalMediaIoService',
+        'Error decodificando JSON "$fileName": $e',
+        error: e,
+        stackTrace: st,
+      );
       return MediaImportResult(
         success: false,
         message: 'No se pudo decodificar el archivo JSON "$fileName".',

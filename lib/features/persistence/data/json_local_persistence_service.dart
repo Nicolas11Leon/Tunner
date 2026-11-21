@@ -112,7 +112,13 @@ class JsonLocalPersistenceService implements ILocalPersistenceService {
       // 2. Renombrado atómico seguro
       try {
         await tempFile.rename(targetFile.path);
-      } catch (_) {
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'JsonLocalPersistenceService',
+          'Renombrado atomico fallback a escritura directa: $e',
+          error: e,
+          stackTrace: st,
+        );
         if (!await parentDir.exists()) {
           await parentDir.create(recursive: true);
         }

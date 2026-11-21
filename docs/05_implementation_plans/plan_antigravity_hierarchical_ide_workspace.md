@@ -22,7 +22,7 @@ Evolucionar la interfaz gráfica de Tunner para escritorio para replicar con má
 1. **Barra Lateral Jerárquica Multivel:**
    - Acciones de nivel superior fijas: *Automatizaciones (Metrónomo Continuo)* y *Personalizaciones / Plugins DSP*.
    - Sección de Proyectos estructurada por carpetas colapsables con chevron animado, glifos de carpeta (`folder` / `folder_open`), nodos hijos sangrados con indicadores de estado en vivo (`dot` de actividad, badges numéricos de frecuencia/tempo), y timestamps técnicos (`1h ago`, `En vivo`).
-   - Acceso inferior persistente a *Ajustes de Audio & Sistema* (`⚙ Settings`) y tarjeta de instrumento activo.
+   - Acceso inferior persistente a *Ajustes de Audio & Sistema* (`Settings`) y tarjeta de instrumento activo.
 2. **Barra Superior Contextual (Breadcrumbs & Acciones de Ventana):**
    - Ruta completa: `tunner / [Proyecto] / [Sub-herramienta Activa]`.
    - Botón de opciones de panel (`⋮`), split view y alternador de sidebar.
@@ -72,11 +72,11 @@ Evolucionar la interfaz gráfica de Tunner para escritorio para replicar con má
 
 ### Paso 3: Conexión con `MainAppShell` y Mapeo de Vistas
 - [x] Organizar las carpetas musicales de Tunner:
-  - 📁 `tunner` (Afinador Estroboscópico de Precisión, Calibrador A4, Dron Armónico).
-  - 📁 `Estudio & Grabación` (Rack Modular de Pedales, Bóveda Multimedia, Consola DJ).
-  - 📁 `Laboratorio Acústico` (Espectrograma FFT, Analizador Polifónico).
-  - 📁 `Conservatorio & Lecciones` (Tutor de Tempo & Rushing, Entrenador Auditivo a Ciegas).
-  - 📁 `Biblioteca de Partituras` (Lector MusicXML, Editor de Compases).
+  - `tunner` (Afinador Estroboscópico de Precisión, Calibrador A4, Dron Armónico).
+  - `Estudio & Grabación` (Rack Modular de Pedales, Bóveda Multimedia, Consola DJ).
+  - `Laboratorio Acústico` (Espectrograma FFT, Analizador Polifónico).
+  - `Conservatorio & Lecciones` (Tutor de Tempo & Rushing, Entrenador Auditivo a Ciegas).
+  - `Biblioteca de Partituras` (Lector MusicXML, Editor de Compases).
 - [x] Mapear los callbacks de navegación y los breadcrumbs reactivos.
 
 ### Paso 4: Pruebas, Verificación y Documentación

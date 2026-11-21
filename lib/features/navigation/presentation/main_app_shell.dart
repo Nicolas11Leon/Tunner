@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../app/studio_composition_root.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../tuner_viewmodel.dart';
 import '../../song_library/domain/song_package_entity.dart';
 import '../../instrument/domain/instrument_customization_profile.dart';
@@ -85,7 +86,13 @@ class _MainAppShellState extends State<MainAppShell> {
     StudioCompositionRoot? root;
     try {
       root = context.read<StudioCompositionRoot>();
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'MainAppShell',
+        'StudioCompositionRoot opcional no montado en contexto: $e',
+        error: e,
+        stackTrace: st,
+      );
       root = null;
     }
 
@@ -106,7 +113,13 @@ class _MainAppShellState extends State<MainAppShell> {
     TunerViewModel? existingVm;
     try {
       existingVm = context.read<TunerViewModel>();
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'MainAppShell',
+        'TunerViewModel opcional no montado en contexto: $e',
+        error: e,
+        stackTrace: st,
+      );
       existingVm = null;
     }
 
@@ -242,7 +255,14 @@ class _MainAppShellState extends State<MainAppShell> {
             if (pitch != null) vm.setReferencePitch(pitch);
             final temperamentId = map['temperamentId'] as String?;
             if (temperamentId != null) vm.setTemperament(temperamentId);
-          } catch (_) {}
+          } catch (e, st) {
+            StudioDebugLogger.instance.warning(
+              'MainAppShell',
+              'Error decodificando preset de afinacion: $e',
+              error: e,
+              stackTrace: st,
+            );
+          }
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

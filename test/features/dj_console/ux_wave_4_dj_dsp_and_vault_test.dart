@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -7,17 +9,12 @@ import 'package:tunner/features/dj_console/domain/dj_hardware_catalog.dart';
 import 'package:tunner/features/dj_console/presentation/dj_console_view_model.dart';
 import 'package:tunner/features/dj_console/presentation/dj_visual_mapping_overlay.dart';
 import 'package:tunner/features/guided_lessons/presentation/guided_lessons_modal.dart';
-import 'package:tunner/features/tuner/domain/i_pitch_detector_service.dart';
 import 'package:tunner/features/tuner_viewmodel.dart';
 import 'package:tunner/features/vocal_autotune/presentation/vocal_autotune_modal.dart';
+import '../../helpers/studio_test_fakes.dart';
 import '../practice_recorder/mock_recorder_services.dart';
 
-class _MockPitchService extends IPitchDetectorService {
-  @override
-  Future<void> startRecording() async {}
-  @override
-  Future<void> stopRecording() async {}
-}
+typedef _MockPitchService = StudioFakePitchDetectorService;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -121,6 +118,12 @@ void main() {
       final vm = DjConsoleViewModel();
       try {
         vm.startRecording();
+        vm.orchestrator.appendRecordingChunk(
+          Float32List.fromList([0.15, -0.15, 0.25, -0.25]),
+          DateTime.now().millisecondsSinceEpoch,
+        );
+        final bytes = vm.stopRecording();
+        expect(bytes, isNotNull);
         final success = await vm.saveRecordingToDisk('test_dj_mix.wav');
         expect(success, isTrue);
       } finally {
@@ -154,12 +157,21 @@ void main() {
         ),
       );
 
-      // Drag / Pan gesture across console
-      await tester.drag(find.byType(DjVisualMappingOverlay), const Offset(0, -50));
+      // Drag / Pan gesture across console (horizontal + vertical pan)
+      await tester.drag(find.byType(DjVisualMappingOverlay), const Offset(-80, -50));
       await tester.pumpAndSettle();
 
       expect(find.byType(DjVisualMappingOverlay), findsOneWidget);
       expect(lastTriggered, isNull);
+
+      // Verify interactive zone tap still dispatches action after pan gesture
+      final firstZone = DjHardwareCatalog.ddjFlx4().zones.first;
+      final zoneFinder = find.byKey(Key('dj_zone_${firstZone.action.name}'));
+      if (zoneFinder.evaluate().isNotEmpty) {
+        await tester.tap(zoneFinder.first);
+        await tester.pump();
+        expect(lastTriggered, equals(firstZone.action));
+      }
     });
   });
 
