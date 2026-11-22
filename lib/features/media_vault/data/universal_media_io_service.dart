@@ -3,7 +3,13 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../../../core/logging/infrastructure/studio_debug_logger.dart';
+import '../../dj_console/domain/bpm_beat_tracker_engine.dart';
+import '../../dj_console/domain/dj_harmonic_camelot_engine.dart';
+import '../../sheet_music/domain/score_tree.dart';
 import '../../universal_importer/data/universal_score_importer_service.dart';
+import '../../universal_importer/domain/canonical_abc_exporter.dart';
+import '../../universal_importer/domain/canonical_midi_exporter.dart';
+import '../../universal_importer/domain/canonical_musicxml_exporter.dart';
 import '../domain/i_media_io_port.dart';
 import '../domain/media_asset_entity.dart';
 import '../domain/media_synergy_target.dart';
@@ -59,6 +65,19 @@ class UniversalMediaIoService implements IMediaIoService {
         );
       }
       final peaks = _wavCodec.extractPeaks(decoded.monoSamples);
+      final float32Samples = Float32List.fromList(decoded.monoSamples);
+      final double estimatedBpm = decoded.monoSamples.length >= 2048
+          ? BpmBeatTrackerEngine.estimateBpm(
+              samples: float32Samples,
+              sampleRate: decoded.sampleRate,
+            ).clamp(40.0, 240.0)
+          : 120.0;
+      final String estimatedCamelot = decoded.monoSamples.length >= 512
+          ? DjHarmonicCamelotEngine.estimateCamelotKeyFromSamples(
+              float32Samples,
+              sampleRate: decoded.sampleRate,
+            ).code
+          : '8A';
       final asset = MediaAssetEntity(
         id: 'asset_${now.microsecondsSinceEpoch}',
         title: baseTitle,
@@ -66,6 +85,8 @@ class UniversalMediaIoService implements IMediaIoService {
         extensionName: 'wav',
         kind: MediaAssetKind.audioTrack,
         durationMs: decoded.durationMs,
+        bpm: estimatedBpm,
+        camelotKey: estimatedCamelot,
         sampleRate: decoded.sampleRate,
         tags: const <String>['wav', 'lossless'],
         createdAt: now,
@@ -169,11 +190,11 @@ class UniversalMediaIoService implements IMediaIoService {
       case MediaExportFormat.tunnerBundleJson:
         return _exportBundleJson(project, assetsById, '$baseName.tunner.json');
       case MediaExportFormat.midi:
-        return _exportSimpleMidi(project, '$baseName.mid');
+        return _exportSimpleMidi(project, assetsById, '$baseName.mid');
       case MediaExportFormat.musicXml:
-        return _exportMusicXml(project, '$baseName.musicxml');
+        return _exportMusicXml(project, assetsById, '$baseName.musicxml');
       case MediaExportFormat.abcNotation:
-        return _exportAbc(project, '$baseName.abc');
+        return _exportAbc(project, assetsById, '$baseName.abc');
     }
   }
 
@@ -309,7 +330,7 @@ class UniversalMediaIoService implements IMediaIoService {
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
       'timeline': project.toJson(),
       'assets': assetsById.values
-          .map((a) => a.toMetadataJson())
+          .map((a) => a.toMetadataJson(includeRawBytes: true))
           .toList(growable: false),
     };
     final jsonStr = const JsonEncoder.withIndent('  ').convert(payload);
@@ -322,92 +343,131 @@ class UniversalMediaIoService implements IMediaIoService {
     );
   }
 
-  MediaExportResult _exportSimpleMidi(
+  Future<HierarchicalScore> _buildScoreFromTimeline(
     TimelineProjectEntity project,
-    String fileName,
-  ) {
-    // Minimal Type-0 Standard MIDI File header + tempo meta-event for DAW sync
-    final usPerQuarter = (60000000 / project.masterBpm.clamp(40.0, 240.0)).round();
-    final trackData = <int>[
-      // Tempo meta event: delta 0, FF 51 03 tt tt tt
-      0x00, 0xFF, 0x51, 0x03,
-      (usPerQuarter >> 16) & 0xFF,
-      (usPerQuarter >> 8) & 0xFF,
-      usPerQuarter & 0xFF,
-      // End of track: delta 0, FF 2F 00
-      0x00, 0xFF, 0x2F, 0x00,
-    ];
-    final header = <int>[
-      0x4D, 0x54, 0x68, 0x64, // MThd
-      0x00, 0x00, 0x00, 0x06, // length 6
-      0x00, 0x00, // format 0
-      0x00, 0x01, // 1 track
-      0x01, 0xE0, // 480 ticks per quarter
-      0x4D, 0x54, 0x72, 0x6B, // MTrk
-      (trackData.length >> 24) & 0xFF,
-      (trackData.length >> 16) & 0xFF,
-      (trackData.length >> 8) & 0xFF,
-      trackData.length & 0xFF,
-      ...trackData,
-    ];
-    return MediaExportResult(
-      success: true,
-      fileName: fileName,
-      bytes: Uint8List.fromList(header),
-      message: 'Archivo MIDI SMF exportado (${project.masterBpm.toStringAsFixed(0)} BPM).',
+    Map<String, MediaAssetEntity> assetsById,
+  ) async {
+    final extractedMeasures = <MeasureEntity>[];
+    for (final track in project.tracks) {
+      if (!project.isTrackAudible(track)) continue;
+      for (final clip in track.clips) {
+        final asset = assetsById[clip.assetId];
+        if (asset?.rawBytes != null &&
+            _scoreImporter.canParse(asset!.fileName, asset.rawBytes!)) {
+          try {
+            final parsed = await _scoreImporter.parseScoreData(
+              bytes: asset.rawBytes!,
+              fileName: asset.fileName,
+            );
+            if (parsed.package.score.measures.isNotEmpty) {
+              extractedMeasures.addAll(parsed.package.score.measures);
+              continue;
+            }
+          } catch (_) {
+            // Fallback a eventos sintetizados desde metadatos del clip.
+          }
+        }
+
+        // Si el clip es de audio o no tiene partitura parseable, generar nota musical
+        // acorde a su clave Camelot y duracion en el timeline.
+        final camelot = DjHarmonicCamelotEngine.findByCode(asset?.camelotKey ?? '8A');
+        const noteNames = <String>[
+          'C4', 'C#4', 'D4', 'Eb4', 'E4', 'F4', 'F#4', 'G4', 'Ab4', 'A4', 'Bb4', 'B4',
+        ];
+        final noteName = noteNames[camelot.rootPitchClass % noteNames.length];
+        extractedMeasures.add(
+          MeasureEntity(
+            index: extractedMeasures.length,
+            timeSignature: TimeSignature.commonTime44,
+            notes: <HierarchicalNote>[
+              HierarchicalNote.note(
+                startTick: 0,
+                durationTicks: TimeSignature.commonTime44.totalTicks,
+                noteName: noteName,
+              ),
+            ],
+          ),
+        );
+      }
+    }
+
+    if (extractedMeasures.isEmpty) {
+      extractedMeasures.add(
+        MeasureEntity(
+          index: 0,
+          timeSignature: TimeSignature.commonTime44,
+          notes: <HierarchicalNote>[
+            HierarchicalNote.rest(
+              startTick: 0,
+              durationTicks: TimeSignature.commonTime44.totalTicks,
+            ),
+          ],
+        ),
+      );
+    }
+
+    final reindexed = List<MeasureEntity>.generate(
+      extractedMeasures.length,
+      (i) => extractedMeasures[i].copyWith(index: i),
+    );
+    return HierarchicalScore(
+      title: project.title,
+      baseBpm: project.masterBpm.round().clamp(40, 240),
+      measures: reindexed,
     );
   }
 
-  MediaExportResult _exportMusicXml(
+  Future<MediaExportResult> _exportSimpleMidi(
     TimelineProjectEntity project,
+    Map<String, MediaAssetEntity> assetsById,
     String fileName,
-  ) {
-    final xml = '''<?xml version="1.0" encoding="UTF-8"?>
-<score-partwise version="4.0">
-  <work>
-    <work-title>${project.title}</work-title>
-  </work>
-  <part-list>
-    <score-part id="P1">
-      <part-name>Tunner Timeline</part-name>
-    </score-part>
-  </part-list>
-  <part id="P1">
-    <measure number="1">
-      <attributes>
-        <divisions>1</divisions>
-        <time><beats>4</beats><beat-type>4</beat-type></time>
-      </attributes>
-      <sound tempo="${project.masterBpm.toStringAsFixed(0)}"/>
-      <note><rest/><duration>4</duration><type>whole</type></note>
-    </measure>
-  </part>
-</score-partwise>''';
+  ) async {
+    final score = await _buildScoreFromTimeline(project, assetsById);
+    final midiBytes = const CanonicalMidiExporter().exportScore(
+      score: score,
+      trackName: project.title,
+    );
+    return MediaExportResult(
+      success: true,
+      fileName: fileName,
+      bytes: midiBytes,
+      message: 'Archivo MIDI SMF exportado (${score.totalMeasures} compases, ${project.masterBpm.toStringAsFixed(0)} BPM).',
+    );
+  }
+
+  Future<MediaExportResult> _exportMusicXml(
+    TimelineProjectEntity project,
+    Map<String, MediaAssetEntity> assetsById,
+    String fileName,
+  ) async {
+    final score = await _buildScoreFromTimeline(project, assetsById);
+    final xml = const CanonicalMusicXmlExporter().exportScore(
+      score: score,
+      title: project.title,
+    );
     return MediaExportResult(
       success: true,
       fileName: fileName,
       bytes: Uint8List.fromList(utf8.encode(xml)),
-      message: 'Partitura MusicXML exportada.',
+      message: 'Partitura MusicXML exportada (${score.totalMeasures} compases).',
     );
   }
 
-  MediaExportResult _exportAbc(
+  Future<MediaExportResult> _exportAbc(
     TimelineProjectEntity project,
+    Map<String, MediaAssetEntity> assetsById,
     String fileName,
-  ) {
-    final abc = '''X:1
-T:${project.title}
-M:4/4
-L:1/4
-Q:1/4=${project.masterBpm.toStringAsFixed(0)}
-K:C
-z4 |]
-''';
+  ) async {
+    final score = await _buildScoreFromTimeline(project, assetsById);
+    final abc = const CanonicalAbcExporter().exportScore(
+      score: score,
+      title: project.title,
+    );
     return MediaExportResult(
       success: true,
       fileName: fileName,
       bytes: Uint8List.fromList(utf8.encode(abc)),
-      message: 'Notacion ABC exportada.',
+      message: 'Notacion ABC exportada (${score.totalMeasures} compases).',
     );
   }
 
@@ -420,15 +480,37 @@ z4 |]
           message: 'Estructura JSON invalida.',
         );
       }
+      TimelineProjectEntity? restoredTimeline;
+      final rawTimeline = decoded['timeline'];
+      if (rawTimeline is Map<String, dynamic>) {
+        restoredTimeline = TimelineProjectEntity.fromJson(rawTimeline);
+      }
       final rawAssets = decoded['assets'];
       if (rawAssets is List) {
         final imported = rawAssets
             .whereType<Map<String, dynamic>>()
-            .map(MediaAssetEntity.fromMetadataJson)
+            .map((json) {
+              var entity = MediaAssetEntity.fromMetadataJson(json);
+              if (entity.pcmSamples == null &&
+                  entity.rawBytes != null &&
+                  entity.extensionName.toLowerCase() == 'wav') {
+                final wav = _wavCodec.decode(entity.rawBytes!);
+                if (wav != null) {
+                  entity = entity.copyWith(
+                    pcmSamples: wav.monoSamples,
+                    waveformPeaks: entity.waveformPeaks.isEmpty
+                        ? _wavCodec.extractPeaks(wav.monoSamples)
+                        : entity.waveformPeaks,
+                  );
+                }
+              }
+              return entity;
+            })
             .toList(growable: false);
         return MediaImportResult(
           success: true,
           importedAssets: imported,
+          restoredTimeline: restoredTimeline,
           message: 'Paquete JSON importado (${imported.length} activos).',
         );
       }

@@ -19,7 +19,7 @@ class MediaVaultViewModel extends ChangeNotifier {
   final IMediaIoService _ioService;
   final IPlatformFileGateway? _fileGateway;
   final StudioFileSystemRepository? _fileSystemRepository;
-  final void Function(MediaAssetEntity asset, MediaSynergyTarget target)?
+  void Function(MediaAssetEntity asset, MediaSynergyTarget target)?
       onDispatchToTool;
 
   TimelineProjectEntity _timeline;
@@ -246,6 +246,9 @@ class MediaVaultViewModel extends ChangeNotifier {
     );
     if (result.success) {
       _repository.upsertAll(result.importedAssets);
+      if (result.restoredTimeline != null) {
+        _timeline = result.restoredTimeline!;
+      }
     }
     _statusMessage = result.message;
     notifyListeners();
