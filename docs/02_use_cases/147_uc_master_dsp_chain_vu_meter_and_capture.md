@@ -85,3 +85,23 @@ sequenceDiagram
 ### 3.3 Casos de Borde
 - **Búferes de longitud desigual o vacíos:** El método `processMasterStereoSamples` maneja listas vacías retornando inmediatamente sin alterar estado.
 - **Valores nulos o silencio absoluto:** Los cálculos de decibelios se protegen contra logaritmo de cero empleando una cota inferior de $-96.0\text{ dBFS}$ ($10^{-4.8}$).
+
+---
+
+## Flujos Alternativos y Manejo de Errores
+
+### Flujo Alternativo A1: Bus Maestro en Estado Silenciado (Mute) o Bypass Parcial
+1. Si `isMuted` está activo en `StudioAudioDeviceMatrixService`, el pipeline anula la amplitud de salida fijando todas las muestras L y R a `0.0` antes de la etapa de medición y grabación.
+2. Si `isEqBypassed` o `isCompBypassed` están habilitados individualmente, las muestras omiten el bloque Biquad o el procesador dinámico respectivo manteniendo la continuidad de fase hacia la etapa de ganancia maestra.
+
+### Flujo Alternativo A2: Colapso Monoaural Activo
+1. Si el modo `isMono` se encuentra habilitado, cada par estéreo $(L_i, R_i)$ se promedia mediante $M_i = 0.5 \cdot (L_i + R_i)$ previo a la ecualización y compresión.
+
+### Manejo de Errores E1: Búferes Vacíos o Desalineados
+1. Cuando `leftSamples` o `rightSamples` están vacíos, `processMasterStereoSamples` aborta la ejecución de forma segura sin emitir eventos inválidos ni escribir tramas vacías en `StudioMasterCaptureService`.
+2. Cuando las longitudes de los canales L y R difieren, el bucle de procesamiento opera sobre $\min(\text{left.length}, \text{right.length})$ evitando excepciones `RangeError` en tiempo real.
+
+### Manejo de Errores E2: Prevención de Singularidades Matemáticas y Saturación Digital
+1. Para muestras con energía nula ($V_{\text{RMS}} = 0$ o $V_{\text{Peak}} = 0$), la conversión logarítmica aplica un piso estricto de $-96.0\text{ dBFS}$, impidiendo valores `NaN` o `-Infinity` en el stream del vúmetro.
+2. Durante la exportación en `StudioMasterCaptureService`, cualquier muestra que exceda el rango $[-1.0, 1.0]$ es limitada mediante `clamp(-1.0, 1.0)` antes de la cuantización PCM para evitar desbordamiento aritmético.
+

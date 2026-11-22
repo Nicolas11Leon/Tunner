@@ -4,7 +4,7 @@
 - **ID del Plan:** `PLAN-US-1.2-2026-01`
 - **Título de la Implementación:** Cadena DSP Master, Vúmetro Balístico Real y Grabación Master
 - **Fase del Proyecto:** Fase 1 / Hardening Cero Hardcoding
-- **Estado:** Aprobado
+- **Estado:** Completado
 - **ADR Relacionado:** [ADR 0139](docs/04_adrs/0139_master_dsp_chain_vu_meter_and_capture.md)
 - **Documento Funcional Base:** [Caso de Uso 147](docs/02_use_cases/147_uc_master_dsp_chain_vu_meter_and_capture.md)
 
