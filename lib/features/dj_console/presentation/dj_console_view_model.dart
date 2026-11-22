@@ -434,12 +434,30 @@ class DjConsoleViewModel extends ChangeNotifier {
   }
 
   void toggleKeyLock(String deckId) {
-    _orchestrator.toggleKeyLock(deckId);
+    final id = _normalizeDeckId(deckId);
+    _orchestrator.toggleKeyLock(id);
+    _syncDeckPlaybackRate(id);
     if (!_isDisposed) notifyListeners();
   }
 
   void syncKey(String deckId) {
-    _orchestrator.syncKey(deckId);
+    final id = _normalizeDeckId(deckId);
+    _orchestrator.syncKey(id);
+    _syncDeckPlaybackRate(id);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void _syncDeckPlaybackRate(String deckId) {
+    final id = _normalizeDeckId(deckId);
+    final deck = id == 'A' ? deckA : deckB;
+    final rate = deck.effectivePlaybackRate.clamp(0.5, 2.0);
+    _deckAudioPlayer.setDeckPlaybackRate(id, rate);
+  }
+
+  void setTrim(String deckId, double trim) {
+    final id = _normalizeDeckId(deckId);
+    _orchestrator.setTrim(id, trim);
+    _syncAudioVolumes();
     if (!_isDisposed) notifyListeners();
   }
 
@@ -512,6 +530,42 @@ class DjConsoleViewModel extends ChangeNotifier {
   void toggleSplitCue() {
     _orchestrator.toggleSplitCue();
     if (!_isDisposed) notifyListeners();
+  }
+
+  /// Genera un búfer estéreo Split-Cue en tiempo real (Izquierda: Master, Derecha: Cue Monitor PFL)
+  /// utilizando [DjAudioProcessor.encodeSplitCueStereo].
+  Float32List generateSplitCueChunk({
+    required Float32List sliceA,
+    required Float32List sliceB,
+  }) {
+    final masterMono = _audioProcessor.mixBuffers(
+      bufferA: sliceA,
+      bufferB: sliceB,
+      gainA: _orchestrator.deckAGain,
+      gainB: _orchestrator.deckBGain,
+      eqLowA: deckA.isKillLow ? 0.0 : deckA.gainLow,
+      eqMidA: deckA.isKillMid ? 0.0 : deckA.gainMid,
+      eqHighA: deckA.isKillHigh ? 0.0 : deckA.gainHigh,
+      eqLowB: deckB.isKillLow ? 0.0 : deckB.gainLow,
+      eqMidB: deckB.isKillMid ? 0.0 : deckB.gainMid,
+      eqHighB: deckB.isKillHigh ? 0.0 : deckB.gainHigh,
+      filterA: fxA.filterPosition,
+      filterB: fxB.filterPosition,
+    );
+
+    final cueA = cueMonitor.cueDeckA ? sliceA : Float32List(sliceA.length);
+    final cueB = cueMonitor.cueDeckB ? sliceB : Float32List(sliceB.length);
+    final cueMono = _audioProcessor.mixBuffers(
+      bufferA: cueA,
+      bufferB: cueB,
+      gainA: 1.0,
+      gainB: 1.0,
+    );
+
+    return _audioProcessor.encodeSplitCueStereo(
+      masterMono: masterMono,
+      cueMono: cueMono,
+    );
   }
 
   /// Ejecuta una coreografía automatizada de 15 segundos para pruebas integrales de todos los subsistemas.
@@ -651,6 +705,16 @@ class DjConsoleViewModel extends ChangeNotifier {
       _deckAudioPlayer.seekDeck('A', Duration(milliseconds: deckA.currentPositionMs));
     } else if (action == DjAction.deckBBeatJumpForward || action == DjAction.deckBBeatJumpBack) {
       _deckAudioPlayer.seekDeck('B', Duration(milliseconds: deckB.currentPositionMs));
+    } else if (action == DjAction.deckAPitchUp ||
+        action == DjAction.deckAPitchDown ||
+        action == DjAction.deckASync ||
+        action == DjAction.deckAKeySync) {
+      _syncDeckPlaybackRate('A');
+    } else if (action == DjAction.deckBPitchUp ||
+        action == DjAction.deckBPitchDown ||
+        action == DjAction.deckBSync ||
+        action == DjAction.deckBKeySync) {
+      _syncDeckPlaybackRate('B');
     } else if (action == DjAction.triggerSamplerRiser) {
       _playSamplerPadSound(DjSamplerPadType.whiteNoiseRiser);
     } else if (action == DjAction.triggerSamplerDrop) {
