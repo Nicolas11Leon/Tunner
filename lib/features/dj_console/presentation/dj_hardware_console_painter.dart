@@ -714,6 +714,7 @@ class DjHardwareConsolePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant DjHardwareConsolePainter oldDelegate) {
+    if (getControlValue != null) return true;
     return oldDelegate.skin.id != skin.id ||
         oldDelegate.selectedZone?.id != selectedZone?.id ||
         oldDelegate.isLearnModeActive != isLearnModeActive ||

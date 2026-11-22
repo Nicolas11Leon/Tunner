@@ -19,7 +19,6 @@ import '../../../core/docking/domain/studio_dock_layout_entity.dart';
 import '../../../core/docking/domain/studio_dock_zone.dart';
 import '../../../core/docking/presentation/studio_dockable_panel_entity.dart';
 import '../../../core/docking/presentation/studio_workspace_docking_container.dart';
-import '../data/dj_console_blueprint_storage_service.dart';
 import 'dj_console_model_builder_modal.dart';
 import 'dj_console_view_model.dart';
 import 'dj_interactive_keymap_visualizer_modal.dart';
@@ -521,6 +520,8 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
     final xfader = profile.findKeyBadgeForAction(DjAction.crossfaderCenter) ?? 'N';
     final pitchA = profile.findKeyBadgeForAction(DjAction.deckAPitchUp) ?? 'S';
     final pitchB = profile.findKeyBadgeForAction(DjAction.deckBPitchUp) ?? 'K';
+    final hotCueA = profile.findKeyBadgeForAction(DjAction.deckAHotCue1) ?? '1..4';
+    final hotCueB = profile.findKeyBadgeForAction(DjAction.deckBHotCue1) ?? '5..8';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -548,6 +549,8 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                   _buildHudBadge('[$syncA / $syncB]', 'SYNC A / B'),
                   _buildHudBadge('[$xfader]', 'X-Fader Centro'),
                   _buildHudBadge('[$pitchA / $pitchB]', 'Pitch Up A / B'),
+                  _buildHudBadge('[$hotCueA]', 'Hot Cues A'),
+                  _buildHudBadge('[$hotCueB]', 'Hot Cues B'),
                   _buildHudBadge('[PADS 1..8]', 'Sampler Club'),
                   _buildHudBadge('[JOG / RUEDA]', 'Scratch / Nudge'),
                 ],
@@ -747,7 +750,7 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                 context,
                 vm,
                 TunnerThemePalette.obsidianStudio,
-                storageService: DjConsoleBlueprintStorageService(),
+                storageService: vm.blueprintStorageService,
               ),
             ),
             const SizedBox(width: 8),

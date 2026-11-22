@@ -13,6 +13,7 @@ import '../../song_library/domain/song_decomposer_service.dart';
 import '../domain/dj_audio_processor.dart';
 import '../domain/dj_gamepad_input_service.dart';
 import '../domain/dj_hardware_catalog.dart';
+import '../domain/i_dj_console_blueprint_storage_service.dart';
 import '../domain/i_dj_keymap_persistence_service.dart';
 import '../domain/dj_mix_wav_encoder.dart';
 import '../domain/dj_transition_sfx_synthesizer.dart';
@@ -45,6 +46,9 @@ class DjConsoleViewModel extends ChangeNotifier {
   final IAudioSynthesizerService _audioSynthesizer;
   final StudioFileSystemRepository _fileSystemRepository;
   final IPlatformFileGateway _fileGateway;
+  final IDjConsoleBlueprintStorageService _blueprintStorageService;
+
+  IDjConsoleBlueprintStorageService get blueprintStorageService => _blueprintStorageService;
   late final DjGamepadInputService _inputService;
 
   Timer? _playbackTicker;
@@ -89,13 +93,15 @@ class DjConsoleViewModel extends ChangeNotifier {
     IAudioSynthesizerService? audioSynthesizer,
     StudioFileSystemRepository? fileSystemRepository,
     IPlatformFileGateway? fileGateway,
+    IDjConsoleBlueprintStorageService? blueprintStorageService,
   })  : _orchestrator = orchestrator ?? DjPerformanceOrchestrator(),
         _persistenceService = persistenceService ?? const NoOpDjKeymapPersistenceService(),
         _audioProcessor = audioProcessor ?? DjAudioProcessor(),
         _deckAudioPlayer = deckAudioPlayer ?? MemoryDjDeckAudioPlayer(),
         _audioSynthesizer = audioSynthesizer ?? const NoOpAudioSynthesizerService(),
         _fileSystemRepository = fileSystemRepository ?? const NoOpStudioFileSystemRepository(),
-        _fileGateway = fileGateway ?? const NoOpPlatformFileGateway() {
+        _fileGateway = fileGateway ?? const NoOpPlatformFileGateway(),
+        _blueprintStorageService = blueprintStorageService ?? const NoOpDjConsoleBlueprintStorageService() {
     _inputService = inputService ??
         DjGamepadInputService(
           profile: DjControllerProfileEntity.defaultUnified(),
@@ -1203,7 +1209,8 @@ class DjConsoleViewModel extends ChangeNotifier {
 
     switch (zone.controlType) {
       case DjControlType.jogWheel:
-        return isDeckB ? rotationAngleB : rotationAngleA;
+        final rawAngle = isDeckB ? rotationAngleB : rotationAngleA;
+        return ((rawAngle % (2.0 * math.pi)) / (2.0 * math.pi)).clamp(0.0, 1.0);
 
       case DjControlType.fader:
         if (lowerId.contains('crossfader') || zone.action == DjAction.crossfaderCenter) {
@@ -1220,7 +1227,10 @@ class DjConsoleViewModel extends ChangeNotifier {
 
       case DjControlType.knob:
         if (lowerId.contains('filter') ||
-            zone.action == DjAction.deckAFilterSweepRight || zone.action == DjAction.deckBFilterSweepRight) {
+            zone.action == DjAction.deckAFilterSweepRight ||
+            zone.action == DjAction.deckBFilterSweepRight ||
+            zone.action == DjAction.deckAFilterReset ||
+            zone.action == DjAction.deckBFilterReset) {
           // Bipolar filter [-1.0, 1.0] -> [0.0, 1.0]
           return ((fx.filterPosition + 1.0) / 2.0).clamp(0.0, 1.0);
         }
@@ -1267,7 +1277,7 @@ class DjConsoleViewModel extends ChangeNotifier {
           setCrossfaderPosition(nextPos);
         } else if (lowerId.contains('pitch') || lowerId.contains('tempo') ||
             zone.action == DjAction.deckAPitchUp || zone.action == DjAction.deckBPitchUp) {
-          adjustPitch(targetDeck, -delta * 0.16);
+          adjustPitch(targetDeck, -delta * 0.32);
         } else {
           // Channel fader: subir arrastrando hacia arriba (-delta)
           final newVol = (deck.volume - delta).clamp(0.0, 1.0);
@@ -1277,7 +1287,10 @@ class DjConsoleViewModel extends ChangeNotifier {
 
       case DjControlType.knob:
         if (lowerId.contains('filter') ||
-            zone.action == DjAction.deckAFilterSweepRight || zone.action == DjAction.deckBFilterSweepRight) {
+            zone.action == DjAction.deckAFilterSweepRight ||
+            zone.action == DjAction.deckBFilterSweepRight ||
+            zone.action == DjAction.deckAFilterReset ||
+            zone.action == DjAction.deckBFilterReset) {
           final nextFilter = (fx.filterPosition - (delta * 2.0)).clamp(-1.0, 1.0);
           setChannelFilter(targetDeck, nextFilter);
         } else if (lowerId.contains('high') || lowerId.contains('_hi') ||

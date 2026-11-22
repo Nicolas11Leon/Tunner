@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/tunner_theme.dart';
-import '../data/dj_console_blueprint_storage_service.dart';
 import '../domain/dj_action.dart';
 import '../domain/dj_console_blueprint_entity.dart';
 import '../domain/dj_hardware_catalog.dart';
 import '../domain/dj_hardware_skin_entity.dart';
 import '../domain/dj_keymap_profile_entity.dart';
 import '../domain/dj_skin_zone_entity.dart';
+import '../domain/i_dj_console_blueprint_storage_service.dart';
 import 'dj_console_view_model.dart';
 
 /// Modal interactivo para crear, emular, editar y programar cualquier modelo de consola DJ física.
@@ -31,7 +31,7 @@ class DjConsoleModelBuilderModal extends StatefulWidget {
     TunnerThemePalette palette, {
     IDjConsoleBlueprintStorageService? storageService,
   }) {
-    final effectiveStorage = storageService ?? DjConsoleBlueprintStorageService();
+    final effectiveStorage = storageService ?? viewModel.blueprintStorageService;
     return showDialog(
       context: context,
       barrierDismissible: true,
