@@ -2,8 +2,8 @@
 
 - **Issue:** #171
 - **Estado:** Completado
-- **Casos de Uso:** UC-154
-- **ADR:** ADR-0146
+- **Casos de Uso:** UC-172 (`docs/02_use_cases/172_uc_automations_customizations_and_workspace_persistence.md`)
+- **ADR:** ADR-0164 (`docs/04_adrs/0164_persisted_customizations_workspace_config_and_automations.md`)
 
 ## Tareas Técnicas
 1. Extender `AppUserSettingsEntity` con `dspEngineName`, `targetRenderFps`, `centsPrecision` y `workspaceConfiguration`.

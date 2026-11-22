@@ -1,4 +1,4 @@
-# ADR-0146: Persistencia de Customizaciones DSP, Configuración de Workspaces y Automatizaciones Reales
+# ADR-0164: Persistencia de Customizaciones DSP, Configuración de Workspaces y Automatizaciones Reales
 
 - **Estado:** Aceptado
 - **Fecha:** 2026-11-22

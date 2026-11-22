@@ -1,7 +1,7 @@
-# UC-154: Automatizaciones de Estudio, Customización DSP y Persistencia de Workspaces
+# UC-172: Automatizaciones de Estudio, Customización DSP y Persistencia de Workspaces
 
 ## 1. Identificación
-- **ID:** UC-154
+- **ID:** UC-172
 - **Historia de Usuario:** US-6.5
 - **Actor Principal:** Músico / Estudiante / Ingeniero de Estudio
 - **Precondiciones:** `TunerViewModel` inicializado con `ILocalPersistenceService` y `IPitchDetectorService`.
