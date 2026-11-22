@@ -1,10 +1,10 @@
-# UC-151: Evaluacion Medida de Timing/Sustain, Reportes Sin Datos Sinteticos y Clasificador Armonico Real
+# UC-169: Evaluacion Medida de Timing/Sustain, Reportes Sin Datos Sinteticos y Clasificador Armonico Real
 
 ## 1. Informacion General
 
 | Campo | Valor |
 | :--- | :--- |
-| **ID** | UC-151 |
+| **ID** | UC-169 |
 | **Historia de Usuario** | US-6.2 (EPIC-06) |
 | **Actores** | Musico / Estudiante (Usuario), `TunerViewModel`, `PracticeEvaluator`, `HarmonicSeriesAnalyzer`, `ScoreEditorController`, `PedagogicalReportModal`, `PolyphonicLiveVoicingWidget` |
 | **Precondiciones** | El usuario ejecuta una sesion de practica guiada, solicita un reporte pedagogico o inspecciona el espectro polifonico con microfono activo. |

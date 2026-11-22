@@ -1,6 +1,8 @@
 # Plan de Implementacion US-6.2: Evaluacion Medida, Reportes Reales y Clasificador Armonico DFT
 
 - **Issue:** #165
+- **Caso de Uso:** `UC-169` (`docs/02_use_cases/169_uc_real_pedagogy_timing_reports_and_harmonic_classifier.md`)
+- **ADR:** `ADR-0161` (`docs/04_adrs/0161_real_subtick_practice_evaluation_and_dft_timbre_telemetry.md`)
 - **Rama:** `feature/us-6.2-real-pedagogy-timing-and-harmonic-classifier`
 - **Base:** `qa`
 - **Estado:** Completado (Validado con `flutter analyze --no-fatal-infos` 0 issues y 49/49 tests aprobados)

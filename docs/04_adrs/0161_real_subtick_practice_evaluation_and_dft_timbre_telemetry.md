@@ -1,4 +1,4 @@
-# ADR-0143: Evaluacion Acumulada por Sub-Ticks y Telemetria Timbral DFT en Pedagogia
+# ADR-0161: Evaluacion Acumulada por Sub-Ticks y Telemetria Timbral DFT en Pedagogia
 
 - **Estado:** Aceptado
 - **Fecha:** 2026-11-22
