@@ -62,6 +62,7 @@ import '../../audio_synthesizer/domain/stem_audio_synthesizer.dart';
 import '../../guided_lessons/domain/guided_lesson_entity.dart';
 import '../../guided_lessons/domain/guided_lesson_evaluator.dart';
 import '../../vocal_autotune/domain/autotune_config_entity.dart';
+import '../../vocal_autotune/domain/i_vocal_take_file_gateway.dart';
 import '../../vocal_autotune/domain/scale_quantizer.dart';
 import '../../vocal_autotune/domain/vocal_autotune_processor.dart';
 import '../../vocal_autotune/domain/vocal_score_converter.dart';
@@ -239,6 +240,7 @@ class TunerViewModel extends ChangeNotifier
     PolyphonicMultiToneDetector? multiToneDetector,
     GuidedLessonEvaluator? guidedLessonEvaluator,
     VocalAutoTuneProcessor? autoTuneProcessor,
+    IVocalTakeFileGateway? vocalTakeFileGateway,
     ISoundFontSynthesizerService? soundFontSynthesizer,
     PolyphonicVoicePool? polyphonicVoicePool,
     ScorePlaybackCoordinator? scorePlaybackCoordinator,
@@ -292,6 +294,8 @@ class TunerViewModel extends ChangeNotifier
     _vocalPedagogyController = VocalPedagogyController(
       guidedLessonEvaluator: guidedLessonEvaluator ?? GuidedLessonEvaluator(),
       autoTuneProcessor: autoTuneProcessor ?? VocalAutoTuneProcessor(),
+      vocalTakeFileGateway: vocalTakeFileGateway ?? const NoOpVocalTakeFileGateway(),
+      logger: _logger,
       onNotify: notifyListeners,
       onAutoSave: _triggerAutoSave,
     );
@@ -2599,15 +2603,15 @@ class TunerViewModel extends ChangeNotifier
   void updateAutoTuneConfig(AutoTuneConfigEntity config) =>
       _vocalPedagogyController.updateAutoTuneConfig(config);
 
-  PracticeTakeEntity? applyAutoTuneToRecordingTake(String takeId) {
-    final res = _vocalPedagogyController.applyAutoTuneToRecordingTake(
+  Future<PracticeTakeEntity?> applyAutoTuneToRecordingTake(String takeId) async {
+    final res = await _vocalPedagogyController.applyAutoTuneToRecordingTake(
       session: _recorderController.multiTrackSession,
       takeId: takeId,
     );
     if (res == null) return null;
     _recorderController.setMultiTrackSession(res.session);
     notifyListeners();
-    _triggerAutoSave();
+    await _triggerAutoSave();
     return res.tunedTake;
   }
 
