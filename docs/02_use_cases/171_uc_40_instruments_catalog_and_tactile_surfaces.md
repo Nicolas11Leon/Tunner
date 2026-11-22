@@ -1,10 +1,10 @@
-# UC-153: Catalogo Unificado de 40 Instrumentos (Hornbostel-Sachs) y Superficies Tactiles Interactivas
+# UC-171: Catalogo Unificado de 40 Instrumentos (Hornbostel-Sachs) y Superficies Tactiles Interactivas
 
 ## 1. Informacion General
 
 | Campo | Valor |
 | :--- | :--- |
-| **ID** | UC-153 |
+| **ID** | UC-171 |
 | **Historia de Usuario** | US-6.4 (EPIC-06) |
 | **Actores** | Musico / Estudiante (Usuario), `InstrumentSelectorModal`, `InstrumentProfileEntity`, `FretboardTactileWidget`, `InstrumentEmulationSurfaceWidget` |
 | **Precondiciones** | El usuario abre `InstrumentSelectorModal` o interactua con `FretboardTactileWidget` o `InstrumentEmulationSurfaceWidget`. |

@@ -1,6 +1,8 @@
 # Plan de Implementacion US-6.4: Catalogo de 40 Instrumentos y Superficies Tactiles
 
 - **Issue:** #169
+- **Caso de Uso:** `UC-171` (`docs/02_use_cases/171_uc_40_instruments_catalog_and_tactile_surfaces.md`)
+- **ADR:** `ADR-0163` (`docs/04_adrs/0163_unified_40_instruments_profile_and_tactile_physics.md`)
 - **Rama:** `feature/us-6.4-40-instruments-fretboard-and-wind-keys`
 - **Base:** `qa`
 - **Estado:** Completado

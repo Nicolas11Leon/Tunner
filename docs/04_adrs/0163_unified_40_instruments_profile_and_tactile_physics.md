@@ -1,4 +1,4 @@
-# ADR-0145: Sincronizacion de 40 Instrumentos y Fisica Temperada en Superficies Tactiles
+# ADR-0163: Sincronizacion de 40 Instrumentos y Fisica Temperada en Superficies Tactiles
 
 - **Estado:** Aceptado
 - **Fecha:** 2026-11-22
