@@ -160,8 +160,14 @@ class CanonicalPdfExporter {
     buf.writeln('1.2 w');
     buf.writeln('$marginLeft $staffBottomY m $marginLeft $systemTopY l S');
 
-    // 3. Clave de Sol estilizada (Treble Clef)
-    _renderTrebleClef(buf, x: marginLeft + 8.0, bottomY: staffBottomY);
+    // 3. Clave estilizada SMuFL (Clave de Fa si el sistema está en registro grave, o Clave de Sol)
+    final isBassClef = measures.isNotEmpty &&
+        measures.any((m) => m.notes.any((n) => !n.isRest && (n.noteName.contains('2') || n.noteName.contains('1'))));
+    if (isBassClef) {
+      _renderBassClef(buf, x: marginLeft + 8.0, bottomY: staffBottomY);
+    } else {
+      _renderTrebleClef(buf, x: marginLeft + 8.0, bottomY: staffBottomY);
+    }
 
     double currentX = marginLeft + 35.0;
 
@@ -213,15 +219,81 @@ class CanonicalPdfExporter {
     }
   }
 
-  /// Renderiza un glifo vectorial compacto para la Clave de Sol sobre la segunda línea (Sol4).
+  /// Renderiza un glifo vectorial estilizado SMuFL para la Clave de Sol sobre la segunda línea (Sol4).
   void _renderTrebleClef(StringBuffer buf, {required double x, required double bottomY}) {
-    buf.writeln('0.9 w');
-    // Eje vertical y espiral envolvente
+    buf.writeln('1.1 w');
     final gLineY = bottomY + staffSpace; // Línea 2
-    buf.writeln('$x ${bottomY - 4.0} m ${x + 2.0} ${bottomY + staffHeight + 8.0} l S');
-    buf.writeln('${x + 2.0} ${bottomY + staffHeight + 8.0} m ${x + 8.0} ${bottomY + staffHeight + 2.0} l ${x - 2.0} $gLineY l S');
-    // Cabeza espiral sobre la línea Sol
-    buf.writeln('${x - 2.0} $gLineY m ${x + 6.0} $gLineY l ${x + 6.0} ${gLineY - 4.0} l $x ${gLineY - 4.0} l f');
+    final topY = bottomY + staffHeight + 10.0;
+    final botY = bottomY - 6.0;
+
+    buf.writeln('$x $botY m');
+    buf.writeln('${x - 4.0} ${botY + 2.0} ${x - 3.0} ${botY + 6.0} ${x + 1.0} ${botY + 6.0} c');
+    buf.writeln('${x + 3.0} ${botY + 6.0} ${x + 3.0} ${botY + 12.0} $x ${gLineY - 4.0} c');
+    buf.writeln('${x - 7.0} $gLineY ${x - 6.0} ${gLineY + 9.0} $x ${gLineY + 9.0} c');
+    buf.writeln('${x + 6.0} ${gLineY + 9.0} ${x + 7.0} $gLineY $x ${gLineY - 2.0} c');
+    buf.writeln('${x - 3.5} ${gLineY - 2.0} ${x - 2.5} ${gLineY + 4.0} $x ${gLineY + 4.0} c');
+    buf.writeln('${x + 3.0} ${gLineY + 12.0} ${x - 2.0} ${topY - 6.0} $x $topY c');
+    buf.writeln('${x + 2.0} $topY ${x + 3.5} ${topY - 4.0} $x ${topY - 8.0} c');
+    buf.writeln('$x $botY l S');
+
+    // Gota / punto terminal inferior
+    buf.writeln('${x - 2.0} ${botY + 2.0} 3.0 3.0 re f');
+  }
+
+  /// Renderiza un glifo vectorial estilizado SMuFL para la Clave de Fa sobre la cuarta línea (Fa3).
+  void _renderBassClef(StringBuffer buf, {required double x, required double bottomY}) {
+    final fLineY = bottomY + (staffSpace * 3.0); // Línea 4
+    buf.writeln('1.4 w');
+    buf.writeln('$x $fLineY m');
+    buf.writeln('${x + 2.0} ${fLineY + 7.0} ${x + 11.0} ${fLineY + 5.0} ${x + 11.0} $fLineY c');
+    buf.writeln('${x + 11.0} ${fLineY - 7.0} ${x + 4.0} ${fLineY - 12.0} ${x - 2.0} ${fLineY - 16.0} c S');
+
+    // Punto principal sobre línea 4
+    buf.writeln('${x - 2.0} ${fLineY - 2.0} 4.0 4.0 re f');
+
+    // Dos puntos en espacios 3 y 4
+    buf.writeln('${x + 15.0} ${fLineY + 2.0} 2.4 2.4 re f');
+    buf.writeln('${x + 15.0} ${fLineY - 4.5} 2.4 2.4 re f');
+  }
+
+  /// Dibuja una alteracion musical (#, b o n) antes de la cabeza de nota en PDF.
+  void _renderAccidental(StringBuffer buf, {required String accidental, required double x, required double y}) {
+    buf.writeln('0.9 w');
+    if (accidental == '#' || accidental == '♯') {
+      buf.writeln('${x - 2.0} ${y - 8.0} m ${x - 2.0} ${y + 8.0} l S');
+      buf.writeln('${x + 2.0} ${y - 7.0} m ${x + 2.0} ${y + 9.0} l S');
+      buf.writeln('1.6 w');
+      buf.writeln('${x - 4.0} ${y - 1.5} m ${x + 4.0} ${y + 1.5} l S');
+      buf.writeln('${x - 4.0} ${y + 3.0} m ${x + 4.0} ${y + 6.0} l S');
+    } else if (accidental == 'b' || accidental == '♭' || accidental == 'B') {
+      buf.writeln('${x - 2.0} ${y - 4.0} m ${x - 2.0} ${y + 10.0} l S');
+      buf.writeln('${x - 2.0} ${y - 4.0} m ${x + 2.5} ${y - 3.0} ${x + 2.5} ${y + 3.0} ${x - 2.0} ${y + 2.0} c f');
+    } else if (accidental == 'n' || accidental == '♮' || accidental == 'N') {
+      buf.writeln('${x - 2.0} ${y - 8.0} m ${x - 2.0} ${y + 5.0} l S');
+      buf.writeln('${x + 2.0} ${y - 5.0} m ${x + 2.0} ${y + 8.0} l S');
+      buf.writeln('1.4 w');
+      buf.writeln('${x - 2.0} ${y + 4.0} m ${x + 2.0} ${y + 5.0} l S');
+      buf.writeln('${x - 2.0} ${y - 4.0} m ${x + 2.0} ${y - 3.0} l S');
+    }
+  }
+
+  /// Extrae el símbolo de alteración tonal si está presente en el nombre de la nota.
+  String? _extractAccidental(String rawName) {
+    if (rawName.contains('#') || rawName.contains('♯')) return '#';
+    if (rawName.contains('♭')) return 'b';
+    if (rawName.contains('♮')) return 'n';
+    final upper = rawName.toUpperCase().trim();
+    if (upper.startsWith('DO') || upper.startsWith('RE') || upper.startsWith('MI') ||
+        upper.startsWith('FA') || upper.startsWith('SOL') || upper.startsWith('LA') ||
+        upper.startsWith('SI')) {
+      if (upper.contains('#')) return '#';
+      if (upper.contains('B')) return 'b';
+    } else if (upper.length >= 2) {
+      final second = upper[1];
+      if (second == '#' || second == '♯') return '#';
+      if (second == 'B' || second == '♭') return 'b';
+    }
+    return null;
   }
 
   /// Renderiza la indicación métrica real en el pentagrama.
@@ -265,14 +337,20 @@ class CanonicalPdfExporter {
       final diatonicOffset = _diatonicStepsFromE4(note.noteName);
       final noteCenterY = bottomY + (diatonicOffset * (staffSpace / 2.0));
 
-      // 1. Líneas adicionales (Ledger lines)
+      // 1. Alteracion musical tonal (#, b, n)
+      final accidental = _extractAccidental(note.noteName);
+      if (accidental != null) {
+        _renderAccidental(buf, accidental: accidental, x: noteX - 8.0, y: noteCenterY);
+      }
+
+      // 2. Líneas adicionales (Ledger lines)
       _renderLedgerLines(buf, diatonicOffset: diatonicOffset, noteX: noteX, bottomY: bottomY);
 
-      // 2. Cabeza de la nota (Notehead)
+      // 3. Cabeza de la nota (Notehead)
       final isHollow = (note.durationTicks >= 8); // Blanca (8 ticks) o Redonda (16 ticks)
       _renderNotehead(buf, x: noteX, y: noteCenterY, isHollow: isHollow);
 
-      // 3. Plica (Stem) y Banderas (Flags)
+      // 4. Plica (Stem) y Banderas (Flags)
       if (note.durationTicks < 16) {
         // Redonda no lleva plica
         final isStemUp = (diatonicOffset < 4); // Notas por debajo de la línea 3 (Si4)
@@ -379,8 +457,12 @@ class CanonicalPdfExporter {
       _renderWholeRest(buf, x: x, bottomY: bottomY);
     } else if (ticks >= 8) {
       _renderHalfRest(buf, x: x, bottomY: bottomY);
-    } else {
+    } else if (ticks >= 4) {
       _renderQuarterRest(buf, x: x, bottomY: bottomY);
+    } else if (ticks >= 2) {
+      _renderEighthRest(buf, x: x, bottomY: bottomY);
+    } else {
+      _renderSixteenthRest(buf, x: x, bottomY: bottomY);
     }
   }
 
@@ -401,6 +483,23 @@ class CanonicalPdfExporter {
     final midY = bottomY + (staffSpace * 2.0);
     buf.writeln('1.2 w');
     buf.writeln('${x - 2.0} ${midY + 10.0} m ${x + 3.0} ${midY + 4.0} l ${x - 3.0} $midY l ${x + 2.0} ${midY - 6.0} l ${x - 1.0} ${midY - 10.0} l S');
+  }
+
+  /// Silencio de Corchea (gota y plica oblicua).
+  void _renderEighthRest(StringBuffer buf, {required double x, required double bottomY}) {
+    final y = bottomY + (staffSpace * 2.0);
+    buf.writeln('1.0 w');
+    buf.writeln('${x + 2.0} ${y + 7.0} m ${x - 3.0} ${y - 7.0} l S');
+    buf.writeln('${x - 1.0} ${y + 4.0} 2.5 2.5 re f');
+  }
+
+  /// Silencio de Semicorchea (dos gotas y plica oblicua).
+  void _renderSixteenthRest(StringBuffer buf, {required double x, required double bottomY}) {
+    final y = bottomY + (staffSpace * 2.0);
+    buf.writeln('1.0 w');
+    buf.writeln('${x + 2.0} ${y + 10.0} m ${x - 4.0} ${y - 8.0} l S');
+    buf.writeln('${x - 1.0} ${y + 6.0} 2.2 2.2 re f');
+    buf.writeln('${x - 2.5} ${y + 0.5} 2.2 2.2 re f');
   }
 
   /// Pie de página con numeración y marca de agua de software libre.

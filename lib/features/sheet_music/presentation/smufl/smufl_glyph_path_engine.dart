@@ -9,6 +9,37 @@ import 'package:flutter/material.dart';
 class SmuflGlyphPathEngine {
   const SmuflGlyphPathEngine();
 
+  // W3C SMuFL 1.4 Canonical Codepoints (Bravura reference mapping)
+  static const int codepointGClef = 0xE050;
+  static const int codepointFClef = 0xE062;
+  static const int codepointCClef = 0xE05C;
+  static const int codepointNoteheadWhole = 0xE0A2;
+  static const int codepointNoteheadHalf = 0xE0A3;
+  static const int codepointNoteheadBlack = 0xE0A4;
+  static const int codepointAugmentationDot = 0xE1E7;
+  static const int codepointFlag8thUp = 0xE240;
+  static const int codepointFlag8thDown = 0xE241;
+  static const int codepointFlag16thUp = 0xE242;
+  static const int codepointFlag16thDown = 0xE243;
+  static const int codepointAccidentalFlat = 0xE260;
+  static const int codepointAccidentalNatural = 0xE261;
+  static const int codepointAccidentalSharp = 0xE262;
+  static const int codepointRestWhole = 0xE4E3;
+  static const int codepointRestHalf = 0xE4E4;
+  static const int codepointRestQuarter = 0xE4E5;
+  static const int codepointRest8th = 0xE4E6;
+  static const int codepointRest16th = 0xE4E7;
+
+  /// Retorna el punto de anclaje de plica ascendente (`stemUpSE`) relativo al centro de la nota.
+  Offset getStemUpAnchor(double staffSpace) {
+    return Offset(staffSpace * 0.58, -staffSpace * 0.16);
+  }
+
+  /// Retorna el punto de anclaje de plica descendente (`stemDownNW`) relativo al centro de la nota.
+  Offset getStemDownAnchor(double staffSpace) {
+    return Offset(-staffSpace * 0.58, staffSpace * 0.16);
+  }
+
   /// Dibuja una cabeza de nota musical vectorial con la rotación y proporciones canónicas de SMuFL.
   ///
   /// - Negra / Corchea ([noteheadBlack]): Elipse rellena inclinada a ~14 grados.
@@ -63,6 +94,20 @@ class SmuflGlyphPathEngine {
     }
 
     canvas.restore();
+  }
+
+  /// Dibuja un puntillo de aumentacion vectorial SMuFL (`augmentationDot`, U+E1E7).
+  void drawAugmentationDot(
+    Canvas canvas, {
+    required Offset center,
+    required double staffSpace,
+    required Color color,
+  }) {
+    final dotRadius = staffSpace * 0.20;
+    final dotPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, dotRadius, dotPaint);
   }
 
   /// Dibuja la plica de una nota musical con anclaje al borde exacto de la cabeza.
@@ -240,6 +285,52 @@ class SmuflGlyphPathEngine {
     // Dos puntos canónicos en espacios 3 y 4 (arriba y abajo de la línea 4)
     canvas.drawCircle(const Offset(18, -5), 2.4, fillPaint);
     canvas.drawCircle(const Offset(18, 5), 2.4, fillPaint);
+
+    canvas.restore();
+  }
+
+  /// Dibuja la Clave de Do vectorial SMuFL (`cClef`, U+E05C), centrada en la línea seleccionada.
+  void drawCClef(
+    Canvas canvas, {
+    required Offset anchorLine,
+    required double staffSpace,
+    required Color color,
+  }) {
+    canvas.save();
+    canvas.translate(anchorLine.dx, anchorLine.dy);
+
+    final scale = staffSpace / 10.0;
+    canvas.scale(scale, scale);
+
+    final strokePaint = Paint()
+      ..color = color
+      ..strokeWidth = 2.2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final fillPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Dos barras verticales a la izquierda
+    canvas.drawLine(const Offset(-10, -20), const Offset(-10, 20), strokePaint);
+    canvas.drawRect(const Rect.fromLTWH(-7, -20, 2.5, 40), fillPaint);
+
+    // Arcos superior e inferior que confluyen en la línea central (y = 0)
+    final path = Path();
+    path.moveTo(-4, -20);
+    path.cubicTo(6, -20, 8, -10, -4, 0);
+    path.cubicTo(8, 10, 6, 20, -4, 20);
+    canvas.drawPath(path, strokePaint);
+
+    // Muesca central
+    final notch = Path();
+    notch.moveTo(-4, -4);
+    notch.lineTo(0, 0);
+    notch.lineTo(-4, 4);
+    notch.close();
+    canvas.drawPath(notch, fillPaint);
 
     canvas.restore();
   }
