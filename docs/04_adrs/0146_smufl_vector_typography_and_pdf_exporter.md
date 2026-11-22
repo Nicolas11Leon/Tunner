@@ -12,7 +12,7 @@ Sin embargo:
 ## Decision
 1. Implementar en `SmuflGlyphPathEngine` el repertorio canonico SMuFL 1.4:
    - `gClef` (`U+E050`), `fClef` (`U+E062`), `cClef` (`U+E05C`).
-   - Cabezas de notas `noteheadWhole` (`U+E0A2`), `noteheadHalf` (`U+E0A3`), `noteheadBlack` (`U+E0A4`) con anclajes estandar `stemUpSE = (0.59 * sp, 0.18 * sp)` y `stemDownNW = (-0.59 * sp, -0.18 * sp)`.
+   - Cabezas de notas `noteheadWhole` (`U+E0A2`), `noteheadHalf` (`U+E0A3`), `noteheadBlack` (`U+E0A4`) con anclajes estandar `stemUpSE = (0.58 * sp, -0.16 * sp)` y `stemDownNW = (-0.58 * sp, 0.16 * sp)` conectados en `drawStem`.
    - Banderas `flag8thUp` (`U+E240`), `flag8thDown` (`U+E241`), `flag16thUp` (`U+E242`), `flag16thDown` (`U+E243`).
    - Alteraciones `accidentalSharp` (`U+E262`), `accidentalFlat` (`U+E260`), `accidentalNatural` (`U+E261`).
    - Silencios `restWhole` (`U+E4E3`), `restHalf` (`U+E4E4`), `restQuarter` (`U+E4E5`), `rest8th` (`U+E4E6`), `rest16th` (`U+E4E7`).

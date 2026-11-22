@@ -113,6 +113,35 @@ void main() {
       expect(pdfString.contains(' c'), isTrue);
       expect(pdfString.contains(' m'), isTrue);
       expect(pdfString.contains(' l'), isTrue);
+      // Verificar que el becuadro ('En4') emitio su comando de grosor PostScript ('1.4 w')
+      expect(pdfString.contains('1.4 w'), isTrue);
+    });
+
+    test('CanonicalPdfExporter renderiza notas en Clave de Fa respecto a Sol2 (G2, paso 18)', () {
+      final bassScore = HierarchicalScore(
+        title: 'Estudio en Clave de Fa',
+        baseBpm: 90,
+        measures: [
+          MeasureEntity(
+            index: 0,
+            timeSignature: TimeSignature.commonTime44,
+            notes: const [
+              HierarchicalNote(startTick: 0, noteName: 'G2', durationTicks: 4), // Linea 1 en clave de Fa (offset 0)
+              HierarchicalNote(startTick: 4, noteName: 'Cn3', durationTicks: 4), // Espacio 2 con becuadro
+              HierarchicalNote(startTick: 8, noteName: 'F3', durationTicks: 8), // Linea 4 en clave de Fa
+            ],
+          ),
+        ],
+      );
+
+      final pdfBytes = exporter.exportScore(score: bassScore);
+      final pdfString = latin1.decode(pdfBytes);
+
+      // Clave de Fa emite puntos de 2.4x2.4 re f en los espacios 3 y 4
+      expect(pdfString.contains('2.4 2.4 re f'), isTrue);
+      // G2 en Linea 1 (offset 0) no debe generar lineas adicionales inferiores
+      // (En clave de Sol habria tenido offset -12 con multiples ledger lines)
+      expect(pdfString.contains('1.4 w'), isTrue);
     });
   });
 }

@@ -124,13 +124,15 @@ class SmuflGlyphPathEngine {
   }) {
     final stemThickness = math.max(1.2, staffSpace * 0.12);
     final stemLength = staffSpace * lengthSpaces;
-    final noteWidth = staffSpace * 0.60;
+    final anchor = isUp ? getStemUpAnchor(staffSpace) : getStemDownAnchor(staffSpace);
 
-    // Si la plica va hacia arriba, se ancla al borde derecho de la cabeza.
-    // Si va hacia abajo, se ancla al borde izquierdo.
-    final startX = isUp ? (noteCenter.dx + noteWidth - stemThickness / 2) : (noteCenter.dx - noteWidth + stemThickness / 2);
-    final startY = noteCenter.dy;
-    final endY = isUp ? (startY - stemLength) : (startY + stemLength);
+    // Si la plica va hacia arriba, se ancla en stemUpSE (borde derecho de la cabeza).
+    // Si va hacia abajo, se ancla en stemDownNW (borde izquierdo de la cabeza).
+    final startX = isUp
+        ? (noteCenter.dx + anchor.dx - stemThickness / 2)
+        : (noteCenter.dx + anchor.dx + stemThickness / 2);
+    final startY = noteCenter.dy + anchor.dy;
+    final endY = isUp ? (noteCenter.dy - stemLength) : (noteCenter.dy + stemLength);
 
     final paint = Paint()
       ..color = color

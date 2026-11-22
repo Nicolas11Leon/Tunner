@@ -74,5 +74,5 @@ sequenceDiagram
 ---
 
 ## 7. Flujos Alternativos y Manejo de Errores
-- **FA-1:** Clave de Do (Alto / Tenor): `SmuflGlyphPathEngine` proporciona `drawCClef` anclada en la linea central (`InstrumentClef.alto`).
-- **FA-2:** Notas alteradas en PDF: `CanonicalPdfExporter._renderAccidental` emite el trazado PostScript correspondiente al sostenido, bemol o becuadro adyacente a la cabeza de nota.
+- **FA-1:** Clave de Do (Alto / Tenor): `SmuflGlyphPathEngine` proporciona `drawCClef` anclada en la linea de referencia del pentagrama (`U+E05C`), complementando `InstrumentClef.treble` (`gClef`) e `InstrumentClef.bass` (`fClef`).
+- **FA-2:** Notas alteradas en PDF: `CanonicalPdfExporter._renderAccidental` emite el trazado PostScript correspondiente al sostenido (`#`), bemol (`b`) o becuadro (`n` / `N`) adyacente a la cabeza de nota, referenciando los pasos diatonicos respecto a `Mi4` (`E4`) en Clave de Sol o `Sol2` (`G2`) en Clave de Fa.

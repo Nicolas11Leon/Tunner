@@ -200,6 +200,7 @@ class CanonicalPdfExporter {
           measureStartX: measureX + 8.0,
           measureWidth: measureWidth - 16.0,
           bottomY: staffBottomY,
+          isBassClef: isBassClef,
         );
       }
 
@@ -288,10 +289,12 @@ class CanonicalPdfExporter {
         upper.startsWith('SI')) {
       if (upper.contains('#')) return '#';
       if (upper.contains('B')) return 'b';
+      if (upper.contains('N')) return 'n';
     } else if (upper.length >= 2) {
       final second = upper[1];
       if (second == '#' || second == '♯') return '#';
       if (second == 'B' || second == '♭') return 'b';
+      if (second == 'N' || second == '♮') return 'n';
     }
     return null;
   }
@@ -321,6 +324,7 @@ class CanonicalPdfExporter {
     required double measureStartX,
     required double measureWidth,
     required double bottomY,
+    bool isBassClef = false,
   }) {
     final noteCount = notes.length;
     final slotWidth = measureWidth / noteCount;
@@ -334,7 +338,7 @@ class CanonicalPdfExporter {
         continue;
       }
 
-      final diatonicOffset = _diatonicStepsFromE4(note.noteName);
+      final diatonicOffset = _diatonicStepsFromLine1(note.noteName, isBassClef: isBassClef);
       final noteCenterY = bottomY + (diatonicOffset * (staffSpace / 2.0));
 
       // 1. Alteracion musical tonal (#, b, n)
@@ -511,8 +515,10 @@ class CanonicalPdfExporter {
     buf.writeln('ET');
   }
 
-  /// Calcula el número de pasos diatónicos de semiespacio respecto a Mi4 (Línea 1 = 0).
-  int _diatonicStepsFromE4(String rawName) {
+  /// Calcula el número de pasos diatónicos de semiespacio respecto a la Línea 1 del pentagrama:
+  /// - Clave de Sol (`isBassClef == false`): referencia Mi4 (`E4`, paso absoluto `30`).
+  /// - Clave de Fa (`isBassClef == true`): referencia Sol2 (`G2`, paso absoluto `18`).
+  int _diatonicStepsFromLine1(String rawName, {bool isBassClef = false}) {
     String name = rawName.trim().toUpperCase();
     if (name.isEmpty) return 0;
 
@@ -527,7 +533,7 @@ class CanonicalPdfExporter {
       'SI': 'B',
     };
 
-    String letter = 'E';
+    String letter = isBassClef ? 'G' : 'E';
     bool matchedSolfege = false;
     for (final entry in solfegePrefixes.entries) {
       if (name.startsWith(entry.key)) {
@@ -544,7 +550,7 @@ class CanonicalPdfExporter {
 
     // Extraer octava
     final matchOctave = RegExp(r'\d+').firstMatch(name);
-    final octave = (matchOctave != null) ? int.parse(matchOctave.group(0)!) : 4;
+    final octave = (matchOctave != null) ? int.parse(matchOctave.group(0)!) : (isBassClef ? 2 : 4);
 
     const diatonicStepMap = {
       'C': 0,
@@ -556,13 +562,13 @@ class CanonicalPdfExporter {
       'B': 6,
     };
 
-    final stepInOctave = diatonicStepMap[letter] ?? 2;
-    // Mi4 (E4) es nuestro punto de referencia 0 (Línea 1):
-    // E4 tiene stepInOctave = 2, octava = 4 -> valor absoluto = 4 * 7 + 2 = 30
+    final stepInOctave = diatonicStepMap[letter] ?? (isBassClef ? 4 : 2);
+    // Clave de Sol: Mi4 (E4) es referencia 0 (Línea 1) -> 4 * 7 + 2 = 30
+    // Clave de Fa: Sol2 (G2) es referencia 0 (Línea 1) -> 2 * 7 + 4 = 18
     final noteAbsStep = (octave * 7) + stepInOctave;
-    const e4AbsStep = (4 * 7) + 2; // 30
+    final refAbsStep = isBassClef ? 18 : 30;
 
-    return noteAbsStep - e4AbsStep;
+    return noteAbsStep - refAbsStep;
   }
 
   /// Sanitiza cadenas de texto para literales seguros de cadenas en sintaxis PDF (...)
