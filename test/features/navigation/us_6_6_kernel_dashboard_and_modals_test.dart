@@ -136,6 +136,9 @@ class _FakeMatrixPort implements IStudioAudioDeviceMatrixPort {
   void restoreMatrix(AudioDeviceMatrixEntity savedMatrix) {
     matrix = savedMatrix;
   }
+
+  @override
+  void processMasterStereoSamples(List<double> left, List<double> right) {}
 }
 
 void main() {
