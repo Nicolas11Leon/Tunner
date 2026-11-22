@@ -164,6 +164,7 @@ class StudioCompositionRoot {
       audioEngine: audioEngine,
       audioInputEngine: audioInputEngine,
       storageRepository: LocalProjectStorageRepository(),
+      fileGateway: platformFileGateway,
     );
   }
 
