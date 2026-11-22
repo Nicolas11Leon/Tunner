@@ -99,7 +99,9 @@ void main() {
       final pdfStr = latin1.decode(exporter.exportToPdf(pkg));
       expect(pdfStr.startsWith('%PDF-1.4'), isTrue);
       expect(pdfStr, contains('(3) Tj'));
-      expect('re f'.allMatches(pdfStr).length, equals(1));
+      expect(pdfStr, contains('c s'));
+      expect(pdfStr, contains('c f'));
+      expect(pdfStr.contains('7.0 6.0 re f'), isFalse);
     });
 
     test('PedagogicalReportPdfGenerator emits valid latin1 xref, no arc operator, and honors includeRhythmJitter', () {
