@@ -42,9 +42,10 @@ void main() {
       expect(find.byType(HarmonicBeatGauge), findsOneWidget);
       expect(find.byKey(const Key('toggle_harmonic_drone_btn')), findsOneWidget);
       expect(find.text('Activar Dron Guía'), findsOneWidget);
-      expect(find.byKey(const Key('sim_3rd_just_btn')), findsOneWidget);
-      expect(find.byKey(const Key('sim_3rd_tempered_btn')), findsOneWidget);
-      expect(find.byKey(const Key('sim_5th_just_btn')), findsOneWidget);
+      expect(find.byKey(const Key('harmonic_tutor_mic_toggle_btn')), findsOneWidget);
+      expect(find.byKey(const Key('sim_3rd_just_btn')), findsNothing);
+      expect(find.byKey(const Key('sim_3rd_tempered_btn')), findsNothing);
+      expect(find.byKey(const Key('sim_5th_just_btn')), findsNothing);
     });
 
     testWidgets('Tapping toggle_harmonic_drone_btn activates and deactivates reference drone', (tester) async {
@@ -71,7 +72,7 @@ void main() {
       expect(find.text('Activar Dron Guía'), findsOneWidget);
     });
 
-    testWidgets('Simulating pure Major Third achieves Zero Beat Lock (Consonancia Pura)', (tester) async {
+    testWidgets('Live pitch pure Major Third achieves Zero Beat Lock (Consonancia Pura)', (tester) async {
       tester.view.physicalSize = const Size(1200, 1000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -79,8 +80,7 @@ void main() {
       await tester.pumpWidget(createTestApp(viewModel));
       await tester.pump();
 
-      final justBtn = find.byKey(const Key('sim_3rd_just_btn'));
-      await tester.tap(justBtn);
+      viewModel.onPitchDetected(viewModel.session.rootFrequency * 1.25);
       await tester.pump();
 
       expect(viewModel.session.activeAnalysis?.role, HarmonicRole.majorThird);
@@ -89,7 +89,7 @@ void main() {
       expect(find.text('M3'), findsOneWidget);
     });
 
-    testWidgets('Simulating 12-TET Major Third triggers acoustic roughness status', (tester) async {
+    testWidgets('Live pitch 12-TET Major Third triggers acoustic roughness status', (tester) async {
       tester.view.physicalSize = const Size(1200, 1000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -97,8 +97,7 @@ void main() {
       await tester.pumpWidget(createTestApp(viewModel));
       await tester.pump();
 
-      final tetBtn = find.byKey(const Key('sim_3rd_tempered_btn'));
-      await tester.tap(tetBtn);
+      viewModel.onPitchDetected(viewModel.session.rootFrequency * 1.259921);
       await tester.pump();
 
       expect(viewModel.session.activeAnalysis?.role, HarmonicRole.majorThird);

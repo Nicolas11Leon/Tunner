@@ -143,7 +143,7 @@ void main() {
         format: MediaExportFormat.abcNotation,
       );
       expect(abcRes.success, isTrue);
-      expect(utf8.decode(abcRes.bytes), contains('X:1'));
+      expect(utf8.decode(abcRes.bytes), contains('X: 1'));
     });
   });
 }

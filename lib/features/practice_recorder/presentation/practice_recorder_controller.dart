@@ -1,10 +1,11 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
 import '../../../core/file_system/domain/i_platform_file_gateway.dart';
 import '../../../core/logging/infrastructure/studio_debug_logger.dart';
-import '../../audio_synthesizer/domain/i_audio_synthesizer_service.dart';
+import '../../acoustic_lab/domain/harmonic_series_analyzer.dart';
 import '../../persistence/domain/app_user_settings_entity.dart';
 import '../../persistence/domain/i_local_persistence_service.dart';
 import '../domain/i_audio_playback_service.dart';
@@ -15,10 +16,13 @@ import '../domain/practice_recording_entity.dart';
 /// Controlador cohesivo dedicado a la grabación de práctica, reproducción de tomas,
 /// sesiones multipista (comparador espectral) y persistencia offline del estudio.
 class PracticeRecorderController {
+  static const int maxWaveformPeaks = 120;
+  static const int _maxRawWaveformBuffer = 16384;
+  static const HarmonicSeriesAnalyzer _harmonicAnalyzer = HarmonicSeriesAnalyzer(maxHarmonics: 8);
+
   final IPracticeRecorderService _recorderService;
   final IAudioPlaybackService _playbackService;
   final ILocalPersistenceService _persistenceService;
-  final IAudioSynthesizerService _audioSynthesizer;
   final IPlatformFileGateway _platformFileGateway;
   final Future<String> Function()? _recordingPathProvider;
   final VoidCallback _onNotify;
@@ -28,6 +32,7 @@ class PracticeRecorderController {
   Duration _recordingDuration = Duration.zero;
   Timer? _recordingTimer;
   final Stopwatch _recordingStopwatch = Stopwatch();
+  final List<double> _rawWaveformPeaks = [];
   final List<double> _currentWaveformPeaks = [];
   final List<TimedPitchSample> _currentPitchTrack = [];
   final List<TimedSpectralSample> _currentSpectralTrack = [];
@@ -47,7 +52,6 @@ class PracticeRecorderController {
     required IPracticeRecorderService recorderService,
     required IAudioPlaybackService playbackService,
     required ILocalPersistenceService persistenceService,
-    required IAudioSynthesizerService audioSynthesizer,
     required IPlatformFileGateway platformFileGateway,
     required String initialTitle,
     required int initialBpm,
@@ -57,7 +61,6 @@ class PracticeRecorderController {
   })  : _recorderService = recorderService,
         _playbackService = playbackService,
         _persistenceService = persistenceService,
-        _audioSynthesizer = audioSynthesizer,
         _platformFileGateway = platformFileGateway,
         _recordingPathProvider = recordingPathProvider,
         _onNotify = onNotify,
@@ -68,8 +71,10 @@ class PracticeRecorderController {
   bool get isAudioRecording => _isAudioRecording;
   Duration get recordingDuration => _recordingDuration;
   List<double> get currentWaveformPeaks => List.unmodifiable(_currentWaveformPeaks);
+  List<double> get rawWaveformPeaks => List.unmodifiable(_rawWaveformPeaks);
   List<TimedPitchSample> get currentPitchTrack => List.unmodifiable(_currentPitchTrack);
   List<TimedPitchSample> get rawCurrentPitchTrack => _currentPitchTrack;
+  List<TimedSpectralSample> get currentSpectralTrack => List.unmodifiable(_currentSpectralTrack);
   PracticeRecordingEntity? get activeRecording => _activeRecording;
   List<PracticeRecordingEntity> get recordingHistory => List.unmodifiable(_recordingHistory);
   List<PracticeRecordingEntity> get rawRecordingHistory => _recordingHistory;
@@ -80,11 +85,59 @@ class PracticeRecorderController {
   double get playbackSpeed => _playbackSpeed;
   Future<void> get isInitialized => _initCompleter.future;
 
-  void addWaveformPeak(double peak) {
-    _currentWaveformPeaks.add(peak);
-    if (_currentWaveformPeaks.length > 60) {
-      _currentWaveformPeaks.removeAt(0);
+  /// Reduce proporcionalmente una serie de picos brutos mediante max-pooling por cubetas
+  /// para cubrir el 100% de la duracion de la grabacion dentro de [maxPeaks] barras.
+  static List<double> downsampleWaveformPeaks(
+    List<double> rawPeaks, {
+    int maxPeaks = maxWaveformPeaks,
+  }) {
+    if (rawPeaks.isEmpty || maxPeaks <= 0) return const [];
+    if (rawPeaks.length <= maxPeaks) {
+      return List<double>.from(rawPeaks);
     }
+    final total = rawPeaks.length;
+    final downsampled = <double>[];
+    for (int bucket = 0; bucket < maxPeaks; bucket++) {
+      final start = (bucket * total) ~/ maxPeaks;
+      final rawEnd = ((bucket + 1) * total) ~/ maxPeaks;
+      final end = rawEnd > start ? rawEnd : start + 1;
+      double bucketMax = 0.0;
+      for (int i = start; i < end && i < total; i++) {
+        if (rawPeaks[i] > bucketMax) {
+          bucketMax = rawPeaks[i];
+        }
+      }
+      downsampled.add(bucketMax);
+    }
+    return downsampled;
+  }
+
+  static double _computeRms(List<double> samples) {
+    if (samples.isEmpty) return 0.0;
+    double sumSquares = 0.0;
+    for (final sample in samples) {
+      sumSquares += sample * sample;
+    }
+    return math.sqrt(sumSquares / samples.length).clamp(0.0, 1.0);
+  }
+
+  void addWaveformPeak(double peak) {
+    final sanitizedPeak = peak.isFinite ? peak.clamp(0.0, 1.0) : 0.0;
+    _rawWaveformPeaks.add(sanitizedPeak);
+    if (_rawWaveformPeaks.length >= _maxRawWaveformBuffer) {
+      final compacted = <double>[];
+      for (int i = 0; i < _rawWaveformPeaks.length; i += 2) {
+        final first = _rawWaveformPeaks[i];
+        final second = (i + 1 < _rawWaveformPeaks.length) ? _rawWaveformPeaks[i + 1] : first;
+        compacted.add(math.max(first, second));
+      }
+      _rawWaveformPeaks
+        ..clear()
+        ..addAll(compacted);
+    }
+    _currentWaveformPeaks
+      ..clear()
+      ..addAll(downsampleWaveformPeaks(_rawWaveformPeaks));
   }
 
   void updatePlaybackPosition(Duration pos) {
@@ -105,6 +158,7 @@ class PracticeRecorderController {
   }
 
   void clearMultiTrackTracks() {
+    _rawWaveformPeaks.clear();
     _currentWaveformPeaks.clear();
     _currentPitchTrack.clear();
     _currentSpectralTrack.clear();
@@ -145,6 +199,7 @@ class PracticeRecorderController {
       await stopActiveRecordingPlayback();
     }
 
+    _rawWaveformPeaks.clear();
     _currentWaveformPeaks.clear();
     _currentPitchTrack.clear();
     _currentSpectralTrack.clear();
@@ -184,14 +239,18 @@ class PracticeRecorderController {
     _recordingTimer = null;
     _recordingStopwatch.stop();
     _isAudioRecording = false;
+    final recordedDuration = _recordingStopwatch.elapsed > _recordingDuration
+        ? _recordingStopwatch.elapsed
+        : _recordingDuration;
 
     final filePath = await _recorderService.stopRecording();
-    if (filePath != null && _recordingDuration.inMilliseconds >= 500) {
+    if (filePath != null && recordedDuration.inMilliseconds >= 500) {
+      _recordingDuration = recordedDuration;
       final recording = PracticeRecordingEntity(
         id: 'rec_${DateTime.now().millisecondsSinceEpoch}',
         filePath: filePath,
         recordedAt: DateTime.now(),
-        duration: _recordingDuration,
+        duration: recordedDuration,
         songTitle: songTitle,
         bpm: bpm,
         waveformPeaks: List.unmodifiable(_currentWaveformPeaks),
@@ -203,7 +262,7 @@ class PracticeRecorderController {
         id: 'take_${DateTime.now().millisecondsSinceEpoch}',
         name: 'Toma ${_multiTrackSession.takes.length + 1}',
         timestamp: DateTime.now(),
-        duration: _recordingDuration,
+        duration: recordedDuration,
         filePath: filePath,
         waveformPeaks: List.unmodifiable(_currentWaveformPeaks),
         pitchTrack: List.unmodifiable(_currentPitchTrack),
@@ -232,26 +291,38 @@ class PracticeRecorderController {
 
   Future<void> playActiveRecording({
     PracticeRecordingEntity? targetRecording,
-    required double referencePitch,
   }) async {
     final toPlay = targetRecording ?? _activeRecording;
     if (toPlay == null) return;
     _activeRecording = toPlay;
-    if (toPlay.filePath.isNotEmpty) {
-      await _playbackService.play(toPlay.filePath);
-      _isPlayingAudio = true;
-      _onNotify();
-    } else {
-      _isPlayingAudio = true;
-      _onNotify();
-      await _audioSynthesizer.playNoteTone(
-        frequency: referencePitch,
-        duration: const Duration(seconds: 4),
-        volume: 0.8,
-      );
+    final path = toPlay.filePath.trim();
+    if (path.isEmpty) {
+      if (_isPlayingAudio) {
+        await _playbackService.stop();
+      }
       _isPlayingAudio = false;
+      _playbackPosition = Duration.zero;
+      StudioDebugLogger.instance.warning(
+        'PracticeRecorderController',
+        'No existe archivo valido para reproducir la grabacion ${toPlay.id}.',
+      );
       _onNotify();
+      return;
     }
+
+    try {
+      await _playbackService.play(path);
+      _isPlayingAudio = true;
+    } catch (e, st) {
+      _isPlayingAudio = false;
+      StudioDebugLogger.instance.warning(
+        'PracticeRecorderController',
+        'Error reproduciendo la grabacion ${toPlay.id}: $e',
+        error: e,
+        stackTrace: st,
+      );
+    }
+    _onNotify();
   }
 
   Future<void> pauseActiveRecording() async {
@@ -309,6 +380,8 @@ class PracticeRecorderController {
     required double autoTuneCentsDev,
     required String autoTuneTargetNote,
     required String? expectedNoteName,
+    List<double>? audioSamples,
+    double sampleRate = 44100.0,
     bool isSilent = false,
   }) {
     final timeMs = _recordingStopwatch.isRunning
@@ -334,15 +407,23 @@ class PracticeRecorderController {
         isAutoTuned: isAutoTuned,
       ),
     );
-    if (pitch > 20.0) {
-      _currentSpectralTrack.add(
-        TimedSpectralSample(
-          timeMs: timeMs,
-          spectralCentroidHz: pitch * 2.6,
-          thdPercent: 3.2,
-          rmsEnergy: _currentWaveformPeaks.isNotEmpty ? _currentWaveformPeaks.last : 0.25,
-        ),
+    if (pitch > 20.0 && !isSilent) {
+      final samples = audioSamples;
+      final timbre = _harmonicAnalyzer.analyze(
+        fundamentalHz: pitch,
+        samples: samples,
+        sampleRate: sampleRate,
       );
+      if (samples != null && timbre.harmonics.isNotEmpty) {
+        _currentSpectralTrack.add(
+          TimedSpectralSample(
+            timeMs: timeMs,
+            spectralCentroidHz: timbre.spectralCentroidHz,
+            thdPercent: timbre.totalHarmonicDistortionPercent,
+            rmsEnergy: _computeRms(samples),
+          ),
+        );
+      }
     }
   }
 
@@ -353,50 +434,9 @@ class PracticeRecorderController {
       title: title,
       createdAt: now,
       bpm: bpm,
-      takes: [
-        PracticeTakeEntity(
-          id: 'take_1',
-          name: 'Toma 1 (Afinación Base)',
-          timestamp: now.subtract(const Duration(minutes: 5)),
-          duration: const Duration(seconds: 4),
-          filePath: '',
-          waveformPeaks: const [0.2, 0.4, 0.7, 0.5, 0.3],
-          pitchTrack: const [
-            TimedPitchSample(timeMs: 0, frequencyHz: 440.0, centsDeviation: 12.0, targetNoteName: 'La4'),
-            TimedPitchSample(timeMs: 200, frequencyHz: 440.0, centsDeviation: -15.0, targetNoteName: 'La4'),
-            TimedPitchSample(timeMs: 400, frequencyHz: 440.0, centsDeviation: 14.0, targetNoteName: 'La4'),
-            TimedPitchSample(timeMs: 600, frequencyHz: 440.0, centsDeviation: -10.0, targetNoteName: 'La4'),
-            TimedPitchSample(timeMs: 800, frequencyHz: 440.0, centsDeviation: 8.0, targetNoteName: 'La4'),
-          ],
-          spectralTrack: const [
-            TimedSpectralSample(timeMs: 0, spectralCentroidHz: 1100.0, thdPercent: 4.2, rmsEnergy: 0.2),
-            TimedSpectralSample(timeMs: 400, spectralCentroidHz: 1150.0, thdPercent: 4.5, rmsEnergy: 0.25),
-            TimedSpectralSample(timeMs: 800, spectralCentroidHz: 1120.0, thdPercent: 4.0, rmsEnergy: 0.22),
-          ],
-        ),
-        PracticeTakeEntity(
-          id: 'take_2',
-          name: 'Toma 2 (Enfoque Precisión)',
-          timestamp: now,
-          duration: const Duration(seconds: 4),
-          filePath: '',
-          waveformPeaks: const [0.25, 0.5, 0.8, 0.6, 0.35],
-          pitchTrack: const [
-            TimedPitchSample(timeMs: 0, frequencyHz: 440.0, centsDeviation: 2.0, targetNoteName: 'La4'),
-            TimedPitchSample(timeMs: 200, frequencyHz: 440.0, centsDeviation: -1.5, targetNoteName: 'La4'),
-            TimedPitchSample(timeMs: 400, frequencyHz: 440.0, centsDeviation: 3.0, targetNoteName: 'La4'),
-            TimedPitchSample(timeMs: 600, frequencyHz: 440.0, centsDeviation: -2.0, targetNoteName: 'La4'),
-            TimedPitchSample(timeMs: 800, frequencyHz: 440.0, centsDeviation: 1.0, targetNoteName: 'La4'),
-          ],
-          spectralTrack: const [
-            TimedSpectralSample(timeMs: 0, spectralCentroidHz: 1350.0, thdPercent: 2.5, rmsEnergy: 0.28),
-            TimedSpectralSample(timeMs: 400, spectralCentroidHz: 1380.0, thdPercent: 2.4, rmsEnergy: 0.3),
-            TimedSpectralSample(timeMs: 800, spectralCentroidHz: 1360.0, thdPercent: 2.6, rmsEnergy: 0.27),
-          ],
-        ),
-      ],
-      selectedTakeAId: 'take_1',
-      selectedTakeBId: 'take_2',
+      takes: <PracticeTakeEntity>[],
+      selectedTakeAId: null,
+      selectedTakeBId: null,
     );
   }
 
@@ -405,6 +445,7 @@ class PracticeRecorderController {
       selectedTakeAId: takeAId ?? _multiTrackSession.selectedTakeAId,
       selectedTakeBId: takeBId ?? _multiTrackSession.selectedTakeBId,
     );
+    _onAutoSave();
     _onNotify();
   }
 
@@ -414,6 +455,7 @@ class PracticeRecorderController {
       selectedTakeAId: _multiTrackSession.takes.isNotEmpty ? _multiTrackSession.takes.last.id : take.id,
       selectedTakeBId: take.id,
     );
+    _onAutoSave();
     _onNotify();
   }
 
@@ -422,6 +464,7 @@ class PracticeRecorderController {
       return t.id == takeId ? t.copyWith(isMuted: isMuted) : t;
     }).toList();
     _multiTrackSession = _multiTrackSession.copyWith(takes: updated);
+    _onAutoSave();
     _onNotify();
   }
 
@@ -430,6 +473,7 @@ class PracticeRecorderController {
       return t.id == takeId ? t.copyWith(isSolo: isSolo) : t;
     }).toList();
     _multiTrackSession = _multiTrackSession.copyWith(takes: updated);
+    _onAutoSave();
     _onNotify();
   }
 
@@ -438,26 +482,39 @@ class PracticeRecorderController {
       return t.id == takeId ? t.copyWith(gain: gain) : t;
     }).toList();
     _multiTrackSession = _multiTrackSession.copyWith(takes: updated);
+    _onAutoSave();
     _onNotify();
   }
 
   Future<void> playTakeAudio(PracticeTakeEntity take) async {
-    if (take.filePath.isNotEmpty) {
-      await _playbackService.play(take.filePath);
-      _isPlayingAudio = true;
-      _onNotify();
-    } else {
-      _isPlayingAudio = true;
-      _onNotify();
-      final freq = take.pitchTrack.isNotEmpty ? take.pitchTrack.first.frequencyHz : 440.0;
-      await _audioSynthesizer.playNoteTone(
-        frequency: freq,
-        duration: const Duration(seconds: 2),
-        volume: 0.75,
-      );
+    final path = take.filePath.trim();
+    if (path.isEmpty) {
+      if (_isPlayingAudio) {
+        await _playbackService.stop();
+      }
       _isPlayingAudio = false;
+      _playbackPosition = Duration.zero;
+      StudioDebugLogger.instance.warning(
+        'PracticeRecorderController',
+        'No existe archivo valido para reproducir la toma ${take.id}.',
+      );
       _onNotify();
+      return;
     }
+
+    try {
+      await _playbackService.play(path);
+      _isPlayingAudio = true;
+    } catch (e, st) {
+      _isPlayingAudio = false;
+      StudioDebugLogger.instance.warning(
+        'PracticeRecorderController',
+        'Error reproduciendo la toma ${take.id}: $e',
+        error: e,
+        stackTrace: st,
+      );
+    }
+    _onNotify();
   }
 
   Future<void> loadSettingsInto(void Function(AppUserSettingsEntity settings) applySettings) async {
@@ -467,6 +524,9 @@ class PracticeRecorderController {
         _recordingHistory.clear();
         _recordingHistory.addAll(settings.recordingHistory);
         _activeRecording = _recordingHistory.first;
+      }
+      if (settings.multiTrackSession != null) {
+        _multiTrackSession = settings.multiTrackSession!;
       }
       applySettings(settings);
     } catch (e, st) {
@@ -484,29 +544,7 @@ class PracticeRecorderController {
   }
 
   void seedDefaultRecordingsIfEmpty() {
-    if (_recordingHistory.isEmpty) {
-      _recordingHistory.addAll([
-        PracticeRecordingEntity(
-          id: 'rec_acoustic_demo_a440',
-          filePath: 'Toma_Acustica_440Hz.wav',
-          recordedAt: DateTime.now().subtract(const Duration(minutes: 45)),
-          duration: const Duration(seconds: 4),
-          songTitle: 'Toma Acústica de Calibración A4 (440 Hz)',
-          bpm: 120,
-          waveformPeaks: const [0.1, 0.4, 0.8, 0.95, 0.85, 0.7, 0.5, 0.3, 0.1],
-        ),
-        PracticeRecordingEntity(
-          id: 'rec_club_groove_124bpm',
-          filePath: 'Loop_Club_Groove_124BPM.wav',
-          recordedAt: DateTime.now().subtract(const Duration(hours: 2)),
-          duration: const Duration(seconds: 8),
-          songTitle: 'Loop Club Groove Master (124 BPM)',
-          bpm: 124,
-          waveformPeaks: const [0.9, 0.7, 0.85, 0.95, 0.6, 0.8, 0.9, 0.75, 0.6],
-        ),
-      ]);
-      _activeRecording = _recordingHistory.first;
-    }
+    // No se siembran grabaciones ficticias por defecto: la grabadora inicia limpia hasta capturar audio real.
   }
 
   Future<void> saveSettings(AppUserSettingsEntity settings) async {

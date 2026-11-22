@@ -3,6 +3,7 @@ import '../../../core/design_system/studio_theme_provider.dart';
 import '../domain/module_connection.dart';
 import '../domain/port_id.dart';
 import '../domain/rack_module_entity.dart';
+import '../domain/synergy_policy_engine.dart';
 import 'modular_rack_viewmodel.dart';
 
 /// Modal de Grado Profesional para el Patchbay Virtual y Matriz de Conectores.
@@ -47,6 +48,21 @@ class StudioPatchbayModal extends StatelessWidget {
     for (final mod in modules) {
       allOutputs.addAll(mod.outputPorts);
       allInputs.addAll(mod.inputPorts);
+    }
+
+    if (focusPort != null) {
+      allOutputs.sort((a, b) {
+        final aMatch = a == focusPort ||
+            (focusPort!.direction == PortDirection.input &&
+                a.signalType == focusPort!.signalType &&
+                a.ownerModuleId != focusPort!.ownerModuleId);
+        final bMatch = b == focusPort ||
+            (focusPort!.direction == PortDirection.input &&
+                b.signalType == focusPort!.signalType &&
+                b.ownerModuleId != focusPort!.ownerModuleId);
+        if (aMatch == bMatch) return 0;
+        return aMatch ? -1 : 1;
+      });
     }
 
     return Container(
@@ -107,6 +123,34 @@ class StudioPatchbayModal extends StatelessWidget {
             'Enruta las salidas de tus herramientas hacia entradas compatibles con latencia cero (<1 ms).',
             style: TextStyle(color: tokens.textMuted, fontSize: 11),
           ),
+          if (focusPort != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: tokens.accentPrimary.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                border: Border.all(color: tokens.accentPrimary.withValues(alpha: 0.5)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.center_focus_strong, size: 14, color: tokens.accentPrimary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'FOCO ACTIVO: ${focusPort!.displayName} (${focusPort!.signalType.name})',
+                      style: TextStyle(
+                        color: tokens.accentPrimary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
 
           // Lista de conexiones activas
@@ -262,13 +306,24 @@ class StudioPatchbayModal extends StatelessWidget {
                         (inp) => inp.ownerModuleId != outPort.ownerModuleId && inp.signalType == outPort.signalType,
                       ).toList();
 
+                      final isFocusedOut = focusPort != null &&
+                          (outPort == focusPort ||
+                              (focusPort!.direction == PortDirection.input &&
+                                  outPort.signalType == focusPort!.signalType &&
+                                  outPort.ownerModuleId != focusPort!.ownerModuleId));
+
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: tokens.canvasBackground,
+                          color: isFocusedOut
+                              ? tokens.accentPrimary.withValues(alpha: 0.08)
+                              : tokens.canvasBackground,
                           borderRadius: BorderRadius.circular(tokens.radiusSmall),
-                          border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
+                          border: Border.all(
+                            color: isFocusedOut ? tokens.accentPrimary : tokens.borderHairline,
+                            width: isFocusedOut ? 1.5 : tokens.borderWidth,
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -322,42 +377,107 @@ class StudioPatchbayModal extends StatelessWidget {
                                   final isConnected = activeConnections.any(
                                     (c) => c.sourcePort == outPort && c.destinationPort == inp,
                                   );
+                                  final validation = SynergyPolicyEngine.validateConnection(
+                                    sourcePort: outPort,
+                                    destinationPort: inp,
+                                  );
+                                  final isFocusedInput = focusPort == inp;
                                   final targetMod = modules.cast<RackModuleEntity?>().firstWhere(
                                     (m) => m?.moduleId == inp.ownerModuleId,
                                     orElse: () => null,
                                   );
 
-                                  return ActionChip(
-                                    backgroundColor: isConnected
-                                        ? tokens.accentSuccess.withValues(alpha: 0.2)
-                                        : tokens.elevatedSurface,
-                                    side: BorderSide(
-                                      color: isConnected ? tokens.accentSuccess : tokens.borderHairline,
-                                      width: 0.5,
-                                    ),
-                                    avatar: Icon(
-                                      isConnected ? Icons.check_circle : Icons.add_link,
-                                      size: 14,
-                                      color: isConnected ? tokens.accentSuccess : tokens.accentPrimary,
-                                    ),
-                                    label: Text(
-                                      '${targetMod?.title ?? inp.ownerModuleId} (${inp.id})',
-                                      style: TextStyle(
-                                        color: isConnected ? tokens.accentSuccess : tokens.textPrimary,
-                                        fontSize: 10,
-                                        fontWeight: isConnected ? FontWeight.bold : FontWeight.normal,
+                                  final chipBg = !validation.isApproved
+                                      ? Colors.redAccent.withValues(alpha: 0.14)
+                                      : isConnected
+                                          ? tokens.accentSuccess.withValues(alpha: 0.2)
+                                          : validation.isHyperSynergy
+                                              ? const Color(0xFFF59E0B).withValues(alpha: 0.14)
+                                              : tokens.elevatedSurface;
+
+                                  final chipBorder = !validation.isApproved
+                                      ? Colors.redAccent
+                                      : isConnected
+                                          ? tokens.accentSuccess
+                                          : isFocusedInput
+                                              ? tokens.accentPrimary
+                                              : validation.isHyperSynergy
+                                                  ? const Color(0xFFF59E0B)
+                                                  : tokens.borderHairline;
+
+                                  final chipIcon = !validation.isApproved
+                                      ? Icons.block
+                                      : isConnected
+                                          ? Icons.check_circle
+                                          : validation.isHyperSynergy
+                                              ? Icons.auto_awesome
+                                              : Icons.add_link;
+
+                                  final chipColor = !validation.isApproved
+                                      ? Colors.redAccent
+                                      : isConnected
+                                          ? tokens.accentSuccess
+                                          : validation.isHyperSynergy
+                                              ? const Color(0xFFF59E0B)
+                                              : tokens.accentPrimary;
+
+                                  return Tooltip(
+                                    message: validation.rejectionReason ??
+                                        validation.pedagogicalNote ??
+                                        'Conectar ${outPort.displayName} con ${inp.displayName}',
+                                    child: ActionChip(
+                                      backgroundColor: chipBg,
+                                      side: BorderSide(
+                                        color: chipBorder,
+                                        width: isFocusedInput ? 1.5 : 0.8,
                                       ),
-                                    ),
-                                    onPressed: () {
-                                      if (isConnected) {
-                                        final conn = activeConnections.firstWhere(
-                                          (c) => c.sourcePort == outPort && c.destinationPort == inp,
-                                        );
-                                        viewModel.disconnect(conn.connectionId);
-                                      } else {
+                                      avatar: Icon(chipIcon, size: 14, color: chipColor),
+                                      label: Text(
+                                        '${targetMod?.title ?? inp.ownerModuleId} (${inp.id})',
+                                        style: TextStyle(
+                                          color: !validation.isApproved
+                                              ? Colors.redAccent
+                                              : isConnected
+                                                  ? tokens.accentSuccess
+                                                  : tokens.textPrimary,
+                                          fontSize: 10,
+                                          fontWeight: (isConnected || isFocusedInput)
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                        ),
+                                      ),
+                                      onPressed: () {
+                                        if (isConnected) {
+                                          final conn = activeConnections.firstWhere(
+                                            (c) => c.sourcePort == outPort && c.destinationPort == inp,
+                                          );
+                                          viewModel.disconnect(conn.connectionId);
+                                          return;
+                                        }
+                                        if (!validation.isApproved) {
+                                          final msg = [
+                                            validation.rejectionReason ?? 'Conexion no permitida.',
+                                            if (validation.pedagogicalNote != null) validation.pedagogicalNote!,
+                                          ].join(' ');
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(msg),
+                                              backgroundColor: Colors.redAccent,
+                                            ),
+                                          );
+                                          return;
+                                        }
                                         viewModel.connectPorts(outPort, inp);
-                                      }
-                                    },
+                                        if (validation.isHyperSynergy && validation.pedagogicalNote != null) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Hiper-Sinergia: ${validation.pedagogicalNote!}'),
+                                              backgroundColor: const Color(0xFF10B981),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
                                   );
                                 }).toList(),
                               ),

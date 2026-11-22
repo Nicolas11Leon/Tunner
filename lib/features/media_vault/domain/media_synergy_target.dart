@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'media_asset_entity.dart';
+import 'timeline_project_entity.dart';
 
 /// Destination tools in Tunner that can receive assets dragged or dispatched
 /// from the Multimedia Vault.
@@ -79,11 +80,13 @@ extension MediaExportFormatMeta on MediaExportFormat {
 class MediaImportResult {
   final bool success;
   final List<MediaAssetEntity> importedAssets;
+  final TimelineProjectEntity? restoredTimeline;
   final String message;
 
   const MediaImportResult({
     required this.success,
     this.importedAssets = const <MediaAssetEntity>[],
+    this.restoredTimeline,
     required this.message,
   });
 }
