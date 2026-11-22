@@ -1,7 +1,7 @@
-# UC-155: Cableado de TunnerOsKernel, Telemetría HUD/Templates, ToolSearchModal y ExerciseGenerator
+# UC-173: Cableado de TunnerOsKernel, Telemetría HUD/Templates, ToolSearchModal y ExerciseGenerator
 
 ## 1. Identificación
-- **ID:** UC-155
+- **ID:** UC-173
 - **Historia de Usuario:** US-6.6
 - **Actor Principal:** Músico / Ingeniero de Audio / Usuario Terminal OS
 - **Precondiciones:** `MainAppShell` montado con `StudioCompositionRoot` o servicios locales, `TunerViewModel` activo.

@@ -2,8 +2,8 @@
 
 - **Issue:** #173
 - **Estado:** Completado
-- **Casos de Uso:** UC-155
-- **ADR:** ADR-0147
+- **Casos de Uso:** UC-173 (`docs/02_use_cases/173_uc_tunner_os_kernel_dashboard_and_modals_wiring.md`)
+- **ADR:** ADR-0165 (`docs/04_adrs/0165_tunner_os_kernel_ports_and_dashboard_telemetry.md`)
 
 ## Tareas Técnicas
 1. Extender `TunnerOsKernel` con persistencia real en `fileSystemRepository` para `project export` y `vocal cert`, audio real en `synth note` (`onTriggerSynthNote`) y lectura de captura real en `vocal eval`/`cert`.

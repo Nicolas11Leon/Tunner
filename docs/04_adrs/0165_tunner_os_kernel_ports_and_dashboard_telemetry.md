@@ -1,4 +1,4 @@
-# ADR-0147: Puertos de TunnerOsKernel, Telemetría Dinámica del HUD y Cableado de Modales
+# ADR-0165: Puertos de TunnerOsKernel, Telemetría Dinámica del HUD y Cableado de Modales
 
 - **Estado:** Aceptado
 - **Fecha:** 2026-11-22
