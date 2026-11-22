@@ -170,7 +170,7 @@ class TaskCatalogIndex {
 
   /// Catálogo semilla canónico con ejercicios iniciales en los 6 dominios.
   void _initializeSeedCatalog() {
-    registerAll([
+    registerAll(<StandardPedagogicalTask>[
       // --- DOMINIO: ENTRENAMIENTO AUDITIVO (EAR) ---
       StandardPedagogicalTask(
         code: const TaskTaxonomyCode(
@@ -570,6 +570,57 @@ class TaskCatalogIndex {
           ),
         ],
       ),
-    ]);
+    ].map(_prepareSeedTask).toList());
+  }
+
+  StandardPedagogicalTask _prepareSeedTask(StandardPedagogicalTask task) {
+    final steps = task.steps.isNotEmpty ? task.steps : _defaultStepsForTask(task);
+    return task.copyWith(
+      steps: steps,
+      status: TaskCompletionStatus.notStarted,
+      bestGrade: TaskGrade.none,
+    );
+  }
+
+  List<TaskStep> _defaultStepsForTask(StandardPedagogicalTask task) {
+    final tol = task.code.level == TaskLevel.level4 ? 8.0 : 15.0;
+    switch (task.code.domain) {
+      case TaskDomain.ear:
+        return [
+          TaskStep(index: 0, instruction: 'Escucha y estabiliza la fundamental A4.', noteOrTarget: 'A4', frequencyHz: 440.0, targetDurationSeconds: 2.0, toleranceCents: tol, hint: 'Mantén la referencia estable sin vibrato.'),
+          TaskStep(index: 1, instruction: 'Entona o identifica la quinta justa E5.', noteOrTarget: 'E5', frequencyHz: 659.25, targetDurationSeconds: 2.0, toleranceCents: tol, hint: 'Busca ausencia total de batimentos.'),
+          TaskStep(index: 2, instruction: 'Resuelve en la octava A5 sin batimentos.', noteOrTarget: 'A5', frequencyHz: 880.0, targetDurationSeconds: 2.5, toleranceCents: tol, hint: 'Sostén la resonancia hasta completar el tiempo.'),
+        ];
+      case TaskDomain.rhythm:
+        return [
+          TaskStep(index: 0, instruction: 'Alinea el ataque inicial con el pulso maestro.', noteOrTarget: 'C4', frequencyHz: 261.63, targetDurationSeconds: 2.0, toleranceCents: tol, hint: 'Anticipa la subdivisión antes del tiempo fuerte.'),
+          TaskStep(index: 1, instruction: 'Mantén subdivisión regular en el segundo pulso.', noteOrTarget: 'G4', frequencyHz: 392.0, targetDurationSeconds: 2.0, toleranceCents: tol, hint: 'Evita acelerar en los contratiempos.'),
+          TaskStep(index: 2, instruction: 'Cierra la frase en el tiempo fuerte.', noteOrTarget: 'C5', frequencyHz: 523.25, targetDurationSeconds: 2.0, toleranceCents: tol, hint: 'Ataque preciso y limpio.'),
+        ];
+      case TaskDomain.pitch:
+        return [
+          TaskStep(index: 0, instruction: 'Sostén la nota centro con flujo de aire estable.', noteOrTarget: 'D4', frequencyHz: 293.66, targetDurationSeconds: 3.0, toleranceCents: tol, hint: 'Observa el estroboscopio en ±5 cents.'),
+          TaskStep(index: 1, instruction: 'Asciende a la tercera mayor afinada en JI.', noteOrTarget: 'F#4', frequencyHz: 369.99, targetDurationSeconds: 2.5, toleranceCents: tol, hint: 'Ajusta suavemente la embocadura.'),
+          TaskStep(index: 2, instruction: 'Estabiliza la quinta justa en el registro medio.', noteOrTarget: 'A4', frequencyHz: 440.0, targetDurationSeconds: 3.0, toleranceCents: tol, hint: 'Apoyo diafragmático constante.'),
+        ];
+      case TaskDomain.technique:
+        return [
+          TaskStep(index: 0, instruction: 'Articulación limpia sin caída de afinación.', noteOrTarget: 'G4', frequencyHz: 392.0, targetDurationSeconds: 2.0, toleranceCents: tol, hint: 'Ataque ligero con la lengua.'),
+          TaskStep(index: 1, instruction: 'Ligadura ascendente controlando la embocadura.', noteOrTarget: 'B4', frequencyHz: 493.88, targetDurationSeconds: 2.0, toleranceCents: tol, hint: 'Conecta el flujo de aire entre ambas notas.'),
+          TaskStep(index: 2, instruction: 'Resolución controlada en registro agudo.', noteOrTarget: 'D5', frequencyHz: 587.33, targetDurationSeconds: 2.5, toleranceCents: tol, hint: 'Mantén la afinación centrada al relajar.'),
+        ];
+      case TaskDomain.sightReading:
+        return [
+          TaskStep(index: 0, instruction: 'Lee el compás inicial en el atril SMuFL.', noteOrTarget: 'C4', frequencyHz: 261.63, targetDurationSeconds: 2.0, toleranceCents: tol, hint: 'Anticipa la siguiente nota un pulso antes.'),
+          TaskStep(index: 1, instruction: 'Ejecuta el salto interválico indicado.', noteOrTarget: 'E4', frequencyHz: 329.63, targetDurationSeconds: 2.0, toleranceCents: tol, hint: 'Respeta la duración exacta de la figura.'),
+          TaskStep(index: 2, instruction: 'Completa la lectura hasta la barra final.', noteOrTarget: 'G4', frequencyHz: 392.0, targetDurationSeconds: 2.0, toleranceCents: tol, hint: 'No detengas el pulso maestro.'),
+        ];
+      case TaskDomain.harmony:
+        return [
+          TaskStep(index: 0, instruction: 'Establece la fundamental del acorde objetivo.', noteOrTarget: 'A4', frequencyHz: 440.0, targetDurationSeconds: 2.0, toleranceCents: tol, hint: 'Escucha la relación armónica con el bajo.'),
+          TaskStep(index: 1, instruction: 'Entona la tercera modal del acorde.', noteOrTarget: 'C5', frequencyHz: 523.25, targetDurationSeconds: 2.0, toleranceCents: tol, hint: 'Ajusta el color del intervalo.'),
+          TaskStep(index: 2, instruction: 'Completa la tríada en la quinta.', noteOrTarget: 'E5', frequencyHz: 659.25, targetDurationSeconds: 2.5, toleranceCents: tol, hint: 'Consonancia estable sin batimentos.'),
+        ];
+    }
   }
 }

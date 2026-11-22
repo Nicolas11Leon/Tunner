@@ -78,6 +78,7 @@ class EarTrainingAnswerResult {
     required double centsDeviation,
     required int responseTimeMs,
     required int currentStreak,
+    bool hasAcousticCents = true,
   }) {
     final isCorrect = selected == target;
 
@@ -118,9 +119,11 @@ class EarTrainingAnswerResult {
     final streakBonus = currentStreak > 1 ? (currentStreak * 10) : 0;
     final totalScore = baseScore + streakBonus;
 
-    final feedback = absCents < 5.0
-        ? '¡Perfecto! Desvío imperceptible (${centsDeviation.toStringAsFixed(1)} cents) en ${(responseTimeMs / 1000).toStringAsFixed(2)}s.'
-        : '¡Correcto! ${target.displayName}. Desvío de ${centsDeviation.toStringAsFixed(1)} cents.';
+    final feedback = !hasAcousticCents
+        ? '¡Correcto! ${target.displayName} identificado en ${(responseTimeMs / 1000).toStringAsFixed(2)}s.'
+        : absCents < 5.0
+            ? '¡Perfecto! Desvío imperceptible (${centsDeviation.toStringAsFixed(1)} cents) en ${(responseTimeMs / 1000).toStringAsFixed(2)}s.'
+            : '¡Correcto! ${target.displayName}. Desvío de ${centsDeviation.toStringAsFixed(1)} cents.';
 
     return EarTrainingAnswerResult(
       isCorrect: true,

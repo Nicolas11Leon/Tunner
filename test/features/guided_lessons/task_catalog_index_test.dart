@@ -21,8 +21,9 @@ void main() {
       expect(task, isNotNull);
       expect(task!.title, contains('Unísono vs. Quinta Justa'));
       expect(task.code.domain, equals(TaskDomain.ear));
-      expect(task.isCompleted, isTrue);
-      expect(task.bestGrade.letter, equals('S'));
+      expect(task.isCompleted, isFalse);
+      expect(task.bestGrade.name, equals('none'));
+      expect(task.steps.isNotEmpty, isTrue);
     });
 
     test('Filters tasks by query prefix (EAR, RHY, PCH)', () {

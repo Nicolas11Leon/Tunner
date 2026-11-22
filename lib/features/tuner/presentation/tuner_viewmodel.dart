@@ -43,6 +43,11 @@ import '../domain/instrument_acoustic_filter.dart';
 import '../domain/acoustic_rigor_profile.dart';
 import '../../acoustic_lab/domain/harmonic_series_analyzer.dart';
 import '../../drone/domain/harmonic_drone_config.dart';
+import '../../ear_training/domain/ear_training_exercise.dart';
+import '../../ear_training/domain/musical_interval.dart';
+import '../../guided_lessons/domain/pedagogical_task_contract.dart';
+import '../../guided_lessons/domain/task_taxonomy_code.dart';
+import '../../pedagogy/domain/ebbinghaus_spaced_repetition_engine.dart';
 import '../../drone/domain/harmonic_drone_synthesizer.dart';
 import '../../chord_analyzer/domain/chord_entity.dart';
 import '../../chord_analyzer/domain/chroma_vector_calculator.dart';
@@ -193,6 +198,10 @@ class TunerViewModel extends ChangeNotifier
   TapTempoResult? _lastTapTempoResult;
   LearnerProfileEntity _learnerProfile = LearnerProfileEntity.adult();
   final AdaptiveScaffoldingEngine _scaffoldingEngine = const AdaptiveScaffoldingEngine();
+  final EbbinghausSpacedRepetitionEngine ebbinghausEngine = EbbinghausSpacedRepetitionEngine();
+  final Map<String, String> _taskStatuses = {};
+  final List<String> _completedLessonIds = [];
+  PedagogicalTaskEntity? _activePedagogicalTask;
   int _consecutiveSuccesses = 0;
   int _consecutiveErrors = 0;
   PedagogicalDiagnosticResult? _lastPedagogicalDiagnostic;
@@ -305,6 +314,7 @@ class TunerViewModel extends ChangeNotifier
       onNotify: notifyListeners,
       onAutoSave: _triggerAutoSave,
     );
+    _vocalPedagogyController.onLessonCompleted = markLessonCompleted;
     _scorePlaybackCoordinator = scorePlaybackCoordinator ??
         ScorePlaybackCoordinator(
           voicePool: _polyphonicVoicePool,
@@ -2377,6 +2387,20 @@ class TunerViewModel extends ChangeNotifier
         _activePackage = restoredActive;
       }
 
+      if (settings.earTrainingItemsJson.isNotEmpty) {
+        ebbinghausEngine.restoreFromItemsJson(settings.earTrainingItemsJson);
+      }
+      if (settings.taskStatuses.isNotEmpty) {
+        _taskStatuses
+          ..clear()
+          ..addAll(settings.taskStatuses);
+      }
+      if (settings.completedLessonIds.isNotEmpty) {
+        _completedLessonIds
+          ..clear()
+          ..addAll(settings.completedLessonIds);
+      }
+
       if (_shouldSeedDefaults) {
         _seedDefaultWorkspaceIfEmpty();
       }
@@ -2451,10 +2475,92 @@ class TunerViewModel extends ChangeNotifier
       activeWorkspace: _activeWorkspace,
       micCalibrationProfile: _micProfile,
       acousticRigorProfile: _acousticRigorProfile,
+      earTrainingItemsJson: ebbinghausEngine.exportItemsJson(),
+      taskStatuses: Map<String, String>.from(_taskStatuses),
+      completedLessonIds: List<String>.from(_completedLessonIds),
       mixerConsole: _mixerConsole,
       activeScoreId: _activePackage.id,
     );
     return _recorderController.saveSettings(settings);
+  }
+
+  PedagogicalTaskEntity? get activePedagogicalTask => _activePedagogicalTask;
+  Map<String, String> get taskStatuses => Map.unmodifiable(_taskStatuses);
+  List<String> get completedLessonIds => List.unmodifiable(_completedLessonIds);
+
+  void recordEarTrainingAnswer(
+    MusicalInterval targetInterval,
+    EarTrainingAnswerResult result,
+  ) {
+    final itemId = _mapIntervalToEbbinghausId(targetInterval);
+    if (ebbinghausEngine.getItem(itemId) != null) {
+      ebbinghausEngine.submitAnswer(
+        itemId,
+        isCorrect: result.isCorrect,
+        centsError: result.centsDeviation,
+        responseTimeSeconds: (result.responseTimeMs / 1000.0).clamp(0.1, 30.0),
+      );
+      _triggerAutoSave();
+      notifyListeners();
+    }
+  }
+
+  String _mapIntervalToEbbinghausId(MusicalInterval interval) {
+    switch (interval) {
+      case MusicalInterval.minorSecond:
+        return 'interval_m2';
+      case MusicalInterval.majorSecond:
+        return 'interval_M2';
+      case MusicalInterval.minorThird:
+        return 'interval_m3';
+      case MusicalInterval.majorThird:
+        return 'interval_M3';
+      case MusicalInterval.perfectFourth:
+        return 'interval_P4';
+      case MusicalInterval.tritone:
+        return 'interval_TT';
+      case MusicalInterval.perfectFifth:
+        return 'interval_P5';
+      case MusicalInterval.minorSixth:
+        return 'interval_m6';
+      case MusicalInterval.majorSixth:
+        return 'interval_M6';
+      case MusicalInterval.minorSeventh:
+        return 'interval_m7';
+      case MusicalInterval.majorSeventh:
+        return 'interval_M7';
+      case MusicalInterval.perfectOctave:
+        return 'interval_P8';
+      case MusicalInterval.unison:
+        return 'interval_P1';
+    }
+  }
+
+  void startPedagogicalTask(PedagogicalTaskEntity task) {
+    _activePedagogicalTask = task;
+    _taskStatuses[task.code.formatted] = TaskCompletionStatus.inProgress.name;
+    if (task.code.domain == TaskDomain.rhythm) {
+      _isPracticeMode = true;
+    } else if (task.steps.isNotEmpty) {
+      _vocalPedagogyController.adaptActiveLessonToInstrument(
+        _activeInstrument,
+        toleranceCents: task.steps.first.toleranceCents,
+      );
+    }
+    _triggerAutoSave();
+    notifyListeners();
+  }
+
+  void markLessonCompleted(String lessonId) {
+    if (!_completedLessonIds.contains(lessonId)) {
+      _completedLessonIds.add(lessonId);
+    }
+    if (_activePedagogicalTask != null) {
+      _taskStatuses[_activePedagogicalTask!.code.formatted] =
+          TaskCompletionStatus.completed.name;
+    }
+    _triggerAutoSave();
+    notifyListeners();
   }
 
   void _commitActiveScoreMutation() {

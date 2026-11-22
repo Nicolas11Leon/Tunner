@@ -57,6 +57,22 @@ class EbbinghausSpacedRepetitionEngine {
     _items[item.id] = item;
   }
 
+  Map<String, Map<String, dynamic>> exportItemsJson() {
+    return {
+      for (final entry in _items.entries) entry.key: entry.value.toJson(),
+    };
+  }
+
+  void restoreFromItemsJson(Map<String, Map<String, dynamic>> itemsJson) {
+    for (final entry in itemsJson.entries) {
+      try {
+        _items[entry.key] = EarTrainingItemEntity.fromJson(entry.value);
+      } catch (_) {
+        // Ignorar entradas corruptas manteniendo el banco canonico base.
+      }
+    }
+  }
+
   /// Carga el catálogo pedagógico canónico que incluye todos los intervalos estándar,
   /// microtonos y acordes fundamentales.
   void _loadCanonicalExerciseBank() {
