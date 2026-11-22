@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../../../core/design_system/atoms/studio_rotary_knob.dart';
@@ -29,16 +28,10 @@ class DjVerticalChannelStrip extends StatelessWidget {
     final isPlaying = deck.isPlaying;
     final isCueActive = deckId == 'A' ? viewModel.cueMonitor.cueDeckA : viewModel.cueMonitor.cueDeckB;
 
-    // Calcular niveles acústicos dinámicos con decaimiento balístico exponencial sincronizado al compás
-    final signalMultiplier = isPlaying ? (deck.gainLow * 0.4 + deck.gainMid * 0.4 + deck.gainHigh * 0.2) : 0.0;
-    double beatPulse = 1.0;
-    if (isPlaying && deck.effectiveBpm > 0) {
-      final beatPeriodMs = 60000.0 / deck.effectiveBpm;
-      final phase = (deck.currentPositionMs % beatPeriodMs) / beatPeriodMs;
-      beatPulse = 0.40 + 0.60 * math.exp(-phase * 3.5);
-    }
-    final vuLevelL = isPlaying ? (signalMultiplier * 0.85 * beatPulse).clamp(0.0, 1.15) : 0.0;
-    final vuLevelR = isPlaying ? (signalMultiplier * 0.80 * (beatPulse * 0.95 + 0.05)).clamp(0.0, 1.15) : 0.0;
+    // Medición de niveles acústicos dinámicos basada en la energía RMS real de las muestras
+    final realVu = viewModel.getVuLevel(deckId);
+    final vuLevelL = realVu;
+    final vuLevelR = (realVu * 0.98).clamp(0.0, 1.2);
 
     return Container(
       width: 140,
