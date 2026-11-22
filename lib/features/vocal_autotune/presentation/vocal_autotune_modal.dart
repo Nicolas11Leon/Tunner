@@ -752,8 +752,9 @@ SingleChildScrollView(
                 const SizedBox(width: 6),
                 ElevatedButton.icon(
                   key: Key('autotune_take_btn_${take.id}'),
-                  onPressed: () {
-                    final tunedTake = viewModel.applyAutoTuneToRecordingTake(take.id);
+                  onPressed: () async {
+                    final tunedTake = await viewModel.applyAutoTuneToRecordingTake(take.id);
+                    if (!context.mounted) return;
                     if (tunedTake != null) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
