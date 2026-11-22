@@ -1,10 +1,10 @@
-# UC-148: Reproduccion Acustica Real del Timeline Multi-Track en MediaVault, Mute/Solo en Vivo y Persistencia en Disco
+# UC-166: Reproduccion Acustica Real del Timeline Multi-Track en MediaVault, Mute/Solo en Vivo y Persistencia en Disco
 
 ## 1. Informacion General
 
 | Campo | Valor |
 | :--- | :--- |
-| **ID** | UC-148 |
+| **ID** | UC-166 |
 | **Historia de Usuario** | US-5.3 (EPIC-05) |
 | **Actores** | Musico / Productor (Usuario), `MediaVaultViewModel`, `UniversalMediaIoService`, `IAudioSynthesizerService`, `IStudioAudioEngine`, `StudioFileSystemRepository` |
 | **Precondiciones** | La Boveda Multimedia (`MediaVaultViewModel`) tiene al menos un clip colocado en el timeline o activos registrados en el catalogo. |

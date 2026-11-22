@@ -1,6 +1,8 @@
 # Plan de Implementacion US-5.3: Reproduccion Acustica Real del Timeline Multi-Track en MediaVault, Mute/Solo en Vivo y Persistencia en Disco
 
 - **Issue:** #159
+- **Caso de Uso:** `UC-166` (`docs/02_use_cases/166_uc_media_vault_real_playback_mute_solo_and_persistence.md`)
+- **ADR:** `ADR-0158` (`docs/04_adrs/0158_media_vault_mixdown_playback_and_disk_catalog_persistence.md`)
 - **Rama:** `feature/us-5.3-media-vault-real-playback-and-persistence`
 - **Base:** `qa`
 - **Estado:** Completado (Validado con `flutter analyze --no-fatal-infos` 0 issues y 19/19 tests aprobados)
