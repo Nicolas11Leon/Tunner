@@ -31,7 +31,7 @@ class TimedPitchSample {
   };
 
   factory TimedPitchSample.fromMap(Map<String, dynamic> map) => TimedPitchSample(
-    timeMs: map['timeMs'] as int? ?? 0,
+    timeMs: (map['timeMs'] as num?)?.toInt() ?? 0,
     frequencyHz: (map['frequencyHz'] as num?)?.toDouble() ?? 0.0,
     centsDeviation: (map['centsDeviation'] as num?)?.toDouble() ?? 0.0,
     targetNoteName: map['targetNoteName'] as String? ?? '--',
@@ -63,7 +63,7 @@ class TimedSpectralSample {
   };
 
   factory TimedSpectralSample.fromMap(Map<String, dynamic> map) => TimedSpectralSample(
-    timeMs: map['timeMs'] as int? ?? 0,
+    timeMs: (map['timeMs'] as num?)?.toInt() ?? 0,
     spectralCentroidHz: (map['spectralCentroidHz'] as num?)?.toDouble() ?? 0.0,
     thdPercent: (map['thdPercent'] as num?)?.toDouble() ?? 0.0,
     rmsEnergy: (map['rmsEnergy'] as num?)?.toDouble() ?? 0.0,
@@ -159,23 +159,26 @@ class PracticeTakeEntity {
   factory PracticeTakeEntity.fromMap(Map<String, dynamic> map) => PracticeTakeEntity(
     id: map['id'] as String? ?? '',
     name: map['name'] as String? ?? 'Toma',
-    timestamp: map['timestamp'] != null
+    timestamp: map['timestamp'] is String
         ? DateTime.tryParse(map['timestamp'] as String) ?? DateTime.now()
         : DateTime.now(),
-    duration: Duration(milliseconds: map['durationMs'] as int? ?? 0),
+    duration: Duration(milliseconds: (map['durationMs'] as num?)?.toInt() ?? 0),
     filePath: map['filePath'] as String? ?? '',
     waveformPeaks: (map['waveformPeaks'] as List<dynamic>?)
-            ?.map((e) => (e as num).toDouble())
+            ?.whereType<num>()
+            .map((e) => e.toDouble())
             .toList() ??
-        const [],
+        <double>[],
     pitchTrack: (map['pitchTrack'] as List<dynamic>?)
-            ?.map((e) => TimedPitchSample.fromMap(e as Map<String, dynamic>))
+            ?.whereType<Map<String, dynamic>>()
+            .map(TimedPitchSample.fromMap)
             .toList() ??
-        const [],
+        <TimedPitchSample>[],
     spectralTrack: (map['spectralTrack'] as List<dynamic>?)
-            ?.map((e) => TimedSpectralSample.fromMap(e as Map<String, dynamic>))
+            ?.whereType<Map<String, dynamic>>()
+            .map(TimedSpectralSample.fromMap)
             .toList() ??
-        const [],
+        <TimedSpectralSample>[],
     gain: (map['gain'] as num?)?.toDouble() ?? 1.0,
     isMuted: map['isMuted'] as bool? ?? false,
     isSolo: map['isSolo'] as bool? ?? false,
@@ -257,14 +260,15 @@ class MultiTrackSessionEntity {
   factory MultiTrackSessionEntity.fromMap(Map<String, dynamic> map) => MultiTrackSessionEntity(
     id: map['id'] as String? ?? '',
     title: map['title'] as String? ?? 'Sesión de Práctica',
-    createdAt: map['createdAt'] != null
+    createdAt: map['createdAt'] is String
         ? DateTime.tryParse(map['createdAt'] as String) ?? DateTime.now()
         : DateTime.now(),
-    bpm: map['bpm'] as int? ?? 120,
+    bpm: (map['bpm'] as num?)?.toInt() ?? 120,
     takes: (map['takes'] as List<dynamic>?)
-            ?.map((e) => PracticeTakeEntity.fromMap(e as Map<String, dynamic>))
+            ?.whereType<Map<String, dynamic>>()
+            .map(PracticeTakeEntity.fromMap)
             .toList() ??
-        const [],
+        <PracticeTakeEntity>[],
     selectedTakeAId: map['selectedTakeAId'] as String?,
     selectedTakeBId: map['selectedTakeBId'] as String?,
   );

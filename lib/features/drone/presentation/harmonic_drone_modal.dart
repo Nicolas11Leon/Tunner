@@ -30,7 +30,7 @@ class HarmonicDroneModal extends StatelessWidget {
     final config = viewModel.droneConfig;
     final isPlaying = viewModel.isDronePlaying;
 
-    final freqs = viewModel.droneConfig.octave >= 1
+    final freqs = viewModel.droneConfig.octave >= 0
         ? const HarmonicDroneSynthesizer().calculateFrequencies(
             config: config,
             a4Ref: viewModel.referencePitch,
@@ -236,9 +236,9 @@ class HarmonicDroneModal extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // Selector de Octava
+                // Selector de Octava (A0 a C8)
                 Text(
-                  'Octava de Registro',
+                  'Octava de Registro (0 a 8)',
                   style: TextStyle(
                     color: palette.textColor,
                     fontSize: 13,
@@ -246,45 +246,45 @@ class HarmonicDroneModal extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [2, 3, 4].map((oct) {
-                    final isSelected = config.octave == oct;
-                    final label = oct == 2
-                        ? 'Octava 2 (Grave)'
-                        : oct == 3
-                            ? 'Octava 3 (Medio)'
-                            : 'Octava 4 (Agudo)';
-                    return Expanded(
-                      child: GestureDetector(
-                        key: Key('drone_octave_$oct'),
-                        onTap: () {
-                          viewModel.setDroneConfig(config.copyWith(octave: oct));
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isSelected ? palette.primaryAccent : palette.cardBackground,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: isSelected
-                                  ? palette.primaryAccent
-                                  : palette.staffLinesColor.withValues(alpha: 0.2),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: List.generate(9, (oct) {
+                      final isSelected = config.octave == oct;
+                      final label = 'Oct $oct';
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: InkWell(
+                          key: Key('drone_octave_$oct'),
+                          onTap: () {
+                            viewModel.setDroneConfig(config.copyWith(octave: oct));
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isSelected ? palette.primaryAccent : palette.cardBackground,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected
+                                    ? palette.primaryAccent
+                                    : palette.staffLinesColor.withValues(alpha: 0.2),
+                              ),
                             ),
-                          ),
-                          child: Text(
-                            label,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: isSelected ? Colors.black : palette.textColor,
-                              fontSize: 11,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            child: Text(
+                              label,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: isSelected ? Colors.black : palette.textColor,
+                                fontSize: 12,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  }).toList(),
+                      );
+                    }),
+                  ),
                 ),
                 const SizedBox(height: 20),
 

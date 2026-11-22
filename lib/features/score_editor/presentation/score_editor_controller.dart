@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -83,17 +84,30 @@ class ScoreEditorController {
     _scoreHistory.recordState(package);
   }
 
+  final Stopwatch _liveClock = Stopwatch();
+  double _lastLiveClockMs = 0.0;
+  final Stopwatch _polyphonicClock = Stopwatch();
+  double _lastPolyphonicClockMs = 0.0;
+
   SongPackage? processLiveTranscriptionFrame({
     required SongPackage activePackage,
     required double pitchHz,
     required double clarity,
     required String noteName,
+    double? frameDurationMs,
+    double? timestampMs,
   }) {
     if (!_isLiveTranscriptionActive) return null;
+    final currentMs = _liveClock.elapsedMicroseconds / 1000.0;
+    final measuredDt = frameDurationMs ??
+        (timestampMs != null ? null : (currentMs - _lastLiveClockMs).clamp(1.0, 2000.0));
+    _lastLiveClockMs = currentMs;
     final updatedPkg = _transcriptionEngine.processPitchFrame(
       frequencyHz: pitchHz,
       clarity: clarity,
       noteName: noteName,
+      frameDurationMs: measuredDt,
+      timestampMs: timestampMs,
     );
     if (updatedPkg != null) {
       _scoreHistory.recordState(activePackage);
@@ -129,6 +143,47 @@ class ScoreEditorController {
           duration: Duration(milliseconds: ms),
           volume: 0.85,
         );
+      }
+    }
+
+    return updated;
+  }
+
+  SongPackage insertScoreChordNotes({
+    required SongPackage activePackage,
+    required int measureIndex,
+    required int startTick,
+    required int durationTicks,
+    required List<String> noteNames,
+    required double referencePitch,
+    required int bpm,
+    bool playAudibleFeedback = true,
+  }) {
+    _scoreHistory.recordState(activePackage);
+    final updated = _editorOps.insertChordNotes(
+      package: activePackage,
+      measureIndex: measureIndex,
+      startTick: startTick,
+      durationTicks: durationTicks,
+      noteNames: noteNames,
+    );
+
+    if (playAudibleFeedback) {
+      final ms = (durationTicks * (60000.0 / bpm / 4.0)).round();
+      for (final noteName in noteNames) {
+        if (noteName.isEmpty || noteName == '--' || noteName.toLowerCase() == 'rest') {
+          continue;
+        }
+        final freq = NoteEntity.frequencyForNote(noteName, a4Ref: referencePitch);
+        if (freq > 20.0) {
+          unawaited(
+            _audioSynthesizer.playNoteTone(
+              frequency: freq,
+              duration: Duration(milliseconds: ms),
+              volume: 0.75,
+            ),
+          );
+        }
       }
     }
 
@@ -300,16 +355,23 @@ class ScoreEditorController {
     required SongPackage activePackage,
     required int currentMeasureIndex,
     required int currentSubTick,
+    int? bpm,
   }) {
     _isLiveTranscriptionActive = !_isLiveTranscriptionActive;
     if (_isLiveTranscriptionActive) {
+      _liveClock
+        ..reset()
+        ..start();
+      _lastLiveClockMs = 0.0;
       _transcriptionEngine.start(
         initialPackage: activePackage,
         startMeasureIndex: currentMeasureIndex,
         startTick: currentSubTick >= 0 ? currentSubTick : 0,
+        bpm: bpm,
       );
       return null;
     } else {
+      _liveClock.stop();
       final finalPkg = _transcriptionEngine.stop();
       if (finalPkg != null) {
         _scoreHistory.recordState(activePackage);
@@ -323,17 +385,24 @@ class ScoreEditorController {
     required int currentMeasureIndex,
     required int currentSubTick,
     required VoidCallback ensureChordRecognitionActive,
+    int? bpm,
   }) {
     _isPolyphonicTranscriptionActive = !_isPolyphonicTranscriptionActive;
     if (_isPolyphonicTranscriptionActive) {
       ensureChordRecognitionActive();
+      _polyphonicClock
+        ..reset()
+        ..start();
+      _lastPolyphonicClockMs = 0.0;
       _polyphonicTranscriptionEngine.start(
         initialPackage: activePackage,
         startMeasureIndex: currentMeasureIndex,
         startTick: currentSubTick >= 0 ? currentSubTick : 0,
+        bpm: bpm,
       );
       return null;
     } else {
+      _polyphonicClock.stop();
       final finalPkg = _polyphonicTranscriptionEngine.stop();
       if (finalPkg != null) {
         _scoreHistory.recordState(activePackage);
@@ -346,12 +415,20 @@ class ScoreEditorController {
     required SongPackage activePackage,
     required List<String> noteNames,
     double energyRms = 0.1,
+    double? frameDurationMs,
+    double? timestampMs,
   }) {
     if (!_isPolyphonicTranscriptionActive) return null;
 
+    final currentMs = _polyphonicClock.elapsedMicroseconds / 1000.0;
+    final measuredDt = frameDurationMs ??
+        (timestampMs != null ? null : (currentMs - _lastPolyphonicClockMs).clamp(1.0, 2000.0));
+    _lastPolyphonicClockMs = currentMs;
     final updatedPkg = _polyphonicTranscriptionEngine.processPolyphonicFrame(
       noteNames: noteNames,
       energyRms: energyRms,
+      frameDurationMs: measuredDt,
+      timestampMs: timestampMs,
     );
     if (updatedPkg != null) {
       _scoreHistory.recordState(activePackage);

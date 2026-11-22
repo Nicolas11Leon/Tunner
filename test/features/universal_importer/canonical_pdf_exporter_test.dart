@@ -102,9 +102,10 @@ void main() {
       expect(pdfString.contains('m 45.0'), isTrue);
       expect(pdfString.contains('l S'), isTrue);
 
-      // Cabeza de notas curvas y rectángulos acotados para OMR
+      // Cabeza de notas mediante curvas Bezier cerradas sin marcador rectangular artificial
       expect(pdfString.contains('c f'), isTrue);
-      expect(pdfString.contains('re f'), isTrue);
+      expect(pdfString.contains('c s'), isTrue);
+      expect(pdfString.contains('7.0 6.0 re f'), isFalse);
     });
 
     test('supports multi-page pagination when score contains many measures', () {

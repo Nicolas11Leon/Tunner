@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../domain/sf2/i_soundfont_synthesizer_service.dart';
 
@@ -97,6 +98,44 @@ class _InstrumentSoundFontSelectorModalState
     });
   }
 
+  Future<void> _pickAndLoadSoundFont() async {
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['sf2'],
+      );
+      if (files.isNotEmpty) {
+        final file = files.first;
+        final bytes = await file.readAsBytes();
+        if (bytes.isNotEmpty) {
+          widget.synthService.loadSoundFontFromBytes(bytes);
+          if (mounted) {
+            setState(() {
+              _selectedPatch = widget.synthService.activePatch;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'SoundFont cargado: ${file.name} (${widget.synthService.availablePresets.length} presets)',
+                ),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar SoundFont: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final presets = widget.synthService.availablePresets;
@@ -153,9 +192,35 @@ class _InstrumentSoundFontSelectorModalState
           ),
           const SizedBox(height: 20),
 
-          const Text(
-            'Instrumentos Disponibles:',
-            style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Instrumentos Disponibles:',
+                style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              Row(
+                children: [
+                  TextButton.icon(
+                    key: const Key('load_external_sf2_btn'),
+                    onPressed: _pickAndLoadSoundFont,
+                    icon: const Icon(Icons.file_open, size: 16, color: Colors.amberAccent),
+                    label: const Text('Cargar .SF2', style: TextStyle(color: Colors.amberAccent, fontSize: 12)),
+                  ),
+                  IconButton(
+                    key: const Key('reset_sf2_essentials_btn'),
+                    tooltip: 'Restaurar banco base',
+                    icon: const Icon(Icons.refresh, size: 16, color: Colors.white54),
+                    onPressed: () {
+                      widget.synthService.resetToEssentialsBank();
+                      setState(() {
+                        _selectedPatch = widget.synthService.activePatch;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ],
           ),
           const SizedBox(height: 12),
 

@@ -156,6 +156,18 @@ class PracticeRecordingPlayerModal extends StatelessWidget {
                       inactiveColor: palette.staffLinesColor.withValues(alpha: 0.4),
                       playheadColor: Colors.white,
                     ),
+                    child: recording.waveformPeaks.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Sin forma de onda capturada',
+                              style: TextStyle(
+                                color: palette.textMutedColor,
+                                fontSize: 11,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          )
+                        : null,
                   ),
                 ),
               );
@@ -405,24 +417,33 @@ class _WaveformPainter extends CustomPainter {
 
     final center = size.height / 2;
 
-    // Si no hay suficientes picos grabados, generar barras sintéticas armónicas
-    final displayPeaks = peaks.isNotEmpty ? peaks : List.generate(40, (i) => 0.2 + (i % 5) * 0.15);
-    final count = displayPeaks.length;
-    final step = size.width / (count > 0 ? count : 1);
-
-    for (int i = 0; i < count; i++) {
-      final x = i * step + step / 2;
-      final peak = displayPeaks[i].clamp(0.08, 1.0);
-      final barHeight = (peak * (size.height - 12)) / 2;
-
-      final isPlayed = (x / size.width) <= progress;
-      final paint = isPlayed ? activePaint : inactivePaint;
-
+    if (peaks.isEmpty) {
+      final baselinePaint = Paint()
+        ..color = inactiveColor.withValues(alpha: 0.6)
+        ..strokeWidth = 1.5;
       canvas.drawLine(
-        Offset(x, center - barHeight),
-        Offset(x, center + barHeight),
-        paint,
+        Offset(0, center),
+        Offset(size.width, center),
+        baselinePaint,
       );
+    } else {
+      final count = peaks.length;
+      final step = size.width / count;
+
+      for (int i = 0; i < count; i++) {
+        final x = i * step + step / 2;
+        final peak = peaks[i].clamp(0.08, 1.0);
+        final barHeight = (peak * (size.height - 12)) / 2;
+
+        final isPlayed = (x / size.width) <= progress;
+        final paint = isPlayed ? activePaint : inactivePaint;
+
+        canvas.drawLine(
+          Offset(x, center - barHeight),
+          Offset(x, center + barHeight),
+          paint,
+        );
+      }
     }
 
     // Dibujar aguja de reproducción (Playhead)

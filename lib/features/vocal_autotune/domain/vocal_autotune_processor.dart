@@ -199,30 +199,82 @@ class VocalAutoTuneProcessor {
     final outSamples = Float64List.fromList(monoSamples);
     final tempQuantizer = ScaleQuantizer();
 
-    for (int p = 0; p < pitchTrack.length; p++) {
-      final sample = pitchTrack[p];
-      if (sample.isSilent || sample.frequencyHz <= 20.0) continue;
-
-      final int startSample = ((sample.timeMs / 1000.0) * sampleRate).round().clamp(0, totalFrames);
-      final int nextMs = (p + 1 < pitchTrack.length)
+    // Agrupar muestras sonoras contiguas con afinacion objetivo equivalente
+    // para evitar saltos de fase en fronteras de ventanas de 20-50 ms.
+    int p = 0;
+    while (p < pitchTrack.length) {
+      final firstSample = pitchTrack[p];
+      final int firstNextMs = (p + 1 < pitchTrack.length)
           ? pitchTrack[p + 1].timeMs
-          : sample.timeMs + 50;
-      final int endSample = ((nextMs / 1000.0) * sampleRate).round().clamp(startSample, totalFrames);
+          : firstSample.timeMs + 50;
+
+      if (firstSample.isSilent || firstSample.frequencyHz <= 20.0) {
+        tempQuantizer.quantize(
+          detectedPitchHz: 0.0,
+          config: effectiveConfig,
+          deltaSeconds: (firstNextMs - firstSample.timeMs).clamp(1, 1000) / 1000.0,
+        );
+        p++;
+        continue;
+      }
+
+      final firstQuant = tempQuantizer.quantize(
+        detectedPitchHz: firstSample.frequencyHz,
+        config: effectiveConfig,
+        deltaSeconds: (firstNextMs - firstSample.timeMs).clamp(1, 1000) / 1000.0,
+      );
+
+      final int groupStartMs = firstSample.timeMs;
+      int groupEndMs = firstNextMs;
+      double weightedFreqSum = firstSample.frequencyHz;
+      double weightedRatioSum = firstQuant.pitchShiftRatio;
+      int groupCount = 1;
+
+      int nextIndex = p + 1;
+      while (nextIndex < pitchTrack.length) {
+        final candidate = pitchTrack[nextIndex];
+        if (candidate.isSilent || candidate.frequencyHz <= 20.0) break;
+        if ((candidate.timeMs - groupEndMs).abs() > 80) break;
+
+        final int candNextMs = (nextIndex + 1 < pitchTrack.length)
+            ? pitchTrack[nextIndex + 1].timeMs
+            : candidate.timeMs + 50;
+        final candQuant = tempQuantizer.quantize(
+          detectedPitchHz: candidate.frequencyHz,
+          config: effectiveConfig,
+          deltaSeconds: (candNextMs - candidate.timeMs).clamp(1, 1000) / 1000.0,
+        );
+
+        final bool sameNote = candQuant.targetNoteName == firstQuant.targetNoteName;
+        final bool closeRatio =
+            (candQuant.pitchShiftRatio - firstQuant.pitchShiftRatio).abs() < 0.01;
+        if (!sameNote || !closeRatio) break;
+
+        groupEndMs = candNextMs;
+        weightedFreqSum += candidate.frequencyHz;
+        weightedRatioSum += candQuant.pitchShiftRatio;
+        groupCount++;
+        nextIndex++;
+      }
+
+      p = nextIndex;
+
+      final double avgDetectedHz = weightedFreqSum / groupCount;
+      final double avgRatio = weightedRatioSum / groupCount;
+      if (!firstQuant.isVoiced || (avgRatio - 1.0).abs() < 0.005) continue;
+
+      final int startSample =
+          ((groupStartMs / 1000.0) * sampleRate).round().clamp(0, totalFrames);
+      final int endSample =
+          ((groupEndMs / 1000.0) * sampleRate).round().clamp(startSample, totalFrames);
       final int segmentLen = endSample - startSample;
       if (segmentLen < 48) continue;
-
-      final quant = tempQuantizer.quantize(
-        detectedPitchHz: sample.frequencyHz,
-        config: effectiveConfig,
-        deltaSeconds: (nextMs - sample.timeMs).clamp(1, 1000) / 1000.0,
-      );
-      if (!quant.isVoiced || (quant.pitchShiftRatio - 1.0).abs() < 0.005) continue;
 
       final segment = Float64List.sublistView(monoSamples, startSample, endSample);
       final shifted = _pitchShifter.shiftPitch(
         inputSamples: segment,
-        pitchShiftRatio: quant.pitchShiftRatio,
-        detectedPitchHz: sample.frequencyHz,
+        pitchShiftRatio: avgRatio,
+        detectedPitchHz: avgDetectedHz,
         sampleRate: sampleRate,
         preserveFormants: effectiveConfig.formantPreservation,
         leadVocalMix: effectiveConfig.leadVocalMix,
