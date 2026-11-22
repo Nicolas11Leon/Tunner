@@ -26,6 +26,7 @@ import '../features/practice_recorder/data/audio_playback_service.dart';
 import '../features/practice_recorder/data/practice_recorder_service.dart';
 import '../features/universal_importer/data/universal_score_importer_service.dart';
 import '../features/dj_console/presentation/dj_console_view_model.dart';
+import '../features/dj_console/data/dj_console_blueprint_storage_service.dart';
 import '../features/dj_console/data/dj_deck_audio_service.dart';
 import '../features/dj_console/data/dj_keymap_persistence_service.dart';
 import '../features/media_vault/data/universal_media_io_service.dart';
@@ -146,6 +147,7 @@ class StudioCompositionRoot {
       ),
       persistenceService: DjKeymapPersistenceService(),
       fileGateway: platformFileGateway,
+      blueprintStorageService: DjConsoleBlueprintStorageService(),
     );
   }
 
