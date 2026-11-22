@@ -386,9 +386,6 @@ class CanonicalPdfExporter {
       buf.writeln('${x - rx} $y m');
       buf.writeln('${x - rx} ${y + ry} ${x + rx} ${y + ry} ${x + rx} $y c');
       buf.writeln('${x + rx} ${y - ry} ${x - rx} ${y - ry} ${x - rx} $y c f');
-
-      // Marcador complementario de rectángulo acotado solo para cabezas rellenas
-      buf.writeln('${x - 3.5} ${y - 3.0} 7.0 6.0 re f');
     }
   }
 

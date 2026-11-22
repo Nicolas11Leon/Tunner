@@ -99,7 +99,7 @@ void main() {
       expect(notes[3].noteName, equals('Si4'));
     });
 
-    test('Discards non-equidistant or irregular horizontal lines', () {
+    test('Throws FormatException when horizontal lines are irregular and no valid staff exists', () {
       final lines = [
         const OmrLine(x1: 50, y1: 10, x2: 450, y2: 10),
         const OmrLine(x1: 50, y1: 30, x2: 450, y2: 30), // spacing 20
@@ -112,16 +112,14 @@ void main() {
         const OmrRect(x: 100, y: 20, width: 10, height: 10),
       ];
 
-      // Since spacing is completely non-uniform, fallback score is generated
-      final score = engine.processGeometricElements(
-        lines: lines,
-        rects: rects,
-        title: 'Fallback Score',
+      expect(
+        () => engine.processGeometricElements(
+          lines: lines,
+          rects: rects,
+          title: 'Invalid Staff Score',
+        ),
+        throwsA(isA<FormatException>()),
       );
-
-      expect(score.title, equals('Fallback Score'));
-      expect(score.measures, isNotEmpty);
-      expect(score.measures.first.notes, isNotEmpty);
     });
 
     test('Generates empty rest measure when both lines and rects are empty', () {
