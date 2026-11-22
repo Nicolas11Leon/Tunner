@@ -1,6 +1,8 @@
 # Plan de Implementacion US-5.4: Cableado MediaVault en DjConsoleModal, Timeline Drag/Waveforms y Exportacion Real
 
 - **Issue:** #161
+- **Caso de Uso:** `UC-167` (`docs/02_use_cases/167_uc_media_vault_dj_wiring_timeline_drag_and_real_exports.md`)
+- **ADR:** `ADR-0159` (`docs/04_adrs/0159_media_vault_timeline_drag_waveforms_and_canonical_exports.md`)
 - **Rama:** `feature/us-5.4-media-vault-dj-timeline-drag-and-exports`
 - **Base:** `qa`
 - **Estado:** Completado (Validado con `flutter analyze --no-fatal-infos` 0 issues y 19/19 tests aprobados)

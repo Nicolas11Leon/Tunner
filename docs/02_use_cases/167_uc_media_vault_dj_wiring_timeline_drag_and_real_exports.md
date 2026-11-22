@@ -1,10 +1,10 @@
-# UC-149: Cableado Completo de MediaVault en DjConsoleModal, Drop/Drag en Timeline, Waveforms y Exportacion Real
+# UC-167: Cableado Completo de MediaVault en DjConsoleModal, Drop/Drag en Timeline, Waveforms y Exportacion Real
 
 ## 1. Informacion General
 
 | Campo | Valor |
 | :--- | :--- |
-| **ID** | UC-149 |
+| **ID** | UC-167 |
 | **Historia de Usuario** | US-5.4 (EPIC-05) |
 | **Actores** | Musico / DJ (Usuario), `DjConsoleModal`, `MainAppShell`, `MediaVaultWorkspaceModal`, `UniversalMediaIoService` |
 | **Precondiciones** | El usuario abre la Boveda Multimedia desde `DjConsoleModal` o `MainAppShell`, o importa/exporta activos en `UniversalMediaIoService`. |
