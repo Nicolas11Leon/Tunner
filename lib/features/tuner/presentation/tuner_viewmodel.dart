@@ -704,16 +704,6 @@ class TunerViewModel extends ChangeNotifier
     _selectedScoreNoteIndex = noteIndex;
     final note = currentMeasureNotes[noteIndex];
     _scorePlaybackCoordinator.previewNote(note);
-    if (!note.isRest && note.noteName.isNotEmpty) {
-      final freq = NoteEntity.frequencyForNote(note.noteName, a4Ref: _referencePitch);
-      if (freq > 20.0) {
-        _audioSynthesizer.playNoteTone(
-          frequency: freq,
-          duration: const Duration(milliseconds: 400),
-          volume: 0.7,
-        );
-      }
-    }
     notifyListeners();
   }
 
@@ -1025,26 +1015,28 @@ class TunerViewModel extends ChangeNotifier
         _currentSubTick = subTick;
         _updateExpectedNoteForTick(subTick);
 
-        // Disparo sonoro de la nota musical de la partitura
-        if (_isScorePlaybackEnabled &&
-            _expectedNote != null &&
-            _expectedNote!.startTick == subTick) {
-          final noteName = _expectedNote!.noteName;
-          if (noteName != "--" && noteName.toLowerCase() != "rest") {
-            final leadTrackId = _activePackage.tracks.isNotEmpty
-                ? _activePackage.tracks.first.id
-                : "voice";
-            final voiceGain = _mixerConsole.getEffectiveGain(leadTrackId);
-            if (voiceGain > 0.001) {
-              final freq = NoteEntity.frequencyForNote(noteName, a4Ref: _referencePitch);
-              if (freq > 20.0) {
-                final msPerTick = 60000.0 / _bpm / 4.0;
-                final durationMs = (_expectedNote!.durationTicks * msPerTick).round();
-                _audioSynthesizer.playNoteTone(
-                  frequency: freq,
-                  duration: Duration(milliseconds: durationMs),
-                  volume: voiceGain,
-                );
+        // Disparo sonoro polifónico de las notas musicales de la partitura
+        if (_isScorePlaybackEnabled) {
+          final msPerTick = 60000.0 / _bpm / 4.0;
+          final activeNotes = currentMeasureNotes.where((n) => !n.isRest && n.startTick == subTick);
+          final leadTrackId = _activePackage.tracks.isNotEmpty
+              ? _activePackage.tracks.first.id
+              : "voice";
+          final voiceGain = _mixerConsole.getEffectiveGain(leadTrackId);
+
+          if (voiceGain > 0.001) {
+            for (final note in activeNotes) {
+              final noteName = note.noteName;
+              if (noteName != "--" && noteName.toLowerCase() != "rest" && noteName.isNotEmpty) {
+                final freq = NoteEntity.frequencyForNote(noteName, a4Ref: _referencePitch);
+                if (freq > 20.0) {
+                  final durationMs = (note.durationTicks * msPerTick).round();
+                  _audioSynthesizer.playNoteTone(
+                    frequency: freq,
+                    duration: Duration(milliseconds: durationMs),
+                    volume: voiceGain,
+                  );
+                }
               }
             }
           }
