@@ -197,6 +197,7 @@ class _MainAppShellState extends State<MainAppShell> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final vm = context.read<TunerViewModel>();
+    _modularRackViewModel.bindTunerViewModel(vm);
     _terminalKernel.synthVoicePool = vm.polyphonicVoicePool;
     _terminalKernel.scorePlaybackCoordinator = ScorePlaybackTerminalAdapter(vm.scorePlaybackCoordinator);
     _terminalKernel.projectPort = TunerProjectTerminalAdapter(vm);
