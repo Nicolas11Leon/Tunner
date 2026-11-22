@@ -82,3 +82,23 @@ sequenceDiagram
 2. La complejidad computacional del cálculo del denominador de la función NSDF pasa de $O(N \cdot \tau)$ a $O(N)$ en el pre-cálculo y $O(1)$ por retardo $\tau$.
 3. Los temperamentos históricos (Pitágoras, Mesotónico, Just Intonation) mantienen La4 exactamente anclado a la frecuencia de referencia del usuario (ej. 440 Hz).
 4. El filtro de acondicionamiento de señal sustrae el valor de polarización DC medio medido en la calibración inicial.
+
+---
+
+## Flujos Alternativos y Manejo de Errores
+
+### Flujo Alternativo A1: Degradación Elegante sin Puente Nativo FFI (Pure Dart Fallback)
+1. Si `INativeDspBridge` no ha sido inyectado o `isNativeAvailable` retorna `false` en la plataforma en ejecución, `McleodPitchMethod.computeNsdf` conmuta de forma transparente al cálculo de autocorrelación cruzada en Dart puro.
+2. En ambos caminos (nativo C99 o Dart puro), la normalización utiliza el vector de sumas de prefijo de energía $E[k]$ en complejidad $O(1)$ por retardo $\tau$, preservando la exactitud numérica idéntica.
+
+### Flujo Alternativo A2: Calibración Dinámica de Polarización DC (DC Offset)
+1. Si el usuario o el sistema ejecutan `calibrateDcOffsetFromSilentFrame(silentSamples)` sobre una ventana de silencio, `SignalConditioningFilter` calcula la media aritmética del sesgo de hardware y actualiza `calibratedDcOffset`.
+2. Si la ventana de calibración está vacía, el filtro conserva el valor de `calibratedDcOffset` previo sin producir divisiones por cero.
+
+### Manejo de Errores E1: Señales Silenciosas o por Debajo del Umbral de Puerta de Ruido (Noise Gate)
+1. Cuando la energía cuadrática media (RMS) de la ventana de 4096 muestras es inferior al umbral `noiseGateRmsThreshold` o el denominador de energía $m'(\tau) \le 10^{-12}$, `estimatePitch` aborta la búsqueda de picos parabólicos y retorna `PitchDetectionResult.silent()`.
+
+### Manejo de Errores E2: Ventanas Insuficientes o Retardos Fuera de Rango Acústico
+1. Si el búfer recibido contiene menos de 2 muestras o `maxTau` excede la longitud disponible, `computeNsdf` acota `maxTau` a $N - 1$ y retorna una lista vacía si $N < 2$, evitando accesos fuera de límites en memoria nativa o en listas tipadas `Float64List`.
+2. Si ningún máximo local positivo de la curva NSDF supera el umbral `clarityThreshold`, el estimador descarta candidatos espurios y reporta ausencia de tono válido.
+

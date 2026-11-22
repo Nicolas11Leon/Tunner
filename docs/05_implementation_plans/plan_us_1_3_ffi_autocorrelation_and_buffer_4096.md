@@ -4,7 +4,7 @@
 - **ID del Plan:** `PLAN-US-1.3-2026-01`
 - **Título de la Implementación:** FFI Autocorrelación, Búfer de 4096 Muestras, Anclaje A4 y Calibración DC Offset
 - **Fase del Proyecto:** Fase 1 / Hardening Cero Hardcoding
-- **Estado:** Aprobado
+- **Estado:** Completado
 - **ADR Relacionado:** [ADR 0140](docs/04_adrs/0140_ffi_autocorrelation_buffer_expansion_and_dc_calibration.md)
 - **Documento Funcional Base:** [Caso de Uso 148](docs/02_use_cases/148_uc_ffi_autocorrelation_buffer_expansion_and_dc_calibration.md)
 
