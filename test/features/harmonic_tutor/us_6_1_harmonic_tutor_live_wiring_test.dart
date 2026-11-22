@@ -55,7 +55,19 @@ void main() {
 
     expect(find.byType(HarmonicTutorModal), findsOneWidget);
     expect(find.text('SIMULACIÓN DE PRÁCTICA AUDITIVA'), findsNothing);
-    expect(find.byKey(const Key('harmonic_tutor_mic_toggle_btn')), findsOneWidget);
+    final micBtn = find.byKey(const Key('harmonic_tutor_mic_toggle_btn'));
+    expect(micBtn, findsOneWidget);
+    expect(find.text('Activar Mic'), findsOneWidget);
+
+    // Pulsar boton de microfono actualiza reactivamente la etiqueta a Detener Mic y de vuelta a Activar Mic
+    await tester.ensureVisible(micBtn);
+    await tester.tap(micBtn);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Detener Mic'), findsOneWidget);
+
+    await tester.tap(micBtn);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Activar Mic'), findsOneWidget);
 
     // Activar dron guia dispara audioSynthesizer.startDroneLoop con WAV real
     final droneBtn = find.byKey(const Key('toggle_harmonic_drone_btn'));

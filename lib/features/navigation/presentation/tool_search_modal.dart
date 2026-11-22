@@ -177,6 +177,7 @@ class _ToolSearchModalState extends State<ToolSearchModal> {
           palette: widget.viewModel.currentPalette,
           isMicrophoneActive: () => widget.viewModel.isRecording,
           onToggleMicrophone: widget.viewModel.toggleRecording,
+          microphoneListenable: widget.viewModel,
         ).whenComplete(() {
           widget.viewModel.telemetryListenable.removeListener(onTelemetry);
           tutorVm.dispose();

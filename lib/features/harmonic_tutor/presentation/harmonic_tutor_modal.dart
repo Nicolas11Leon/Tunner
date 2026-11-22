@@ -12,6 +12,7 @@ class HarmonicTutorModal extends StatelessWidget {
   final TunnerThemePalette palette;
   final bool Function()? isMicrophoneActive;
   final Future<void> Function()? onToggleMicrophone;
+  final Listenable? microphoneListenable;
 
   const HarmonicTutorModal({
     super.key,
@@ -19,6 +20,7 @@ class HarmonicTutorModal extends StatelessWidget {
     required this.palette,
     this.isMicrophoneActive,
     this.onToggleMicrophone,
+    this.microphoneListenable,
   });
 
   static Future<void> show(
@@ -27,6 +29,7 @@ class HarmonicTutorModal extends StatelessWidget {
     required TunnerThemePalette palette,
     bool Function()? isMicrophoneActive,
     Future<void> Function()? onToggleMicrophone,
+    Listenable? microphoneListenable,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -37,6 +40,7 @@ class HarmonicTutorModal extends StatelessWidget {
         palette: palette,
         isMicrophoneActive: isMicrophoneActive,
         onToggleMicrophone: onToggleMicrophone,
+        microphoneListenable: microphoneListenable,
       ),
     );
   }
@@ -54,7 +58,10 @@ class HarmonicTutorModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: viewModel,
+      listenable: Listenable.merge([
+        viewModel,
+        ?microphoneListenable,
+      ]),
       builder: (context, _) {
         final session = viewModel.session;
         final analysis = session.activeAnalysis ??
