@@ -77,3 +77,21 @@ sequenceDiagram
 2. Los SoundFonts importados desde el almacenamiento del usuario reemplazan o extienden los bancos esenciales con sus presets reales.
 3. El audio senoidal de diapasón generado por `PcmWavSynthesizer` se reproduce en bucle con cero saltos de amplitud o artefactos de chasquido audible.
 4. `HarmonicDroneConfig` acepta octavas del 0 al 8 sin excepciones de aserción.
+
+---
+
+## Flujos Alternativos y Manejo de Errores
+
+### Flujo Alternativo A1: Robo de Voces en Saturación Polifónica (Voice Stealing)
+1. Si las 16 voces de `PolyphonicVoicePool` están ocupadas cuando ingresa un nuevo evento `noteOn`, el asignador selecciona primero la voz en fase `release` de menor amplitud instantánea, o en su defecto la voz activa más antigua (`oldest allocationOrder`), evitando la pérdida de la nueva nota ejecutada.
+
+### Flujo Alternativo A2: Cancelación del Selector de Archivos SoundFont (.sf2)
+1. Si el usuario abre el diálogo de importación de archivos `.sf2` en `InstrumentSoundFontSelectorModal` y lo cancela sin seleccionar ningún archivo (`result == null`), el sistema conserva intacto el banco SoundFont activo sin alterar la reproducción en curso.
+
+### Manejo de Errores E1: Archivo SoundFont (.sf2) Corrupto o Sin Cabecera RIFF/sfbk
+1. Cuando los bytes proporcionados a `SoundFontSynthesizerService.loadSoundFontFromBytes` no corresponden a un contenedor RIFF/sfbk válido o están truncados, `Sf2Parser` captura el error de formato, mantiene los presets esenciales de respaldo y notifica en la interfaz mediante un mensaje de error controlado sin bloquear el hilo de audio.
+
+### Manejo de Errores E2: Parámetros Fuera de Rango en Síntesis WAV y Tono Pedal
+1. Si se solicita a `PcmWavSynthesizer` o `PolyphonicVoicePool.renderWavBlock` una frecuencia $\le 0\text{ Hz}$ o una duración $\le 0\text{ s}$, el sintetizador retorna un contenedor WAV silencioso válido o acota el número de muestras a un mínimo seguro de 1 ciclo.
+2. Si se intenta instanciar `HarmonicDroneConfig` con una octava fuera del intervalo universal $[0, 8]$ o con volumen fuera de $[0.0, 1.0]$, las aserciones de dominio rechazan la configuración inválida en tiempo de desarrollo.
+
