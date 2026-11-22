@@ -94,7 +94,8 @@ class StudioAutomationsModal extends StatelessWidget {
                     icon: Icons.trending_up_rounded,
                     actionLabel: viewModel.isBpmRampActive ? 'Detener Rampa' : 'Activar Rampa',
                     onAction: () {
-                      if (viewModel.isBpmRampActive) {
+                      final wasActive = viewModel.isBpmRampActive;
+                      if (wasActive) {
                         viewModel.stopProgressiveBpmRamp();
                       } else {
                         viewModel.startProgressiveBpmRamp(stepBpm: 2, measuresInterval: 4);
@@ -102,7 +103,7 @@ class StudioAutomationsModal extends StatelessWidget {
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(viewModel.isBpmRampActive
+                          content: Text(wasActive
                               ? 'Rampa progresiva de metrónomo detenida.'
                               : 'Rampa progresiva de metrónomo inicializada (+2 BPM cada 4 compases).'),
                           duration: const Duration(seconds: 2),
@@ -117,14 +118,30 @@ class StudioAutomationsModal extends StatelessWidget {
                     title: 'Detección y Auto-Grabación WAV',
                     description: 'Arma el motor de audio para iniciar automáticamente una nueva toma de práctica en cuanto detecte sonido en el micrófono.',
                     icon: Icons.mic_rounded,
-                    actionLabel: viewModel.isAudioRecording ? 'Detener Grabación' : 'Armar Auto-Grabación',
+                    actionLabel: viewModel.isAudioRecording
+                        ? 'Detener Grabación'
+                        : (viewModel.isAutoRecordArmed ? 'Desarmar Auto-Grabación' : 'Armar Auto-Grabación'),
                     onAction: () {
-                      if (viewModel.isAudioRecording) {
+                      final wasRecording = viewModel.isAudioRecording;
+                      final wasArmed = viewModel.isAutoRecordArmed;
+                      if (wasRecording) {
                         viewModel.stopPracticeRecording();
+                      } else if (wasArmed) {
+                        viewModel.disarmAutoRecord();
                       } else {
-                        viewModel.startPracticeRecording();
+                        viewModel.armAutoRecord();
                       }
                       Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(wasRecording
+                              ? 'Grabación de práctica detenida.'
+                              : (wasArmed
+                                  ? 'Auto-Grabación desarmada.'
+                                  : 'Auto-Grabación armada: comenzará al detectar señal en micrófono.')),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
                     },
                   ),
                   const SizedBox(height: 12),
@@ -136,7 +153,8 @@ class StudioAutomationsModal extends StatelessWidget {
                     icon: Icons.fitness_center_rounded,
                     actionLabel: viewModel.isWarmupActive ? 'Detener Calentamiento' : 'Iniciar Calentamiento',
                     onAction: () {
-                      if (viewModel.isWarmupActive) {
+                      final wasActive = viewModel.isWarmupActive;
+                      if (wasActive) {
                         viewModel.stopGuidedWarmupRoutine();
                       } else {
                         viewModel.startGuidedWarmupRoutine();
@@ -144,9 +162,9 @@ class StudioAutomationsModal extends StatelessWidget {
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(viewModel.isWarmupActive
+                          content: Text(wasActive
                               ? 'Sesión de calentamiento técnico detenida.'
-                              : 'Sesión de calentamiento técnico iniciada (Afinador + Dron armónico).'),
+                              : 'Sesión de calentamiento técnico iniciada (5 min círculo de quintas + Dron armónico).'),
                           duration: const Duration(seconds: 2),
                         ),
                       );

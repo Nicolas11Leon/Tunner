@@ -159,6 +159,7 @@ class ProductionAcousticLabWorkspaceView extends StatelessWidget {
           const SizedBox(height: 14),
 
           // Tarjeta de Espectrograma FFT en Cascada
+          if (viewModel.workspaceConfiguration.showAcousticSpectrogram) ...[
           Container(
             padding: const EdgeInsets.all(16.0),
             decoration: BoxDecoration(
@@ -210,8 +211,10 @@ class ProductionAcousticLabWorkspaceView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
+          ],
 
           // Tarjeta del Analizador de Acordes Polifónico
+          if (viewModel.workspaceConfiguration.showChordAnalyzer) ...[
           Container(
             padding: const EdgeInsets.all(16.0),
             decoration: BoxDecoration(
@@ -294,6 +297,7 @@ class ProductionAcousticLabWorkspaceView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
+          ],
 
           // Tarjetas de Comparador Espectral y Mezclador de Stems
           Row(

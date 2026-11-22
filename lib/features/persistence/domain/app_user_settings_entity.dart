@@ -41,6 +41,10 @@ class AppUserSettingsEntity {
   final WorkspaceType activeWorkspace;
   final MicrophoneCalibrationProfile micCalibrationProfile;
   final AcousticRigorProfile acousticRigorProfile;
+  final String dspEngineName;
+  final int targetRenderFps;
+  final double centsPrecision;
+  final WorkspaceConfigurationEntity? workspaceConfiguration;
   final Map<String, Map<String, dynamic>> earTrainingItemsJson;
   final Map<String, String> taskStatuses;
   final List<String> completedLessonIds;
@@ -65,6 +69,10 @@ class AppUserSettingsEntity {
     this.activeWorkspace = WorkspaceType.learning,
     this.micCalibrationProfile = const MicrophoneCalibrationProfile(),
     this.acousticRigorProfile = const AcousticRigorProfile(),
+    this.dspEngineName = 'Tartini DSP 2.1',
+    this.targetRenderFps = 60,
+    this.centsPrecision = 0.1,
+    this.workspaceConfiguration,
     this.earTrainingItemsJson = const {},
     this.taskStatuses = const {},
     this.completedLessonIds = const [],
@@ -105,6 +113,10 @@ class AppUserSettingsEntity {
     WorkspaceType? activeWorkspace,
     MicrophoneCalibrationProfile? micCalibrationProfile,
     AcousticRigorProfile? acousticRigorProfile,
+    String? dspEngineName,
+    int? targetRenderFps,
+    double? centsPrecision,
+    WorkspaceConfigurationEntity? workspaceConfiguration,
     Map<String, Map<String, dynamic>>? earTrainingItemsJson,
     Map<String, String>? taskStatuses,
     List<String>? completedLessonIds,
@@ -130,6 +142,10 @@ class AppUserSettingsEntity {
       activeWorkspace: activeWorkspace ?? this.activeWorkspace,
       micCalibrationProfile: micCalibrationProfile ?? this.micCalibrationProfile,
       acousticRigorProfile: acousticRigorProfile ?? this.acousticRigorProfile,
+      dspEngineName: dspEngineName ?? this.dspEngineName,
+      targetRenderFps: targetRenderFps ?? this.targetRenderFps,
+      centsPrecision: centsPrecision ?? this.centsPrecision,
+      workspaceConfiguration: workspaceConfiguration ?? this.workspaceConfiguration,
       earTrainingItemsJson: earTrainingItemsJson ?? this.earTrainingItemsJson,
       taskStatuses: taskStatuses ?? this.taskStatuses,
       completedLessonIds: completedLessonIds ?? this.completedLessonIds,
@@ -164,6 +180,11 @@ class AppUserSettingsEntity {
       'activeWorkspace': activeWorkspace.serializedKey,
       'micCalibrationProfile': micCalibrationProfile.toJson(),
       'acousticRigorProfile': acousticRigorProfile.toJson(),
+      'dspEngineName': dspEngineName,
+      'targetRenderFps': targetRenderFps,
+      'centsPrecision': centsPrecision,
+      if (workspaceConfiguration != null)
+        'workspaceConfiguration': workspaceConfiguration!.toMap(),
       'earTrainingItemsJson': earTrainingItemsJson,
       'taskStatuses': taskStatuses,
       'completedLessonIds': completedLessonIds,
@@ -266,6 +287,11 @@ class AppUserSettingsEntity {
         ? AcousticRigorProfile.fromJson(rawRigorProfile)
         : const AcousticRigorProfile();
 
+    final rawWorkspaceConfig = map['workspaceConfiguration'] as Map<String, dynamic>?;
+    final workspaceConfiguration = rawWorkspaceConfig != null
+        ? WorkspaceConfigurationEntity.fromMap(rawWorkspaceConfig)
+        : null;
+
     MixerConsoleEntity? mixerConsole;
     final rawMixer = map['mixerConsole'];
     if (rawMixer is Map<String, dynamic>) {
@@ -300,6 +326,10 @@ class AppUserSettingsEntity {
       activeWorkspace: activeWorkspace,
       micCalibrationProfile: micCalibrationProfile,
       acousticRigorProfile: acousticRigorProfile,
+      dspEngineName: map['dspEngineName'] as String? ?? 'Tartini DSP 2.1',
+      targetRenderFps: (map['targetRenderFps'] as num?)?.toInt() ?? 60,
+      centsPrecision: (map['centsPrecision'] as num?)?.toDouble() ?? 0.1,
+      workspaceConfiguration: workspaceConfiguration,
       earTrainingItemsJson: (map['earTrainingItemsJson'] as Map<String, dynamic>?)
               ?.map((k, v) => MapEntry(k, Map<String, dynamic>.from(v as Map))) ??
           const {},

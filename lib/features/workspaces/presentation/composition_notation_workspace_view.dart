@@ -160,6 +160,7 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
           ),
 
         // Lienzo del Pentagrama Tipográfico SMuFL
+        if (viewModel.workspaceConfiguration.showSheetMusicCanvas)
         Expanded(
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
