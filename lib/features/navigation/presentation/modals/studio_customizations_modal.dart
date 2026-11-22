@@ -25,9 +25,17 @@ class StudioCustomizationsModal extends StatefulWidget {
 }
 
 class _StudioCustomizationsModalState extends State<StudioCustomizationsModal> {
-  String _selectedEngine = 'Tartini DSP 2.1';
-  int _targetFps = 60;
-  double _centsPrecision = 0.1;
+  late String _selectedEngine;
+  late int _targetFps;
+  late double _centsPrecision;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedEngine = widget.viewModel.dspEngineName;
+    _targetFps = widget.viewModel.targetRenderFps;
+    _centsPrecision = widget.viewModel.centsPrecision.clamp(0.1, 1.0);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -238,7 +246,11 @@ class _StudioCustomizationsModalState extends State<StudioCustomizationsModal> {
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () {
-                      widget.viewModel.savePersistedState();
+                      widget.viewModel.updateStudioCustomizations(
+                        dspEngineName: _selectedEngine,
+                        targetRenderFps: _targetFps,
+                        centsPrecision: _centsPrecision,
+                      );
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(

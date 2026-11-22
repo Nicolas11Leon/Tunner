@@ -188,6 +188,11 @@ class TunerViewModel extends ChangeNotifier
   int _consecutiveErrors = 0;
   PedagogicalDiagnosticResult? _lastPedagogicalDiagnostic;
   WorkspaceType _activeWorkspace = WorkspaceType.learning;
+  WorkspaceConfigurationEntity _workspaceConfiguration =
+      WorkspaceConfigurationEntity.defaultFor(WorkspaceType.learning);
+  String _dspEngineName = 'Tartini DSP 2.1';
+  int _targetRenderFps = 60;
+  double _centsPrecision = 0.1;
 
   // Motor de Síntesis SoundFont SF2 y Timbres Acústicos
   final ISoundFontSynthesizerService _soundFontSynthesizer;
@@ -566,14 +571,42 @@ class TunerViewModel extends ChangeNotifier
   PedagogicalDiagnosticResult? get lastPedagogicalDiagnostic => _lastPedagogicalDiagnostic;
   AcousticEchoSuppressor get echoSuppressor => _echoSuppressor;
   WorkspaceType get activeWorkspace => _activeWorkspace;
+  WorkspaceConfigurationEntity get workspaceConfiguration => _workspaceConfiguration;
+  String get dspEngineName => _dspEngineName;
+  int get targetRenderFps => _targetRenderFps;
+  double get centsPrecision => _centsPrecision;
 
   /// Cambia el espacio de trabajo activo (Aprender, Componer, Producir).
   void setWorkspace(WorkspaceType workspace) {
     if (_activeWorkspace != workspace) {
       _activeWorkspace = workspace;
+      if (_workspaceConfiguration.type != workspace) {
+        _workspaceConfiguration = WorkspaceConfigurationEntity.defaultFor(workspace);
+      }
       notifyListeners();
       _triggerAutoSave();
     }
+  }
+
+  /// Actualiza y persiste la configuración de paneles visibles del Workspace activo.
+  void updateWorkspaceConfiguration(WorkspaceConfigurationEntity config) {
+    _workspaceConfiguration = config;
+    _activeWorkspace = config.type;
+    notifyListeners();
+    _triggerAutoSave();
+  }
+
+  /// Actualiza y persiste la configuración técnica de DSP, FPS y precisión.
+  void updateStudioCustomizations({
+    required String dspEngineName,
+    required int targetRenderFps,
+    required double centsPrecision,
+  }) {
+    _dspEngineName = dspEngineName;
+    _targetRenderFps = targetRenderFps;
+    _centsPrecision = centsPrecision;
+    notifyListeners();
+    _triggerAutoSave();
   }
 
   /// Modifica el temperamento histórico activo (ej. Werckmeister III, Mesotónico, Justo).
@@ -818,6 +851,12 @@ class TunerViewModel extends ChangeNotifier
   void _initListeners() {
     _pitchService.onRmsLevelChanged = (rms) {
       _currentMicRmsLevel = rms;
+      if (_isAutoRecordArmed &&
+          !_recorderController.isAudioRecording &&
+          rms >= autoRecordRmsThreshold) {
+        _isAutoRecordArmed = false;
+        unawaited(startPracticeRecording());
+      }
       _updateTelemetry();
       notifyListeners();
     };
@@ -2042,6 +2081,31 @@ class TunerViewModel extends ChangeNotifier
 
   bool _isWarmupActive = false;
   bool get isWarmupActive => _isWarmupActive;
+  Timer? _warmupTimer;
+  int _warmupRemainingSeconds = 0;
+  int get warmupRemainingSeconds => _warmupRemainingSeconds;
+  int _warmupStepIndex = 0;
+  int get warmupStepIndex => _warmupStepIndex;
+  static const List<int> _circleOfFifthsKeys = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5];
+
+  static const double autoRecordRmsThreshold = 0.03;
+  bool _isAutoRecordArmed = false;
+  bool get isAutoRecordArmed => _isAutoRecordArmed;
+
+  /// Arma la auto-grabación para iniciar automáticamente al detectar señal por encima del umbral RMS.
+  void armAutoRecord() {
+    _isAutoRecordArmed = true;
+    if (!_isRecording) {
+      unawaited(toggleRecording());
+    }
+    notifyListeners();
+  }
+
+  /// Desarma la auto-grabación en espera.
+  void disarmAutoRecord() {
+    _isAutoRecordArmed = false;
+    notifyListeners();
+  }
 
   /// Inicia una rampa progresiva de tempo que incrementa [stepBpm] periódicamente cada [measuresInterval] compases.
   void startProgressiveBpmRamp({int stepBpm = 2, int measuresInterval = 4}) {
@@ -2073,21 +2137,54 @@ class TunerViewModel extends ChangeNotifier
     notifyListeners();
   }
 
-  /// Inicia una rutina guiada de calentamiento combinando afinación con dron armónico.
+  /// Inicia una rutina guiada de calentamiento de 5 minutos (300 s) en círculo de quintas con dron armónico.
   void startGuidedWarmupRoutine() {
+    _warmupTimer?.cancel();
     _isWarmupActive = true;
+    _warmupRemainingSeconds = 300;
+    _warmupStepIndex = 0;
+    _droneConfig = _droneConfig.copyWith(
+      rootNoteIndex: _circleOfFifthsKeys[0],
+      includeFifth: true,
+    );
     if (!_isRecording) {
       unawaited(toggleRecording());
     }
     if (!isDronePlaying) {
       toggleDrone();
+    } else {
+      unawaited(_refreshDronePlayback());
     }
+    _warmupTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!_isWarmupActive) return;
+      _warmupRemainingSeconds--;
+      if (_warmupRemainingSeconds <= 0) {
+        stopGuidedWarmupRoutine();
+        return;
+      }
+      final elapsed = 300 - _warmupRemainingSeconds;
+      final nextStep = (elapsed ~/ 25).clamp(0, _circleOfFifthsKeys.length - 1);
+      if (nextStep != _warmupStepIndex) {
+        _warmupStepIndex = nextStep;
+        _droneConfig = _droneConfig.copyWith(
+          rootNoteIndex: _circleOfFifthsKeys[nextStep],
+          includeFifth: true,
+        );
+        if (isDronePlaying) {
+          unawaited(_refreshDronePlayback());
+        }
+      }
+      notifyListeners();
+    });
     notifyListeners();
   }
 
   /// Detiene la rutina guiada de calentamiento.
   void stopGuidedWarmupRoutine() {
+    _warmupTimer?.cancel();
+    _warmupTimer = null;
     _isWarmupActive = false;
+    _warmupRemainingSeconds = 0;
     if (isDronePlaying) {
       toggleDrone();
     }
@@ -2185,6 +2282,11 @@ class TunerViewModel extends ChangeNotifier
       _temperamentRootKey = settings.temperamentRootKey;
       _learnerProfile = settings.learnerProfile;
       _activeWorkspace = settings.activeWorkspace;
+      _dspEngineName = settings.dspEngineName;
+      _targetRenderFps = settings.targetRenderFps;
+      _centsPrecision = settings.centsPrecision;
+      _workspaceConfiguration = settings.workspaceConfiguration ??
+          WorkspaceConfigurationEntity.defaultFor(_activeWorkspace);
 
       if (settings.sessionHistory.isNotEmpty) {
         _sessionHistory.clear();
@@ -2266,6 +2368,10 @@ class TunerViewModel extends ChangeNotifier
       activeWorkspace: _activeWorkspace,
       micCalibrationProfile: _micProfile,
       acousticRigorProfile: _acousticRigorProfile,
+      dspEngineName: _dspEngineName,
+      targetRenderFps: _targetRenderFps,
+      centsPrecision: _centsPrecision,
+      workspaceConfiguration: _workspaceConfiguration,
     );
     return _recorderController.saveSettings(settings);
   }
@@ -2623,6 +2729,7 @@ class TunerViewModel extends ChangeNotifier
     _isDisposed = true;
     _scorePlaybackCoordinator.dispose();
     _bpmRampTimer?.cancel();
+    _warmupTimer?.cancel();
     _silenceTimer?.cancel();
     _pitchService.stopRecording();
     _metronomeService.stop();

@@ -38,6 +38,10 @@ class AppUserSettingsEntity {
   final WorkspaceType activeWorkspace;
   final MicrophoneCalibrationProfile micCalibrationProfile;
   final AcousticRigorProfile acousticRigorProfile;
+  final String dspEngineName;
+  final int targetRenderFps;
+  final double centsPrecision;
+  final WorkspaceConfigurationEntity? workspaceConfiguration;
 
   const AppUserSettingsEntity({
     this.referencePitch = 440.0,
@@ -56,6 +60,10 @@ class AppUserSettingsEntity {
     this.activeWorkspace = WorkspaceType.learning,
     this.micCalibrationProfile = const MicrophoneCalibrationProfile(),
     this.acousticRigorProfile = const AcousticRigorProfile(),
+    this.dspEngineName = 'Tartini DSP 2.1',
+    this.targetRenderFps = 60,
+    this.centsPrecision = 0.1,
+    this.workspaceConfiguration,
     this.learnerProfile = const LearnerProfileEntity(
       type: LearnerProfileType.adultDeliberate,
       title: 'Modo Adulto (Práctica Deliberada)',
@@ -89,6 +97,10 @@ class AppUserSettingsEntity {
     WorkspaceType? activeWorkspace,
     MicrophoneCalibrationProfile? micCalibrationProfile,
     AcousticRigorProfile? acousticRigorProfile,
+    String? dspEngineName,
+    int? targetRenderFps,
+    double? centsPrecision,
+    WorkspaceConfigurationEntity? workspaceConfiguration,
   }) {
     return AppUserSettingsEntity(
       referencePitch: referencePitch ?? this.referencePitch,
@@ -108,6 +120,10 @@ class AppUserSettingsEntity {
       activeWorkspace: activeWorkspace ?? this.activeWorkspace,
       micCalibrationProfile: micCalibrationProfile ?? this.micCalibrationProfile,
       acousticRigorProfile: acousticRigorProfile ?? this.acousticRigorProfile,
+      dspEngineName: dspEngineName ?? this.dspEngineName,
+      targetRenderFps: targetRenderFps ?? this.targetRenderFps,
+      centsPrecision: centsPrecision ?? this.centsPrecision,
+      workspaceConfiguration: workspaceConfiguration ?? this.workspaceConfiguration,
     );
   }
 
@@ -136,6 +152,11 @@ class AppUserSettingsEntity {
       'activeWorkspace': activeWorkspace.serializedKey,
       'micCalibrationProfile': micCalibrationProfile.toJson(),
       'acousticRigorProfile': acousticRigorProfile.toJson(),
+      'dspEngineName': dspEngineName,
+      'targetRenderFps': targetRenderFps,
+      'centsPrecision': centsPrecision,
+      if (workspaceConfiguration != null)
+        'workspaceConfiguration': workspaceConfiguration!.toMap(),
     };
   }
 
@@ -221,6 +242,11 @@ class AppUserSettingsEntity {
         ? AcousticRigorProfile.fromJson(rawRigorProfile)
         : const AcousticRigorProfile();
 
+    final rawWorkspaceConfig = map['workspaceConfiguration'] as Map<String, dynamic>?;
+    final workspaceConfiguration = rawWorkspaceConfig != null
+        ? WorkspaceConfigurationEntity.fromMap(rawWorkspaceConfig)
+        : null;
+
     return AppUserSettingsEntity(
       referencePitch: (map['referencePitch'] as num?)?.toDouble() ?? 440.0,
       selectedThemeId: map['selectedThemeId'] as String? ?? 'obsidian_studio',
@@ -242,6 +268,10 @@ class AppUserSettingsEntity {
       activeWorkspace: activeWorkspace,
       micCalibrationProfile: micCalibrationProfile,
       acousticRigorProfile: acousticRigorProfile,
+      dspEngineName: map['dspEngineName'] as String? ?? 'Tartini DSP 2.1',
+      targetRenderFps: (map['targetRenderFps'] as num?)?.toInt() ?? 60,
+      centsPrecision: (map['centsPrecision'] as num?)?.toDouble() ?? 0.1,
+      workspaceConfiguration: workspaceConfiguration,
     );
   }
 
