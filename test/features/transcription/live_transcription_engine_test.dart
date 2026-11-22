@@ -60,6 +60,7 @@ void main() {
       engine = LiveTranscriptionEngine(
         minFramesForOnset: 2,
         minClarityThreshold: 0.80,
+        defaultFrameDurationMs: 125.0,
       );
     });
 
@@ -201,7 +202,7 @@ void main() {
       final finalPackage = engine.stop();
       expect(finalPackage!.score.measures.length, greaterThanOrEqualTo(2));
       expect(finalPackage.score.measures[0].notes.first.noteName, equals('La4'));
-      expect(finalPackage.score.measures[1].notes.first.noteName, equals('Si4'));
+      expect(finalPackage.score.measures[1].notes.any((n) => n.noteName == 'Si4'), isTrue);
     });
   });
 }

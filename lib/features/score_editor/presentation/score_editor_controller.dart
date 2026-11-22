@@ -1,8 +1,10 @@
-import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
 import '../../../core/logging/domain/i_studio_logger.dart';
+import '../../acoustic_lab/domain/harmonic_series_analyzer.dart';
+import '../../practice_evaluator/domain/note_evaluation_entity.dart';
 import '../../audio_synthesizer/domain/i_audio_synthesizer_service.dart';
 import '../../audio_synthesizer/domain/i_stem_export_persistence_service.dart';
 import '../../audio_synthesizer/domain/stem_audio_synthesizer.dart';
@@ -83,17 +85,30 @@ class ScoreEditorController {
     _scoreHistory.recordState(package);
   }
 
+  final Stopwatch _liveClock = Stopwatch();
+  double _lastLiveClockMs = 0.0;
+  final Stopwatch _polyphonicClock = Stopwatch();
+  double _lastPolyphonicClockMs = 0.0;
+
   SongPackage? processLiveTranscriptionFrame({
     required SongPackage activePackage,
     required double pitchHz,
     required double clarity,
     required String noteName,
+    double? frameDurationMs,
+    double? timestampMs,
   }) {
     if (!_isLiveTranscriptionActive) return null;
+    final currentMs = _liveClock.elapsedMicroseconds / 1000.0;
+    final measuredDt = frameDurationMs ??
+        (timestampMs != null ? null : (currentMs - _lastLiveClockMs).clamp(1.0, 2000.0));
+    _lastLiveClockMs = currentMs;
     final updatedPkg = _transcriptionEngine.processPitchFrame(
       frequencyHz: pitchHz,
       clarity: clarity,
       noteName: noteName,
+      frameDurationMs: measuredDt,
+      timestampMs: timestampMs,
     );
     if (updatedPkg != null) {
       _scoreHistory.recordState(activePackage);
@@ -129,6 +144,47 @@ class ScoreEditorController {
           duration: Duration(milliseconds: ms),
           volume: 0.85,
         );
+      }
+    }
+
+    return updated;
+  }
+
+  SongPackage insertScoreChordNotes({
+    required SongPackage activePackage,
+    required int measureIndex,
+    required int startTick,
+    required int durationTicks,
+    required List<String> noteNames,
+    required double referencePitch,
+    required int bpm,
+    bool playAudibleFeedback = true,
+  }) {
+    _scoreHistory.recordState(activePackage);
+    final updated = _editorOps.insertChordNotes(
+      package: activePackage,
+      measureIndex: measureIndex,
+      startTick: startTick,
+      durationTicks: durationTicks,
+      noteNames: noteNames,
+    );
+
+    if (playAudibleFeedback) {
+      final ms = (durationTicks * (60000.0 / bpm / 4.0)).round();
+      for (final noteName in noteNames) {
+        if (noteName.isEmpty || noteName == '--' || noteName.toLowerCase() == 'rest') {
+          continue;
+        }
+        final freq = NoteEntity.frequencyForNote(noteName, a4Ref: referencePitch);
+        if (freq > 20.0) {
+          unawaited(
+            _audioSynthesizer.playNoteTone(
+              frequency: freq,
+              duration: Duration(milliseconds: ms),
+              volume: 0.75,
+            ),
+          );
+        }
       }
     }
 
@@ -202,39 +258,78 @@ class ScoreEditorController {
     required double cents,
     required int bpm,
     required TapTempoResult? lastTapTempoResult,
+    TimbreAnalysisResult? timbreAnalysis,
+    List<NoteEvaluationEntity> activeEvaluations = const [],
   }) {
     final lastReport = sessionHistory.isNotEmpty ? sessionHistory.last : null;
     final lastTake = multiTrackSession.takes.isNotEmpty ? multiTrackSession.takes.last : null;
 
     final title = lastReport?.songTitle ?? activePackage.title;
-    final accuracy = lastReport?.pitchAccuracyPercentage ?? 89.2;
-    final avgCents = lastReport?.averageCentsDeviation ?? (cents.abs() < 50 ? cents : 1.5);
-    final notes = lastReport?.totalNotes ?? 120;
-    final inTune = lastReport?.hitNotes ?? (notes * (accuracy / 100)).round();
+    final int notes;
+    final int inTune;
+    final double accuracy;
+    final double avgCents;
 
-    List<TimedCentsSample> samples = [];
+    if (lastReport != null) {
+      notes = lastReport.totalNotes;
+      inTune = lastReport.hitNotes;
+      accuracy = lastReport.pitchAccuracyPercentage;
+      avgCents = lastReport.averageCentsDeviation;
+    } else if (activeEvaluations.isNotEmpty) {
+      notes = activeEvaluations.length;
+      inTune = activeEvaluations.where((e) => e.isPitchAccurate).length;
+      accuracy = notes > 0 ? (inTune / notes) * 100.0 : 0.0;
+      final sumCents = activeEvaluations.fold<double>(
+        0.0,
+        (acc, e) => acc + e.centsDeviation.abs(),
+      );
+      avgCents = notes > 0 ? sumCents / notes : 0.0;
+    } else {
+      notes = 0;
+      inTune = 0;
+      accuracy = 0.0;
+      avgCents = cents.abs() < 50 ? cents : 0.0;
+    }
+
+    final List<TimedCentsSample> samples;
     if (lastTake != null && lastTake.pitchTrack.isNotEmpty) {
       samples = lastTake.pitchTrack
           .map((s) => TimedCentsSample(
                 timeSec: s.timeMs / 1000.0,
                 cents: s.centsDeviation,
               ))
-          .toList();
+          .toList(growable: false);
     } else {
-      for (int i = 0; i <= 40; i++) {
-        samples.add(TimedCentsSample(
-          timeSec: i * 0.5,
-          cents: avgCents + math.sin(i * 0.4) * 3.5,
-        ));
-      }
+      samples = const <TimedCentsSample>[];
     }
 
-    final jitter = lastTapTempoResult != null && lastTapTempoResult.jitterMs > 0
+    final double jitter = lastTapTempoResult != null && lastTapTempoResult.jitterMs > 0
         ? lastTapTempoResult.jitterMs
-        : 11.2;
+        : 0.0;
 
-    String level;
-    if (accuracy >= 90 && jitter <= 12) {
+    final double stabilityDelta;
+    if (samples.length >= 2) {
+      final mean = samples.fold<double>(0.0, (a, b) => a + b.cents) / samples.length;
+      double variance = 0.0;
+      for (final s in samples) {
+        final d = s.cents - mean;
+        variance += d * d;
+      }
+      stabilityDelta = variance > 0 ? (variance / samples.length) : 0.0;
+    } else {
+      stabilityDelta = 0.0;
+    }
+
+    final double centroidHz = timbreAnalysis?.spectralCentroidHz ?? 0.0;
+    final double thdPct = timbreAnalysis?.totalHarmonicDistortionPercent ?? 0.0;
+    final List<double> harmonicRatios = timbreAnalysis != null && timbreAnalysis.harmonics.isNotEmpty
+        ? timbreAnalysis.harmonics.map((h) => h.relativeAmplitude).toList(growable: false)
+        : const <double>[];
+
+    final String level;
+    if (notes == 0) {
+      level = 'Sin sesiones registradas';
+    } else if (accuracy >= 90 && jitter <= 12) {
       level = 'Virtuoso / Conservatorio';
     } else if (accuracy >= 80) {
       level = 'Avanzado';
@@ -247,27 +342,31 @@ class ScoreEditorController {
     return PedagogicalSessionData(
       sessionTitle: title,
       sessionDate: lastReport?.timestamp ?? DateTime.now(),
-      duration: lastTake?.duration ?? const Duration(minutes: 12, seconds: 30),
+      duration: lastTake?.duration ?? Duration.zero,
       totalEvaluatedNotes: notes,
       inTuneNotesCount: inTune,
       tuningAccuracyPercentage: accuracy,
       averageCentsDeviation: avgCents,
-      centsStabilityDelta: 3.8,
-      spectralCentroidHz: 820.0,
-      thdPercentage: 11.8,
-      harmonicRatios: const [1.0, 0.62, 0.35, 0.2, 0.14, 0.08, 0.04, 0.02],
+      centsStabilityDelta: stabilityDelta,
+      spectralCentroidHz: centroidHz,
+      thdPercentage: thdPct,
+      harmonicRatios: harmonicRatios,
       rhythmMeanBpm: bpm.toDouble(),
       rhythmJitterMs: jitter,
       timedPitchSamples: samples,
       masteryLevel: level,
-      pedagogicalDiagnostic:
-          'Se detecta una precision tonal consistente con estandares de conservatorio. '
-          'El control del centroide espectral y la estabilidad del pulso son satisfactorios.',
-      recommendations: const [
-        'Mantener el apoyo diafragmatico y regularidad del flujo aereo en registros agudos.',
-        'Ejercitar intervalos de quinta justa y octava con el Dron Armonico de referencia.',
-        'Continuar rutinas de metronomo con acentos alternos para afianzar el pulso.',
-      ],
+      pedagogicalDiagnostic: notes == 0
+          ? 'Aun no se han evaluado notas en esta sesion. Inicia una practica guiada para medir afinacion y pulso.'
+          : 'Precision medida: ${accuracy.toStringAsFixed(1)}% sobre $notes notas evaluadas (desviacion media ${avgCents.toStringAsFixed(1)} cents).',
+      recommendations: notes == 0
+          ? const [
+              'Activa el modo practica sobre una partitura o ejercicio para registrar metricas reales.',
+            ]
+          : const [
+              'Mantener el apoyo diafragmatico y regularidad del flujo aereo en registros agudos.',
+              'Ejercitar intervalos de quinta justa y octava con el Dron Armonico de referencia.',
+              'Continuar rutinas de metronomo con acentos alternos para afianzar el pulso.',
+            ],
     );
   }
 
@@ -300,16 +399,23 @@ class ScoreEditorController {
     required SongPackage activePackage,
     required int currentMeasureIndex,
     required int currentSubTick,
+    int? bpm,
   }) {
     _isLiveTranscriptionActive = !_isLiveTranscriptionActive;
     if (_isLiveTranscriptionActive) {
+      _liveClock
+        ..reset()
+        ..start();
+      _lastLiveClockMs = 0.0;
       _transcriptionEngine.start(
         initialPackage: activePackage,
         startMeasureIndex: currentMeasureIndex,
         startTick: currentSubTick >= 0 ? currentSubTick : 0,
+        bpm: bpm,
       );
       return null;
     } else {
+      _liveClock.stop();
       final finalPkg = _transcriptionEngine.stop();
       if (finalPkg != null) {
         _scoreHistory.recordState(activePackage);
@@ -323,17 +429,24 @@ class ScoreEditorController {
     required int currentMeasureIndex,
     required int currentSubTick,
     required VoidCallback ensureChordRecognitionActive,
+    int? bpm,
   }) {
     _isPolyphonicTranscriptionActive = !_isPolyphonicTranscriptionActive;
     if (_isPolyphonicTranscriptionActive) {
       ensureChordRecognitionActive();
+      _polyphonicClock
+        ..reset()
+        ..start();
+      _lastPolyphonicClockMs = 0.0;
       _polyphonicTranscriptionEngine.start(
         initialPackage: activePackage,
         startMeasureIndex: currentMeasureIndex,
         startTick: currentSubTick >= 0 ? currentSubTick : 0,
+        bpm: bpm,
       );
       return null;
     } else {
+      _polyphonicClock.stop();
       final finalPkg = _polyphonicTranscriptionEngine.stop();
       if (finalPkg != null) {
         _scoreHistory.recordState(activePackage);
@@ -346,12 +459,20 @@ class ScoreEditorController {
     required SongPackage activePackage,
     required List<String> noteNames,
     double energyRms = 0.1,
+    double? frameDurationMs,
+    double? timestampMs,
   }) {
     if (!_isPolyphonicTranscriptionActive) return null;
 
+    final currentMs = _polyphonicClock.elapsedMicroseconds / 1000.0;
+    final measuredDt = frameDurationMs ??
+        (timestampMs != null ? null : (currentMs - _lastPolyphonicClockMs).clamp(1.0, 2000.0));
+    _lastPolyphonicClockMs = currentMs;
     final updatedPkg = _polyphonicTranscriptionEngine.processPolyphonicFrame(
       noteNames: noteNames,
       energyRms: energyRms,
+      frameDurationMs: measuredDt,
+      timestampMs: timestampMs,
     );
     if (updatedPkg != null) {
       _scoreHistory.recordState(activePackage);

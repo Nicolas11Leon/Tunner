@@ -40,10 +40,16 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
   @override
   void initState() {
     super.initState();
+    String activeInstrumentName = 'Instrumento Actual';
+    try {
+      activeInstrumentName = context.read<TunerViewModel>().activeInstrument.name;
+    } catch (_) {
+      // Fallback cuando el modal se monta sin Provider<TunerViewModel> en pruebas aisladas.
+    }
     _studentNameController =
         TextEditingController(text: 'Estudiante Conservatorio');
     _instrumentController =
-        TextEditingController(text: 'Flauta Traversa / Voz');
+        TextEditingController(text: activeInstrumentName);
     _institutionController =
         TextEditingController(text: 'Tunner Acoustic Academy');
     _teacherController =

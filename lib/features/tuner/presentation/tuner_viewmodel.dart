@@ -41,6 +41,7 @@ import '../domain/acoustic_echo_suppressor.dart';
 import '../domain/microphone_calibration_models.dart';
 import '../domain/instrument_acoustic_filter.dart';
 import '../domain/acoustic_rigor_profile.dart';
+import '../../acoustic_lab/domain/harmonic_series_analyzer.dart';
 import '../../drone/domain/harmonic_drone_config.dart';
 import '../../ear_training/domain/ear_training_exercise.dart';
 import '../../ear_training/domain/musical_interval.dart';
@@ -67,6 +68,7 @@ import '../../audio_synthesizer/domain/stem_audio_synthesizer.dart';
 import '../../guided_lessons/domain/guided_lesson_entity.dart';
 import '../../guided_lessons/domain/guided_lesson_evaluator.dart';
 import '../../vocal_autotune/domain/autotune_config_entity.dart';
+import '../../vocal_autotune/domain/i_vocal_take_file_gateway.dart';
 import '../../vocal_autotune/domain/scale_quantizer.dart';
 import '../../vocal_autotune/domain/vocal_autotune_processor.dart';
 import '../../vocal_autotune/domain/vocal_score_converter.dart';
@@ -173,6 +175,7 @@ class TunerViewModel extends ChangeNotifier
   final TemperamentEngine _temperamentEngine = const TemperamentEngine();
   MusicalTemperament _selectedTemperament = TemperamentEngine.allTemperaments.first;
   int _temperamentRootKey = 0;
+  bool _anchorA4 = false;
   final HarmonicDroneSynthesizer _droneSynthesizer = const HarmonicDroneSynthesizer();
   HarmonicDroneConfig _droneConfig = const HarmonicDroneConfig();
   final PolyphonicChordRecognizer _chordRecognizer = PolyphonicChordRecognizer();
@@ -186,6 +189,12 @@ class TunerViewModel extends ChangeNotifier
   double _lastClarity = 0.0;
   final List<ChordEntity> _chordHistory = [];
   final TapTempoEngine _tapTempoEngine = TapTempoEngine();
+  final HarmonicSeriesAnalyzer _harmonicAnalyzer = const HarmonicSeriesAnalyzer();
+  int _pendingFirstAttackTick = -1;
+  int _pendingInTuneTicks = 0;
+  double _pendingLastFreq = 0.0;
+  double _pendingLastCents = 0.0;
+  String _pendingLastNoteName = '--';
   TapTempoResult? _lastTapTempoResult;
   LearnerProfileEntity _learnerProfile = LearnerProfileEntity.adult();
   final AdaptiveScaffoldingEngine _scaffoldingEngine = const AdaptiveScaffoldingEngine();
@@ -247,6 +256,7 @@ class TunerViewModel extends ChangeNotifier
     PolyphonicMultiToneDetector? multiToneDetector,
     GuidedLessonEvaluator? guidedLessonEvaluator,
     VocalAutoTuneProcessor? autoTuneProcessor,
+    IVocalTakeFileGateway? vocalTakeFileGateway,
     ISoundFontSynthesizerService? soundFontSynthesizer,
     PolyphonicVoicePool? polyphonicVoicePool,
     ScorePlaybackCoordinator? scorePlaybackCoordinator,
@@ -281,7 +291,6 @@ class TunerViewModel extends ChangeNotifier
       recorderService: _recorderService,
       playbackService: _playbackService,
       persistenceService: _persistenceService,
-      audioSynthesizer: _audioSynthesizer,
       platformFileGateway: _platformFileGateway,
       initialTitle: _activePackage.title,
       initialBpm: _bpm,
@@ -300,6 +309,8 @@ class TunerViewModel extends ChangeNotifier
     _vocalPedagogyController = VocalPedagogyController(
       guidedLessonEvaluator: guidedLessonEvaluator ?? GuidedLessonEvaluator(),
       autoTuneProcessor: autoTuneProcessor ?? VocalAutoTuneProcessor(),
+      vocalTakeFileGateway: vocalTakeFileGateway ?? const NoOpVocalTakeFileGateway(),
+      logger: _logger,
       onNotify: notifyListeners,
       onAutoSave: _triggerAutoSave,
     );
@@ -618,6 +629,18 @@ class TunerViewModel extends ChangeNotifier
     }
   }
 
+  bool get anchorA4 => _anchorA4;
+
+  /// Configura si la afinación con temperamentos históricos se ancla a A4=440Hz o a la tónica raíz.
+  void setAnchorA4(bool value) {
+    if (_anchorA4 == value) return;
+    _anchorA4 = value;
+    if (_frequency > 0) {
+      _recalculatePitchForActiveTemperament();
+    }
+    notifyListeners();
+  }
+
   void _recalculatePitchForActiveTemperament() {
     final noteEntity = NoteEntity.fromFrequency(_frequency, a4Ref: _referencePitch);
     _noteName = noteEntity.name;
@@ -629,7 +652,7 @@ class TunerViewModel extends ChangeNotifier
         temperament: _selectedTemperament,
         a4Ref: _referencePitch,
         rootKey: _temperamentRootKey,
-        anchorA4: true,
+        anchorA4: _anchorA4,
       );
       _cents = _temperamentEngine.calculateCentsDeviation(
         detectedFrequency: _frequency,
@@ -653,6 +676,7 @@ class TunerViewModel extends ChangeNotifier
 
   /// Detiene la reproducción de la partitura si está activa.
   void stopSong() {
+    _finalizePendingNoteEvaluation();
     if (_isMetronomePlaying) {
       startSongWithCountIn();
     }
@@ -701,16 +725,6 @@ class TunerViewModel extends ChangeNotifier
     _selectedScoreNoteIndex = noteIndex;
     final note = currentMeasureNotes[noteIndex];
     _scorePlaybackCoordinator.previewNote(note);
-    if (!note.isRest && note.noteName.isNotEmpty) {
-      final freq = NoteEntity.frequencyForNote(note.noteName, a4Ref: _referencePitch);
-      if (freq > 20.0) {
-        _audioSynthesizer.playNoteTone(
-          frequency: freq,
-          duration: const Duration(milliseconds: 400),
-          volume: 0.7,
-        );
-      }
-    }
     notifyListeners();
   }
 
@@ -862,6 +876,7 @@ class TunerViewModel extends ChangeNotifier
           temperament: _selectedTemperament,
           a4Ref: _referencePitch,
           rootKey: _temperamentRootKey,
+          anchorA4: _anchorA4,
         );
         _cents = _temperamentEngine.calculateCentsDeviation(
           detectedFrequency: pitch,
@@ -909,6 +924,7 @@ class TunerViewModel extends ChangeNotifier
           autoTuneCentsDev: _vocalPedagogyController.lastAutoTuneResult.centsDeviation,
           autoTuneTargetNote: _vocalPedagogyController.lastAutoTuneResult.targetNoteName,
           expectedNoteName: _expectedNote?.noteName,
+          audioSamples: _latestAudioSamples,
         );
       }
 
@@ -1021,26 +1037,28 @@ class TunerViewModel extends ChangeNotifier
         _currentSubTick = subTick;
         _updateExpectedNoteForTick(subTick);
 
-        // Disparo sonoro de la nota musical de la partitura
-        if (_isScorePlaybackEnabled &&
-            _expectedNote != null &&
-            _expectedNote!.startTick == subTick) {
-          final noteName = _expectedNote!.noteName;
-          if (noteName != "--" && noteName.toLowerCase() != "rest") {
-            final leadTrackId = _activePackage.tracks.isNotEmpty
-                ? _activePackage.tracks.first.id
-                : "voice";
-            final voiceGain = _mixerConsole.getEffectiveGain(leadTrackId);
-            if (voiceGain > 0.001) {
-              final freq = NoteEntity.frequencyForNote(noteName, a4Ref: _referencePitch);
-              if (freq > 20.0) {
-                final msPerTick = 60000.0 / _bpm / 4.0;
-                final durationMs = (_expectedNote!.durationTicks * msPerTick).round();
-                _audioSynthesizer.playNoteTone(
-                  frequency: freq,
-                  duration: Duration(milliseconds: durationMs),
-                  volume: voiceGain,
-                );
+        // Disparo sonoro polifónico de las notas musicales de la partitura
+        if (_isScorePlaybackEnabled) {
+          final msPerTick = 60000.0 / _bpm / 4.0;
+          final activeNotes = currentMeasureNotes.where((n) => !n.isRest && n.startTick == subTick);
+          final leadTrackId = _activePackage.tracks.isNotEmpty
+              ? _activePackage.tracks.first.id
+              : "voice";
+          final voiceGain = _mixerConsole.getEffectiveGain(leadTrackId);
+
+          if (voiceGain > 0.001) {
+            for (final note in activeNotes) {
+              final noteName = note.noteName;
+              if (noteName != "--" && noteName.toLowerCase() != "rest" && noteName.isNotEmpty) {
+                final freq = NoteEntity.frequencyForNote(noteName, a4Ref: _referencePitch);
+                if (freq > 20.0) {
+                  final durationMs = (note.durationTicks * msPerTick).round();
+                  _audioSynthesizer.playNoteTone(
+                    frequency: freq,
+                    duration: Duration(milliseconds: durationMs),
+                    volume: voiceGain,
+                  );
+                }
               }
             }
           }
@@ -1164,11 +1182,18 @@ class TunerViewModel extends ChangeNotifier
 
   void _evaluateSmartInstrumentFromPitch(double pitch) {
     if (pitch <= 20.0) return;
+    final timbre = _harmonicAnalyzer.analyze(
+      fundamentalHz: pitch,
+      samples: _latestAudioSamples,
+    );
+    if (timbre.harmonics.isEmpty) return;
     evaluateSmartInstrumentAcoustics(
       freqHz: pitch,
-      overtones: const [1.0, 0.5, 0.25, 0.12, 0.06, 0.03, 0.01, 0.0],
-      clarity: 0.90,
-      centroidHz: pitch * 2.0,
+      overtones: timbre.harmonics
+          .map((h) => h.relativeAmplitude)
+          .toList(growable: false),
+      clarity: _lastClarity > 0.0 ? _lastClarity.clamp(0.0, 1.0) : 0.85,
+      centroidHz: timbre.spectralCentroidHz > 0 ? timbre.spectralCentroidHz : pitch,
       minimumConfidence: 0.65,
     );
   }
@@ -1444,6 +1469,86 @@ class TunerViewModel extends ChangeNotifier
     }
   }
 
+  /// Procesa muestras PCM recibidas desde el SignalBus sin acoplar el rack con campos internos.
+  void ingestBusAudioPcm(List<double> samples) {
+    if (_isDisposed) return;
+    double sumSquares = 0.0;
+    for (final s in samples) {
+      sumSquares += s * s;
+    }
+    _currentMicRmsLevel = samples.isNotEmpty ? math.sqrt(sumSquares / samples.length) : 0.0;
+    if (_isChordRecognitionActive) {
+      processChordSamples(samples);
+    } else {
+      _latestAudioSamples = samples;
+      _updateTelemetry();
+      notifyListeners();
+    }
+  }
+
+  /// Procesa un cuadro de afinacion detectada inyectado desde el SignalBus.
+  void ingestBusPitchFrame({
+    required double frequencyHz,
+    String noteName = '',
+    double centsOffset = 0.0,
+    double clarity = 0.95,
+  }) {
+    if (_isDisposed) return;
+    if (frequencyHz <= 20.0) {
+      _frequency = 0.0;
+      _noteName = '--';
+      _cents = 0.0;
+      _vocalPedagogyController.resetOnSilence();
+      _updateTelemetry();
+      notifyListeners();
+      return;
+    }
+
+    _frequency = frequencyHz;
+    final resolvedNote = noteName.isNotEmpty
+        ? noteName
+        : NoteEntity.fromFrequency(frequencyHz, a4Ref: _referencePitch).name;
+    _noteName = resolvedNote;
+    _cents = centsOffset;
+    if (clarity > 0.0) {
+      _lastClarity = clarity.clamp(0.0, 1.0);
+    }
+
+    final transcribedPkg = _scoreEditorController.processLiveTranscriptionFrame(
+      activePackage: _activePackage,
+      pitchHz: frequencyHz,
+      clarity: _lastClarity > 0.0 ? _lastClarity : 0.95,
+      noteName: resolvedNote,
+    );
+    if (transcribedPkg != null) {
+      _activePackage = transcribedPkg;
+    }
+
+    _vocalPedagogyController.processPitchFrame(
+      pitchHz: frequencyHz,
+      cents: _cents,
+      noteName: resolvedNote,
+    );
+
+    _updateTelemetry();
+    notifyListeners();
+  }
+
+  /// Sincroniza el reloj y sub-tick activo desde un ClockTickEvent del SignalBus.
+  void ingestBusClockTick({
+    required int tickIndex,
+    required double bpm,
+  }) {
+    if (_isDisposed) return;
+    _bpm = bpm.round().clamp(20, 300);
+    _scorePlaybackCoordinator.bpm = _bpm.toDouble();
+    _currentSubTick = tickIndex;
+    if (_activePackage.score.measures.isNotEmpty && !_isCountingIn) {
+      _updateExpectedNoteForTick(tickIndex);
+    }
+    notifyListeners();
+  }
+
   /// Procesa muestras PCM normalizadas [-1.0, 1.0] para análisis armónico polifónico multitonal.
   void processChordSamples(List<double> samples) {
     _latestAudioSamples = samples;
@@ -1534,6 +1639,47 @@ class TunerViewModel extends ChangeNotifier
     notifyListeners();
   }
 
+  void _finalizePendingNoteEvaluation() {
+    final pending = _lastEvaluatedNote;
+    if (pending == null) return;
+    _lastEvaluatedNote = null;
+
+    if (!_isPracticeMode || pending.isRest || pending.noteName == '--') {
+      _pendingFirstAttackTick = -1;
+      _pendingInTuneTicks = 0;
+      return;
+    }
+
+    final msPerTick = 60000.0 / math.max(20, _bpm) / 4.0;
+    final timingDeltaMs = _pendingFirstAttackTick >= 0
+        ? ((_pendingFirstAttackTick - pending.startTick) * msPerTick).round()
+        : 0;
+    final sustainRatio =
+        (_pendingInTuneTicks / math.max(1, pending.durationTicks)).clamp(0.0, 1.0);
+
+    final soundingExpected = _transpositionService.getSoundingNote(
+      pending.noteName,
+      _activeInstrument,
+    );
+    final eval = _evaluatorService.evaluateNote(
+      expectedNote: pending,
+      soundingExpectedNoteName: soundingExpected,
+      detectedNoteName: _pendingLastNoteName,
+      detectedFrequency: _pendingLastFreq,
+      detectedCents: _pendingLastCents,
+      timingDeltaMs: timingDeltaMs,
+      sustainRatio: sustainRatio,
+    );
+    _activeEvaluations.add(eval);
+    _vocalPedagogyController.recordMinusOneEvaluation(eval);
+
+    _pendingFirstAttackTick = -1;
+    _pendingInTuneTicks = 0;
+    _pendingLastFreq = 0.0;
+    _pendingLastCents = 0.0;
+    _pendingLastNoteName = '--';
+  }
+
   void _updateExpectedNoteForTick(int tick) {
     final notes = currentMeasureNotes;
     _expectedNote = notes.firstWhere(
@@ -1541,27 +1687,36 @@ class TunerViewModel extends ChangeNotifier
       orElse: () => HierarchicalNote(startTick: tick, durationTicks: 1, noteName: "--"),
     );
 
-    // Registro atómico de evaluación pedagógica si cambió la nota
-    if (_isPracticeMode &&
-        _expectedNote != null &&
-        _expectedNote != _lastEvaluatedNote &&
-        !_isCountingIn) {
+    if (!_isPracticeMode || _expectedNote == null || _isCountingIn) {
+      return;
+    }
+
+    if (_expectedNote != _lastEvaluatedNote) {
+      _finalizePendingNoteEvaluation();
       _lastEvaluatedNote = _expectedNote;
+      _pendingFirstAttackTick = -1;
+      _pendingInTuneTicks = 0;
+      _pendingLastFreq = 0.0;
+      _pendingLastCents = 0.0;
+      _pendingLastNoteName = '--';
+    }
+
+    // Acumular telemetria real a lo largo de la ventana [startTick, endTick)
+    if (_frequency > 20.0 && _noteName != '--') {
+      if (_pendingFirstAttackTick < 0) {
+        _pendingFirstAttackTick = tick;
+      }
+      _pendingLastFreq = _frequency;
+      _pendingLastCents = _cents;
+      _pendingLastNoteName = _noteName;
+
       final soundingExpected = _transpositionService.getSoundingNote(
         _expectedNote!.noteName,
         _activeInstrument,
       );
-      final eval = _evaluatorService.evaluateNote(
-        expectedNote: _expectedNote!,
-        soundingExpectedNoteName: soundingExpected,
-        detectedNoteName: _noteName,
-        detectedFrequency: _frequency,
-        detectedCents: _cents,
-        timingDeltaMs: 0,
-        sustainRatio: 1.0,
-      );
-      _activeEvaluations.add(eval);
-      _vocalPedagogyController.recordMinusOneEvaluation(eval);
+      if (_noteName == soundingExpected && _cents.abs() <= 25.0) {
+        _pendingInTuneTicks++;
+      }
     }
   }
 
@@ -1612,8 +1767,8 @@ class TunerViewModel extends ChangeNotifier
 
   Future<void> startSongWithCountIn() async {
     if (_isMetronomePlaying) {
-      await _metronomeService.stop();
       _isMetronomePlaying = false;
+      await _metronomeService.stop();
       if (_isPracticeMode && _activeEvaluations.isNotEmpty) {
         _generatePracticeReport();
       }
@@ -2020,16 +2175,19 @@ class TunerViewModel extends ChangeNotifier
   void setTrackVolume(String trackId, double volume) {
     _mixerConsole = _mixerConsole.copyWithTrackVolume(trackId, volume);
     notifyListeners();
+    unawaited(_triggerAutoSave());
   }
 
   void toggleTrackMute(String trackId) {
     _mixerConsole = _mixerConsole.toggleMute(trackId);
     notifyListeners();
+    unawaited(_triggerAutoSave());
   }
 
   void toggleTrackSolo(String trackId) {
     _mixerConsole = _mixerConsole.toggleSolo(trackId);
     notifyListeners();
+    unawaited(_triggerAutoSave());
   }
 
   @override
@@ -2122,6 +2280,12 @@ class TunerViewModel extends ChangeNotifier
     );
   }
 
+  @visibleForTesting
+  void emitTelemetryForTesting({required double frequency}) {
+    _frequency = frequency;
+    _updateTelemetry();
+  }
+
   // --- Delegación hacia PracticeRecorderController ---
   Future<void> startPracticeRecording() => _recorderController.startPracticeRecording();
 
@@ -2138,7 +2302,6 @@ class TunerViewModel extends ChangeNotifier
   Future<void> playActiveRecording([PracticeRecordingEntity? targetRecording]) =>
       _recorderController.playActiveRecording(
         targetRecording: targetRecording,
-        referencePitch: _referencePitch,
       );
 
   Future<void> pauseActiveRecording() => _recorderController.pauseActiveRecording();
@@ -2210,6 +2373,18 @@ class TunerViewModel extends ChangeNotifier
       if (settings.workspaceScores.isNotEmpty) {
         _workspaceScores.clear();
         _workspaceScores.addAll(settings.workspaceScores);
+
+        SongPackage? restoredActive;
+        if (settings.activeScoreId != null) {
+          restoredActive = _workspaceScores
+              .where((s) => s.id == settings.activeScoreId)
+              .firstOrNull;
+        }
+        restoredActive ??= _workspaceScores
+            .where((s) => s.id == _activePackage.id)
+            .firstOrNull;
+        restoredActive ??= _workspaceScores.first;
+        _activePackage = restoredActive;
       }
 
       if (settings.earTrainingItemsJson.isNotEmpty) {
@@ -2228,6 +2403,15 @@ class TunerViewModel extends ChangeNotifier
 
       if (_shouldSeedDefaults) {
         _seedDefaultWorkspaceIfEmpty();
+      }
+
+      if (settings.mixerConsole != null) {
+        _mixerConsole = settings.mixerConsole!;
+      } else if (settings.workspaceScores.isNotEmpty) {
+        _mixerConsole = MixerConsoleEntity(
+          metronomeTrack: _mixerConsole.metronomeTrack,
+          stems: _activePackage.tracks,
+        );
       }
 
       _micProfile = settings.micCalibrationProfile;
@@ -2284,6 +2468,7 @@ class TunerViewModel extends ChangeNotifier
       customPalettes: _customPalettes,
       sessionHistory: _sessionHistory,
       recordingHistory: _recorderController.rawRecordingHistory,
+      multiTrackSession: _recorderController.multiTrackSession,
       tuningPresets: _tuningPresets,
       workspaceScores: _workspaceScores,
       learnerProfile: _learnerProfile,
@@ -2293,6 +2478,8 @@ class TunerViewModel extends ChangeNotifier
       earTrainingItemsJson: ebbinghausEngine.exportItemsJson(),
       taskStatuses: Map<String, String>.from(_taskStatuses),
       completedLessonIds: List<String>.from(_completedLessonIds),
+      mixerConsole: _mixerConsole,
+      activeScoreId: _activePackage.id,
     );
     return _recorderController.saveSettings(settings);
   }
@@ -2364,12 +2551,6 @@ class TunerViewModel extends ChangeNotifier
     notifyListeners();
   }
 
-  @visibleForTesting
-  void emitTelemetryForTesting({required double frequency}) {
-    _frequency = frequency;
-    _updateTelemetry();
-  }
-
   void markLessonCompleted(String lessonId) {
     if (!_completedLessonIds.contains(lessonId)) {
       _completedLessonIds.add(lessonId);
@@ -2380,6 +2561,20 @@ class TunerViewModel extends ChangeNotifier
     }
     _triggerAutoSave();
     notifyListeners();
+  }
+
+  void _commitActiveScoreMutation() {
+    final workspaceIdx = _workspaceScores.indexWhere((s) => s.id == _activePackage.id);
+    if (workspaceIdx >= 0) {
+      _workspaceScores[workspaceIdx] = _activePackage;
+    } else {
+      _workspaceScores.insert(0, _activePackage);
+    }
+    final curatedIdx = _curatedLibrary.indexWhere((s) => s.id == _activePackage.id);
+    if (curatedIdx >= 0) {
+      _curatedLibrary[curatedIdx] = _activePackage;
+    }
+    unawaited(_triggerAutoSave());
   }
 
   // --- Delegación hacia ScoreEditorController ---
@@ -2411,6 +2606,30 @@ class TunerViewModel extends ChangeNotifier
       playAudibleFeedback: playAudibleFeedback,
     );
     _validatePerformance();
+    _commitActiveScoreMutation();
+    notifyListeners();
+  }
+
+  @override
+  void insertScoreChordNotes({
+    required int measureIndex,
+    required int startTick,
+    required int durationTicks,
+    required List<String> noteNames,
+    bool playAudibleFeedback = true,
+  }) {
+    _activePackage = _scoreEditorController.insertScoreChordNotes(
+      activePackage: _activePackage,
+      measureIndex: measureIndex,
+      startTick: startTick,
+      durationTicks: durationTicks,
+      noteNames: noteNames,
+      referencePitch: _referencePitch,
+      bpm: _bpm,
+      playAudibleFeedback: playAudibleFeedback,
+    );
+    _validatePerformance();
+    _commitActiveScoreMutation();
     notifyListeners();
   }
 
@@ -2424,6 +2643,7 @@ class TunerViewModel extends ChangeNotifier
       measureIndex: measureIndex,
       startTick: startTick,
     );
+    _commitActiveScoreMutation();
     notifyListeners();
   }
 
@@ -2432,6 +2652,7 @@ class TunerViewModel extends ChangeNotifier
     final prev = _scoreEditorController.undoScoreEdit(_activePackage);
     if (prev != null) {
       _activePackage = prev;
+      _commitActiveScoreMutation();
       notifyListeners();
     }
   }
@@ -2441,6 +2662,7 @@ class TunerViewModel extends ChangeNotifier
     final next = _scoreEditorController.redoScoreEdit(_activePackage);
     if (next != null) {
       _activePackage = next;
+      _commitActiveScoreMutation();
       notifyListeners();
     }
   }
@@ -2448,6 +2670,7 @@ class TunerViewModel extends ChangeNotifier
   @override
   void addScoreMeasure() {
     _activePackage = _scoreEditorController.addScoreMeasure(_activePackage);
+    _commitActiveScoreMutation();
     notifyListeners();
   }
 
@@ -2457,6 +2680,7 @@ class TunerViewModel extends ChangeNotifier
     if (_currentMeasureIndex >= _activePackage.totalMeasures) {
       _currentMeasureIndex = _activePackage.totalMeasures - 1;
     }
+    _commitActiveScoreMutation();
     notifyListeners();
   }
 
@@ -2464,6 +2688,7 @@ class TunerViewModel extends ChangeNotifier
     final transposed = _scoreEditorController.transposeActiveScore(_activePackage, semitones);
     if (transposed != null) {
       _activePackage = transposed;
+      _commitActiveScoreMutation();
       notifyListeners();
     }
   }
@@ -2475,6 +2700,7 @@ class TunerViewModel extends ChangeNotifier
     );
     if (transposed != null) {
       _activePackage = transposed;
+      _commitActiveScoreMutation();
       notifyListeners();
     }
   }
@@ -2493,15 +2719,24 @@ class TunerViewModel extends ChangeNotifier
   Uint8List exportActiveScoreToPdf() =>
       _scoreEditorController.exportActiveScoreToPdf(_activePackage);
 
-  PedagogicalSessionData get currentPedagogicalSessionData =>
-      _scoreEditorController.buildPedagogicalSessionData(
-        activePackage: _activePackage,
-        sessionHistory: _sessionHistory,
-        multiTrackSession: _recorderController.multiTrackSession,
-        cents: _cents,
-        bpm: _bpm,
-        lastTapTempoResult: _lastTapTempoResult,
-      );
+  PedagogicalSessionData get currentPedagogicalSessionData {
+    final timbre = (_frequency > 20.0 && _latestAudioSamples != null)
+        ? _harmonicAnalyzer.analyze(
+            fundamentalHz: _frequency,
+            samples: _latestAudioSamples,
+          )
+        : TimbreAnalysisResult.empty;
+    return _scoreEditorController.buildPedagogicalSessionData(
+      activePackage: _activePackage,
+      sessionHistory: _sessionHistory,
+      multiTrackSession: _recorderController.multiTrackSession,
+      cents: _cents,
+      bpm: _bpm,
+      lastTapTempoResult: _lastTapTempoResult,
+      timbreAnalysis: timbre,
+      activeEvaluations: _activeEvaluations,
+    );
+  }
 
   Uint8List exportPedagogicalReportPdf(PedagogicalReportConfig config) =>
       _scoreEditorController.exportPedagogicalReportPdf(
@@ -2526,6 +2761,7 @@ class TunerViewModel extends ChangeNotifier
       activePackage: _activePackage,
       currentMeasureIndex: _currentMeasureIndex,
       currentSubTick: _currentSubTick,
+      bpm: _bpm,
     );
     if (finalPkg != null) {
       _activePackage = finalPkg;
@@ -2538,6 +2774,7 @@ class TunerViewModel extends ChangeNotifier
       activePackage: _activePackage,
       currentMeasureIndex: _currentMeasureIndex,
       currentSubTick: _currentSubTick,
+      bpm: _bpm,
       ensureChordRecognitionActive: () {
         if (!_isChordRecognitionActive) {
           _isChordRecognitionActive = true;
@@ -2632,15 +2869,15 @@ class TunerViewModel extends ChangeNotifier
   void updateAutoTuneConfig(AutoTuneConfigEntity config) =>
       _vocalPedagogyController.updateAutoTuneConfig(config);
 
-  PracticeTakeEntity? applyAutoTuneToRecordingTake(String takeId) {
-    final res = _vocalPedagogyController.applyAutoTuneToRecordingTake(
+  Future<PracticeTakeEntity?> applyAutoTuneToRecordingTake(String takeId) async {
+    final res = await _vocalPedagogyController.applyAutoTuneToRecordingTake(
       session: _recorderController.multiTrackSession,
       takeId: takeId,
     );
     if (res == null) return null;
     _recorderController.setMultiTrackSession(res.session);
     notifyListeners();
-    _triggerAutoSave();
+    await _triggerAutoSave();
     return res.tunedTake;
   }
 

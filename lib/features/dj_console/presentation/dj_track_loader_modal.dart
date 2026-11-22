@@ -5,6 +5,7 @@ import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../song_library/domain/song_decomposer_service.dart';
 import '../../song_library/domain/song_package_entity.dart';
 import '../domain/dj_audio_processor.dart';
+import '../domain/pcm_wav_decoder.dart';
 import 'dj_console_view_model.dart';
 
 class DjStudioPresetTrack {
@@ -185,6 +186,32 @@ class _DjTrackLoaderModalState extends State<DjTrackLoaderModal> with SingleTick
         final path = file.path;
         final name = file.name;
         final bytes = file.bytes;
+
+        // Si es un archivo WAV con muestras PCM válidas, ejecutar análisis de BPM y Camelot real
+        if (bytes != null && bytes.isNotEmpty) {
+          final pcm = PcmWavDecoder.decodeWavToFloat32(bytes);
+          if (pcm.isNotEmpty) {
+            final bpm = await widget.viewModel.loadTrackWithBeatTrackingAsync(
+              widget.deckId,
+              title: name,
+              artist: 'Archivo Local',
+              audioSamples: pcm,
+            );
+            if (context.mounted) {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Pista analizada y cargada en Deck ${widget.deckId}: "$name" (${bpm.toStringAsFixed(1)} BPM)',
+                  ),
+                  backgroundColor: const Color(0xFF10B981),
+                ),
+              );
+            }
+            return;
+          }
+        }
+
         await widget.viewModel.loadDeckTrack(
           deckId: widget.deckId,
           filePath: path,

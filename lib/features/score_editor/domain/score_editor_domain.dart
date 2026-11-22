@@ -203,7 +203,10 @@ class ScoreEditorOperations {
 
     final updatedMeasures = package.score.measures.map((measure) {
       final updatedNotes = measure.notes.map((note) {
-        if (note.noteName == "--" || note.noteName.toLowerCase() == "rest") {
+        if (note.isRest ||
+            note.noteName.isEmpty ||
+            note.noteName == "--" ||
+            note.noteName.toLowerCase() == "rest") {
           return note;
         }
         final transposedName = _transposeNoteName(note.noteName, semitones);

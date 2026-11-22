@@ -1,9 +1,11 @@
 import 'dart:isolate';
+import 'dart:math' as math;
 
 import '../../mixer/domain/mixer_track_entity.dart';
 import '../../sheet_music/domain/score_tree.dart';
 import '../../instrument/domain/instrument_profile_entity.dart';
 import '../../guided_lessons/domain/instrument_pedagogy_adapter_engine.dart';
+import '../../tuner/domain/note_entity.dart';
 import 'song_package_entity.dart';
 import 'i_song_decomposer_service.dart';
 
@@ -368,23 +370,115 @@ class SongDecomposerService {
       commitCurrentMeasure();
     }
 
-    // Si no se pudo generar ningún compás, crear un compás vacío por defecto
+    // Si no se pudo generar ningún compás (entrada vacia o invalida), retornar un compás de silencio
     if (measures.isEmpty) {
       measures.add(
         MeasureEntity(
           index: 0,
           timeSignature: timeSignature,
           notes: [
-            HierarchicalNote.note(startTick: 0, durationTicks: 4, noteName: "Do4"),
-            HierarchicalNote.note(startTick: 4, durationTicks: 4, noteName: "Mi4"),
-            HierarchicalNote.note(startTick: 8, durationTicks: 4, noteName: "Sol4"),
-            HierarchicalNote.note(startTick: 12, durationTicks: 4, noteName: "Do5"),
+            HierarchicalNote.rest(
+              startTick: 0,
+              durationTicks: timeSignature.totalTicks,
+            ),
           ],
         ),
       );
     }
 
     return measures;
+  }
+
+  static String _transposeNoteBySemitones(String noteName, int semitones) {
+    final baseFreq = NoteEntity.frequencyForNote(noteName);
+    if (baseFreq <= 20.0) return noteName;
+    final targetFreq = baseFreq * math.pow(2.0, semitones / 12.0);
+    return NoteEntity.fromFrequency(targetFreq).name;
+  }
+
+  static String _toBassRegister(String noteName) {
+    final baseFreq = NoteEntity.frequencyForNote(noteName);
+    if (baseFreq <= 20.0) return 'Do2';
+    int midi = NoteEntity.fromFrequency(baseFreq).midiNumber;
+    while (midi > 47) {
+      midi -= 12;
+    }
+    while (midi < 36) {
+      midi += 12;
+    }
+    final bassFreq = 440.0 * math.pow(2.0, (midi - 69) / 12.0);
+    return NoteEntity.fromFrequency(bassFreq).name;
+  }
+
+  static List<MeasureEntity> _buildHarmonyMeasures(List<MeasureEntity> leadMeasures) {
+    return leadMeasures.map((m) {
+      final firstPitched = m.notes.where((n) => !n.isRest && n.noteName.isNotEmpty && n.noteName != '--').toList();
+      if (firstPitched.isEmpty) {
+        return MeasureEntity(
+          index: m.index,
+          timeSignature: m.timeSignature,
+          notes: [HierarchicalNote.rest(startTick: 0, durationTicks: m.timeSignature.totalTicks)],
+        );
+      }
+      final rootNote = firstPitched.first.noteName;
+      final thirdNote = _transposeNoteBySemitones(rootNote, 4);
+      final fifthNote = _transposeNoteBySemitones(rootNote, 7);
+      final totalTicks = m.timeSignature.totalTicks;
+      return MeasureEntity(
+        index: m.index,
+        timeSignature: m.timeSignature,
+        notes: [
+          HierarchicalNote.note(startTick: 0, durationTicks: totalTicks, noteName: rootNote),
+          HierarchicalNote.note(startTick: 0, durationTicks: totalTicks, noteName: thirdNote),
+          HierarchicalNote.note(startTick: 0, durationTicks: totalTicks, noteName: fifthNote),
+        ],
+      );
+    }).toList();
+  }
+
+  static List<MeasureEntity> _buildBassMeasures(List<MeasureEntity> leadMeasures) {
+    return leadMeasures.map((m) {
+      final firstPitched = m.notes.where((n) => !n.isRest && n.noteName.isNotEmpty && n.noteName != '--').toList();
+      if (firstPitched.isEmpty) {
+        return MeasureEntity(
+          index: m.index,
+          timeSignature: m.timeSignature,
+          notes: [HierarchicalNote.rest(startTick: 0, durationTicks: m.timeSignature.totalTicks)],
+        );
+      }
+      final bassRoot = _toBassRegister(firstPitched.first.noteName);
+      final totalTicks = m.timeSignature.totalTicks;
+      return MeasureEntity(
+        index: m.index,
+        timeSignature: m.timeSignature,
+        notes: [
+          HierarchicalNote.note(startTick: 0, durationTicks: totalTicks, noteName: bassRoot),
+        ],
+      );
+    }).toList();
+  }
+
+  static List<MeasureEntity> _buildRhythmMeasures(List<MeasureEntity> leadMeasures) {
+    return leadMeasures.map((m) {
+      final totalTicks = m.timeSignature.totalTicks;
+      final beatTicks = (16 ~/ m.timeSignature.denominator).clamp(1, totalTicks);
+      final pulseNotes = <HierarchicalNote>[];
+      for (int tick = 0; tick < totalTicks; tick += beatTicks) {
+        final dur = math.min(beatTicks, totalTicks - tick);
+        pulseNotes.add(
+          HierarchicalNote.note(
+            startTick: tick,
+            durationTicks: dur,
+            noteName: tick == 0 ? 'Do3' : 'Sol2',
+          ),
+        );
+      }
+      return MeasureEntity(
+        index: m.index,
+        timeSignature: m.timeSignature,
+        notes: pulseNotes,
+      );
+    }).toList();
   }
 
   /// Descompone una partitura importada o creada por el usuario en un paquete completo de canción.
@@ -400,7 +494,10 @@ class SongDecomposerService {
     bool includeBass = true,
     bool includeRhythm = true,
   }) {
+    final safeBpm = bpm.clamp(20, 300);
+    final safeTitle = title.trim().isEmpty ? "Obra Personalizada" : title.trim();
     final stems = <AudioTrack>[];
+    final stemScores = <String, HierarchicalScore>{};
 
     if (includeLead) {
       stems.add(const AudioTrack(
@@ -409,6 +506,11 @@ class SongDecomposerService {
         instrumentIcon: "music_note",
         volume: 0.90,
       ));
+      stemScores["lead_stem"] = HierarchicalScore(
+        title: "$safeTitle (Melodia)",
+        baseBpm: safeBpm,
+        measures: measures,
+      );
     }
     if (includePiano) {
       stems.add(const AudioTrack(
@@ -417,6 +519,11 @@ class SongDecomposerService {
         instrumentIcon: "piano",
         volume: 0.75,
       ));
+      stemScores["harmony_stem"] = HierarchicalScore(
+        title: "$safeTitle (Armonia)",
+        baseBpm: safeBpm,
+        measures: _buildHarmonyMeasures(measures),
+      );
     }
     if (includeBass) {
       stems.add(const AudioTrack(
@@ -425,6 +532,11 @@ class SongDecomposerService {
         instrumentIcon: "music_note",
         volume: 0.70,
       ));
+      stemScores["bass_stem"] = HierarchicalScore(
+        title: "$safeTitle (Bajo)",
+        baseBpm: safeBpm,
+        measures: _buildBassMeasures(measures),
+      );
     }
     if (includeRhythm) {
       stems.add(const AudioTrack(
@@ -433,6 +545,11 @@ class SongDecomposerService {
         instrumentIcon: "music_note",
         volume: 0.80,
       ));
+      stemScores["rhythm_stem"] = HierarchicalScore(
+        title: "$safeTitle (Ritmo)",
+        baseBpm: safeBpm,
+        measures: _buildRhythmMeasures(measures),
+      );
     }
 
     final finalStems = customTracks ?? (stems.isNotEmpty ? stems : [
@@ -442,17 +559,18 @@ class SongDecomposerService {
 
     return SongPackage(
       id: "custom_${DateTime.now().millisecondsSinceEpoch}",
-      title: title.trim().isEmpty ? "Obra Personalizada" : title.trim(),
+      title: safeTitle,
       composer: composer.trim().isEmpty ? "Compositor Local" : composer.trim(),
       genre: MusicGenre.contemporary,
       difficulty: SongDifficulty.intermediate,
-      defaultBpm: bpm,
+      defaultBpm: safeBpm,
       tracks: finalStems,
       score: HierarchicalScore(
-        title: title,
-        baseBpm: bpm,
+        title: safeTitle,
+        baseBpm: safeBpm,
         measures: measures,
       ),
+      stemScores: stemScores,
     );
   }
 

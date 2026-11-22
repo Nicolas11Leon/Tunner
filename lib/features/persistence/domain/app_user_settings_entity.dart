@@ -1,6 +1,8 @@
 import 'dart:convert';
 import '../../../core/theme/tunner_theme.dart';
+import '../../mixer/domain/mixer_track_entity.dart';
 import '../../practice_evaluator/domain/practice_report_entity.dart';
+import '../../practice_recorder/domain/multitrack_session_entity.dart';
 import '../../practice_recorder/domain/practice_recording_entity.dart';
 import '../../pedagogy_profiles/domain/learner_profile_entity.dart';
 import '../../workspaces/domain/workspace_type.dart';
@@ -32,6 +34,7 @@ class AppUserSettingsEntity {
   final List<TunnerThemePalette> customPalettes;
   final List<PracticeReportEntity> sessionHistory;
   final List<PracticeRecordingEntity> recordingHistory;
+  final MultiTrackSessionEntity? multiTrackSession;
   final List<TuningPresetEntity> tuningPresets;
   final List<SongPackage> workspaceScores;
   final LearnerProfileEntity learnerProfile;
@@ -41,6 +44,8 @@ class AppUserSettingsEntity {
   final Map<String, Map<String, dynamic>> earTrainingItemsJson;
   final Map<String, String> taskStatuses;
   final List<String> completedLessonIds;
+  final MixerConsoleEntity? mixerConsole;
+  final String? activeScoreId;
 
   const AppUserSettingsEntity({
     this.referencePitch = 440.0,
@@ -54,6 +59,7 @@ class AppUserSettingsEntity {
     this.customPalettes = const [],
     this.sessionHistory = const [],
     this.recordingHistory = const [],
+    this.multiTrackSession,
     this.tuningPresets = const [],
     this.workspaceScores = const [],
     this.activeWorkspace = WorkspaceType.learning,
@@ -62,6 +68,8 @@ class AppUserSettingsEntity {
     this.earTrainingItemsJson = const {},
     this.taskStatuses = const {},
     this.completedLessonIds = const [],
+    this.mixerConsole,
+    this.activeScoreId,
     this.learnerProfile = const LearnerProfileEntity(
       type: LearnerProfileType.adultDeliberate,
       title: 'Modo Adulto (Práctica Deliberada)',
@@ -89,6 +97,8 @@ class AppUserSettingsEntity {
     List<TunnerThemePalette>? customPalettes,
     List<PracticeReportEntity>? sessionHistory,
     List<PracticeRecordingEntity>? recordingHistory,
+    MultiTrackSessionEntity? multiTrackSession,
+    bool clearMultiTrackSession = false,
     List<TuningPresetEntity>? tuningPresets,
     List<SongPackage>? workspaceScores,
     LearnerProfileEntity? learnerProfile,
@@ -98,6 +108,8 @@ class AppUserSettingsEntity {
     Map<String, Map<String, dynamic>>? earTrainingItemsJson,
     Map<String, String>? taskStatuses,
     List<String>? completedLessonIds,
+    MixerConsoleEntity? mixerConsole,
+    String? activeScoreId,
   }) {
     return AppUserSettingsEntity(
       referencePitch: referencePitch ?? this.referencePitch,
@@ -111,6 +123,7 @@ class AppUserSettingsEntity {
       customPalettes: customPalettes ?? this.customPalettes,
       sessionHistory: sessionHistory ?? this.sessionHistory,
       recordingHistory: recordingHistory ?? this.recordingHistory,
+      multiTrackSession: clearMultiTrackSession ? null : (multiTrackSession ?? this.multiTrackSession),
       tuningPresets: tuningPresets ?? this.tuningPresets,
       workspaceScores: workspaceScores ?? this.workspaceScores,
       learnerProfile: learnerProfile ?? this.learnerProfile,
@@ -120,6 +133,8 @@ class AppUserSettingsEntity {
       earTrainingItemsJson: earTrainingItemsJson ?? this.earTrainingItemsJson,
       taskStatuses: taskStatuses ?? this.taskStatuses,
       completedLessonIds: completedLessonIds ?? this.completedLessonIds,
+      mixerConsole: mixerConsole ?? this.mixerConsole,
+      activeScoreId: activeScoreId ?? this.activeScoreId,
     );
   }
 
@@ -142,6 +157,7 @@ class AppUserSettingsEntity {
           .toList(),
       // Conservar las 50 grabaciones mas recientes (insertadas en indice 0)
       'recordingHistory': recordingHistory.take(50).map((r) => r.toMap()).toList(),
+      if (multiTrackSession != null) 'multiTrackSession': multiTrackSession!.toMap(),
       'tuningPresets': tuningPresets.map((t) => t.toMap()).toList(),
       'workspaceScores': workspaceScores.map((s) => s.toMap()).toList(),
       'learnerProfile': learnerProfile.toJson(),
@@ -151,6 +167,8 @@ class AppUserSettingsEntity {
       'earTrainingItemsJson': earTrainingItemsJson,
       'taskStatuses': taskStatuses,
       'completedLessonIds': completedLessonIds,
+      if (mixerConsole != null) 'mixerConsole': mixerConsole!.toMap(),
+      if (activeScoreId != null) 'activeScoreId': activeScoreId,
     };
   }
 
@@ -192,6 +210,18 @@ class AppUserSettingsEntity {
           onCorruptEntry?.call('Grabacion corrupta omitida: $e');
         }
       }
+    }
+
+    MultiTrackSessionEntity? multiTrackSession;
+    final rawMultiTrack = map['multiTrackSession'];
+    if (rawMultiTrack is Map<String, dynamic>) {
+      try {
+        multiTrackSession = MultiTrackSessionEntity.fromMap(rawMultiTrack);
+      } catch (e) {
+        onCorruptEntry?.call('Sesion multipista corrupta omitida: $e');
+      }
+    } else if (rawMultiTrack != null) {
+      onCorruptEntry?.call('Sesion multipista con formato invalido omitida.');
     }
 
     final rawPresets = map['tuningPresets'] as List<dynamic>? ?? [];
@@ -236,6 +266,18 @@ class AppUserSettingsEntity {
         ? AcousticRigorProfile.fromJson(rawRigorProfile)
         : const AcousticRigorProfile();
 
+    MixerConsoleEntity? mixerConsole;
+    final rawMixer = map['mixerConsole'];
+    if (rawMixer is Map<String, dynamic>) {
+      try {
+        mixerConsole = MixerConsoleEntity.fromMap(rawMixer);
+      } catch (e) {
+        onCorruptEntry?.call('Configuracion de mezclador corrupta omitida: $e');
+      }
+    }
+
+    final activeScoreId = map['activeScoreId'] as String?;
+
     return AppUserSettingsEntity(
       referencePitch: (map['referencePitch'] as num?)?.toDouble() ?? 440.0,
       selectedThemeId: map['selectedThemeId'] as String? ?? 'obsidian_studio',
@@ -251,6 +293,7 @@ class AppUserSettingsEntity {
       customPalettes: customPalettes,
       sessionHistory: sessionHistory,
       recordingHistory: recordingHistory,
+      multiTrackSession: multiTrackSession,
       tuningPresets: tuningPresets,
       workspaceScores: workspaceScores,
       learnerProfile: learnerProfile,
@@ -267,6 +310,8 @@ class AppUserSettingsEntity {
               ?.map((e) => e.toString())
               .toList() ??
           const [],
+      mixerConsole: mixerConsole,
+      activeScoreId: activeScoreId,
     );
   }
 

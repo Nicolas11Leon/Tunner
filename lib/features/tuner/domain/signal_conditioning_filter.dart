@@ -11,6 +11,9 @@ class SignalConditioningFilter {
   double _xPrev = 0.0;
   double _yPrev = 0.0;
 
+  /// Offset DC estático calibrado a sustraer de la señal en tiempo real.
+  double calibratedDcOffset = 0.0;
+
   /// Restablece el estado interno del filtro recursivo.
   void reset() {
     _xPrev = 0.0;
@@ -39,7 +42,7 @@ class SignalConditioningFilter {
     final output = Float64List(length);
 
     for (int i = 0; i < length; i++) {
-      double s = input[i];
+      double s = input[i] - calibratedDcOffset;
 
       if (enableDcBlocker) {
         s = processDcBlockerSample(s);

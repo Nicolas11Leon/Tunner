@@ -9,6 +9,7 @@ import 'package:tunner/features/dj_console/domain/dj_hardware_catalog.dart';
 import 'package:tunner/features/dj_console/presentation/dj_console_view_model.dart';
 import 'package:tunner/features/dj_console/presentation/dj_visual_mapping_overlay.dart';
 import 'package:tunner/features/guided_lessons/presentation/guided_lessons_modal.dart';
+import 'package:tunner/features/practice_recorder/domain/multitrack_session_entity.dart';
 import 'package:tunner/features/tuner_viewmodel.dart';
 import 'package:tunner/features/vocal_autotune/presentation/vocal_autotune_modal.dart';
 import '../../helpers/studio_test_fakes.dart';
@@ -185,6 +186,15 @@ void main() {
         pitchService: _MockPitchService(),
         recorderService: MockPracticeRecorderService(),
         recordingPathProvider: () async => '/tmp/test.wav',
+      );
+      vm.addPracticeTake(
+        PracticeTakeEntity(
+          id: 'take_1',
+          name: 'Toma Vocal 1',
+          timestamp: DateTime.now(),
+          duration: const Duration(seconds: 3),
+          filePath: '/tmp/take_1.wav',
+        ),
       );
 
       await tester.pumpWidget(
