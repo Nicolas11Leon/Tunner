@@ -175,7 +175,7 @@ void main() {
       expect(eval.nextRetentionProjected, closeTo(0.90, 0.01));
     });
 
-    test('MusicXmlScoreParser handles Cb/B# octave carry and skips <chord/> and <grace/>', () async {
+    test('MusicXmlScoreParser handles Cb/B# octave carry, preserves <chord/> and skips <grace/>', () async {
       const parser = MusicXmlScoreParser();
       const xml = '''<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="3.1">
@@ -196,8 +196,11 @@ void main() {
       );
       final notes = parsed.package.score.measures.first.notes;
       expect(notes[0].noteName, equals('Si3'));
-      expect(notes[1].noteName, equals('Do4'));
-      expect(notes[1].startTick, equals(4));
+      expect(notes[0].startTick, equals(0));
+      expect(notes[1].noteName, equals('Mi4'));
+      expect(notes[1].startTick, equals(0));
+      expect(notes[2].noteName, equals('Do4'));
+      expect(notes[2].startTick, equals(4));
     });
 
     test('CanonicalAbcExporter handles Bb4 and AbcScoreParser applies K: G and strips chords', () async {
