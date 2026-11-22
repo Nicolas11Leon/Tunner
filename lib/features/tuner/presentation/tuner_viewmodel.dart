@@ -41,6 +41,7 @@ import '../domain/acoustic_echo_suppressor.dart';
 import '../domain/microphone_calibration_models.dart';
 import '../domain/instrument_acoustic_filter.dart';
 import '../domain/acoustic_rigor_profile.dart';
+import '../../acoustic_lab/domain/harmonic_series_analyzer.dart';
 import '../../drone/domain/harmonic_drone_config.dart';
 import '../../drone/domain/harmonic_drone_synthesizer.dart';
 import '../../chord_analyzer/domain/chord_entity.dart';
@@ -183,6 +184,12 @@ class TunerViewModel extends ChangeNotifier
   double _lastClarity = 0.0;
   final List<ChordEntity> _chordHistory = [];
   final TapTempoEngine _tapTempoEngine = TapTempoEngine();
+  final HarmonicSeriesAnalyzer _harmonicAnalyzer = const HarmonicSeriesAnalyzer();
+  int _pendingFirstAttackTick = -1;
+  int _pendingInTuneTicks = 0;
+  double _pendingLastFreq = 0.0;
+  double _pendingLastCents = 0.0;
+  String _pendingLastNoteName = '--';
   TapTempoResult? _lastTapTempoResult;
   LearnerProfileEntity _learnerProfile = LearnerProfileEntity.adult();
   final AdaptiveScaffoldingEngine _scaffoldingEngine = const AdaptiveScaffoldingEngine();
@@ -659,6 +666,7 @@ class TunerViewModel extends ChangeNotifier
 
   /// Detiene la reproducción de la partitura si está activa.
   void stopSong() {
+    _finalizePendingNoteEvaluation();
     if (_isMetronomePlaying) {
       startSongWithCountIn();
     }
@@ -1164,11 +1172,18 @@ class TunerViewModel extends ChangeNotifier
 
   void _evaluateSmartInstrumentFromPitch(double pitch) {
     if (pitch <= 20.0) return;
+    final timbre = _harmonicAnalyzer.analyze(
+      fundamentalHz: pitch,
+      samples: _latestAudioSamples,
+    );
+    if (timbre.harmonics.isEmpty) return;
     evaluateSmartInstrumentAcoustics(
       freqHz: pitch,
-      overtones: const [1.0, 0.5, 0.25, 0.12, 0.06, 0.03, 0.01, 0.0],
-      clarity: 0.90,
-      centroidHz: pitch * 2.0,
+      overtones: timbre.harmonics
+          .map((h) => h.relativeAmplitude)
+          .toList(growable: false),
+      clarity: _lastClarity > 0.0 ? _lastClarity.clamp(0.0, 1.0) : 0.85,
+      centroidHz: timbre.spectralCentroidHz > 0 ? timbre.spectralCentroidHz : pitch,
       minimumConfidence: 0.65,
     );
   }
@@ -1614,6 +1629,47 @@ class TunerViewModel extends ChangeNotifier
     notifyListeners();
   }
 
+  void _finalizePendingNoteEvaluation() {
+    final pending = _lastEvaluatedNote;
+    if (pending == null) return;
+    _lastEvaluatedNote = null;
+
+    if (!_isPracticeMode || pending.isRest || pending.noteName == '--') {
+      _pendingFirstAttackTick = -1;
+      _pendingInTuneTicks = 0;
+      return;
+    }
+
+    final msPerTick = 60000.0 / math.max(20, _bpm) / 4.0;
+    final timingDeltaMs = _pendingFirstAttackTick >= 0
+        ? ((_pendingFirstAttackTick - pending.startTick) * msPerTick).round()
+        : 0;
+    final sustainRatio =
+        (_pendingInTuneTicks / math.max(1, pending.durationTicks)).clamp(0.0, 1.0);
+
+    final soundingExpected = _transpositionService.getSoundingNote(
+      pending.noteName,
+      _activeInstrument,
+    );
+    final eval = _evaluatorService.evaluateNote(
+      expectedNote: pending,
+      soundingExpectedNoteName: soundingExpected,
+      detectedNoteName: _pendingLastNoteName,
+      detectedFrequency: _pendingLastFreq,
+      detectedCents: _pendingLastCents,
+      timingDeltaMs: timingDeltaMs,
+      sustainRatio: sustainRatio,
+    );
+    _activeEvaluations.add(eval);
+    _vocalPedagogyController.recordMinusOneEvaluation(eval);
+
+    _pendingFirstAttackTick = -1;
+    _pendingInTuneTicks = 0;
+    _pendingLastFreq = 0.0;
+    _pendingLastCents = 0.0;
+    _pendingLastNoteName = '--';
+  }
+
   void _updateExpectedNoteForTick(int tick) {
     final notes = currentMeasureNotes;
     _expectedNote = notes.firstWhere(
@@ -1621,27 +1677,36 @@ class TunerViewModel extends ChangeNotifier
       orElse: () => HierarchicalNote(startTick: tick, durationTicks: 1, noteName: "--"),
     );
 
-    // Registro atómico de evaluación pedagógica si cambió la nota
-    if (_isPracticeMode &&
-        _expectedNote != null &&
-        _expectedNote != _lastEvaluatedNote &&
-        !_isCountingIn) {
+    if (!_isPracticeMode || _expectedNote == null || _isCountingIn) {
+      return;
+    }
+
+    if (_expectedNote != _lastEvaluatedNote) {
+      _finalizePendingNoteEvaluation();
       _lastEvaluatedNote = _expectedNote;
+      _pendingFirstAttackTick = -1;
+      _pendingInTuneTicks = 0;
+      _pendingLastFreq = 0.0;
+      _pendingLastCents = 0.0;
+      _pendingLastNoteName = '--';
+    }
+
+    // Acumular telemetria real a lo largo de la ventana [startTick, endTick)
+    if (_frequency > 20.0 && _noteName != '--') {
+      if (_pendingFirstAttackTick < 0) {
+        _pendingFirstAttackTick = tick;
+      }
+      _pendingLastFreq = _frequency;
+      _pendingLastCents = _cents;
+      _pendingLastNoteName = _noteName;
+
       final soundingExpected = _transpositionService.getSoundingNote(
         _expectedNote!.noteName,
         _activeInstrument,
       );
-      final eval = _evaluatorService.evaluateNote(
-        expectedNote: _expectedNote!,
-        soundingExpectedNoteName: soundingExpected,
-        detectedNoteName: _noteName,
-        detectedFrequency: _frequency,
-        detectedCents: _cents,
-        timingDeltaMs: 0,
-        sustainRatio: 1.0,
-      );
-      _activeEvaluations.add(eval);
-      _vocalPedagogyController.recordMinusOneEvaluation(eval);
+      if (_noteName == soundingExpected && _cents.abs() <= 25.0) {
+        _pendingInTuneTicks++;
+      }
     }
   }
 
@@ -2548,15 +2613,24 @@ class TunerViewModel extends ChangeNotifier
   Uint8List exportActiveScoreToPdf() =>
       _scoreEditorController.exportActiveScoreToPdf(_activePackage);
 
-  PedagogicalSessionData get currentPedagogicalSessionData =>
-      _scoreEditorController.buildPedagogicalSessionData(
-        activePackage: _activePackage,
-        sessionHistory: _sessionHistory,
-        multiTrackSession: _recorderController.multiTrackSession,
-        cents: _cents,
-        bpm: _bpm,
-        lastTapTempoResult: _lastTapTempoResult,
-      );
+  PedagogicalSessionData get currentPedagogicalSessionData {
+    final timbre = (_frequency > 20.0 && _latestAudioSamples != null)
+        ? _harmonicAnalyzer.analyze(
+            fundamentalHz: _frequency,
+            samples: _latestAudioSamples,
+          )
+        : TimbreAnalysisResult.empty;
+    return _scoreEditorController.buildPedagogicalSessionData(
+      activePackage: _activePackage,
+      sessionHistory: _sessionHistory,
+      multiTrackSession: _recorderController.multiTrackSession,
+      cents: _cents,
+      bpm: _bpm,
+      lastTapTempoResult: _lastTapTempoResult,
+      timbreAnalysis: timbre,
+      activeEvaluations: _activeEvaluations,
+    );
+  }
 
   Uint8List exportPedagogicalReportPdf(PedagogicalReportConfig config) =>
       _scoreEditorController.exportPedagogicalReportPdf(
