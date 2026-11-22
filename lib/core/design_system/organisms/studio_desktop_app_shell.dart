@@ -52,6 +52,7 @@ class StudioDesktopAppShell extends StatefulWidget {
   final VoidCallback? onOpenSpectrogram;
   final Widget? customSidebarExplorer;
   final String initialSidebarMode;
+  final String? bufferLatencyLabel;
 
   const StudioDesktopAppShell({
     super.key,
@@ -77,6 +78,7 @@ class StudioDesktopAppShell extends StatefulWidget {
     this.isRecording = false,
     this.onToggleRecording,
     this.engineName = 'Tartini DSP 2.1',
+    this.bufferLatencyLabel,
     this.onMenuNewScore,
     this.onMenuImportFile,
     this.onMenuNewPreset,
@@ -638,7 +640,7 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                   const SizedBox(width: 12),
                   Flexible(
                     child: Text(
-                      'BUFFER: 256 • LATENCIA: < 8ms',
+                      widget.bufferLatencyLabel ?? 'BUFFER: 256 • LATENCIA: 5.3 ms',
                       style: TextStyle(
                         color: tokens.textMuted,
                         fontSize: 9.0,

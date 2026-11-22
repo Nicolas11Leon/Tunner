@@ -5,14 +5,19 @@ import '../domain/algorithmic_exercise_generator.dart';
 
 /// Modal interactivo para generación procedural de ejercicios, escalas y rutinas técnicas.
 class ExerciseGeneratorModal extends StatefulWidget {
-  const ExerciseGeneratorModal({super.key});
+  final void Function(int tabIndex)? onNavigateToTab;
 
-  static Future<void> show(BuildContext context) {
+  const ExerciseGeneratorModal({super.key, this.onNavigateToTab});
+
+  static Future<void> show(
+    BuildContext context, {
+    void Function(int tabIndex)? onNavigateToTab,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => const ExerciseGeneratorModal(),
+      builder: (ctx) => ExerciseGeneratorModal(onNavigateToTab: onNavigateToTab),
     );
   }
 
@@ -207,6 +212,8 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                       spacing: 6,
                       runSpacing: 6,
                       children: [
+                        ExerciseRhythm.whole,
+                        ExerciseRhythm.half,
                         ExerciseRhythm.quarter,
                         ExerciseRhythm.eighth,
                         ExerciseRhythm.sixteenth,
@@ -280,6 +287,7 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                           bpm: _selectedBpm,
                         );
                         Navigator.of(context).pop();
+                        widget.onNavigateToTab?.call(4);
                         ScaffoldMessenger.of(context).hideCurrentSnackBar();
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(

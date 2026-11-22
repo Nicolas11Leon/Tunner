@@ -141,28 +141,32 @@ class HarmonicDroneModal extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                config.rootDisplayName,
-                                key: const Key('active_drone_note_label'),
-                                style: TextStyle(
-                                  color: isPlaying ? palette.primaryAccent : palette.textColor,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w800,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  config.rootDisplayName,
+                                  key: const Key('active_drone_note_label'),
+                                  style: TextStyle(
+                                    color: isPlaying ? palette.primaryAccent : palette.textColor,
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                '${config.timbre.displayName} • ${fundHz.toStringAsFixed(1)} Hz'
-                                '${config.includeFifth ? ' + 5ta (${fifthHz.toStringAsFixed(1)} Hz)' : ''}',
-                                style: TextStyle(
-                                  color: palette.textMutedColor,
-                                  fontSize: 11,
+                                Text(
+                                  '${config.timbre.displayName} • ${fundHz.toStringAsFixed(1)} Hz'
+                                  '${config.includeFifth ? ' + 5ta (${fifthHz.toStringAsFixed(1)} Hz)' : ''}',
+                                  style: TextStyle(
+                                    color: palette.textMutedColor,
+                                    fontSize: 11,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           ElevatedButton.icon(
                             key: const Key('toggle_drone_playback_btn'),
                             onPressed: () => viewModel.toggleDrone(),

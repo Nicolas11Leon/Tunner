@@ -1337,6 +1337,12 @@ class TunerViewModel extends ChangeNotifier
     notifyListeners();
   }
 
+  /// Dispara un tono de referencia para un número de nota MIDI.
+  Future<void> playMidiNoteTone(int midiNote) async {
+    final freqHz = _referencePitch * math.pow(2.0, (midiNote - 69) / 12.0);
+    await _audioSynthesizer.startDiapasonTone(freqHz);
+  }
+
   /// Detiene la emisión de tonos sintéticos o diapasón.
   Future<void> stopReferenceTone() async {
     await stopDiapasonTone();
@@ -2474,6 +2480,9 @@ class TunerViewModel extends ChangeNotifier
       metronomeTrack: _mixerConsole.metronomeTrack,
       stems: _activePackage.tracks,
     );
+    _workspaceScores.removeWhere((s) => s.id == _activePackage.id);
+    _workspaceScores.insert(0, _activePackage);
+    _triggerAutoSave();
     notifyListeners();
   }
 
