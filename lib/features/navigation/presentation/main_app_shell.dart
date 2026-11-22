@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../app/studio_composition_root.dart';
 import '../../../core/logging/infrastructure/studio_debug_logger.dart';
+import '../../dj_console/domain/dj_sampler_bank_entity.dart';
+import '../../media_vault/domain/media_asset_entity.dart';
+import '../../media_vault/domain/media_synergy_target.dart';
 import '../../tuner_viewmodel.dart';
 import '../../song_library/domain/song_package_entity.dart';
 import '../../instrument/domain/instrument_customization_profile.dart';
@@ -105,6 +110,52 @@ class _MainAppShellState extends State<MainAppShell> {
     _mediaVaultViewModel = root != null
         ? root.createMediaVaultViewModel()
         : MediaVaultViewModel();
+    _mediaVaultViewModel.onDispatchToTool = (asset, target) {
+      final samples = (asset.pcmSamples != null && asset.pcmSamples!.isNotEmpty)
+          ? Float32List.fromList(asset.pcmSamples!)
+          : Float32List(4410);
+      switch (target) {
+        case MediaSynergyTarget.djDeckA:
+        case MediaSynergyTarget.djDeckB:
+          final deckId = target == MediaSynergyTarget.djDeckA ? 'A' : 'B';
+          _djConsoleViewModel.loadTrackWithBeatTracking(
+            deckId,
+            title: asset.title,
+            artist: asset.kind.displayName,
+            audioSamples: samples,
+            sampleRate: asset.sampleRate,
+          );
+          break;
+        case MediaSynergyTarget.djSamplerPad:
+          _djConsoleViewModel.triggerSamplerPad(DjSamplerPadType.values.first);
+          break;
+        case MediaSynergyTarget.scoreEditor:
+          TunerViewModel? tunerVm;
+          try {
+            tunerVm = context.read<TunerViewModel>();
+          } catch (_) {
+            tunerVm = null;
+          }
+          if (tunerVm != null && asset.rawBytes != null) {
+            unawaited(
+              tunerVm.importScoreFromBytes(
+                asset.rawBytes!,
+                asset.fileName,
+              ),
+            );
+          }
+          break;
+        case MediaSynergyTarget.mixerChannel:
+          _djConsoleViewModel.loadTrackWithBeatTracking(
+            'A',
+            title: asset.title,
+            artist: 'Mixer Channel',
+            audioSamples: samples,
+            sampleRate: asset.sampleRate,
+          );
+          break;
+      }
+    };
 
     _fileSystemService = root?.fileSystemService ?? NoOpStudioWorkspaceFileSystem();
     _fileSystemService.onOpenFile = _handleOpenFile;

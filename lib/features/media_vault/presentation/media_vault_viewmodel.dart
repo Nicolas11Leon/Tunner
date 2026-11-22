@@ -28,7 +28,7 @@ class MediaVaultViewModel extends ChangeNotifier {
   final StudioFileSystemRepository? _fileSystemRepository;
   final IStudioAudioEngine? _audioEngine;
   final IAudioSynthesizerService? _audioSynthesizer;
-  final void Function(MediaAssetEntity asset, MediaSynergyTarget target)?
+  void Function(MediaAssetEntity asset, MediaSynergyTarget target)?
       onDispatchToTool;
 
   TimelineProjectEntity _timeline;
@@ -387,6 +387,9 @@ class MediaVaultViewModel extends ChangeNotifier {
     );
     if (result.success) {
       _repository.upsertAll(result.importedAssets);
+      if (result.restoredTimeline != null) {
+        _timeline = result.restoredTimeline!;
+      }
       unawaited(persistCatalogToDisk());
     }
     _statusMessage = result.message;
