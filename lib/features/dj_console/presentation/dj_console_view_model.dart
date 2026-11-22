@@ -1193,6 +1193,117 @@ class DjConsoleViewModel extends ChangeNotifier {
     if (!_isDisposed) notifyListeners();
   }
 
+  /// Retorna el valor acustico o visual normalizado [0.0, 1.0] asociado a una zona del hardware.
+  double getControlValue(DjSkinZoneEntity zone) {
+    final lowerId = zone.id.toLowerCase();
+    final deckId = zone.deckId?.toLowerCase();
+    final isDeckB = deckId == 'deckb' || deckId == 'b' || lowerId.contains('_b_') || lowerId.contains('_b');
+    final deck = isDeckB ? deckB : deckA;
+    final fx = isDeckB ? fxB : fxA;
+
+    switch (zone.controlType) {
+      case DjControlType.jogWheel:
+        return isDeckB ? rotationAngleB : rotationAngleA;
+
+      case DjControlType.fader:
+        if (lowerId.contains('crossfader') || zone.action == DjAction.crossfaderCenter) {
+          // Bipolar [-1.0, 1.0] -> [0.0, 1.0]
+          return ((crossfader.position + 1.0) / 2.0).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('pitch') || lowerId.contains('tempo') ||
+            zone.action == DjAction.deckAPitchUp || zone.action == DjAction.deckBPitchUp) {
+          // pitchMultiplier [0.84, 1.16], 1.0 -> 0.5
+          return ((deck.pitchMultiplier - 0.84) / (1.16 - 0.84)).clamp(0.0, 1.0);
+        }
+        // Channel fader
+        return deck.volume.clamp(0.0, 1.0);
+
+      case DjControlType.knob:
+        if (lowerId.contains('filter') ||
+            zone.action == DjAction.deckAFilterSweepRight || zone.action == DjAction.deckBFilterSweepRight) {
+          // Bipolar filter [-1.0, 1.0] -> [0.0, 1.0]
+          return ((fx.filterPosition + 1.0) / 2.0).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('high') || lowerId.contains('_hi') ||
+            zone.action == DjAction.deckAKillHigh || zone.action == DjAction.deckBKillHigh) {
+          return (deck.effectiveGainHigh / 1.5).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('mid') ||
+            zone.action == DjAction.deckAKillMid || zone.action == DjAction.deckBKillMid) {
+          return (deck.effectiveGainMid / 1.5).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('low') ||
+            zone.action == DjAction.deckAKillLow || zone.action == DjAction.deckBKillLow) {
+          return (deck.effectiveGainLow / 1.5).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('master') || zone.action == DjAction.masterVolumeUp) {
+          return masterVolume.clamp(0.0, 1.0);
+        }
+        return 0.5;
+
+      case DjControlType.pad:
+      case DjControlType.button:
+        return 1.0;
+    }
+  }
+
+  /// Modifica de forma continua y suave un parametro analogico (fader, knob o jog wheel).
+  void updateContinuousControl(DjSkinZoneEntity zone, double delta) {
+    final lowerId = zone.id.toLowerCase();
+    final deckId = zone.deckId?.toLowerCase();
+    final isDeckB = deckId == 'deckb' || deckId == 'b' || lowerId.contains('_b_') || lowerId.contains('_b');
+    final targetDeck = isDeckB ? 'B' : 'A';
+    final deck = isDeckB ? deckB : deckA;
+    final fx = isDeckB ? fxB : fxA;
+
+    switch (zone.controlType) {
+      case DjControlType.jogWheel:
+        scratchDeck(targetDeck, delta * 2.0);
+        break;
+
+      case DjControlType.fader:
+        if (lowerId.contains('crossfader') || zone.action == DjAction.crossfaderCenter) {
+          final nextPos = (crossfader.position + (delta * 2.0)).clamp(-1.0, 1.0);
+          setCrossfaderPosition(nextPos);
+        } else if (lowerId.contains('pitch') || lowerId.contains('tempo') ||
+            zone.action == DjAction.deckAPitchUp || zone.action == DjAction.deckBPitchUp) {
+          adjustPitch(targetDeck, -delta * 0.16);
+        } else {
+          // Channel fader: subir arrastrando hacia arriba (-delta)
+          final newVol = (deck.volume - delta).clamp(0.0, 1.0);
+          setDeckVolume(targetDeck, newVol);
+        }
+        break;
+
+      case DjControlType.knob:
+        if (lowerId.contains('filter') ||
+            zone.action == DjAction.deckAFilterSweepRight || zone.action == DjAction.deckBFilterSweepRight) {
+          final nextFilter = (fx.filterPosition - (delta * 2.0)).clamp(-1.0, 1.0);
+          setChannelFilter(targetDeck, nextFilter);
+        } else if (lowerId.contains('high') || lowerId.contains('_hi') ||
+            zone.action == DjAction.deckAKillHigh || zone.action == DjAction.deckBKillHigh) {
+          final nextGain = (deck.gainHigh - (delta * 1.5)).clamp(0.0, 1.5);
+          setEqGains(targetDeck, high: nextGain);
+        } else if (lowerId.contains('mid') ||
+            zone.action == DjAction.deckAKillMid || zone.action == DjAction.deckBKillMid) {
+          final nextGain = (deck.gainMid - (delta * 1.5)).clamp(0.0, 1.5);
+          setEqGains(targetDeck, mid: nextGain);
+        } else if (lowerId.contains('low') ||
+            zone.action == DjAction.deckAKillLow || zone.action == DjAction.deckBKillLow) {
+          final nextGain = (deck.gainLow - (delta * 1.5)).clamp(0.0, 1.5);
+          setEqGains(targetDeck, low: nextGain);
+        } else if (lowerId.contains('master') || zone.action == DjAction.masterVolumeUp) {
+          final nextVol = (masterVolume - delta).clamp(0.0, 1.0);
+          setMasterVolume(nextVol);
+        }
+        break;
+
+      case DjControlType.pad:
+      case DjControlType.button:
+        break;
+    }
+  }
+
   @override
   void dispose() {
     _isDisposed = true;

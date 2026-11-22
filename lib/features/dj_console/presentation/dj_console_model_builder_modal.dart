@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/tunner_theme.dart';
-import '../domain/i_dj_console_blueprint_storage_service.dart';
+import '../data/dj_console_blueprint_storage_service.dart';
 import '../domain/dj_action.dart';
 import '../domain/dj_console_blueprint_entity.dart';
+import '../domain/dj_hardware_catalog.dart';
+import '../domain/dj_hardware_skin_entity.dart';
+import '../domain/dj_keymap_profile_entity.dart';
 import '../domain/dj_skin_zone_entity.dart';
 import 'dj_console_view_model.dart';
 
@@ -28,7 +31,7 @@ class DjConsoleModelBuilderModal extends StatefulWidget {
     TunnerThemePalette palette, {
     IDjConsoleBlueprintStorageService? storageService,
   }) {
-    final effectiveStorage = storageService ?? const NoOpDjConsoleBlueprintStorageService();
+    final effectiveStorage = storageService ?? DjConsoleBlueprintStorageService();
     return showDialog(
       context: context,
       barrierDismissible: true,
@@ -200,7 +203,27 @@ class _DjConsoleModelBuilderModalState
       keyBindings: _keyBindings,
     );
 
+    final skin = DjHardwareSkinEntity(
+      id: uniqueId,
+      name: blueprint.name,
+      manufacturer: blueprint.manufacturer,
+      aspectRatio: blueprint.aspectRatio,
+      chassisColor: blueprint.chassisColor,
+      zones: blueprint.zones,
+    );
+    DjHardwareCatalog.registerCustomSkin(skin);
+
     await widget.storageService.saveBlueprint(blueprint);
+
+    if (_keyBindings.isNotEmpty) {
+      final customKeymap = DjKeymapProfileEntity(
+        id: 'keymap_$uniqueId',
+        name: 'Mapeo ${blueprint.name}',
+        keyBindings: Map<String, DjAction>.from(_keyBindings),
+      );
+      widget.viewModel.setKeymapProfile(customKeymap);
+    }
+
     widget.viewModel.selectSkin(uniqueId);
 
     if (mounted) {
