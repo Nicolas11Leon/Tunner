@@ -126,9 +126,9 @@ void main() {
       expect(navigatedTab, 5);
     });
 
-    testWidgets('Workspace defaults are automatically seeded (no 0 counts)', (tester) async {
+    testWidgets('Workspace defaults seed scores and presets without fake recordings', (tester) async {
       expect(viewModel.workspaceScores.isNotEmpty, isTrue);
-      expect(viewModel.recordingHistory.isNotEmpty, isTrue);
+      expect(viewModel.recordingHistory, isEmpty);
       expect(viewModel.customTuningPresets.isNotEmpty, isTrue);
     });
   });

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import '../../../core/theme/tunner_theme.dart';
 import '../../practice_evaluator/domain/practice_report_entity.dart';
+import '../../practice_recorder/domain/multitrack_session_entity.dart';
 import '../../practice_recorder/domain/practice_recording_entity.dart';
 import '../../pedagogy_profiles/domain/learner_profile_entity.dart';
 import '../../workspaces/domain/workspace_type.dart';
@@ -32,6 +33,7 @@ class AppUserSettingsEntity {
   final List<TunnerThemePalette> customPalettes;
   final List<PracticeReportEntity> sessionHistory;
   final List<PracticeRecordingEntity> recordingHistory;
+  final MultiTrackSessionEntity? multiTrackSession;
   final List<TuningPresetEntity> tuningPresets;
   final List<SongPackage> workspaceScores;
   final LearnerProfileEntity learnerProfile;
@@ -51,6 +53,7 @@ class AppUserSettingsEntity {
     this.customPalettes = const [],
     this.sessionHistory = const [],
     this.recordingHistory = const [],
+    this.multiTrackSession,
     this.tuningPresets = const [],
     this.workspaceScores = const [],
     this.activeWorkspace = WorkspaceType.learning,
@@ -83,6 +86,8 @@ class AppUserSettingsEntity {
     List<TunnerThemePalette>? customPalettes,
     List<PracticeReportEntity>? sessionHistory,
     List<PracticeRecordingEntity>? recordingHistory,
+    MultiTrackSessionEntity? multiTrackSession,
+    bool clearMultiTrackSession = false,
     List<TuningPresetEntity>? tuningPresets,
     List<SongPackage>? workspaceScores,
     LearnerProfileEntity? learnerProfile,
@@ -102,6 +107,7 @@ class AppUserSettingsEntity {
       customPalettes: customPalettes ?? this.customPalettes,
       sessionHistory: sessionHistory ?? this.sessionHistory,
       recordingHistory: recordingHistory ?? this.recordingHistory,
+      multiTrackSession: clearMultiTrackSession ? null : (multiTrackSession ?? this.multiTrackSession),
       tuningPresets: tuningPresets ?? this.tuningPresets,
       workspaceScores: workspaceScores ?? this.workspaceScores,
       learnerProfile: learnerProfile ?? this.learnerProfile,
@@ -130,6 +136,7 @@ class AppUserSettingsEntity {
           .toList(),
       // Conservar las 50 grabaciones mas recientes (insertadas en indice 0)
       'recordingHistory': recordingHistory.take(50).map((r) => r.toMap()).toList(),
+      if (multiTrackSession != null) 'multiTrackSession': multiTrackSession!.toMap(),
       'tuningPresets': tuningPresets.map((t) => t.toMap()).toList(),
       'workspaceScores': workspaceScores.map((s) => s.toMap()).toList(),
       'learnerProfile': learnerProfile.toJson(),
@@ -177,6 +184,18 @@ class AppUserSettingsEntity {
           onCorruptEntry?.call('Grabacion corrupta omitida: $e');
         }
       }
+    }
+
+    MultiTrackSessionEntity? multiTrackSession;
+    final rawMultiTrack = map['multiTrackSession'];
+    if (rawMultiTrack is Map<String, dynamic>) {
+      try {
+        multiTrackSession = MultiTrackSessionEntity.fromMap(rawMultiTrack);
+      } catch (e) {
+        onCorruptEntry?.call('Sesion multipista corrupta omitida: $e');
+      }
+    } else if (rawMultiTrack != null) {
+      onCorruptEntry?.call('Sesion multipista con formato invalido omitida.');
     }
 
     final rawPresets = map['tuningPresets'] as List<dynamic>? ?? [];
@@ -236,6 +255,7 @@ class AppUserSettingsEntity {
       customPalettes: customPalettes,
       sessionHistory: sessionHistory,
       recordingHistory: recordingHistory,
+      multiTrackSession: multiTrackSession,
       tuningPresets: tuningPresets,
       workspaceScores: workspaceScores,
       learnerProfile: learnerProfile,

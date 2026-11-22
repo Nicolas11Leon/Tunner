@@ -82,14 +82,14 @@ class PitchDetectorService implements IPitchDetectorService {
         if (message.containsKey('rms') && onRmsLevelChanged != null) {
           onRmsLevelChanged!(message['rms'] as double);
         }
-        if (message.containsKey('pitch') && onPitchDetected != null) {
-          onPitchDetected!(message['pitch'] as double);
-        }
         if (message.containsKey('clarity') && onClarityDetected != null) {
           onClarityDetected!(message['clarity'] as double);
         }
         if (message.containsKey('window') && onAudioWindowCaptured != null) {
           onAudioWindowCaptured!(List<double>.from(message['window'] as List));
+        }
+        if (message.containsKey('pitch') && onPitchDetected != null) {
+          onPitchDetected!(message['pitch'] as double);
         }
       }
     });
