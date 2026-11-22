@@ -65,6 +65,20 @@ class SmuflGlyphPathEngine {
     canvas.restore();
   }
 
+  /// Dibuja un punto de prolongación (*augmentation dot*) vectorial según SMuFL.
+  void drawAugmentationDot(
+    Canvas canvas, {
+    required Offset center,
+    required double staffSpace,
+    required Color color,
+  }) {
+    final dotRadius = staffSpace * 0.20;
+    final dotPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, dotRadius, dotPaint);
+  }
+
   /// Dibuja la plica de una nota musical con anclaje al borde exacto de la cabeza.
   ///
   /// Longitud estándar: 3.5 staff spaces.
@@ -240,6 +254,50 @@ class SmuflGlyphPathEngine {
     // Dos puntos canónicos en espacios 3 y 4 (arriba y abajo de la línea 4)
     canvas.drawCircle(const Offset(18, -5), 2.4, fillPaint);
     canvas.drawCircle(const Offset(18, 5), 2.4, fillPaint);
+
+    canvas.restore();
+  }
+
+  /// Dibuja la Clave de Do vectorial SMuFL (`cClef`), anclada en una línea ([anchorLine]).
+  void drawCClef(
+    Canvas canvas, {
+    required Offset anchorLine,
+    required double staffSpace,
+    required Color color,
+  }) {
+    canvas.save();
+    canvas.translate(anchorLine.dx, anchorLine.dy);
+
+    final scale = staffSpace / 10.0;
+    canvas.scale(scale, scale);
+
+    final strokePaint = Paint()
+      ..color = color
+      ..strokeWidth = 2.2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final fillPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Dos barras verticales
+    canvas.drawLine(const Offset(-7, -15), const Offset(-7, 15), strokePaint);
+    canvas.drawLine(const Offset(-4, -15), const Offset(-4, 15), Paint()..color = color..strokeWidth = 3.8..style = PaintingStyle.stroke);
+
+    // Arcos superior e inferior convergiendo en la línea ancla
+    final topArch = Path()
+      ..moveTo(-4, -15)
+      ..cubicTo(4, -15, 6, -8, 0, 0);
+    canvas.drawPath(topArch, strokePaint);
+
+    final bottomArch = Path()
+      ..moveTo(-4, 15)
+      ..cubicTo(4, 15, 6, 8, 0, 0);
+    canvas.drawPath(bottomArch, strokePaint);
+
+    // Vértice central
+    canvas.drawCircle(const Offset(0, 0), 2.2, fillPaint);
 
     canvas.restore();
   }
