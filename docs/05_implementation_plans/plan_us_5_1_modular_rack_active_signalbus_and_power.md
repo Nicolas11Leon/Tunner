@@ -4,9 +4,9 @@
 - **ID del Plan:** `PLAN-FASE5-MODULAR-RACK-2026-051`
 - **Titulo de la Implementacion:** Procesamiento Activo en StandardRackNode, Apagado Real de Modulos, Ganancia y PortPermissionBroker
 - **Fase del Proyecto:** Fase 5 / EPIC-05
-- **Estado:** Aprobado
-- **ADR Relacionado:** [ADR 0156](docs/04_adrs/0156_modular_rack_active_signalbus_and_power.md)
-- **Documento Funcional Base:** [Caso de Uso 164](docs/02_use_cases/164_uc_modular_rack_active_signalbus_and_power.md)
+- **Estado:** Completado
+- **ADR Relacionado:** [ADR 0156](../04_adrs/0156_modular_rack_active_signalbus_and_power.md)
+- **Documento Funcional Base:** [Caso de Uso 164](../02_use_cases/164_uc_modular_rack_active_signalbus_and_power.md)
 
 ---
 
@@ -37,21 +37,21 @@ Activar el procesamiento real de eventos atomicos en `StandardRackNode.onReceive
 ## 3. Plan Paso a Paso de Ejecucion
 
 ### Paso 1: Capa de Dominio (`SignalBus`)
-- [ ] Agregar `PortPermissionBroker` y mapa `_registeredPorts` en `SignalBus`.
-- [ ] Validar en `addConnection` y `emit` (punto a punto y broadcast) mediante `canAuthorizeConnection`.
-- [ ] Escalar `AudioPcmEvent`, `PitchDetectionEvent` y `List<double>` segun `conn.gain` en `emit`.
+- [x] Agregar `PortPermissionBroker` y mapa `_registeredPorts` en `SignalBus`.
+- [x] Validar en `addConnection` y `emit` (punto a punto y broadcast) mediante `canAuthorizeConnection`.
+- [x] Escalar `AudioPcmEvent`, `PitchDetectionEvent` y `List<double>` segun `conn.gain` en `emit`.
 
 ### Paso 2: Capa de Presentacion y Composicion
-- [ ] Agregar metodos `ingestBusAudioPcm`, `ingestBusPitchFrame` e `ingestBusClockTick` en `TunerViewModel`.
-- [ ] Conectar `IStudioAudioInputEngine`, `IStudioAudioEngine` y `TunerViewModel` en `ModularRackViewModel`.
-- [ ] Implementar handlers en `StandardRackNode.onReceiveAtomicSignal` para los eventos `TransportControlEvent`, `TuningCalibrationEvent`, `ClockTickEvent`, `PitchDetectionEvent`, `AudioPcmEvent` y `SpectralDataEvent`.
-- [ ] Implementar `_shutdownSubsystemForModule` e invocarlo en `toggleModulePower` (al apagar) y `removeModule`.
-- [ ] Conectar `bindTunerViewModel` en `MainAppShell` y parametro opcional en `StudioCompositionRoot.createModularRackViewModel`.
+- [x] Agregar metodos `ingestBusAudioPcm`, `ingestBusPitchFrame` e `ingestBusClockTick` en `TunerViewModel`.
+- [x] Conectar `IStudioAudioInputEngine`, `IStudioAudioEngine` y `TunerViewModel` en `ModularRackViewModel`.
+- [x] Implementar handlers en `StandardRackNode.onReceiveAtomicSignal` para los eventos `TransportControlEvent`, `TuningCalibrationEvent`, `ClockTickEvent`, `PitchDetectionEvent`, `AudioPcmEvent` y `SpectralDataEvent`.
+- [x] Implementar `_shutdownSubsystemForModule` e invocarlo en `toggleModulePower` (al apagar) y `removeModule`.
+- [x] Conectar `bindTunerViewModel` en `MainAppShell` y parametro opcional en `StudioCompositionRoot.createModularRackViewModel`.
 
 ### Paso 3: Pruebas y Validacion
-- [ ] Crear `test/features/modular_rack/us_5_1_active_signalbus_and_power_test.dart`.
-- [ ] Ejecutar `flutter analyze --no-fatal-infos` (0 issues).
-- [ ] Ejecutar `flutter test test/features/modular_rack/ test/core/architecture/arch_1_clean_architecture_boundaries_test.dart` (100% pass).
+- [x] Crear `test/features/modular_rack/us_5_1_active_signalbus_and_power_test.dart`.
+- [x] Ejecutar `flutter analyze --no-fatal-infos` (0 issues).
+- [x] Ejecutar `flutter test test/features/modular_rack/ test/core/architecture/arch_1_clean_architecture_boundaries_test.dart` (100% pass).
 
 ---
 
@@ -62,7 +62,7 @@ Activar el procesamiento real de eventos atomicos en `StandardRackNode.onReceive
 ---
 
 ## 5. Criterios de Aceptacion (Definition of Done)
-- [ ] Cero emojis en codigo, comentarios, commits, PR y documentacion.
-- [ ] Cumplimiento estricto de `arch_1_clean_architecture_boundaries_test.dart`.
-- [ ] `flutter analyze --no-fatal-infos` con 0 issues.
-- [ ] 100% de pruebas pasando en `test/features/modular_rack/` y `arch_1`.
+- [x] Cero emojis en codigo, comentarios, commits, PR y documentacion.
+- [x] Cumplimiento estricto de `arch_1_clean_architecture_boundaries_test.dart`.
+- [x] `flutter analyze --no-fatal-infos` con 0 issues.
+- [x] 100% de pruebas pasando en `test/features/modular_rack/` y `arch_1`.
