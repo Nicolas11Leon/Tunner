@@ -23,6 +23,8 @@ import '../../chord_analyzer/presentation/chord_analyzer_modal.dart';
 import '../../vocal_autotune/presentation/vocal_autotune_modal.dart';
 import '../../metronome/presentation/tap_tempo_modal.dart';
 import '../../audio_synthesizer/presentation/instrument_soundfont_selector_modal.dart';
+import '../../practice_recorder/presentation/spectral_comparator_modal.dart';
+import '../../drone/presentation/harmonic_drone_modal.dart';
 
 /// Modal predictivo de búsqueda universal (Spotlight Search) para localizar y lanzar
 /// cualquier herramienta del software en menos de 2 segundos.
@@ -121,7 +123,7 @@ class _ToolSearchModalState extends State<ToolSearchModal> {
         ScoreEditorModal.show(hostContext);
         break;
       case 'open_exercise_generator':
-        ExerciseGeneratorModal.show(hostContext);
+        ExerciseGeneratorModal.show(hostContext, onNavigateToTab: widget.onNavigateToTab);
         break;
       case 'open_chord_analyzer':
         ChordAnalyzerModal.show(hostContext, widget.viewModel);
@@ -141,11 +143,13 @@ class _ToolSearchModalState extends State<ToolSearchModal> {
         );
         break;
       case 'focus_metronome':
-      case 'open_spectral_comparator':
         widget.onNavigateToTab?.call(1);
         break;
+      case 'open_spectral_comparator':
+        SpectralComparatorModal.show(hostContext, widget.viewModel);
+        break;
       case 'open_drone_studio':
-        widget.onNavigateToTab?.call(3);
+        HarmonicDroneModal.show(hostContext, widget.viewModel);
         break;
       case 'open_dj_console':
         final djVm = DjConsoleViewModel();

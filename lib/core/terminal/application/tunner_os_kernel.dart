@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import '../../audio/domain/ffi/i_native_dsp_bridge.dart';
 import '../../audio/domain/i_studio_audio_engine.dart';
 import '../../audio/domain/i_studio_audio_input_engine.dart';
@@ -38,6 +39,9 @@ class TunnerOsKernel {
   final void Function(String deckId)? onDjPlayDeck;
   final void Function(String deckId)? onDjPauseDeck;
   final void Function(double val)? onDjSetCrossfader;
+  Future<void> Function(int midiNote, double velocity)? onTriggerSynthNote;
+  List<double> Function()? onReadCapturedFrequencies;
+  List<double> Function()? onReadCapturedAmplitudes;
   SchroederReverbEngine? reverbEngine;
   BinauralPannerEngine? spatialEngine;
   ITerminalEarTrainingPort? earTrainingEngine;
@@ -78,6 +82,9 @@ class TunnerOsKernel {
     this.onDjPlayDeck,
     this.onDjPauseDeck,
     this.onDjSetCrossfader,
+    this.onTriggerSynthNote,
+    this.onReadCapturedFrequencies,
+    this.onReadCapturedAmplitudes,
     SchroederReverbEngine? reverbEngine,
     BinauralPannerEngine? spatialEngine,
     this.earTrainingEngine,
@@ -172,7 +179,7 @@ class TunnerOsKernel {
       case 'score':
         return _handleScore(args);
       case 'project':
-        return _handleProject(args);
+        return await _handleProject(args);
       case 'reverb':
         return _handleReverb(args);
       case 'spatial':
@@ -180,7 +187,7 @@ class TunnerOsKernel {
       case 'train':
         return _handleTrain(args);
       case 'vocal':
-        return _handleVocal(args);
+        return await _handleVocal(args);
       case 'dsl':
       case 'eval':
         return _handleDsl(line);
@@ -709,6 +716,9 @@ ARCHIVOS DEL PROYECTO ACTUAL:
           return TunnerOsCommandResult.error("Nota musical no válida: '$noteName'. Ejemplos: Do4, C4, Mi5, Fa#4, Sol3");
         }
         synthVoicePool!.noteOn(midi, vel);
+        if (onTriggerSynthNote != null) {
+          unawaited(onTriggerSynthNote!(midi, vel));
+        }
         return TunnerOsCommandResult.success("[OK] Disparada nota: $noteName (MIDI $midi, vel: ${(vel * 100).round()}%)");
 
       case 'panic':
@@ -766,7 +776,7 @@ ARCHIVOS DEL PROYECTO ACTUAL:
     }
   }
 
-  TunnerOsCommandResult _handleProject(List<String> args) {
+  Future<TunnerOsCommandResult> _handleProject(List<String> args) async {
     final sub = args.isEmpty ? 'info' : args[0].toLowerCase();
     switch (sub) {
       case 'info':
@@ -798,10 +808,22 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
         final customTitle = args.length > 1 ? args.sublist(1).join(' ').replaceAll('"', '') : null;
         try {
           final bytes = projectPort!.exportCurrentProjectToTunner(projectTitle: customTitle);
+          final resolvedTitle = customTitle ?? projectPort!.activeTitle;
+          final safeSlug = resolvedTitle.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+          final exportPath = 'exports/$safeSlug.tunner';
+          String diskStatus = 'Memoria (sin FileSystem conectado)';
+          if (fileSystemRepository != null) {
+            await fileSystemRepository!.saveFile(
+              relativePath: exportPath,
+              bytes: Uint8List.fromList(bytes),
+            );
+            diskStatus = exportPath;
+          }
           return TunnerOsCommandResult.success('''
 [OK] Proyecto exportado exitosamente a formato canonico .tunner:
-- Titulo: ${customTitle ?? projectPort!.activeTitle}
+- Titulo: $resolvedTitle
 - Peso del archivo: ${bytes.lengthInBytes} bytes
+- Destino: $diskStatus
 - Integridad: Hashes SHA-256 generados y sellados en manifest.json
 '''.trim());
         } catch (e) {
@@ -1030,7 +1052,7 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
     }
   }
 
-  TunnerOsCommandResult _handleVocal(List<String> args) {
+  Future<TunnerOsCommandResult> _handleVocal(List<String> args) async {
     if (vocalEvaluator == null) {
       return TunnerOsCommandResult.error('Evaluador de estabilidad vocal no inicializado.');
     }
@@ -1041,16 +1063,24 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
         return TunnerOsCommandResult.error('La frecuencia target debe ser positiva.');
       }
 
-      // Sintetizar secuencia fonatoria realista para calibracion y evaluacion (50 frames = 1s a 50Hz)
-      final freqs = <double>[];
-      final amps = <double>[];
-      for (int i = 0; i < 50; i++) {
-        // Modulacion suave de vibrato natural con excursion de +-30 cents
-        final vibratoMod = 1.0 + 0.017 * (1.0 + (i % 2 == 0 ? 0.002 : -0.002));
-        final f = targetHz * vibratoMod;
-        final a = 0.85 + 0.02 * ((i % 3) - 1);
-        freqs.add(f);
-        amps.add(a);
+      final capturedFreqs = onReadCapturedFrequencies?.call() ?? const <double>[];
+      final capturedAmps = onReadCapturedAmplitudes?.call() ?? const <double>[];
+      final hasLiveCapture = capturedFreqs.isNotEmpty;
+      final freqs = hasLiveCapture ? List<double>.from(capturedFreqs) : <double>[];
+      final amps = hasLiveCapture && capturedAmps.length == capturedFreqs.length
+          ? List<double>.from(capturedAmps)
+          : <double>[];
+      if (!hasLiveCapture) {
+        // Secuencia de calibracion controlada cuando no hay captura de microfono activa
+        for (int i = 0; i < 50; i++) {
+          final vibratoMod = 1.0 + 0.017 * (1.0 + (i % 2 == 0 ? 0.002 : -0.002));
+          freqs.add(targetHz * vibratoMod);
+          amps.add(0.85 + 0.02 * ((i % 3) - 1));
+        }
+      } else if (amps.isEmpty) {
+        for (int i = 0; i < freqs.length; i++) {
+          amps.add(0.85);
+        }
       }
 
       final eval = vocalEvaluator!.evaluate(
@@ -1082,11 +1112,22 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
       final studentName = args[1].replaceAll('"', '');
       final targetHz = args.length >= 3 ? (double.tryParse(args[2]) ?? 440.0) : 440.0;
 
-      final freqs = <double>[];
-      final amps = <double>[];
-      for (int i = 0; i < 50; i++) {
-        freqs.add(targetHz * (1.0 + 0.003 * ((i % 2 == 0) ? 1 : -1)));
-        amps.add(0.90 + 0.01 * ((i % 3 == 0) ? 1 : -1));
+      final capturedFreqs = onReadCapturedFrequencies?.call() ?? const <double>[];
+      final capturedAmps = onReadCapturedAmplitudes?.call() ?? const <double>[];
+      final hasLiveCapture = capturedFreqs.isNotEmpty;
+      final freqs = hasLiveCapture ? List<double>.from(capturedFreqs) : <double>[];
+      final amps = hasLiveCapture && capturedAmps.length == capturedFreqs.length
+          ? List<double>.from(capturedAmps)
+          : <double>[];
+      if (!hasLiveCapture) {
+        for (int i = 0; i < 50; i++) {
+          freqs.add(targetHz * (1.0 + 0.003 * ((i % 2 == 0) ? 1 : -1)));
+          amps.add(0.90 + 0.01 * ((i % 3 == 0) ? 1 : -1));
+        }
+      } else if (amps.isEmpty) {
+        for (int i = 0; i < freqs.length; i++) {
+          amps.add(0.90);
+        }
       }
 
       final eval = vocalEvaluator!.evaluate(
@@ -1102,10 +1143,22 @@ PROYECTO ACTIVO EN TUNNER STUDIO:
         targetFrequencyHz: targetHz,
       );
 
+      final safeStudent = studentName.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+      final certPath = 'certificates/${safeStudent}_vocal_cert.pdf';
+      String savedCertStatus = 'Memoria';
+      if (fileSystemRepository != null) {
+        await fileSystemRepository!.saveFile(
+          relativePath: certPath,
+          bytes: Uint8List.fromList(pdfBytes),
+        );
+        savedCertStatus = certPath;
+      }
+
       return TunnerOsCommandResult.success('''
 [CERTIFICADO OFICIAL DE CONSERVATORIO GENERADO EXITOSAMENTE]
 - Formato: Binario Vectorial PDF-1.4 (ISO 32000-1)
 - Tamano del Documento: ${pdfBytes.length} bytes
+- Archivo: $savedCertStatus
 - Candidato: $studentName
 - Calificacion: ${eval.overallScore.toStringAsFixed(1)} / 100 (${eval.classificationLabel})
 - Sello Digital SHA-256 (Inmutable):

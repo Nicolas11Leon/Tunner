@@ -222,6 +222,9 @@ class _MainAppShellState extends State<MainAppShell> {
 
     _terminalKernel = TunnerOsKernel(
       onNavigateTab: _navigateToTab,
+      inputEngine: _audioMatrixService.inputEngine,
+      outputEngine: _audioMatrixService.outputEngine,
+      fileSystemRepository: _fileSystemService.fileSystemRepository,
       matrixService: _audioMatrixService,
       clockService: _masterClockService,
       earTrainingEngine: EbbinghausTerminalAdapter(),
@@ -252,6 +255,11 @@ class _MainAppShellState extends State<MainAppShell> {
     _terminalKernel.synthVoicePool = vm.polyphonicVoicePool;
     _terminalKernel.scorePlaybackCoordinator = ScorePlaybackTerminalAdapter(vm.scorePlaybackCoordinator);
     _terminalKernel.projectPort = TunerProjectTerminalAdapter(vm);
+    _terminalKernel.onTriggerSynthNote = (midi, vel) => vm.playMidiNoteTone(midi);
+    _terminalKernel.onReadCapturedFrequencies =
+        () => vm.frequency > 0 ? List<double>.filled(10, vm.frequency) : const <double>[];
+    _terminalKernel.onReadCapturedAmplitudes =
+        () => vm.frequency > 0 ? const <double>[0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85] : const <double>[];
   }
 
   void _handleOpenFile(StudioFileEntity file) {
@@ -1166,6 +1174,10 @@ class _MainAppShellState extends State<MainAppShell> {
                   HomeDashboardScreen(
                     onNavigateToTab: _navigateToTab,
                     onOpenTerminal: () => setState(() => _isTerminalOpen = !_isTerminalOpen),
+                    onLoadDjTemplate: (deckId, songKey) {
+                      _djConsoleViewModel.loadCuratedSong(deckId, songKey);
+                      _djConsoleViewModel.syncDeckToBpm(deckId, 126.0);
+                    },
                   ),
                   const TunerScreen(),
                   LearningPracticeWorkspaceView(
@@ -1194,6 +1206,11 @@ class _MainAppShellState extends State<MainAppShell> {
                     StudioDesktopAppShell(
                       key: _desktopShellKey,
                       currentBreadcrumb: _buildCurrentBreadcrumb(),
+                      bufferLatencyLabel: () {
+                        final m = _audioMatrixService.matrix;
+                        final latencyMs = (m.bufferSize / m.sampleRate * 1000.0).toStringAsFixed(1);
+                        return 'BUFFER: ${m.bufferSize} • LATENCIA: $latencyMs ms (${(m.sampleRate / 1000).toStringAsFixed(1)} kHz)';
+                      }(),
                       navigationSections: _buildNavigationSections(viewModel),
                       activeItemId: _buildCurrentActiveItemId(),
                       currentTabIndex: _currentIndex,
