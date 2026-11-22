@@ -10,23 +10,38 @@ import 'harmonic_tutor_view_model.dart';
 class HarmonicTutorModal extends StatelessWidget {
   final HarmonicTutorViewModel viewModel;
   final TunnerThemePalette palette;
+  final bool Function()? isMicrophoneActive;
+  final Future<void> Function()? onToggleMicrophone;
+  final Listenable? microphoneListenable;
 
   const HarmonicTutorModal({
     super.key,
     required this.viewModel,
     required this.palette,
+    this.isMicrophoneActive,
+    this.onToggleMicrophone,
+    this.microphoneListenable,
   });
 
   static Future<void> show(
     BuildContext context, {
     required HarmonicTutorViewModel viewModel,
     required TunnerThemePalette palette,
+    bool Function()? isMicrophoneActive,
+    Future<void> Function()? onToggleMicrophone,
+    Listenable? microphoneListenable,
   }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => HarmonicTutorModal(viewModel: viewModel, palette: palette),
+      builder: (ctx) => HarmonicTutorModal(
+        viewModel: viewModel,
+        palette: palette,
+        isMicrophoneActive: isMicrophoneActive,
+        onToggleMicrophone: onToggleMicrophone,
+        microphoneListenable: microphoneListenable,
+      ),
     );
   }
 
@@ -43,7 +58,10 @@ class HarmonicTutorModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: viewModel,
+      listenable: Listenable.merge([
+        viewModel,
+        ?microphoneListenable,
+      ]),
       builder: (context, _) {
         final session = viewModel.session;
         final analysis = session.activeAnalysis ??
@@ -338,8 +356,10 @@ class HarmonicTutorModal extends StatelessWidget {
                               const Divider(height: 20),
 
                               // Frequency & Cents Comparisons
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              Wrap(
+                                alignment: WrapAlignment.spaceAround,
+                                spacing: 12,
+                                runSpacing: 8,
                                 children: [
                                   _buildStatColumn('Frecuencia Usuario', '${analysis.userFrequency.toStringAsFixed(2)} Hz', palette),
                                   _buildStatColumn('Diana Justa (JI)', '${analysis.targetFrequencyJi.toStringAsFixed(2)} Hz', palette),
@@ -374,7 +394,7 @@ class HarmonicTutorModal extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
 
-                      // Interactive Quick-Practice Buttons
+                      // Live Acoustic Capture Control
                       Material(
                         color: palette.cardBackground,
                         shape: RoundedRectangleBorder(
@@ -387,7 +407,7 @@ class HarmonicTutorModal extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'SIMULACIÓN DE PRÁCTICA AUDITIVA',
+                                'CAPTURA ACÚSTICA EN VIVO (MICRÓFONO)',
                                 style: TextStyle(
                                   color: palette.textMutedColor,
                                   fontSize: 10,
@@ -396,33 +416,36 @@ class HarmonicTutorModal extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
+                              Row(
                                 children: [
-                                  OutlinedButton(
-                                    key: const Key('sim_3rd_tempered_btn'),
-                                    onPressed: () {
-                                      // 12-TET Major Third: 261.63 * 2^(4/12) ≈ 329.63 Hz (+13.7 cents above JI)
-                                      viewModel.onPitchDetected(session.rootFrequency * 1.259921);
-                                    },
-                                    child: const Text('Tercera 12-TET (+13.7 c)', style: TextStyle(fontSize: 11)),
+                                  Expanded(
+                                    child: Text(
+                                      (isMicrophoneActive?.call() ?? false)
+                                          ? 'Microfono activo: ${analysis.userFrequency > 0 ? "${analysis.userFrequency.toStringAsFixed(2)} Hz" : "escuchando señal..."}'
+                                          : 'Activa el microfono para medir batimientos e intervalos reales.',
+                                      style: TextStyle(color: palette.textColor, fontSize: 11.5),
+                                    ),
                                   ),
-                                  OutlinedButton(
-                                    key: const Key('sim_3rd_just_btn'),
-                                    onPressed: () {
-                                      // Pure JI Major Third: 261.63 * 1.25 = 327.0375 Hz (0 cents, 0 Hz beat)
-                                      viewModel.onPitchDetected(session.rootFrequency * 1.25);
-                                    },
-                                    child: const Text('Tercera Justa 5/4 (Lock 0.0 Hz)', style: TextStyle(fontSize: 11)),
-                                  ),
-                                  OutlinedButton(
-                                    key: const Key('sim_5th_just_btn'),
-                                    onPressed: () {
-                                      // Pure JI Fifth: 261.63 * 1.5 = 392.445 Hz
-                                      viewModel.onPitchDetected(session.rootFrequency * 1.50);
-                                    },
-                                    child: const Text('Quinta Justa 3/2 (Pura)', style: TextStyle(fontSize: 11)),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton.icon(
+                                    key: const Key('harmonic_tutor_mic_toggle_btn'),
+                                    onPressed: onToggleMicrophone == null
+                                        ? null
+                                        : () async {
+                                            await onToggleMicrophone!();
+                                          },
+                                    icon: Icon(
+                                      (isMicrophoneActive?.call() ?? false)
+                                          ? Icons.mic_off
+                                          : Icons.mic,
+                                      size: 16,
+                                    ),
+                                    label: Text(
+                                      (isMicrophoneActive?.call() ?? false)
+                                          ? 'Detener Mic'
+                                          : 'Activar Mic',
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
                                   ),
                                 ],
                               ),
