@@ -1,6 +1,8 @@
 # Plan de Implementacion US-6.3: Respuesta Cantada, Ebbinghaus Persistido y TaskCatalogIndex Ejecutable
 
 - **Issue:** #167
+- **Caso de Uso:** `UC-170` (`docs/02_use_cases/170_uc_blind_ear_sung_ebbinghaus_and_executable_tasks.md`)
+- **ADR:** `ADR-0162` (`docs/04_adrs/0162_ebbinghaus_persistence_and_executable_task_catalog.md`)
 - **Rama:** `feature/us-6.3-blind-ear-sung-ebbinghaus-and-tasks`
 - **Base:** `qa`
 - **Estado:** Completado (Validado con `flutter analyze --no-fatal-infos` 0 issues y 83/83 tests aprobados)

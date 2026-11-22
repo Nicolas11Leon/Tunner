@@ -1,10 +1,10 @@
-# UC-152: Respuesta Cantada por Microfono, Repeticion Espaciada Ebbinghaus y TaskCatalogIndex Ejecutable
+# UC-170: Respuesta Cantada por Microfono, Repeticion Espaciada Ebbinghaus y TaskCatalogIndex Ejecutable
 
 ## 1. Informacion General
 
 | Campo | Valor |
 | :--- | :--- |
-| **ID** | UC-152 |
+| **ID** | UC-170 |
 | **Historia de Usuario** | US-6.3 (EPIC-06) |
 | **Actores** | Musico / Estudiante (Usuario), `BlindEarTrainerModal`, `BlindEarTrainerEngine`, `EbbinghausSpacedRepetitionEngine`, `TaskCatalogIndex`, `TaskQuickJumpModal`, `VocalPedagogyController`, `TunerViewModel` |
 | **Precondiciones** | El usuario abre `BlindEarTrainerModal` o selecciona una tarea en `TaskQuickJumpModal` o completa una leccion guiada. |
