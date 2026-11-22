@@ -1,5 +1,6 @@
 import 'dart:convert';
 import '../../../core/theme/tunner_theme.dart';
+import '../../mixer/domain/mixer_track_entity.dart';
 import '../../practice_evaluator/domain/practice_report_entity.dart';
 import '../../practice_recorder/domain/practice_recording_entity.dart';
 import '../../pedagogy_profiles/domain/learner_profile_entity.dart';
@@ -38,6 +39,8 @@ class AppUserSettingsEntity {
   final WorkspaceType activeWorkspace;
   final MicrophoneCalibrationProfile micCalibrationProfile;
   final AcousticRigorProfile acousticRigorProfile;
+  final MixerConsoleEntity? mixerConsole;
+  final String? activeScoreId;
 
   const AppUserSettingsEntity({
     this.referencePitch = 440.0,
@@ -56,6 +59,8 @@ class AppUserSettingsEntity {
     this.activeWorkspace = WorkspaceType.learning,
     this.micCalibrationProfile = const MicrophoneCalibrationProfile(),
     this.acousticRigorProfile = const AcousticRigorProfile(),
+    this.mixerConsole,
+    this.activeScoreId,
     this.learnerProfile = const LearnerProfileEntity(
       type: LearnerProfileType.adultDeliberate,
       title: 'Modo Adulto (Práctica Deliberada)',
@@ -89,6 +94,8 @@ class AppUserSettingsEntity {
     WorkspaceType? activeWorkspace,
     MicrophoneCalibrationProfile? micCalibrationProfile,
     AcousticRigorProfile? acousticRigorProfile,
+    MixerConsoleEntity? mixerConsole,
+    String? activeScoreId,
   }) {
     return AppUserSettingsEntity(
       referencePitch: referencePitch ?? this.referencePitch,
@@ -108,6 +115,8 @@ class AppUserSettingsEntity {
       activeWorkspace: activeWorkspace ?? this.activeWorkspace,
       micCalibrationProfile: micCalibrationProfile ?? this.micCalibrationProfile,
       acousticRigorProfile: acousticRigorProfile ?? this.acousticRigorProfile,
+      mixerConsole: mixerConsole ?? this.mixerConsole,
+      activeScoreId: activeScoreId ?? this.activeScoreId,
     );
   }
 
@@ -136,6 +145,8 @@ class AppUserSettingsEntity {
       'activeWorkspace': activeWorkspace.serializedKey,
       'micCalibrationProfile': micCalibrationProfile.toJson(),
       'acousticRigorProfile': acousticRigorProfile.toJson(),
+      if (mixerConsole != null) 'mixerConsole': mixerConsole!.toMap(),
+      if (activeScoreId != null) 'activeScoreId': activeScoreId,
     };
   }
 
@@ -221,6 +232,18 @@ class AppUserSettingsEntity {
         ? AcousticRigorProfile.fromJson(rawRigorProfile)
         : const AcousticRigorProfile();
 
+    MixerConsoleEntity? mixerConsole;
+    final rawMixer = map['mixerConsole'];
+    if (rawMixer is Map<String, dynamic>) {
+      try {
+        mixerConsole = MixerConsoleEntity.fromMap(rawMixer);
+      } catch (e) {
+        onCorruptEntry?.call('Configuracion de mezclador corrupta omitida: $e');
+      }
+    }
+
+    final activeScoreId = map['activeScoreId'] as String?;
+
     return AppUserSettingsEntity(
       referencePitch: (map['referencePitch'] as num?)?.toDouble() ?? 440.0,
       selectedThemeId: map['selectedThemeId'] as String? ?? 'obsidian_studio',
@@ -242,6 +265,8 @@ class AppUserSettingsEntity {
       activeWorkspace: activeWorkspace,
       micCalibrationProfile: micCalibrationProfile,
       acousticRigorProfile: acousticRigorProfile,
+      mixerConsole: mixerConsole,
+      activeScoreId: activeScoreId,
     );
   }
 
