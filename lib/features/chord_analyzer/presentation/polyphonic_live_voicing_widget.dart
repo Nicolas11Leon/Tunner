@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/tunner_theme.dart';
+import '../../acoustic_lab/domain/harmonic_series_analyzer.dart';
 import '../../navigation/presentation/contextual_help_sheet.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/chord_entity.dart';
@@ -315,6 +317,16 @@ class _PolyphonicLiveVoicingWidgetState extends State<PolyphonicLiveVoicingWidge
     final f0 = voices.isNotEmpty
         ? voices.map((v) => v.frequencyHz).reduce((a, b) => a < b ? a : b)
         : 440.0;
+    List<double>? audioSamples;
+    try {
+      audioSamples = context.watch<TunerViewModel>().latestAudioSamples;
+    } catch (_) {
+      audioSamples = null;
+    }
+    final timbre = const HarmonicSeriesAnalyzer().analyze(
+      fundamentalHz: f0,
+      samples: audioSamples,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,17 +345,21 @@ class _PolyphonicLiveVoicingWidgetState extends State<PolyphonicLiveVoicingWidge
           children: List.generate(8, (i) {
             final harmonicIndex = i + 1;
             final harmonicFreq = f0 * harmonicIndex;
-            // Verificar si alguna voz detectada coincide aproximadamente con este armónico
+            // Verificar si alguna voz detectada o el espectro DFT real coincide con este armónico
             final matchesVoice = voices.any((v) => (v.frequencyHz - harmonicFreq).abs() < 15.0);
+            final measuredAmp = i < timbre.harmonics.length
+                ? timbre.harmonics[i].relativeAmplitude.clamp(0.0, 1.0)
+                : 0.0;
+            final isActiveHarmonic = matchesVoice || measuredAmp >= 0.12;
 
-            final barColor = matchesVoice ? palette.primaryAccent : palette.staffLinesColor.withValues(alpha: 0.35);
+            final barColor = isActiveHarmonic ? palette.primaryAccent : palette.staffLinesColor.withValues(alpha: 0.35);
 
             return Expanded(
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 decoration: BoxDecoration(
-                  color: barColor.withValues(alpha: matchesVoice ? 0.2 : 0.08),
+                  color: barColor.withValues(alpha: isActiveHarmonic ? 0.2 : 0.08),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: barColor.withValues(alpha: 0.5)),
                 ),
@@ -352,14 +368,14 @@ class _PolyphonicLiveVoicingWidgetState extends State<PolyphonicLiveVoicingWidge
                     Text(
                       'H$harmonicIndex',
                       style: TextStyle(
-                        color: matchesVoice ? palette.primaryAccent : palette.textMutedColor,
+                        color: isActiveHarmonic ? palette.primaryAccent : palette.textMutedColor,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      height: (12 + (8 - i) * 3).toDouble(),
+                      height: 4.0 + (measuredAmp * 28.0),
                       width: 6,
                       decoration: BoxDecoration(
                         color: barColor,
