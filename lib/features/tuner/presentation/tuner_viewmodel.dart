@@ -1444,6 +1444,86 @@ class TunerViewModel extends ChangeNotifier
     }
   }
 
+  /// Procesa muestras PCM recibidas desde el SignalBus sin acoplar el rack con campos internos.
+  void ingestBusAudioPcm(List<double> samples) {
+    if (_isDisposed) return;
+    double sumSquares = 0.0;
+    for (final s in samples) {
+      sumSquares += s * s;
+    }
+    _currentMicRmsLevel = samples.isNotEmpty ? math.sqrt(sumSquares / samples.length) : 0.0;
+    if (_isChordRecognitionActive) {
+      processChordSamples(samples);
+    } else {
+      _latestAudioSamples = samples;
+      _updateTelemetry();
+      notifyListeners();
+    }
+  }
+
+  /// Procesa un cuadro de afinacion detectada inyectado desde el SignalBus.
+  void ingestBusPitchFrame({
+    required double frequencyHz,
+    String noteName = '',
+    double centsOffset = 0.0,
+    double clarity = 0.95,
+  }) {
+    if (_isDisposed) return;
+    if (frequencyHz <= 20.0) {
+      _frequency = 0.0;
+      _noteName = '--';
+      _cents = 0.0;
+      _vocalPedagogyController.resetOnSilence();
+      _updateTelemetry();
+      notifyListeners();
+      return;
+    }
+
+    _frequency = frequencyHz;
+    final resolvedNote = noteName.isNotEmpty
+        ? noteName
+        : NoteEntity.fromFrequency(frequencyHz, a4Ref: _referencePitch).name;
+    _noteName = resolvedNote;
+    _cents = centsOffset;
+    if (clarity > 0.0) {
+      _lastClarity = clarity.clamp(0.0, 1.0);
+    }
+
+    final transcribedPkg = _scoreEditorController.processLiveTranscriptionFrame(
+      activePackage: _activePackage,
+      pitchHz: frequencyHz,
+      clarity: _lastClarity > 0.0 ? _lastClarity : 0.95,
+      noteName: resolvedNote,
+    );
+    if (transcribedPkg != null) {
+      _activePackage = transcribedPkg;
+    }
+
+    _vocalPedagogyController.processPitchFrame(
+      pitchHz: frequencyHz,
+      cents: _cents,
+      noteName: resolvedNote,
+    );
+
+    _updateTelemetry();
+    notifyListeners();
+  }
+
+  /// Sincroniza el reloj y sub-tick activo desde un ClockTickEvent del SignalBus.
+  void ingestBusClockTick({
+    required int tickIndex,
+    required double bpm,
+  }) {
+    if (_isDisposed) return;
+    _bpm = bpm.round().clamp(20, 300);
+    _scorePlaybackCoordinator.bpm = _bpm.toDouble();
+    _currentSubTick = tickIndex;
+    if (_activePackage.score.measures.isNotEmpty && !_isCountingIn) {
+      _updateExpectedNoteForTick(tickIndex);
+    }
+    notifyListeners();
+  }
+
   /// Procesa muestras PCM normalizadas [-1.0, 1.0] para análisis armónico polifónico multitonal.
   void processChordSamples(List<double> samples) {
     _latestAudioSamples = samples;
@@ -1612,8 +1692,8 @@ class TunerViewModel extends ChangeNotifier
 
   Future<void> startSongWithCountIn() async {
     if (_isMetronomePlaying) {
-      await _metronomeService.stop();
       _isMetronomePlaying = false;
+      await _metronomeService.stop();
       if (_isPracticeMode && _activeEvaluations.isNotEmpty) {
         _generatePracticeReport();
       }

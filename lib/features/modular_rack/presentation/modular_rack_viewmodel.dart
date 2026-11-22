@@ -1,21 +1,29 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
-import '../domain/signal_type.dart';
-import '../domain/port_id.dart';
-import '../domain/module_connection.dart';
-import '../domain/signal_bus.dart';
-import '../domain/rack_module_entity.dart';
-import '../domain/atomic_signal_event.dart';
-import '../domain/interoperable_module_node.dart';
-import '../../instrument/domain/universal_instrument_definition.dart';
+
+import '../../../core/audio/domain/audio_pcm_frame.dart';
+import '../../../core/audio/domain/i_studio_audio_engine.dart';
+import '../../../core/audio/domain/i_studio_audio_input_engine.dart';
+import '../../../core/logging/domain/i_studio_logger.dart';
 import '../../instrument/domain/instrument_customization_profile.dart';
+import '../../instrument/domain/universal_instrument_definition.dart';
 import '../../project_format/domain/patchbay_routing_connection.dart';
+import '../../project_format/domain/project_storage_repository.dart';
 import '../../project_format/domain/tunner_project_package.dart';
 import '../../project_format/domain/tunner_tool_preset.dart';
-import '../../project_format/domain/project_storage_repository.dart';
-import '../../../core/audio/domain/i_studio_audio_engine.dart';
-import '../../../core/audio/infrastructure/studio_audio_input_engine.dart';
+import '../../tuner/domain/note_entity.dart';
+import '../../tuner/presentation/tuner_viewmodel.dart';
+import '../domain/atomic_signal_event.dart';
+import '../domain/interoperable_module_node.dart';
+import '../domain/module_connection.dart';
+import '../domain/port_id.dart';
+import '../domain/rack_module_entity.dart';
+import '../domain/signal_bus.dart';
+import '../domain/signal_type.dart';
 
-/// Implementación atómica de un nodo del rack conectable al bus de señales.
+/// Implementacion atomica de un nodo del rack conectable al bus de senales.
 class StandardRackNode implements InteroperableModuleNode {
   @override
   final String nodeId;
@@ -27,8 +35,23 @@ class StandardRackNode implements InteroperableModuleNode {
 
   final Set<SignalType> _acceptedTypes;
 
-  /// Último evento de señal recibido por este nodo.
+  /// Ultimo evento de senal recibido por este nodo.
   AtomicSignalEvent? lastReceivedEvent;
+
+  /// Telemetria verificable del procesamiento activo por tipo de evento.
+  int processedEventsCount = 0;
+  TransportCommand? lastTransportCommand;
+  double? lastCalibratedA4Hz;
+  String? lastTemperamentName;
+  double? lastClockBpm;
+  int? lastClockTickIndex;
+  double? lastPitchHz;
+  String? lastPitchNoteName;
+  double? lastPitchAmplitude;
+  double? lastPcmRms;
+  List<double>? lastPcmSamples;
+  List<double>? lastAutoTunedPcmSamples;
+  List<double>? lastSpectralMagnitudes;
 
   StandardRackNode({
     required this.nodeId,
@@ -70,43 +93,90 @@ class StandardRackNode implements InteroperableModuleNode {
 
   @override
   void onReceiveAtomicSignal(AtomicSignalEvent event) {
+    if (!isProcessingActive) return;
     lastReceivedEvent = event;
+    processedEventsCount++;
+    _parentVm._dispatchSignalToNode(this, event);
   }
 }
 
 /// ViewModel principal del Rack de Estudio Modular y la Consola Multitarea.
-/// Gobierna el ciclo de vida de los módulos, las conexiones en el SignalBus,
-/// el transporte global sincronizado y la emulación del instrumento activo.
+/// Gobierna el ciclo de vida de los modulos, las conexiones en el SignalBus,
+/// el transporte global sincronizado, el enlace con los motores de audio
+/// y la emulacion del instrumento activo.
 class ModularRackViewModel extends ChangeNotifier {
+  static const PortId masterAudioInputPort = PortId(
+    id: 'mic_pcm_out',
+    displayName: 'Master Audio Input PCM',
+    ownerModuleId: 'audio_input_engine',
+    signalType: SignalType.audioPcm,
+    direction: PortDirection.output,
+  );
+
+  static const PortId masterPitchOutputPort = PortId(
+    id: 'tuner_pitch_out',
+    displayName: 'Master Pitch Output',
+    ownerModuleId: 'tuner_viewmodel',
+    signalType: SignalType.pitchEvents,
+    direction: PortDirection.output,
+  );
+
+  static const PortId masterClockOutputPort = PortId(
+    id: 'master_clock_out',
+    displayName: 'Master Clock Output',
+    ownerModuleId: 'tuner_viewmodel',
+    signalType: SignalType.temporalClock,
+    direction: PortDirection.output,
+  );
+
   final SignalBus signalBus = SignalBus();
   bool _isDisposed = false;
+  bool _isDispatchingFromBus = false;
 
-  /// Módulos actualmente montados en el rack de trabajo.
+  /// Modulos actualmente montados en el rack de trabajo.
   final List<RackModuleEntity> _activeModules = [];
   List<RackModuleEntity> get activeModules => List.unmodifiable(_activeModules);
 
-  /// Instrumento musical actualmente seleccionado para la sesión.
+  /// Instrumento musical actualmente seleccionado para la sesion.
   UniversalInstrumentDefinition _activeInstrument =
       UniversalInstrumentDefinition.classicalGuitar;
   UniversalInstrumentDefinition get activeInstrument => _activeInstrument;
 
-  /// Perfil completo de personalización física, tímbrica y microtonal.
+  /// Perfil completo de personalizacion fisica, timbrica y microtonal.
   late InstrumentCustomizationProfile _activeCustomization =
       InstrumentCustomizationProfile.defaultFor(_activeInstrument);
   InstrumentCustomizationProfile get customization => _activeCustomization;
 
-  /// Actualiza la personalización del instrumento y propaga calibración atómica al bus.
+  /// Telemetria agregada de senales procesadas en el bus.
+  double _lastProcessedBpm = 120.0;
+  int _lastTickIndex = 0;
+  double _lastReferenceA4Hz = 440.0;
+  String _lastTemperamentName = 'equal';
+  double _lastDetectedPitchHz = 0.0;
+  String _lastDetectedNoteName = '--';
+  double _lastPcmRms = 0.0;
+  int _audioCaptureFrameCount = 0;
+
+  double get lastProcessedBpm => _lastProcessedBpm;
+  int get lastTickIndex => _lastTickIndex;
+  double get lastReferenceA4Hz => _lastReferenceA4Hz;
+  String get lastTemperamentName => _lastTemperamentName;
+  double get lastDetectedPitchHz => _lastDetectedPitchHz;
+  String get lastDetectedNoteName => _lastDetectedNoteName;
+  double get lastPcmRms => _lastPcmRms;
+  int get audioCaptureFrameCount => _audioCaptureFrameCount;
+
+  /// Actualiza la personalizacion del instrumento y propaga calibracion atomica al bus.
   void updateCustomization(InstrumentCustomizationProfile profile) {
     _activeCustomization = profile;
     _activeInstrument = profile.instrument;
 
-    // Propagar evento de calibración a todos los módulos suscritos
     signalBus.broadcastGlobalSignal(
       TuningCalibrationEvent(
         eventId: 'tune_calib_${DateTime.now().microsecondsSinceEpoch}',
         sourcePort: const PortId(
           id: 'tuning_out',
-          displayName: 'Afinación Maestra',
+          displayName: 'Afinacion Maestra',
           ownerModuleId: 'master_console',
           signalType: SignalType.tuningCalibration,
           direction: PortDirection.output,
@@ -120,7 +190,7 @@ class ModularRackViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Estado de transporte global (Consola Multitarea)
+  /// Estado de transporte global (Consola Multitarea).
   bool _isSessionRunning = false;
   bool get isSessionRunning => _isSessionRunning;
 
@@ -129,14 +199,433 @@ class ModularRackViewModel extends ChangeNotifier {
 
   final ProjectStorageRepository _storageRepo;
   final IStudioAudioEngine? audioEngine;
-  final StudioAudioInputEngine? audioInputEngine;
+  final IStudioAudioInputEngine? audioInputEngine;
+  final IStudioLogger _logger;
+  TunerViewModel? _tunerViewModel;
+  StreamSubscription<AudioPcmFrame>? _audioInputSubscription;
+
+  double _lastForwardedPitchHz = 0.0;
+  String _lastForwardedNoteName = '--';
+  int _lastForwardedSubTick = -1;
+  double _lastForwardedRefPitch = 440.0;
+  String _lastForwardedTemperament = 'equal';
+
+  TunerViewModel? get tunerViewModel => _tunerViewModel;
 
   ModularRackViewModel({
     ProjectStorageRepository? storageRepository,
     this.audioEngine,
     this.audioInputEngine,
-  })  : _storageRepo = storageRepository ?? const NoOpProjectStorageRepository() {
+    TunerViewModel? tunerViewModel,
+    IStudioLogger? logger,
+  })  : _storageRepo = storageRepository ?? const NoOpProjectStorageRepository(),
+        _tunerViewModel = tunerViewModel,
+        _logger = logger ?? const NoOpStudioLogger() {
     _initializeDefaultRack();
+    _bindAudioInputEngine();
+    if (_tunerViewModel != null) {
+      bindTunerViewModel(_tunerViewModel!);
+    }
+  }
+
+  /// Enlaza un [TunerViewModel] con el [SignalBus] de forma bidireccional
+  /// con proteccion anti-bucles de retroalimentacion.
+  void bindTunerViewModel(TunerViewModel? vm) {
+    if (identical(_tunerViewModel, vm)) {
+      if (vm != null) {
+        _syncSnapshotFromTuner(vm);
+      }
+      return;
+    }
+    _unbindTunerViewModel();
+    _tunerViewModel = vm;
+    if (vm != null) {
+      _syncSnapshotFromTuner(vm);
+      vm.addListener(_onTunerViewModelChanged);
+    }
+  }
+
+  void _syncSnapshotFromTuner(TunerViewModel vm) {
+    _lastForwardedPitchHz = vm.frequency;
+    _lastForwardedNoteName = vm.noteName;
+    _lastForwardedSubTick = vm.currentSubTick;
+    _lastForwardedRefPitch = vm.referencePitch;
+    _lastForwardedTemperament = vm.selectedTemperament.id;
+  }
+
+  void _unbindTunerViewModel() {
+    _tunerViewModel?.removeListener(_onTunerViewModelChanged);
+  }
+
+  void _bindAudioInputEngine() {
+    final input = audioInputEngine;
+    if (input == null) return;
+    signalBus.registerPort(masterAudioInputPort);
+    unawaited(_audioInputSubscription?.cancel());
+    _audioInputSubscription = input.pcmFrameStream.listen((frame) {
+      if (_isDisposed) return;
+      final samples = frame.samples.toList(growable: false);
+      double sumSquares = 0.0;
+      for (final s in samples) {
+        sumSquares += s * s;
+      }
+      final rms = samples.isNotEmpty
+          ? math.sqrt(sumSquares / samples.length).clamp(0.0, 1.0)
+          : 0.0;
+
+      final event = AudioPcmEvent(
+        eventId: 'pcm_${frame.timestampMicros}',
+        sourcePort: masterAudioInputPort,
+        timestampMicros: frame.timestampMicros,
+        samples: samples,
+        sampleRate: frame.sampleRate,
+        rmsLevel: rms,
+      );
+
+      final hasCustomWiring = signalBus.activeConnections.any(
+        (c) => c.sourcePort == masterAudioInputPort,
+      );
+      if (hasCustomWiring) {
+        signalBus.emitAtomicEvent(event);
+      } else {
+        signalBus.broadcastGlobalSignal(event);
+      }
+    });
+  }
+
+  void _onTunerViewModelChanged() {
+    final vm = _tunerViewModel;
+    if (_isDisposed || _isDispatchingFromBus || vm == null) return;
+
+    final nowMicros = DateTime.now().microsecondsSinceEpoch;
+
+    if (vm.frequency > 20.0 &&
+        (vm.frequency != _lastForwardedPitchHz || vm.noteName != _lastForwardedNoteName)) {
+      _lastForwardedPitchHz = vm.frequency;
+      _lastForwardedNoteName = vm.noteName;
+
+      final tunerMod = _findActiveModuleByType(RackModuleType.strobeTuner);
+      if (tunerMod != null && tunerMod.isPoweredOn) {
+        final pitchPort = tunerMod.outputPorts.firstWhere(
+          (p) => p.signalType == SignalType.pitchEvents,
+          orElse: () => masterPitchOutputPort,
+        );
+        signalBus.emitAtomicEvent(
+          PitchDetectionEvent(
+            eventId: 'pitch_$nowMicros',
+            sourcePort: pitchPort,
+            timestampMicros: nowMicros,
+            frequencyHz: vm.frequency,
+            noteName: vm.noteName,
+            centsOffset: vm.cents,
+            clarity: vm.lastClarity > 0.0 ? vm.lastClarity : 0.95,
+            amplitude: vm.currentMicRmsLevel.clamp(0.0, 1.0),
+          ),
+        );
+      }
+    }
+
+    if (vm.isMetronomePlaying &&
+        vm.currentSubTick >= 0 &&
+        vm.currentSubTick != _lastForwardedSubTick) {
+      _lastForwardedSubTick = vm.currentSubTick;
+      final metroMod = _findActiveModuleByType(RackModuleType.metronome);
+      if (metroMod != null && metroMod.isPoweredOn) {
+        final clockPort = metroMod.outputPorts.firstWhere(
+          (p) => p.signalType == SignalType.temporalClock,
+          orElse: () => masterClockOutputPort,
+        );
+        final ts = vm.currentMeasureTimeSignature;
+        signalBus.emitAtomicEvent(
+          ClockTickEvent(
+            eventId: 'clk_$nowMicros',
+            sourcePort: clockPort,
+            timestampMicros: nowMicros,
+            tickIndex: vm.currentSubTick,
+            beatsPerBar: ts.numerator,
+            bpm: vm.bpm.toDouble(),
+            isDownbeat: vm.currentSubTick == 0,
+            tickDurationMs: 60000.0 / math.max(1, vm.bpm) / 4.0,
+          ),
+        );
+      }
+    }
+
+    if ((vm.referencePitch - _lastForwardedRefPitch).abs() > 0.01 ||
+        vm.selectedTemperament.id != _lastForwardedTemperament) {
+      _lastForwardedRefPitch = vm.referencePitch;
+      _lastForwardedTemperament = vm.selectedTemperament.id;
+      signalBus.broadcastGlobalSignal(
+        TuningCalibrationEvent(
+          eventId: 'tuner_calib_$nowMicros',
+          sourcePort: masterPitchOutputPort,
+          timestampMicros: nowMicros,
+          referenceA4Hz: vm.referencePitch,
+          temperamentName: vm.selectedTemperament.id,
+        ),
+      );
+    }
+  }
+
+  RackModuleEntity? _findActiveModuleByType(RackModuleType type) {
+    for (final mod in _activeModules) {
+      if (mod.moduleType == type) return mod;
+    }
+    return null;
+  }
+
+  void _runWithoutBusFeedback(void Function() action) {
+    if (_isDispatchingFromBus) {
+      action();
+      return;
+    }
+    _isDispatchingFromBus = true;
+    try {
+      action();
+    } finally {
+      _isDispatchingFromBus = false;
+    }
+  }
+
+  void _fireAndLog(Future<void>? future, String actionName) {
+    if (future == null) return;
+    unawaited(
+      future.catchError((Object error, StackTrace stackTrace) {
+        _logger.warning(
+          'ModularRackViewModel',
+          'Fallo en accion asincrona $actionName: $error',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }),
+    );
+  }
+
+  void _dispatchSignalToNode(StandardRackNode node, AtomicSignalEvent event) {
+    _runWithoutBusFeedback(() {
+      switch (event) {
+        case TransportControlEvent():
+          _handleNodeTransportEvent(node, event);
+        case TuningCalibrationEvent():
+          _handleNodeCalibrationEvent(node, event);
+        case ClockTickEvent():
+          _handleNodeClockTickEvent(node, event);
+        case PitchDetectionEvent():
+          _handleNodePitchEvent(node, event);
+        case AudioPcmEvent():
+          _handleNodeAudioPcmEvent(node, event);
+        case SpectralDataEvent():
+          node.lastSpectralMagnitudes = event.magnitudes;
+      }
+    });
+  }
+
+  void _handleNodeTransportEvent(StandardRackNode node, TransportControlEvent event) {
+    node.lastTransportCommand = event.command;
+    final vm = _tunerViewModel;
+    final cmd = event.command;
+
+    switch (node.moduleType) {
+      case RackModuleType.metronome:
+        if (cmd == TransportCommand.play && vm != null && !vm.isMetronomePlaying) {
+          _fireAndLog(vm.startSongWithCountIn(), 'startMetronomeFromBus');
+        } else if ((cmd == TransportCommand.pause || cmd == TransportCommand.stop) &&
+            vm != null &&
+            vm.isMetronomePlaying) {
+          vm.stopSong();
+        } else if (cmd == TransportCommand.stop) {
+          _fireAndLog(audioEngine?.getChannel('metronome_click').stop(), 'stopMetronomeChannel');
+        }
+      case RackModuleType.practiceRecorder:
+        if (cmd == TransportCommand.record) {
+          if (audioInputEngine != null && !audioInputEngine!.isCapturing) {
+            _fireAndLog(audioInputEngine!.startCapture(), 'startCaptureForRecorder');
+          }
+          if (vm != null && !vm.isAudioRecording) {
+            _fireAndLog(vm.startPracticeRecording(), 'startPracticeRecordingFromBus');
+          }
+        } else if (cmd == TransportCommand.toggleRecord) {
+          _fireAndLog(vm?.togglePracticeRecording(), 'togglePracticeRecordingFromBus');
+        } else if (cmd == TransportCommand.stop || cmd == TransportCommand.pause) {
+          if (vm != null && vm.isAudioRecording) {
+            _fireAndLog(vm.stopPracticeRecording(), 'stopPracticeRecordingFromBus');
+          }
+          if (vm != null && vm.isPlayingAudio) {
+            _fireAndLog(vm.stopActiveRecordingPlayback(), 'stopPlaybackFromBus');
+          }
+          if (cmd == TransportCommand.stop) {
+            if (audioInputEngine != null && audioInputEngine!.isCapturing) {
+              _fireAndLog(audioInputEngine!.stopCapture(), 'stopCaptureFromRecorderBus');
+            }
+            _fireAndLog(audioEngine?.getChannel('practice_take').stop(), 'stopPracticeChannel');
+          }
+        } else if (cmd == TransportCommand.rewind) {
+          _fireAndLog(vm?.seekPlayback(Duration.zero), 'rewindPracticePlayback');
+        }
+      case RackModuleType.strobeTuner:
+        if (cmd == TransportCommand.play || cmd == TransportCommand.record) {
+          if (audioInputEngine != null && !audioInputEngine!.isCapturing) {
+            _fireAndLog(audioInputEngine!.startCapture(), 'startCaptureForTuner');
+          }
+          if (vm != null && !vm.isRecording) {
+            _fireAndLog(vm.toggleRecording(), 'startTunerFromBus');
+          }
+        } else if (cmd == TransportCommand.stop || cmd == TransportCommand.pause) {
+          if (vm != null && vm.isRecording) {
+            _fireAndLog(vm.toggleRecording(), 'stopTunerFromBus');
+          }
+          if (cmd == TransportCommand.stop && audioInputEngine != null && audioInputEngine!.isCapturing) {
+            _fireAndLog(audioInputEngine!.stopCapture(), 'stopCaptureFromBus');
+          }
+        }
+      case RackModuleType.harmonicDrone:
+        if (cmd == TransportCommand.stop || cmd == TransportCommand.pause) {
+          _fireAndLog(vm?.stopDrone(), 'stopDroneFromBus');
+          _fireAndLog(audioEngine?.getChannel('harmonic_drone').stop(), 'stopDroneChannel');
+        }
+      case RackModuleType.scoreNotation:
+        if (cmd == TransportCommand.rewind) {
+          vm?.resetSongState();
+        } else if (cmd == TransportCommand.stop) {
+          vm?.scorePlaybackCoordinator.stopPlayback();
+        }
+      case RackModuleType.earTrainer:
+        if (cmd == TransportCommand.stop || cmd == TransportCommand.pause) {
+          _fireAndLog(vm?.stopReferenceTone(), 'stopReferenceToneFromBus');
+          _fireAndLog(audioEngine?.getChannel('tuning_diapason').stop(), 'stopDiapasonChannel');
+        }
+      case RackModuleType.vocalAutoTune:
+      case RackModuleType.spectrogram:
+      case RackModuleType.chordAnalyzer:
+      case RackModuleType.guidedLessons:
+        break;
+    }
+  }
+
+  void _handleNodeCalibrationEvent(StandardRackNode node, TuningCalibrationEvent event) {
+    node.lastCalibratedA4Hz = event.referenceA4Hz;
+    node.lastTemperamentName = event.temperamentName;
+    _lastReferenceA4Hz = event.referenceA4Hz;
+    _lastTemperamentName = event.temperamentName;
+
+    final vm = _tunerViewModel;
+    if (vm == null) return;
+
+    vm.setReferencePitch(event.referenceA4Hz);
+    if (event.temperamentName.isNotEmpty) {
+      vm.setTemperament(event.temperamentName);
+    }
+    if (node.moduleType == RackModuleType.vocalAutoTune) {
+      final clampedA4 = event.referenceA4Hz.clamp(415.0, 466.0);
+      if ((vm.autoTuneConfig.a4Reference - clampedA4).abs() > 0.01) {
+        vm.updateAutoTuneConfig(
+          vm.autoTuneConfig.copyWith(a4Reference: clampedA4),
+        );
+      }
+    }
+    _syncSnapshotFromTuner(vm);
+  }
+
+  void _handleNodeClockTickEvent(StandardRackNode node, ClockTickEvent event) {
+    node.lastClockBpm = event.bpm;
+    node.lastClockTickIndex = event.tickIndex;
+    _lastProcessedBpm = event.bpm;
+    _lastTickIndex = event.tickIndex;
+
+    final vm = _tunerViewModel;
+    if (vm == null) return;
+
+    if (node.moduleType == RackModuleType.scoreNotation ||
+        node.moduleType == RackModuleType.guidedLessons ||
+        node.moduleType == RackModuleType.practiceRecorder) {
+      vm.ingestBusClockTick(tickIndex: event.tickIndex, bpm: event.bpm);
+      _syncSnapshotFromTuner(vm);
+    }
+  }
+
+  void _handleNodePitchEvent(StandardRackNode node, PitchDetectionEvent event) {
+    node.lastPitchHz = event.frequencyHz;
+    node.lastPitchNoteName = event.noteName;
+    node.lastPitchAmplitude = event.amplitude;
+    _lastDetectedPitchHz = event.frequencyHz;
+    if (event.noteName.isNotEmpty) {
+      _lastDetectedNoteName = event.noteName;
+    } else if (event.frequencyHz > 20.0) {
+      _lastDetectedNoteName = NoteEntity.fromFrequency(
+        event.frequencyHz,
+        a4Ref: _lastReferenceA4Hz,
+      ).name;
+    }
+
+    final vm = _tunerViewModel;
+    if (vm == null) return;
+
+    if (node.moduleType == RackModuleType.vocalAutoTune) {
+      if (vm.isAutoTuneActive && event.frequencyHz > 20.0) {
+        vm.autoTuneProcessor.evaluatePitchFrame(
+          detectedPitchHz: event.frequencyHz,
+        );
+      }
+      return;
+    }
+
+    if (node.moduleType == RackModuleType.scoreNotation ||
+        node.moduleType == RackModuleType.guidedLessons ||
+        node.moduleType == RackModuleType.earTrainer) {
+      vm.ingestBusPitchFrame(
+        frequencyHz: event.frequencyHz,
+        noteName: event.noteName,
+        centsOffset: event.centsOffset,
+        clarity: event.clarity,
+      );
+      _syncSnapshotFromTuner(vm);
+    }
+  }
+
+  void _handleNodeAudioPcmEvent(StandardRackNode node, AudioPcmEvent event) {
+    node.lastPcmRms = event.rmsLevel;
+    node.lastPcmSamples = event.samples;
+    _lastPcmRms = event.rmsLevel;
+    _audioCaptureFrameCount++;
+
+    final vm = _tunerViewModel;
+    final engine = audioEngine;
+
+    if (engine != null &&
+        (node.moduleType == RackModuleType.vocalAutoTune ||
+            node.moduleType == RackModuleType.practiceRecorder ||
+            node.moduleType == RackModuleType.earTrainer)) {
+      _fireAndLog(
+        engine.getChannel(node.nodeId).setVolume(event.rmsLevel.clamp(0.0, 1.0)),
+        'syncChannelVolume_${node.nodeId}',
+      );
+    }
+
+    if (node.moduleType == RackModuleType.vocalAutoTune &&
+        vm != null &&
+        vm.isAutoTuneActive &&
+        event.samples.isNotEmpty &&
+        _lastDetectedPitchHz > 20.0) {
+      final processed = vm.autoTuneProcessor.processAudioBlock(
+        pcmSamples: Float64List.fromList(event.samples),
+        detectedPitchHz: _lastDetectedPitchHz,
+        sampleRate: event.sampleRate,
+      );
+      node.lastAutoTunedPcmSamples = processed.toList(growable: false);
+    }
+
+    if (vm == null) return;
+
+    if (node.moduleType == RackModuleType.chordAnalyzer) {
+      if (vm.isChordRecognitionActive && event.samples.isNotEmpty) {
+        vm.processChordSamples(event.samples);
+        _syncSnapshotFromTuner(vm);
+      }
+    } else if (node.moduleType == RackModuleType.strobeTuner ||
+        node.moduleType == RackModuleType.spectrogram) {
+      vm.ingestBusAudioPcm(event.samples);
+      _syncSnapshotFromTuner(vm);
+    }
   }
 
   /// Configura el rack inicial por defecto con herramientas clave conectadas.
@@ -148,14 +637,14 @@ class ModularRackViewModel extends ChangeNotifier {
 
     _activeModules.addAll([tuner, metronome, score, recorder]);
 
-    // Registrar nodos atómicos interoperables
     _registerNodeForModule(tuner, {SignalType.audioPcm, SignalType.tuningCalibration});
     _registerNodeForModule(metronome, {SignalType.transportControl});
     _registerNodeForModule(score, {SignalType.temporalClock, SignalType.pitchEvents});
-    _registerNodeForModule(recorder, {SignalType.audioPcm, SignalType.temporalClock, SignalType.transportControl});
+    _registerNodeForModule(
+      recorder,
+      {SignalType.audioPcm, SignalType.temporalClock, SignalType.transportControl},
+    );
 
-    // Establecer conexiones iniciales inteligentes
-    // 1. Reloj de metrónomo -> Pentagrama en vivo
     final metroClock = metronome.outputPorts.firstWhere(
       (p) => p.signalType == SignalType.temporalClock,
     );
@@ -166,7 +655,6 @@ class ModularRackViewModel extends ChangeNotifier {
       ModuleConnection.pointToPoint(source: metroClock, destination: scoreClock),
     );
 
-    // 2. Pitch del afinador -> Pentagrama (Tocar y transcribir)
     final tunerPitch = tuner.outputPorts.firstWhere(
       (p) => p.signalType == SignalType.pitchEvents,
     );
@@ -188,39 +676,39 @@ class ModularRackViewModel extends ChangeNotifier {
     signalBus.registerNode(node);
   }
 
-  /// Cambia el instrumento universal activo y actualiza perfiles tímbricos/visuales.
+  /// Cambia el instrumento universal activo y actualiza perfiles timbricos/visuales.
   void selectInstrument(UniversalInstrumentDefinition instrument) {
     _activeInstrument = instrument;
     _activeCustomization = InstrumentCustomizationProfile.defaultFor(instrument);
     updateCustomization(_activeCustomization);
   }
 
-  /// Devuelve el conjunto de tipos de señal compatibles para un tipo de módulo.
+  /// Devuelve el conjunto de tipos de senal compatibles para un tipo de modulo.
   Set<SignalType> getAcceptedSignalsForType(RackModuleType type) {
     switch (type) {
       case RackModuleType.strobeTuner:
       case RackModuleType.spectrogram:
         return {SignalType.audioPcm, SignalType.tuningCalibration};
       case RackModuleType.scoreNotation:
-        return {SignalType.temporalClock, SignalType.pitchEvents};
+        return {SignalType.temporalClock, SignalType.pitchEvents, SignalType.transportControl};
       case RackModuleType.practiceRecorder:
         return {SignalType.audioPcm, SignalType.temporalClock, SignalType.transportControl};
       case RackModuleType.vocalAutoTune:
         return {SignalType.audioPcm, SignalType.pitchEvents, SignalType.tuningCalibration};
       case RackModuleType.harmonicDrone:
-        return {SignalType.tuningCalibration, SignalType.pitchEvents};
+        return {SignalType.tuningCalibration, SignalType.pitchEvents, SignalType.transportControl};
       case RackModuleType.chordAnalyzer:
         return {SignalType.audioPcm, SignalType.pitchEvents};
       case RackModuleType.guidedLessons:
         return {SignalType.temporalClock, SignalType.pitchEvents};
       case RackModuleType.earTrainer:
-        return {SignalType.pitchEvents, SignalType.audioPcm, SignalType.tuningCalibration};
+        return {SignalType.pitchEvents, SignalType.audioPcm, SignalType.tuningCalibration, SignalType.transportControl};
       case RackModuleType.metronome:
         return {SignalType.transportControl};
     }
   }
 
-  /// Agrega un nuevo módulo al rack e inicializa su nodo de interoperabilidad.
+  /// Agrega un nuevo modulo al rack e inicializa su nodo de interoperabilidad.
   void addModule(RackModuleType type) {
     final newOrder = _activeModules.length;
     final module = RackModuleEntity.standard(type, newOrder);
@@ -230,10 +718,13 @@ class ModularRackViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Elimina un módulo del rack y desregistra sus puertos y nodo del SignalBus.
+  /// Elimina un modulo del rack, detiene su subsistema activo y desregistra
+  /// sus puertos y nodo del SignalBus.
   void removeModule(String moduleId) {
     final index = _activeModules.indexWhere((m) => m.moduleId == moduleId);
     if (index != -1) {
+      final mod = _activeModules[index];
+      _shutdownSubsystemForModule(mod);
       signalBus.unregisterNode(moduleId);
       _activeModules.removeAt(index);
       _reindexModules();
@@ -241,7 +732,7 @@ class ModularRackViewModel extends ChangeNotifier {
     }
   }
 
-  /// Reordena los módulos tras un gesto Drag & Drop del usuario.
+  /// Reordena los modulos tras un gesto Drag & Drop del usuario.
   void reorderModules(int oldIndex, int newIndex) {
     if (oldIndex < newIndex) {
       newIndex -= 1;
@@ -252,7 +743,7 @@ class ModularRackViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Alterna entre vista compacta y expandida de un módulo.
+  /// Alterna entre vista compacta y expandida de un modulo.
   void toggleViewMode(String moduleId) {
     final index = _activeModules.indexWhere((m) => m.moduleId == moduleId);
     if (index != -1) {
@@ -265,13 +756,128 @@ class ModularRackViewModel extends ChangeNotifier {
     }
   }
 
-  /// Alterna el encendido / apagado de un módulo.
+  /// Alterna el encendido / apagado de un modulo y detiene su subsistema activo
+  /// al transicionar a estado apagado.
   void toggleModulePower(String moduleId) {
     final index = _activeModules.indexWhere((m) => m.moduleId == moduleId);
     if (index != -1) {
       final mod = _activeModules[index];
-      _activeModules[index] = mod.copyWith(isPoweredOn: !mod.isPoweredOn);
+      final updated = mod.copyWith(isPoweredOn: !mod.isPoweredOn);
+      _activeModules[index] = updated;
+      if (!updated.isPoweredOn) {
+        _shutdownSubsystemForModule(updated);
+      }
       notifyListeners();
+    }
+  }
+
+  void _shutdownSubsystemForModule(RackModuleEntity module) {
+    final hasOtherActive = _activeModules.any(
+      (m) => m.moduleId != module.moduleId && m.moduleType == module.moduleType && m.isPoweredOn,
+    );
+    if (hasOtherActive) return;
+
+    final vm = _tunerViewModel;
+    _runWithoutBusFeedback(() {
+      switch (module.moduleType) {
+        case RackModuleType.metronome:
+          if (vm != null && vm.isMetronomePlaying) {
+            vm.stopSong();
+          }
+          _fireAndLog(
+            audioEngine?.getChannel('metronome_click').stop(),
+            'shutdownMetronomeChannel',
+          );
+        case RackModuleType.harmonicDrone:
+          if (vm != null) {
+            _fireAndLog(vm.stopDrone(), 'shutdownDrone');
+          }
+          _fireAndLog(
+            audioEngine?.getChannel('harmonic_drone').stop(),
+            'shutdownDroneChannel',
+          );
+        case RackModuleType.practiceRecorder:
+          _isRecording = false;
+          if (vm != null && vm.isAudioRecording) {
+            _fireAndLog(vm.stopPracticeRecording(), 'shutdownPracticeRecording');
+          }
+          if (vm != null && vm.isPlayingAudio) {
+            _fireAndLog(vm.stopActiveRecordingPlayback(), 'shutdownPracticePlayback');
+          }
+          _fireAndLog(
+            audioEngine?.getChannel('practice_take').stop(),
+            'shutdownPracticeTakeChannel',
+          );
+          _stopCaptureIfNoActiveAudioConsumers(excludingModuleId: module.moduleId);
+        case RackModuleType.vocalAutoTune:
+          if (vm != null && vm.isAutoTuneActive) {
+            vm.toggleAutoTune();
+          }
+          _stopCaptureIfNoActiveAudioConsumers(excludingModuleId: module.moduleId);
+        case RackModuleType.strobeTuner:
+          if (vm != null && vm.isRecording) {
+            _fireAndLog(vm.toggleRecording(), 'shutdownStrobeTuner');
+          }
+          _stopCaptureIfNoActiveAudioConsumers(excludingModuleId: module.moduleId);
+        case RackModuleType.chordAnalyzer:
+          if (vm != null && vm.isChordRecognitionActive) {
+            vm.setChordRecognitionActive(false);
+          }
+          _stopCaptureIfNoActiveAudioConsumers(excludingModuleId: module.moduleId);
+        case RackModuleType.scoreNotation:
+          if (vm != null) {
+            vm.scorePlaybackCoordinator.stopPlayback();
+            if (vm.isLiveTranscriptionActive) {
+              vm.toggleLiveTranscription();
+            }
+            if (vm.isPolyphonicTranscriptionActive) {
+              vm.togglePolyphonicLiveTranscription();
+            }
+          }
+        case RackModuleType.guidedLessons:
+          if (vm != null && vm.hasActiveGuidedLesson) {
+            vm.cancelGuidedLesson();
+          }
+        case RackModuleType.earTrainer:
+          if (vm != null) {
+            _fireAndLog(vm.stopReferenceTone(), 'shutdownEarTrainerTone');
+          }
+          _fireAndLog(
+            audioEngine?.getChannel('tuning_diapason').stop(),
+            'shutdownDiapasonChannel',
+          );
+          _fireAndLog(
+            audioEngine?.getChannel('instrument_note').stop(),
+            'shutdownInstrumentNoteChannel',
+          );
+        case RackModuleType.spectrogram:
+          _stopCaptureIfNoActiveAudioConsumers(excludingModuleId: module.moduleId);
+      }
+      _fireAndLog(
+        audioEngine?.getChannel(module.moduleId).stop(),
+        'shutdownModuleChannel_${module.moduleId}',
+      );
+      if (vm != null) {
+        _syncSnapshotFromTuner(vm);
+      }
+    });
+  }
+
+  void _stopCaptureIfNoActiveAudioConsumers({required String excludingModuleId}) {
+    final input = audioInputEngine;
+    if (input == null || !input.isCapturing) return;
+    final hasOtherAudioConsumer = _activeModules.any(
+      (m) =>
+          m.moduleId != excludingModuleId &&
+          m.isPoweredOn &&
+          (m.moduleType == RackModuleType.strobeTuner ||
+              m.moduleType == RackModuleType.practiceRecorder ||
+              m.moduleType == RackModuleType.spectrogram ||
+              m.moduleType == RackModuleType.chordAnalyzer ||
+              m.moduleType == RackModuleType.vocalAutoTune),
+    );
+    if (!hasOtherAudioConsumer) {
+      _fireAndLog(input.stopCapture(), 'stopCaptureOnModuleShutdown');
     }
   }
 
@@ -297,7 +903,7 @@ class ModularRackViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Desconecta una conexión por su ID.
+  /// Desconecta una conexion por su ID.
   void disconnect(String connectionId) {
     signalBus.removeConnection(connectionId);
     notifyListeners();
@@ -305,11 +911,10 @@ class ModularRackViewModel extends ChangeNotifier {
 
   // --- CONTROLES DE LA CONSOLA MULTITAREA ---
 
-  /// Inicia o detiene la sesión multitarea sincronizada de todos los módulos.
+  /// Inicia o detiene la sesion multitarea sincronizada de todos los modulos.
   void toggleMasterSession() {
     _isSessionRunning = !_isSessionRunning;
 
-    // Despachar comando de transporte atómico
     signalBus.broadcastGlobalSignal(
       TransportControlEvent(
         eventId: 'trans_${DateTime.now().microsecondsSinceEpoch}',
@@ -328,7 +933,7 @@ class ModularRackViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Inicia o detiene la grabación de la sesión maestra.
+  /// Inicia o detiene la grabacion de la sesion maestra.
   void toggleMasterRecording() {
     if (!_isSessionRunning && !_isRecording) {
       _isSessionRunning = true;
@@ -376,7 +981,7 @@ class ModularRackViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Carga un preset de sesión predeterminado.
+  /// Carga un preset de sesion predeterminado.
   void loadPreset(String presetName) {
     _activeModules.clear();
     signalBus.dispose();
@@ -392,7 +997,6 @@ class ModularRackViewModel extends ChangeNotifier {
         addModule(RackModuleType.strobeTuner);
         addModule(RackModuleType.scoreNotation);
         addModule(RackModuleType.metronome);
-        // Conexión automática afinador -> partitura
         final tuner = _activeModules[0];
         final score = _activeModules[1];
         signalBus.addConnection(
@@ -407,7 +1011,6 @@ class ModularRackViewModel extends ChangeNotifier {
         addModule(RackModuleType.vocalAutoTune);
         addModule(RackModuleType.practiceRecorder);
         addModule(RackModuleType.spectrogram);
-        // Conexión automática autotune -> grabador
         final tune = _activeModules[0];
         final rec = _activeModules[1];
         signalBus.addConnection(
@@ -429,7 +1032,7 @@ class ModularRackViewModel extends ChangeNotifier {
 
   // --- FORMATO DE PROYECTO PROPIETARIO HIPER-COMPRIMIDO (.tunner / .tnt) ---
 
-  /// Empaqueta la sesión actual en un TunnerProjectPackage inmutable.
+  /// Empaqueta la sesion actual en un TunnerProjectPackage inmutable.
   TunnerProjectPackage createProjectPackage({
     String projectName = 'Mi Proyecto Tunner',
     String author = 'Tunner Artist',
@@ -465,12 +1068,11 @@ class ModularRackViewModel extends ChangeNotifier {
     );
   }
 
-  /// Carga y restaura un proyecto completo, reconfigurando módulos y cableado en el SignalBus.
+  /// Carga y restaura un proyecto completo, reconfigurando modulos y cableado en el SignalBus.
   void loadProjectPackage(TunnerProjectPackage package) {
     _activeModules.clear();
     signalBus.dispose();
 
-    // Reinstanciar módulos desde los presets
     for (int i = 0; i < package.tools.length; i++) {
       final preset = package.tools[i];
       final mod = preset.toModuleEntity(i, customId: 'mod_${preset.moduleTypeCode}_$i');
@@ -478,7 +1080,6 @@ class ModularRackViewModel extends ChangeNotifier {
       _registerNodeForModule(mod, getAcceptedSignalsForType(mod.moduleType));
     }
 
-    // Reconectar cables del Patchbay
     for (final conn in package.patchConnections) {
       final sourceMod = _activeModules.cast<RackModuleEntity?>().firstWhere(
         (m) => m?.moduleId == conn.sourceModuleId,
@@ -517,11 +1118,11 @@ class ModularRackViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Exporta una herramienta específica a un preset individual TunnerToolPreset (.tnt).
+  /// Exporta una herramienta especifica a un preset individual TunnerToolPreset (.tnt).
   TunnerToolPreset exportToolPreset(String moduleId) {
     final module = _activeModules.firstWhere(
       (m) => m.moduleId == moduleId,
-      orElse: () => throw StateError('Módulo no encontrado: $moduleId'),
+      orElse: () => throw StateError('Modulo no encontrado: $moduleId'),
     );
     return TunnerToolPreset.fromModule(module);
   }
@@ -538,7 +1139,7 @@ class ModularRackViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Guarda el proyecto actual en disco con compresión binaria (.tunner).
+  /// Guarda el proyecto actual en disco con compresion binaria (.tunner).
   Future<String> saveProjectToFile({String? filePath, String? projectName}) async {
     final package = createProjectPackage(
       projectName: projectName ?? 'Proyecto Tunner',
@@ -585,6 +1186,9 @@ class ModularRackViewModel extends ChangeNotifier {
   void dispose() {
     if (_isDisposed) return;
     _isDisposed = true;
+    unawaited(_audioInputSubscription?.cancel());
+    _audioInputSubscription = null;
+    _unbindTunerViewModel();
     signalBus.dispose();
     super.dispose();
   }

@@ -166,11 +166,12 @@ class StudioCompositionRoot {
   }
 
   /// Crea el ViewModel del Rack Modular con motores centralizados inyectados.
-  ModularRackViewModel createModularRackViewModel() {
+  ModularRackViewModel createModularRackViewModel({TunerViewModel? tunerViewModel}) {
     return ModularRackViewModel(
       audioEngine: audioEngine,
       audioInputEngine: audioInputEngine,
       storageRepository: LocalProjectStorageRepository(),
+      tunerViewModel: tunerViewModel,
     );
   }
 
