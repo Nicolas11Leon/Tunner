@@ -5,9 +5,9 @@
 - **ID del Plan:** `PLAN-FASE4-PRACTICE-RECORDER-2026-01`
 - **Titulo de la Implementacion:** Eliminacion de Tomas Falsas, Centroide/THD Real via HarmonicSeriesAnalyzer, Downsampling Proporcional, Persistencia MultiTrack y Playhead en SpectralComparatorModal
 - **Fase del Proyecto:** Fase 4 / Hardening Acustico Integral (US-4.6)
-- **Estado:** En Progreso
-- **ADR Relacionado:** [ADR 0155](docs/04_adrs/0155_practice_recorder_real_timbre_and_persistence.md)
-- **Documento Funcional Base:** [Caso de Uso 163](docs/02_use_cases/163_uc_practice_recorder_real_timbre_and_persistence.md)
+- **Estado:** Completado
+- **ADR Relacionado:** [ADR 0155](../04_adrs/0155_practice_recorder_real_timbre_and_persistence.md)
+- **Documento Funcional Base:** [Caso de Uso 163](../02_use_cases/163_uc_practice_recorder_real_timbre_and_persistence.md)
 
 ---
 
@@ -23,7 +23,7 @@ Garantizar que la grabadora de practica, el comparador espectral multipista y el
   - `lib/features/persistence/domain/app_user_settings_entity.dart`: serializacion y deserializacion resiliente de `MultiTrackSessionEntity`.
   - `lib/features/tuner/data/pitch_detector_service.dart` y `lib/features/tuner/presentation/tuner_viewmodel.dart`: entrega sincronizada de `latestAudioSamples` a `recordSampleForMultiTrack` y autoguardado de `multiTrackSession`.
   - `lib/features/practice_recorder/presentation/practice_recording_player_modal.dart`: eliminacion de las 40 barras falsas en `_WaveformPainter` cuando `peaks.isEmpty`.
-  - `lib/features/practice_recorder/presentation/spectral_comparator_modal.dart`: suscripcion reactiva al progreso de reproduccion y envio de `currentPlaybackPositionNormalized` a `SpectralComparatorPainter`.
+  - `lib/features/practice_recorder/presentation/spectral_comparator_modal.dart` y `lib/features/practice_recorder/presentation/spectral_comparator_painter.dart`: suscripcion reactiva al progreso de reproduccion y envio de `currentPlaybackPositionNormalized` a `SpectralComparatorPainter`.
   - Pruebas unitarias y de widgets en `test/features/practice_recorder/us_4_6_practice_recorder_real_timbre_test.dart` y actualizacion de pruebas legadas afectadas por la eliminacion de semillas falsas.
 - **Excluido (Out-of-Scope):**
   - Modificaciones en el motor nativo C/FFI o en el formato de archivos `.wav` generados por `StudioWorkspaceSeedProvider`.
@@ -47,28 +47,28 @@ Garantizar que la grabadora de practica, el comparador espectral multipista y el
 
 ### Paso 1: Capa de Dominio (Entidades y Persistencia Pura)
 - [x] Documentar el caso de uso 163, ADR 0155 y el presente plan de implementacion.
-- [ ] Actualizar `MultiTrackSessionEntity` / `PracticeTakeEntity` para garantizar tolerancia en `fromMap` y listas mutables al inicializar vacias.
-- [ ] Agregar `final MultiTrackSessionEntity? multiTrackSession;` a `AppUserSettingsEntity` con soporte `const defaultSettings`, `copyWith`, `toMap()` y `fromMap()` resiliente ante datos heredados o corruptos.
+- [x] Actualizar `MultiTrackSessionEntity` / `PracticeTakeEntity` para garantizar tolerancia en `fromMap` y listas mutables al inicializar vacias.
+- [x] Agregar `final MultiTrackSessionEntity? multiTrackSession;` a `AppUserSettingsEntity` con soporte `const defaultSettings`, `copyWith`, `toMap()` y `fromMap()` resiliente ante datos heredados o corruptos.
 
 ### Paso 2: Capa de Datos y Senal PCM (Sincronizacion de Ventana)
-- [ ] Ajustar `PitchDetectorService` para invocar `onClarityDetected` y `onAudioWindowCaptured` antes de `onPitchDetected`, asegurando que `latestAudioSamples` este actualizado al registrar la muestra multipista.
+- [x] Ajustar `PitchDetectorService` para invocar `onClarityDetected` y `onAudioWindowCaptured` antes de `onPitchDetected`, asegurando que `latestAudioSamples` este actualizado al registrar la muestra multipista.
 
 ### Paso 3: Controlador y Capa de Presentacion
-- [ ] Refactorizar `PracticeRecorderController`:
+- [x] Refactorizar `PracticeRecorderController`:
   - Vaciar `initDefaultMultiTrackSession` (lista mutable vacia, selecciones A/B en null) y eliminar las tomas falsas en `seedDefaultRecordingsIfEmpty`.
   - Eliminar fallback de `playNoteTone` / 440 Hz en `playActiveRecording` y `playTakeAudio`; remover la dependencia innecesaria de `IAudioSynthesizerService`.
   - Integrar `HarmonicSeriesAnalyzer.analyze` y calculo de RMS real en `recordSampleForMultiTrack`.
   - Implementar `downsampleWaveformPeaks` con max-pooling proporcional y compacto acotado del acumulador bruto para cubrir toda la duracion de la toma.
   - Restaurar `settings.multiTrackSession` en `loadSettingsInto` y autoguardar cambios de sesion multipista.
-- [ ] Actualizar `TunerViewModel` para pasar `audioSamples: _latestAudioSamples` en `recordSampleForMultiTrack` y persistir `multiTrackSession` en `_triggerAutoSave`.
-- [ ] Actualizar `_WaveformPainter` en `practice_recording_player_modal.dart` para omitir las 40 barras falsas cuando `peaks.isEmpty`.
-- [ ] Actualizar `SpectralComparatorModal` con `ListenableBuilder` sobre `widget.viewModel` y calculo de `currentPlaybackPositionNormalized` hacia `SpectralComparatorPainter`.
+- [x] Actualizar `TunerViewModel` para pasar `audioSamples: _latestAudioSamples` en `recordSampleForMultiTrack` y persistir `multiTrackSession` en `_triggerAutoSave`.
+- [x] Actualizar `_WaveformPainter` en `practice_recording_player_modal.dart` para omitir las 40 barras falsas cuando `peaks.isEmpty`.
+- [x] Actualizar `SpectralComparatorModal` con `ListenableBuilder` sobre `widget.viewModel` y calculo de `currentPlaybackPositionNormalized` hacia `SpectralComparatorPainter`.
 
 ### Paso 4: Pruebas, Verificacion y Limpieza
-- [ ] Crear `test/features/practice_recorder/us_4_6_practice_recorder_real_timbre_test.dart` cubriendo todos los criterios de aceptacion.
-- [ ] Verificar y actualizar cualquier prueba existente que asumiera tomas falsas presembradas.
-- [ ] Ejecutar `/home/nicomania11/desarrollo/flutter/bin/flutter analyze --no-fatal-infos` (0 issues).
-- [ ] Ejecutar pruebas unitarias objetivo y regresion completa.
+- [x] Crear `test/features/practice_recorder/us_4_6_practice_recorder_real_timbre_test.dart` cubriendo todos los criterios de aceptacion.
+- [x] Verificar y actualizar cualquier prueba existente que asumiera tomas falsas presembradas.
+- [x] Ejecutar `/home/nicomania11/desarrollo/flutter/bin/flutter analyze --no-fatal-infos` (0 issues).
+- [x] Ejecutar pruebas unitarias objetivo y regresion completa.
 
 ---
 
@@ -81,12 +81,12 @@ Garantizar que la grabadora de practica, el comparador espectral multipista y el
 
 ## 5. Criterios de Aceptacion (Definition of Done)
 
-- [ ] Codigo adherido estrictamente a `AGENTS.md` (cero emojis, Clean Architecture, Dart puro en dominio).
-- [ ] Cero tomas falsas en `initDefaultMultiTrackSession` y `seedDefaultRecordingsIfEmpty`.
-- [ ] Cero fallbacks de pitido de 440 Hz ante ausencia de archivo valido.
-- [ ] `spectralCentroidHz` y `thdPercent` reales calculados por `HarmonicSeriesAnalyzer.analyze`.
-- [ ] Downsampling proporcional de `_currentWaveformPeaks` cubriendo toda la duracion de grabacion.
-- [ ] Serializacion y restauracion de `MultiTrackSessionEntity` en `AppUserSettingsEntity`.
-- [ ] `_WaveformPainter` sin 40 barras sinteticas cuando `peaks.isEmpty`.
-- [ ] `SpectralComparatorModal` pasando `currentPlaybackPositionNormalized` real a `SpectralComparatorPainter`.
-- [ ] `flutter analyze --no-fatal-infos` con 0 issues y 100% pass en suites de pruebas.
+- [x] Codigo adherido estrictamente a `AGENTS.md` (cero emojis, Clean Architecture, Dart puro en dominio).
+- [x] Cero tomas falsas en `initDefaultMultiTrackSession` y `seedDefaultRecordingsIfEmpty`.
+- [x] Cero fallbacks de pitido de 440 Hz ante ausencia de archivo valido.
+- [x] `spectralCentroidHz` y `thdPercent` reales calculados por `HarmonicSeriesAnalyzer.analyze`.
+- [x] Downsampling proporcional de `_currentWaveformPeaks` cubriendo toda la duracion de grabacion.
+- [x] Serializacion y restauracion de `MultiTrackSessionEntity` en `AppUserSettingsEntity`.
+- [x] `_WaveformPainter` sin 40 barras sinteticas cuando `peaks.isEmpty`.
+- [x] `SpectralComparatorModal` pasando `currentPlaybackPositionNormalized` real a `SpectralComparatorPainter`.
+- [x] `flutter analyze --no-fatal-infos` con 0 issues y 100% pass en suites de pruebas.
