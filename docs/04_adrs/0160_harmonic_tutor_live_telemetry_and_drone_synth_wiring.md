@@ -1,4 +1,4 @@
-# ADR-0142: Conexion en Tiempo Real de HarmonicTutorModal a TelemetryListenable y AudioSynthesizer
+# ADR-0160: Conexion en Tiempo Real de HarmonicTutorModal a TelemetryListenable y AudioSynthesizer
 
 - **Estado:** Aceptado
 - **Fecha:** 2026-11-22

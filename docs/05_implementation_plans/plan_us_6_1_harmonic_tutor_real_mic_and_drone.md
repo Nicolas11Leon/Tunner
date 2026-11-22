@@ -1,6 +1,8 @@
 # Plan de Implementacion US-6.1: HarmonicTutorModal sin Simulacion y Conectado en Vivo
 
 - **Issue:** #163
+- **Caso de Uso:** `UC-168` (`docs/02_use_cases/168_uc_harmonic_tutor_real_mic_and_drone.md`)
+- **ADR:** `ADR-0160` (`docs/04_adrs/0160_harmonic_tutor_live_telemetry_and_drone_synth_wiring.md`)
 - **Rama:** `feature/us-6.1-harmonic-tutor-real-mic-and-drone`
 - **Base:** `qa`
 - **Estado:** Completado (Validado con `flutter analyze --no-fatal-infos` 0 issues y 19/19 tests aprobados)

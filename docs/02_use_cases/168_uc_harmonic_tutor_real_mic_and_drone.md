@@ -1,10 +1,10 @@
-# UC-150: Eliminacion de Simulacion en HarmonicTutorModal y Conexion en Tiempo Real al Microfono y Dron (UC-67)
+# UC-168: Eliminacion de Simulacion en HarmonicTutorModal y Conexion en Tiempo Real al Microfono y Dron (UC-67)
 
 ## 1. Informacion General
 
 | Campo | Valor |
 | :--- | :--- |
-| **ID** | UC-150 |
+| **ID** | UC-168 |
 | **Historia de Usuario** | US-6.1 (EPIC-06) |
 | **Actores** | Musico / Estudiante (Usuario), `HarmonicTutorModal`, `HarmonicTutorViewModel`, `ToolSearchModal`, `TunerViewModel` |
 | **Precondiciones** | El usuario abre el Tutor de Entonacion Armonica desde `ToolSearchModal` (o directamente con `HarmonicTutorModal.show`). |
