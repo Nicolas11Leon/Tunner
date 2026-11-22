@@ -170,6 +170,46 @@ class DjConsoleViewModel extends ChangeNotifier {
   double get rotationAngleB => _rotationAngleB;
   Uint8List? get lastRecordedWavBytes => _lastRecordedWavBytes;
 
+  /// Retorna el nivel VU calibrado [0.0, 1.2] midiendo la energía RMS real del audio
+  /// en la ventana actual de 33 ms alrededor de la posición del cabezal de reproducción.
+  double getVuLevel(String deckId) {
+    final id = _normalizeDeckId(deckId);
+    final deck = id == 'A' ? deckA : deckB;
+    if (!deck.isPlaying) return 0.0;
+    final samples = id == 'A'
+        ? (_deckSamplesA ??= _audioProcessor.generateDemoGroove(
+            bpm: deck.effectiveBpm,
+            frequencyHz: 55.0,
+            durationMs: 4000,
+          ))
+        : (_deckSamplesB ??= _audioProcessor.generateDemoGroove(
+            bpm: deck.effectiveBpm,
+            frequencyHz: 65.4,
+            durationMs: 4000,
+          ));
+    if (samples.isEmpty) return 0.0;
+
+    final sampleRate = _audioProcessor.sampleRate;
+    final sliceLen = (sampleRate * 0.033).round();
+    final maxStart = math.max(1, samples.length - sliceLen);
+    final start = ((deck.currentPositionMs / 1000.0) * sampleRate).round() % maxStart;
+
+    double sumSq = 0.0;
+    int count = 0;
+    for (int i = 0; i < sliceLen && (start + i) < samples.length; i++) {
+      final s = samples[start + i];
+      sumSq += s * s;
+      count++;
+    }
+    if (count == 0) return 0.0;
+    final rms = math.sqrt(sumSq / count);
+    final isAllKilled = deck.isKillLow && deck.isKillMid && deck.isKillHigh;
+    final effectiveLevel = isAllKilled
+        ? 0.0
+        : (rms * deck.volume * (deck.gainLow * 0.4 + deck.gainMid * 0.4 + deck.gainHigh * 0.2));
+    return (effectiveLevel * 1.8).clamp(0.0, 1.2);
+  }
+
   // Hardware skins & Pro Workstation getters
   DjHardwareSkinEntity get activeSkin => _activeSkin.withActiveActions(activeLitActions);
   bool get isHardwareViewActive => _isHardwareViewActive;
