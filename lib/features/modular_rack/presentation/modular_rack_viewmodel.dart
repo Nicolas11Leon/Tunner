@@ -13,6 +13,7 @@ import '../../project_format/domain/patchbay_routing_connection.dart';
 import '../../project_format/domain/project_storage_repository.dart';
 import '../../project_format/domain/tunner_project_package.dart';
 import '../../project_format/domain/tunner_tool_preset.dart';
+import '../../../core/file_system/domain/i_platform_file_gateway.dart';
 import '../../tuner/domain/note_entity.dart';
 import '../../tuner/presentation/tuner_viewmodel.dart';
 import '../domain/atomic_signal_event.dart';
@@ -198,6 +199,7 @@ class ModularRackViewModel extends ChangeNotifier {
   bool get isRecording => _isRecording;
 
   final ProjectStorageRepository _storageRepo;
+  final IPlatformFileGateway? _fileGateway;
   final IStudioAudioEngine? audioEngine;
   final IStudioAudioInputEngine? audioInputEngine;
   final IStudioLogger _logger;
@@ -214,11 +216,13 @@ class ModularRackViewModel extends ChangeNotifier {
 
   ModularRackViewModel({
     ProjectStorageRepository? storageRepository,
+    IPlatformFileGateway? fileGateway,
     this.audioEngine,
     this.audioInputEngine,
     TunerViewModel? tunerViewModel,
     IStudioLogger? logger,
   })  : _storageRepo = storageRepository ?? const NoOpProjectStorageRepository(),
+        _fileGateway = fileGateway,
         _tunerViewModel = tunerViewModel,
         _logger = logger ?? const NoOpStudioLogger() {
     _initializeDefaultRack();
@@ -1144,7 +1148,14 @@ class ModularRackViewModel extends ChangeNotifier {
     final package = createProjectPackage(
       projectName: projectName ?? 'Proyecto Tunner',
     );
-    final target = filePath ?? '${projectName?.toLowerCase().replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_') ?? "proyecto"}.tunner';
+    final safeName = projectName?.toLowerCase().replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_') ?? 'proyecto';
+    String target;
+    if (filePath != null && filePath.isNotEmpty) {
+      target = filePath;
+    } else {
+      final docsDir = await _fileGateway?.getDocumentsDirectoryPath() ?? '';
+      target = docsDir.isNotEmpty ? '$docsDir/$safeName.tunner' : '$safeName.tunner';
+    }
     await _storageRepo.saveProject(target, package);
     return target;
   }
@@ -1153,6 +1164,15 @@ class ModularRackViewModel extends ChangeNotifier {
   Future<void> loadProjectFromFile(String filePath) async {
     final package = await _storageRepo.loadProject(filePath);
     loadProjectPackage(package);
+  }
+
+  /// Abre el selector nativo para cargar un proyecto `.tunner`.
+  Future<String?> pickAndLoadProject() async {
+    final picked = await _fileGateway?.pickFile(allowedExtensions: const ['tunner']);
+    final path = picked?.path;
+    if (path == null || path.isEmpty) return null;
+    await loadProjectFromFile(path);
+    return picked?.name ?? path;
   }
 
   /// Exporta una herramienta a un archivo binario comprimido (.tnt).
@@ -1167,6 +1187,15 @@ class ModularRackViewModel extends ChangeNotifier {
   Future<void> importToolPresetFromFile(String filePath) async {
     final preset = await _storageRepo.loadToolPreset(filePath);
     importToolPreset(preset);
+  }
+
+  /// Abre el selector nativo para importar un preset de herramienta `.tnt`.
+  Future<String?> pickAndImportToolPreset() async {
+    final picked = await _fileGateway?.pickFile(allowedExtensions: const ['tnt']);
+    final path = picked?.path;
+    if (path == null || path.isEmpty) return null;
+    await importToolPresetFromFile(path);
+    return picked?.name ?? path;
   }
 
   void _reindexModules() {
