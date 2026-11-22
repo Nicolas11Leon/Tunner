@@ -201,14 +201,16 @@ void main() {
         recordedPcmBytes: Uint8List(1000), // Simulación de toma grabada
       );
 
-      expect(bundle.files.length, 6); // Master + Melody + Accompaniment + Metronome + RecordedTake + MIDI
+      // Master + 3 stems de consola (voice, piano, guitar) + Metronome + RecordedTake + MIDI = 7
+      expect(bundle.files.length, 7);
       // Revisar nombres
       final fileNames = bundle.files.map((f) => f.fileName).toList();
       expect(fileNames.any((name) => name.contains('master_mixdown.wav')), isTrue);
-      expect(fileNames.any((name) => name == 'stem_01_melody.wav'), isTrue);
-      expect(fileNames.any((name) => name == 'stem_02_accompaniment.wav'), isTrue);
-      expect(fileNames.any((name) => name == 'stem_03_metronome_click.wav'), isTrue);
-      expect(fileNames.any((name) => name == 'stem_04_user_recorded_take.wav'), isTrue);
+      expect(fileNames.any((name) => name.startsWith('stem_01_')), isTrue);
+      expect(fileNames.any((name) => name.startsWith('stem_02_')), isTrue);
+      expect(fileNames.any((name) => name.startsWith('stem_03_')), isTrue);
+      expect(fileNames.any((name) => name.contains('metronome_click.wav')), isTrue);
+      expect(fileNames.any((name) => name.contains('user_recorded_take.wav')), isTrue);
       expect(fileNames.any((name) => name.endsWith('.mid')), isTrue);
     });
 

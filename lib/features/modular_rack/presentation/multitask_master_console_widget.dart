@@ -177,6 +177,9 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                         case 'save_project':
                           _showSaveProjectDialog(context);
                           break;
+                        case 'load_project':
+                          _showLoadProjectDialog(context);
+                          break;
                         case 'new_project':
                           viewModel.loadPreset('default');
                           break;
@@ -192,7 +195,29 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                           children: [
                             Icon(Icons.save, size: 16, color: Color(0xFF10B981)),
                             SizedBox(width: 8),
-                            Text('Guardar Proyecto Comprimido (.tunner)', style: TextStyle(color: Colors.white, fontSize: 11)),
+                            Expanded(
+                              child: Text(
+                                'Guardar Proyecto Comprimido (.tunner)',
+                                style: TextStyle(color: Colors.white, fontSize: 11),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'load_project',
+                        child: Row(
+                          children: [
+                            Icon(Icons.drive_folder_upload, size: 16, color: Color(0xFFF59E0B)),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Cargar Proyecto (.tunner)',
+                                style: TextStyle(color: Colors.white, fontSize: 11),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -202,7 +227,13 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                           children: [
                             Icon(Icons.file_open, size: 16, color: Color(0xFF38BDF8)),
                             SizedBox(width: 8),
-                            Text('Importar Herramienta Preset (.tnt)', style: TextStyle(color: Colors.white, fontSize: 11)),
+                            Expanded(
+                              child: Text(
+                                'Importar Herramienta Preset (.tnt)',
+                                style: TextStyle(color: Colors.white, fontSize: 11),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -212,7 +243,13 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
                           children: [
                             Icon(Icons.refresh, size: 16, color: Colors.white60),
                             SizedBox(width: 8),
-                            Text('Reiniciar Sesión Vacía / Default', style: TextStyle(color: Colors.white, fontSize: 11)),
+                            Expanded(
+                              child: Text(
+                                'Reiniciar Sesión Vacía / Default',
+                                style: TextStyle(color: Colors.white, fontSize: 11),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -416,25 +453,156 @@ class MultitaskMasterConsoleWidget extends StatelessWidget {
     );
   }
 
+  void _showLoadProjectDialog(BuildContext context) {
+    _showFileTransferDialog(
+      context: context,
+      title: 'CARGAR PROYECTO (.TUNNER)',
+      description:
+          'Selecciona un archivo de proyecto (.tunner) para restaurar las herramientas, ajustes y el cableado completo del Patchbay.',
+      hintLabel: 'Ruta del archivo .tunner',
+      actionLabel: 'CARGAR (.TUNNER)',
+      accentColor: const Color(0xFFF59E0B),
+      onPickNative: viewModel.pickAndLoadProject,
+      onLoadPath: viewModel.loadProjectFromFile,
+      successPrefix: 'Proyecto cargado correctamente',
+    );
+  }
+
   void _showImportToolDialog(BuildContext context) {
+    _showFileTransferDialog(
+      context: context,
+      title: 'IMPORTAR HERRAMIENTA PRESET (.TNT)',
+      description:
+          'Selecciona un archivo preset (.tnt) para montar la herramienta directamente en la sesion actual con su configuracion acustica.',
+      hintLabel: 'Ruta del archivo .tnt',
+      actionLabel: 'IMPORTAR (.TNT)',
+      accentColor: const Color(0xFF38BDF8),
+      onPickNative: viewModel.pickAndImportToolPreset,
+      onLoadPath: viewModel.importToolPresetFromFile,
+      successPrefix: 'Herramienta importada correctamente',
+    );
+  }
+
+  void _showFileTransferDialog({
+    required BuildContext context,
+    required String title,
+    required String description,
+    required String hintLabel,
+    required String actionLabel,
+    required Color accentColor,
+    required Future<String?> Function() onPickNative,
+    required Future<void> Function(String path) onLoadPath,
+    required String successPrefix,
+  }) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: const Text(
-          'IMPORTAR HERRAMIENTA PRESET (.TNT)',
-          style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.1),
-        ),
-        content: const Text(
-          'Las herramientas guardadas como presets individuales (.tnt) pueden importarse directamente en cualquier sesión manteniendo su configuración acústica.',
-          style: TextStyle(color: Colors.white60, fontSize: 11),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('CERRAR', style: TextStyle(color: Colors.white54, fontSize: 11)),
+      builder: (ctx) => StudioTextControllerScope(
+        initialText: '',
+        builder: (ctx, controller) => AlertDialog(
+          backgroundColor: const Color(0xFF1E293B),
+          title: Text(
+            title,
+            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.1),
           ),
-        ],
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                description,
+                style: const TextStyle(color: Colors.white60, fontSize: 11),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: Icon(Icons.folder_open, size: 16, color: accentColor),
+                  label: Text('EXPLORAR ARCHIVO', style: TextStyle(color: accentColor, fontSize: 11)),
+                  style: OutlinedButton.styleFrom(side: BorderSide(color: accentColor)),
+                  onPressed: () async {
+                    try {
+                      final pickedName = await onPickNative();
+                      if (pickedName == null) return;
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('$successPrefix: $pickedName'),
+                            backgroundColor: const Color(0xFF10B981),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error al abrir archivo: $e'),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+                decoration: InputDecoration(
+                  labelText: hintLabel,
+                  labelStyle: const TextStyle(color: Colors.white60, fontSize: 11),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: Colors.white24),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: accentColor),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('CANCELAR', style: TextStyle(color: Colors.white54, fontSize: 11)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accentColor,
+                foregroundColor: Colors.black,
+              ),
+              onPressed: () async {
+                final path = controller.text.trim();
+                if (path.isEmpty) return;
+                try {
+                  await onLoadPath(path);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('$successPrefix: $path'),
+                        backgroundColor: const Color(0xFF10B981),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error al procesar archivo: $e'),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: Text(actionLabel, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+            ),
+          ],
+        ),
       ),
     );
   }

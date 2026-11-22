@@ -493,6 +493,8 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                           onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
                           onActionTriggered: (action) => vm.executeAction(action),
                           onToggleLearnMode: () => vm.toggleLearnMode(),
+                          getControlValue: (zone) => vm.getControlValue(zone),
+                          onContinuousControl: (zone, delta) => vm.updateContinuousControl(zone, delta),
                           onOpenKeymapVisualizer: () => DjInteractiveKeymapVisualizerModal.show(context, vm, palette),
                         ),
                         const SizedBox(height: 12),

@@ -119,17 +119,28 @@ class MidiScoreParser implements IScoreParserService {
               bpm = (60000000 / microsecs).round().clamp(20, 300);
             }
           } else if (metaType == 0x58 && metaBytes.length >= 2) {
-            // Time Signature
+            // Time Signature (metaBytes[1] representa potencia de 2: 0..4 => 1, 2, 4, 8, 16)
             final num = metaBytes[0];
-            final den = 1 << metaBytes[1];
-            if (num == 3 && den == 4) {
-              detectedTimeSignature = TimeSignature.waltzTime34;
-            } else if (num == 2 && den == 4) {
-              detectedTimeSignature = TimeSignature.marchTime24;
-            } else if (num == 6 && den == 8) {
-              detectedTimeSignature = TimeSignature.compoundTime68;
-            } else if (num > 0 && den > 0) {
-              detectedTimeSignature = TimeSignature(num, den);
+            final denShift = metaBytes[1];
+            if (num > 0 && denShift <= 4) {
+              final den = 1 << denShift;
+              if (num == 4 && den == 4) {
+                detectedTimeSignature = TimeSignature.commonTime44;
+              } else if (num == 3 && den == 4) {
+                detectedTimeSignature = TimeSignature.waltzTime34;
+              } else if (num == 2 && den == 4) {
+                detectedTimeSignature = TimeSignature.marchTime24;
+              } else if (num == 6 && den == 8) {
+                detectedTimeSignature = TimeSignature.compoundTime68;
+              } else if (num == 9 && den == 8) {
+                detectedTimeSignature = TimeSignature.compoundTime98;
+              } else if (num == 12 && den == 8) {
+                detectedTimeSignature = TimeSignature.compoundTime128;
+              } else if (num == 5 && den == 4) {
+                detectedTimeSignature = TimeSignature.complexTime54;
+              } else {
+                detectedTimeSignature = TimeSignature(num, den);
+              }
             }
           }
         } else if (status == 0xF0 || status == 0xF7) {
@@ -226,9 +237,9 @@ class MidiScoreParser implements IScoreParserService {
     int bpm,
     TimeSignature timeSignature,
   ) {
-    final measureTicks = timeSignature.totalTicks;
+    final measureTicks = timeSignature.totalTicks > 0 ? timeSignature.totalTicks : 16;
     if (rawNotes.isEmpty) {
-      // Compás vacío por defecto
+      // Compas vacio por defecto
       return [
         MeasureEntity(
           index: 0,
@@ -238,13 +249,21 @@ class MidiScoreParser implements IScoreParserService {
       ];
     }
 
-    // Ordenar notas cronológicamente
-    rawNotes.sort((a, b) => a.startTick.compareTo(b.startTick));
+    // Ordenar notas cronologicamente y por altura ascendente
+    rawNotes.sort((a, b) {
+      final tickCmp = a.startTick.compareTo(b.startTick);
+      if (tickCmp != 0) return tickCmp;
+      return a.pitch.compareTo(b.pitch);
+    });
 
-    // Cuantizar ticks MIDI a cuadrícula de Tunner (4 ticks por negra).
+    // Cuantizar ticks MIDI a cuadricula de Tunner (4 ticks por negra).
     final safePpq = ppq > 0 ? ppq : 480;
-    final ticksPerMeasureMidi = ((safePpq * 4 * timeSignature.numerator) / timeSignature.denominator).round().clamp(1, 1 << 24);
-    final maxMidiTick = rawNotes.map((n) => n.startTick + n.durationTicks).reduce((a, b) => a > b ? a : b);
+    final ticksPerMeasureMidi =
+        ((safePpq * 4 * timeSignature.numerator) / timeSignature.denominator)
+            .round()
+            .clamp(1, 1 << 24);
+    final maxMidiTick =
+        rawNotes.map((n) => n.startTick + n.durationTicks).reduce((a, b) => a > b ? a : b);
     final totalMeasuresCount = ((maxMidiTick / ticksPerMeasureMidi).ceil()).clamp(1, 4096);
 
     final measures = <MeasureEntity>[];
@@ -253,46 +272,63 @@ class MidiScoreParser implements IScoreParserService {
       final measureStartMidi = m * ticksPerMeasureMidi;
       final measureEndMidi = measureStartMidi + ticksPerMeasureMidi;
 
-      // Notas que inician o caen en este compás
-      final notesInMeasure = rawNotes.where((n) =>
-          n.startTick >= measureStartMidi && n.startTick < measureEndMidi).toList();
-
-      final measureNotes = <HierarchicalNote>[];
-      int currentTick = 0;
-
-      for (final raw in notesInMeasure) {
-        // Calcular tick dentro del compás (0 a measureTicks - 1)
-        final localMidiStart = raw.startTick - measureStartMidi;
-        final startTick = ((localMidiStart * 4) / safePpq).round().clamp(0, measureTicks - 1);
-
-        // Si hay espacio antes de esta nota, rellenar con silencio
-        if (startTick > currentTick) {
-          measureNotes.add(HierarchicalNote.rest(
-            startTick: currentTick,
-            durationTicks: startTick - currentTick,
-          ));
-          currentTick = startTick;
+      // Notas que inician dentro de este compas, agrupadas por startTick cuantizado
+      final groupedByStartTick = <int, List<_RawMidiNote>>{};
+      for (final raw in rawNotes) {
+        if (raw.startTick >= measureStartMidi && raw.startTick < measureEndMidi) {
+          final localMidiStart = raw.startTick - measureStartMidi;
+          final quantizedStartTick =
+              ((localMidiStart * 4) / safePpq).round().clamp(0, measureTicks - 1);
+          groupedByStartTick.putIfAbsent(quantizedStartTick, () => []).add(raw);
         }
-
-        if (currentTick >= measureTicks) break;
-
-        final duration = ((raw.durationTicks * 4) / safePpq).round().clamp(1, measureTicks - currentTick);
-        final noteName = _midiPitchToNoteName(raw.pitch);
-
-        measureNotes.add(HierarchicalNote.note(
-          startTick: currentTick,
-          durationTicks: duration,
-          noteName: noteName,
-        ));
-
-        currentTick += duration;
       }
 
-      // Rellenar resto del compás con silencio si no completó measureTicks
-      if (currentTick < measureTicks) {
+      final sortedTicks = groupedByStartTick.keys.toList()..sort();
+      final measureNotes = <HierarchicalNote>[];
+      int timelineCursor = 0;
+
+      for (final groupStartTick in sortedTicks) {
+        // Rellenar silencio previo o intermedio si hay hueco temporal sin notas activas
+        if (groupStartTick > timelineCursor) {
+          measureNotes.add(HierarchicalNote.rest(
+            startTick: timelineCursor,
+            durationTicks: groupStartTick - timelineCursor,
+          ));
+          timelineCursor = groupStartTick;
+        }
+
+        final chordEvents = groupedByStartTick[groupStartTick]!
+          ..sort((a, b) => a.pitch.compareTo(b.pitch));
+
+        int maxGroupEndTick = groupStartTick;
+        for (final raw in chordEvents) {
+          final duration = ((raw.durationTicks * 4) / safePpq)
+              .round()
+              .clamp(1, measureTicks - groupStartTick);
+          final noteName = _midiPitchToNoteName(raw.pitch);
+
+          measureNotes.add(HierarchicalNote.note(
+            startTick: groupStartTick,
+            durationTicks: duration,
+            noteName: noteName,
+          ));
+
+          final noteEndTick = groupStartTick + duration;
+          if (noteEndTick > maxGroupEndTick) {
+            maxGroupEndTick = noteEndTick;
+          }
+        }
+
+        if (maxGroupEndTick > timelineCursor) {
+          timelineCursor = maxGroupEndTick;
+        }
+      }
+
+      // Rellenar resto del compas con silencio si no completo measureTicks
+      if (timelineCursor < measureTicks) {
         measureNotes.add(HierarchicalNote.rest(
-          startTick: currentTick,
-          durationTicks: measureTicks - currentTick,
+          startTick: timelineCursor,
+          durationTicks: measureTicks - timelineCursor,
         ));
       }
 
@@ -308,8 +344,9 @@ class MidiScoreParser implements IScoreParserService {
 
   static String _midiPitchToNoteName(int pitch) {
     const noteNames = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"];
-    final name = noteNames[pitch % 12];
-    final octave = (pitch / 12).floor() - 1;
+    final safePitch = pitch.clamp(0, 127);
+    final name = noteNames[safePitch % 12];
+    final octave = ((safePitch / 12).floor() - 1).clamp(0, 8);
     return "$name$octave";
   }
 }

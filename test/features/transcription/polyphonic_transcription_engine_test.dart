@@ -62,7 +62,10 @@ void main() {
     late SongPackage initialPackage;
 
     setUp(() {
-      engine = PolyphonicTranscriptionEngine(minFramesForOnset: 2);
+      engine = PolyphonicTranscriptionEngine(
+        minFramesForOnset: 2,
+        defaultFrameDurationMs: 125.0,
+      );
       initialPackage = SongPackage(
         id: 'test_poly_pkg',
         title: 'Estudio Polifonico',

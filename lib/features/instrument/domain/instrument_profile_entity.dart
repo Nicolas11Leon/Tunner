@@ -1,7 +1,8 @@
 /// Clave de notación del pentagrama para el instrumento.
 enum InstrumentClef {
   treble('Clave de Sol', '𝄞'),
-  bass('Clave de Fa', '𝄢');
+  bass('Clave de Fa', '𝄢'),
+  alto('Clave de Do', '𝄡');
 
   final String displayName;
   final String symbol;

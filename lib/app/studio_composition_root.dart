@@ -26,12 +26,14 @@ import '../features/practice_recorder/data/audio_playback_service.dart';
 import '../features/practice_recorder/data/practice_recorder_service.dart';
 import '../features/universal_importer/data/universal_score_importer_service.dart';
 import '../features/dj_console/presentation/dj_console_view_model.dart';
+import '../features/dj_console/data/dj_console_blueprint_storage_service.dart';
 import '../features/dj_console/data/dj_deck_audio_service.dart';
 import '../features/dj_console/data/dj_keymap_persistence_service.dart';
 import '../features/media_vault/data/universal_media_io_service.dart';
 import '../features/media_vault/presentation/media_vault_viewmodel.dart';
 import '../features/modular_rack/presentation/modular_rack_viewmodel.dart';
 import '../features/project_format/data/local_project_storage_repository.dart';
+import '../features/vocal_autotune/data/local_vocal_take_file_gateway.dart';
 import 'studio_workspace_seed_provider.dart';
 
 /// Composition Root único de Tunner Studio.
@@ -132,6 +134,10 @@ class StudioCompositionRoot {
       ),
       soundFontSynthesizer: SoundFontSynthesizerService(),
       packageCodec: const TunnerPackageCodecService(),
+      vocalTakeFileGateway: LocalVocalTakeFileGateway(
+        platformFileGateway: platformFileGateway,
+        logger: StudioDebugLogger.instance,
+      ),
       logger: StudioDebugLogger.instance,
     );
   }
@@ -146,24 +152,29 @@ class StudioCompositionRoot {
       ),
       persistenceService: DjKeymapPersistenceService(),
       fileGateway: platformFileGateway,
+      blueprintStorageService: DjConsoleBlueprintStorageService(),
     );
   }
 
-  /// Crea el ViewModel de la Bóveda Multimedia con servicios de I/O inyectados.
+  /// Crea el ViewModel de la Bóveda Multimedia con servicios de I/O y audio inyectados.
   MediaVaultViewModel createMediaVaultViewModel() {
     return MediaVaultViewModel(
       ioService: const UniversalMediaIoService(),
       fileGateway: platformFileGateway,
       fileSystemRepository: fileSystemService.fileSystemRepository,
+      audioEngine: audioEngine,
+      audioSynthesizer: AudioSynthesizerService(audioEngine: audioEngine),
     );
   }
 
   /// Crea el ViewModel del Rack Modular con motores centralizados inyectados.
-  ModularRackViewModel createModularRackViewModel() {
+  ModularRackViewModel createModularRackViewModel({TunerViewModel? tunerViewModel}) {
     return ModularRackViewModel(
       audioEngine: audioEngine,
       audioInputEngine: audioInputEngine,
       storageRepository: LocalProjectStorageRepository(),
+      fileGateway: platformFileGateway,
+      tunerViewModel: tunerViewModel,
     );
   }
 

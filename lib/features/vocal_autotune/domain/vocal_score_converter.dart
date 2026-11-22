@@ -143,11 +143,12 @@ class VocalScoreConverter {
       );
     }
 
-    // 2. Mapeo a compases jerárquicos
+    // 2. Mapeo a compases jerarquicos con insercion de silencios cuantizados
     final measures = <MeasureEntity>[];
     var currentMeasureIndex = 0;
     var currentTickInMeasure = 0;
     var measureNotes = <HierarchicalNote>[];
+    var lastEndMs = 0;
 
     int totalNotesCount = 0;
     double totalCentsSum = 0.0;
@@ -160,13 +161,43 @@ class VocalScoreConverter {
       final noteEntity = NoteEntity.fromFrequency(freq);
       if (noteEntity.name == '--') continue;
 
-      // Duración cuantizada a sub-ticks
-      final rawTicks = (seg.durationMs / msPerTick).round();
-      final noteTicks = math.max(1, math.min(16, rawTicks));
+      // Insertar silencios cuantizados para cada brecha temporal >= msPerTick
+      final int gapMs = seg.startMs - lastEndMs;
+      if (gapMs >= msPerTick) {
+        int remainingRestTicks = (gapMs / msPerTick).round();
+        while (remainingRestTicks > 0) {
+          final int spaceInMeasure = ticksPerMeasure - currentTickInMeasure;
+          final int chunkTicks = math.min(remainingRestTicks, spaceInMeasure);
+          if (chunkTicks > 0) {
+            measureNotes.add(
+              HierarchicalNote.rest(
+                startTick: currentTickInMeasure,
+                durationTicks: chunkTicks,
+              ),
+            );
+            currentTickInMeasure += chunkTicks;
+            remainingRestTicks -= chunkTicks;
+          }
+          if (currentTickInMeasure >= ticksPerMeasure) {
+            measures.add(MeasureEntity(
+              index: currentMeasureIndex,
+              timeSignature: timeSignature,
+              notes: List.unmodifiable(measureNotes),
+            ));
+            currentMeasureIndex++;
+            currentTickInMeasure = 0;
+            measureNotes = [];
+          }
+        }
+      }
 
-      // Verificar si cabe en el compás actual
+      // Duracion cuantizada a sub-ticks acotada a la capacidad del compas
+      final rawTicks = (seg.durationMs / msPerTick).round();
+      final noteTicks = math.max(1, math.min(ticksPerMeasure, rawTicks));
+
+      // Verificar si cabe en el compas actual
       if (currentTickInMeasure + noteTicks > ticksPerMeasure) {
-        // Completar compás con silencio si quedan ticks
+        // Completar compas con silencio si quedan ticks
         final remaining = ticksPerMeasure - currentTickInMeasure;
         if (remaining > 0) {
           measureNotes.add(HierarchicalNote.rest(startTick: currentTickInMeasure, durationTicks: remaining));
@@ -190,6 +221,18 @@ class VocalScoreConverter {
       );
 
       currentTickInMeasure += noteTicks;
+      if (currentTickInMeasure >= ticksPerMeasure) {
+        measures.add(MeasureEntity(
+          index: currentMeasureIndex,
+          timeSignature: timeSignature,
+          notes: List.unmodifiable(measureNotes),
+        ));
+        currentMeasureIndex++;
+        currentTickInMeasure = 0;
+        measureNotes = [];
+      }
+
+      lastEndMs = math.max(lastEndMs, seg.endMs);
       totalNotesCount++;
       totalCentsSum += seg.averageCents().abs();
       if (seg.hasAutoTuneData) {

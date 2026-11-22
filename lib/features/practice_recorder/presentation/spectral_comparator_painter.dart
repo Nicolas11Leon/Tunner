@@ -121,7 +121,7 @@ class SpectralComparatorPainter extends CustomPainter {
     Path? pathB;
 
     for (int i = 0; i < points.length; i++) {
-      final normX = i / (points.length - 1);
+      final normX = points.length > 1 ? i / (points.length - 1) : 0.0;
       final x = startX + (normX * graphWidth);
 
       // Curva Toma A
@@ -192,7 +192,7 @@ class SpectralComparatorPainter extends CustomPainter {
     Path? pathSpecB;
 
     for (int i = 0; i < points.length; i++) {
-      final normX = i / (points.length - 1);
+      final normX = points.length > 1 ? i / (points.length - 1) : 0.0;
       final x = startX + (normX * graphWidth);
 
       if (points[i].centroidA != null && points[i].centroidA! > 0) {

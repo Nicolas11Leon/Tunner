@@ -72,16 +72,16 @@ class DjPerformanceOrchestrator {
     );
   }
 
-  double get deckAGain => _crossfader.calculateGains().gainA;
-  double get deckBGain => _crossfader.calculateGains().gainB;
+  double get deckAGain => (_crossfader.calculateGains().gainA * _deckA.trim).clamp(0.0, 2.0);
+  double get deckBGain => (_crossfader.calculateGains().gainB * _deckB.trim).clamp(0.0, 2.0);
   Float32List consolidateRecordingBuffer() => _recorder.consolidateBuffer();
 
   /// Returns effective output gains for both decks after factoring channel volume,
-  /// crossfader position, and master volume.
+  /// trim preamplification, crossfader position, and master volume.
   ({double effectiveGainA, double effectiveGainB}) getEffectiveGains() {
     final xfader = _crossfader.calculateGains();
-    final gA = (_deckA.volume * xfader.gainA * _masterVolume).clamp(0.0, 1.0);
-    final gB = (_deckB.volume * xfader.gainB * _masterVolume).clamp(0.0, 1.0);
+    final gA = (_deckA.volume * _deckA.trim * xfader.gainA * _masterVolume).clamp(0.0, 1.0);
+    final gB = (_deckB.volume * _deckB.trim * xfader.gainB * _masterVolume).clamp(0.0, 1.0);
     return (effectiveGainA: gA, effectiveGainB: gB);
   }
 
@@ -223,6 +223,16 @@ class DjPerformanceOrchestrator {
       _deckA = _deckA.copyWith(pitchMultiplier: 1.0, isSyncActive: false);
     } else {
       _deckB = _deckB.copyWith(pitchMultiplier: 1.0, isSyncActive: false);
+    }
+  }
+
+  /// Sets preamplification TRIM gain [0.0, 2.0] for the specified deck.
+  void setTrim(String deckId, double trim) {
+    final clamped = trim.clamp(0.0, 2.0);
+    if (deckId == 'A') {
+      _deckA = _deckA.copyWith(trim: clamped);
+    } else {
+      _deckB = _deckB.copyWith(trim: clamped);
     }
   }
 

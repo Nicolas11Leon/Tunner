@@ -238,7 +238,7 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                     _buildMasterHeader(context, vm, tokens),
 
                     // 2. HUD de Atajos Rápidos
-                    _buildShortcutsHud(context, tokens),
+                    _buildShortcutsHud(context, tokens, vm),
 
                     // 3. Barra Modular de Parcheo Troncal (Canal A, B, C, D)
                     StudioChannelPatchbayBarWidget(routingService: _patchbayService),
@@ -281,6 +281,8 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
               onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
               onActionTriggered: (action) => vm.executeAction(action),
               onToggleLearnMode: () => vm.toggleLearnMode(),
+              getControlValue: (zone) => vm.getControlValue(zone),
+              onContinuousControl: (zone, delta) => vm.updateContinuousControl(zone, delta),
               onOpenKeymapVisualizer: () => DjInteractiveKeymapVisualizerModal.show(
                 ctx,
                 vm,
@@ -368,6 +370,8 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
           onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
           onActionTriggered: (action) => vm.executeAction(action),
           onToggleLearnMode: () => vm.toggleLearnMode(),
+          getControlValue: (zone) => vm.getControlValue(zone),
+          onContinuousControl: (zone, delta) => vm.updateContinuousControl(zone, delta),
           onOpenKeymapVisualizer: () => DjInteractiveKeymapVisualizerModal.show(
             context,
             vm,
@@ -419,6 +423,8 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
               onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
               onActionTriggered: (action) => vm.executeAction(action),
               onToggleLearnMode: () => vm.toggleLearnMode(),
+              getControlValue: (zone) => vm.getControlValue(zone),
+              onContinuousControl: (zone, delta) => vm.updateContinuousControl(zone, delta),
               onOpenKeymapVisualizer: () => DjInteractiveKeymapVisualizerModal.show(
                 context,
                 vm,
@@ -480,7 +486,7 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
     );
   }
 
-  Widget _buildShortcutsHud(BuildContext context, dynamic tokens) {
+  Widget _buildShortcutsHud(BuildContext context, dynamic tokens, DjConsoleViewModel vm) {
     if (!_showHudBar) {
       return Container(
         height: 20,
@@ -503,6 +509,20 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
         ),
       );
     }
+
+    final profile = vm.keymapProfile;
+    final playA = profile.findKeyBadgeForAction(DjAction.deckAPlayPause) ?? 'ESPACIO';
+    final playB = profile.findKeyBadgeForAction(DjAction.deckBPlayPause) ?? 'ENTER';
+    final cueA = profile.findKeyBadgeForAction(DjAction.deckACue) ?? 'Q';
+    final cueB = profile.findKeyBadgeForAction(DjAction.deckBCue) ?? 'U';
+    final syncA = profile.findKeyBadgeForAction(DjAction.deckASync) ?? 'E';
+    final syncB = profile.findKeyBadgeForAction(DjAction.deckBSync) ?? 'O';
+    final xfader = profile.findKeyBadgeForAction(DjAction.crossfaderCenter) ?? 'N';
+    final pitchA = profile.findKeyBadgeForAction(DjAction.deckAPitchUp) ?? 'S';
+    final pitchB = profile.findKeyBadgeForAction(DjAction.deckBPitchUp) ?? 'K';
+    final hotCueA = profile.findKeyBadgeForAction(DjAction.deckAHotCue1) ?? '1..4';
+    final hotCueB = profile.findKeyBadgeForAction(DjAction.deckBHotCue1) ?? '5..8';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: const BoxDecoration(
@@ -523,14 +543,16 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildHudBadge('[ESPACIO]', 'Play/Pause A'),
-                  _buildHudBadge('[ENTER]', 'Play/Pause B'),
-                  _buildHudBadge('[1..4]', 'Hot Cues A'),
-                  _buildHudBadge('[5..8]', 'Hot Cues B'),
-                  _buildHudBadge('[C / V]', 'CUE A / B'),
+                  _buildHudBadge('[$playA]', 'Play/Pause A'),
+                  _buildHudBadge('[$playB]', 'Play/Pause B'),
+                  _buildHudBadge('[$cueA / $cueB]', 'CUE A / B'),
+                  _buildHudBadge('[$syncA / $syncB]', 'SYNC A / B'),
+                  _buildHudBadge('[$xfader]', 'X-Fader Centro'),
+                  _buildHudBadge('[$pitchA / $pitchB]', 'Pitch Up A / B'),
+                  _buildHudBadge('[$hotCueA]', 'Hot Cues A'),
+                  _buildHudBadge('[$hotCueB]', 'Hot Cues B'),
                   _buildHudBadge('[PADS 1..8]', 'Sampler Club'),
-                  _buildHudBadge('[FLECHAS IZQ/DER]', 'Scratch / Nudge'),
-                  _buildHudBadge('[FLECHAS ARRIBA/ABAJO]', 'Pitch Fader'),
+                  _buildHudBadge('[JOG / RUEDA]', 'Scratch / Nudge'),
                 ],
               ),
             ),
@@ -728,6 +750,7 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                 context,
                 vm,
                 TunnerThemePalette.obsidianStudio,
+                storageService: vm.blueprintStorageService,
               ),
             ),
             const SizedBox(width: 8),
