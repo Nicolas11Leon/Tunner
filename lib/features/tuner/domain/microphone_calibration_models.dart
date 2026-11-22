@@ -15,12 +15,16 @@ class MicrophoneCalibrationProfile {
   /// Nivel RMS promedio del piso de ruido medido en la última calibración.
   final double measuredNoiseFloorRms;
 
+  /// Polarización estática de corriente directa (DC-offset) calibrada por hardware.
+  final double calibratedDcOffset;
+
   const MicrophoneCalibrationProfile({
     this.digitalGain = 1.0,
     this.noiseGateThreshold = 0.005, // Aprox. -46 dBFS
     this.enableDcBlocker = true,
     this.deviceId = '',
     this.measuredNoiseFloorRms = 0.002,
+    this.calibratedDcOffset = 0.0,
   });
 
   MicrophoneCalibrationProfile copyWith({
@@ -29,6 +33,7 @@ class MicrophoneCalibrationProfile {
     bool? enableDcBlocker,
     String? deviceId,
     double? measuredNoiseFloorRms,
+    double? calibratedDcOffset,
   }) {
     return MicrophoneCalibrationProfile(
       digitalGain: digitalGain ?? this.digitalGain,
@@ -36,6 +41,7 @@ class MicrophoneCalibrationProfile {
       enableDcBlocker: enableDcBlocker ?? this.enableDcBlocker,
       deviceId: deviceId ?? this.deviceId,
       measuredNoiseFloorRms: measuredNoiseFloorRms ?? this.measuredNoiseFloorRms,
+      calibratedDcOffset: calibratedDcOffset ?? this.calibratedDcOffset,
     );
   }
 
@@ -45,6 +51,7 @@ class MicrophoneCalibrationProfile {
         'enableDcBlocker': enableDcBlocker,
         'deviceId': deviceId,
         'measuredNoiseFloorRms': measuredNoiseFloorRms,
+        'calibratedDcOffset': calibratedDcOffset,
       };
 
   factory MicrophoneCalibrationProfile.fromJson(Map<String, dynamic> json) {
@@ -54,6 +61,7 @@ class MicrophoneCalibrationProfile {
       enableDcBlocker: json['enableDcBlocker'] as bool? ?? true,
       deviceId: json['deviceId'] as String? ?? '',
       measuredNoiseFloorRms: (json['measuredNoiseFloorRms'] as num?)?.toDouble() ?? 0.002,
+      calibratedDcOffset: (json['calibratedDcOffset'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }

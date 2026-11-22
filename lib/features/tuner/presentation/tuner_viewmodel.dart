@@ -168,6 +168,7 @@ class TunerViewModel extends ChangeNotifier
   final TemperamentEngine _temperamentEngine = const TemperamentEngine();
   MusicalTemperament _selectedTemperament = TemperamentEngine.allTemperaments.first;
   int _temperamentRootKey = 0;
+  bool _anchorA4 = false;
   final HarmonicDroneSynthesizer _droneSynthesizer = const HarmonicDroneSynthesizer();
   HarmonicDroneConfig _droneConfig = const HarmonicDroneConfig();
   final PolyphonicChordRecognizer _chordRecognizer = PolyphonicChordRecognizer();
@@ -608,6 +609,18 @@ class TunerViewModel extends ChangeNotifier
     }
   }
 
+  bool get anchorA4 => _anchorA4;
+
+  /// Configura si la afinación con temperamentos históricos se ancla a A4=440Hz o a la tónica raíz.
+  void setAnchorA4(bool value) {
+    if (_anchorA4 == value) return;
+    _anchorA4 = value;
+    if (_frequency > 0) {
+      _recalculatePitchForActiveTemperament();
+    }
+    notifyListeners();
+  }
+
   void _recalculatePitchForActiveTemperament() {
     final noteEntity = NoteEntity.fromFrequency(_frequency, a4Ref: _referencePitch);
     _noteName = noteEntity.name;
@@ -619,7 +632,7 @@ class TunerViewModel extends ChangeNotifier
         temperament: _selectedTemperament,
         a4Ref: _referencePitch,
         rootKey: _temperamentRootKey,
-        anchorA4: true,
+        anchorA4: _anchorA4,
       );
       _cents = _temperamentEngine.calculateCentsDeviation(
         detectedFrequency: _frequency,
@@ -852,6 +865,7 @@ class TunerViewModel extends ChangeNotifier
           temperament: _selectedTemperament,
           a4Ref: _referencePitch,
           rootKey: _temperamentRootKey,
+          anchorA4: _anchorA4,
         );
         _cents = _temperamentEngine.calculateCentsDeviation(
           detectedFrequency: pitch,
