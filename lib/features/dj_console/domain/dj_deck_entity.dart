@@ -36,6 +36,9 @@ class DjDeckEntity {
   /// Linear channel volume (0.0 to 1.0).
   final double volume;
 
+  /// Preamplification TRIM level (0.0 to 2.0, unity 1.0 = 0 dB, 2.0 = +6.02 dB, 0.0 = -inf dB).
+  final double trim;
+
   /// Equalizer band gains (0.0 to 1.5, 1.0 is unity gain).
   final double gainLow;
   final double gainMid;
@@ -81,6 +84,7 @@ class DjDeckEntity {
     this.pitchMultiplier = 1.0,
     this.isSyncActive = false,
     this.volume = 1.0,
+    this.trim = 1.0,
     this.gainLow = 1.0,
     this.gainMid = 1.0,
     this.gainHigh = 1.0,
@@ -111,6 +115,14 @@ class DjDeckEntity {
 
   /// Effective playback tempo after pitch alteration.
   double get effectiveBpm => bpm * pitchMultiplier;
+
+  /// Effective gain level in decibels: 20 * log10(trim).
+  /// 0.0 trim corresponds to -infinity dB (capped at -60 dB for UI display).
+  double get trimDb => trim <= 0.001 ? -60.0 : 20.0 * (math.log(trim) / math.ln10);
+
+  /// Effective playback rate accounting for pitch multiplier and key shifts when Key-Lock is disabled.
+  double get effectivePlaybackRate =>
+      pitchMultiplier * (isKeyLockEnabled ? 1.0 : math.pow(2.0, pitchSemitonesShift / 12.0));
 
   /// Pitch offset expressed in cents: 1200 * log2(pitchMultiplier).
   double get centsOffset => pitchMultiplier > 0 ? (1200.0 * (math.log(pitchMultiplier) / math.ln2)) : 0.0;
@@ -143,6 +155,7 @@ class DjDeckEntity {
     double? pitchMultiplier,
     bool? isSyncActive,
     double? volume,
+    double? trim,
     double? gainLow,
     double? gainMid,
     double? gainHigh,
@@ -175,6 +188,7 @@ class DjDeckEntity {
       pitchMultiplier: pitchMultiplier ?? this.pitchMultiplier,
       isSyncActive: isSyncActive ?? this.isSyncActive,
       volume: volume ?? this.volume,
+      trim: (trim ?? this.trim).clamp(0.0, 2.0),
       gainLow: gainLow ?? this.gainLow,
       gainMid: gainMid ?? this.gainMid,
       gainHigh: gainHigh ?? this.gainHigh,

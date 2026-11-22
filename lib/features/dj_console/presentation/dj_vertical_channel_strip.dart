@@ -79,14 +79,18 @@ class DjVerticalChannelStrip extends StatelessWidget {
           // TRIM / GAIN
           StudioRotaryKnob(
             label: 'TRIM',
-            value: 1.0,
+            value: deck.trim,
             min: 0.0,
-            max: 1.5,
+            max: 2.0,
             defaultValue: 1.0,
             activeColor: Colors.white70,
             size: 38,
-            onChanged: (val) {},
-            valueFormatter: (_) => '0.0 dB',
+            onChanged: (val) => viewModel.setTrim(deckId, val),
+            valueFormatter: (v) {
+              final db = deck.trimDb;
+              if (db <= -59.0) return '-inf dB';
+              return '${db >= 0 ? '+' : ''}${db.toStringAsFixed(1)} dB';
+            },
           ),
           const SizedBox(height: 8),
 
