@@ -76,3 +76,12 @@ sequenceDiagram
 3. Se verifica si notas adyacentes forman un grupo de corcheas y se unen sus plicas con un beam.
 4. Las notas con `isTied = true` trazan un arco cuadratico Bezier hacia la siguiente cabeza de nota.
 5. Al hacer tap, el calculo euclidiano `(dx, dy)` identifica la nota exacta.
+
+---
+
+## 5. Flujos Alternativos y Manejo de Errores
+
+1. **FA-01 (Tap fuera de columna horizontal de notas):** Si `localOffset.dx` no intersecta el intervalo horizontal `[startX - 4.0, endX + 4.0]` de ninguna nota o silencio, `findNoteIndexAtOffset` retorna `null` sin alterar la seleccion actual.
+2. **FA-02 (Nota individual o silencio en columna X):** Si existe exactamente un elemento en la columna X del toque (nota unica o silencio), se selecciona directamente sin requerir coincidencia vertical estricta.
+3. **FA-03 (Armadura de clave fuera de rango):** Si `keySignatureFifths` excede el rango estandar `[-7, +7]`, se acota mediante `.clamp(0, 7)` y el margen izquierdo `leftMargin` se expande dinamicamente para evitar colision visual con la metrica y la primera nota.
+4. **FA-04 (Nota ligada al final del compas):** Si una nota tiene `isTied == true` pero es el ultimo elemento del arreglo `notes` del compas, el trazado de ligadura hacia la siguiente nota se omite de forma segura sin desbordamiento de indice.

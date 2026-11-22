@@ -100,35 +100,51 @@ class RealSheetMusicPainter extends CustomPainter {
     return absStep - refStep;
   }
 
+  double _computeLeftMargin() {
+    final int keyCount = keySignatureFifths.abs().clamp(0, 7);
+    return keyCount == 0 ? 75.0 : 75.0 + (keyCount * 7.5);
+  }
+
   /// Retorna el índice de la nota ubicada en las coordenadas [localOffset], o null si no se tocó ninguna.
   int? findNoteIndexAtOffset(Offset localOffset, Size size) {
-    final double leftMargin = 75.0;
+    final double leftMargin = _computeLeftMargin();
     final double rightMargin = 20.0;
     final double playAreaWidth = size.width - leftMargin - rightMargin;
     final int totalMeasureTicks = timeSignature.totalTicks;
     final double stepWidth = playAreaWidth / totalMeasureTicks;
 
     final double staffCenterY = size.height / 2.0;
-    final double staffSpacing = 10.0;
+    final double staffSpacing = size.height / 14.0;
     final double line1Y = staffCenterY + (staffSpacing * 2.0);
 
-    int? closestIndex;
-    double minDistance = double.infinity;
-
+    final matchingXIndices = <int>[];
     for (int i = 0; i < notes.length; i++) {
       final note = notes[i];
       final double startX = leftMargin + (note.startTick * stepWidth);
       final double endX = startX + (note.durationTicks * stepWidth);
 
       if (localOffset.dx >= startX - 4.0 && localOffset.dx <= endX + 4.0) {
-        final step = getNoteStep(note.noteName);
-        final noteY = line1Y - (step * (staffSpacing / 2.0));
-        final dy = (localOffset.dy - noteY).abs();
+        matchingXIndices.add(i);
+      }
+    }
 
-        if (dy < minDistance && dy <= staffSpacing * 2.5) {
-          minDistance = dy;
-          closestIndex = i;
-        }
+    if (matchingXIndices.isEmpty) return null;
+    if (matchingXIndices.length == 1) return matchingXIndices.first;
+
+    // Desambiguacion 2D vertical cuando existen multiples notas en la misma columna X
+    int? closestIndex;
+    double minDistance = double.infinity;
+
+    for (final i in matchingXIndices) {
+      final note = notes[i];
+      final noteY = note.isRest
+          ? staffCenterY
+          : line1Y - (getNoteStep(note.noteName) * (staffSpacing / 2.0));
+      final dy = (localOffset.dy - noteY).abs();
+
+      if (dy < minDistance) {
+        minDistance = dy;
+        closestIndex = i;
       }
     }
     return closestIndex;
@@ -146,7 +162,7 @@ class RealSheetMusicPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final linePaint = Paint()..color = palette.staffLinesColor..strokeWidth = 2.0;
 
-    final double leftMargin = 75.0;
+    final double leftMargin = _computeLeftMargin();
     final double rightMargin = 20.0;
     final double playAreaWidth = size.width - leftMargin - rightMargin;
     final int totalMeasureTicks = timeSignature.totalTicks;
@@ -295,6 +311,20 @@ class RealSheetMusicPainter extends CustomPainter {
       beamedIndices.addAll(g);
     }
 
+    // Calcular direccion unificada de plica por grupo beamed
+    final Map<int, bool> groupStemDown = {};
+    for (final g in beamedGroups) {
+      double avgStep = 0;
+      for (final idx in g) {
+        avgStep += getNoteStep(notes[idx].noteName);
+      }
+      avgStep /= g.length;
+      final bool isDown = avgStep >= 4.0;
+      for (final idx in g) {
+        groupStemDown[idx] = isDown;
+      }
+    }
+
     // 3. Dibujar las Figuras Musicales con SMuFL Vectorial
     for (int idx = 0; idx < notes.length; idx++) {
       final note = notes[idx];
@@ -334,10 +364,20 @@ class RealSheetMusicPainter extends CustomPainter {
         bool isWhole = note.durationTicks >= 16;
         bool isHalf = note.durationTicks >= 8 && note.durationTicks < 16;
         bool hasStem = note.durationTicks < 16;
-        bool stemGoesDown = step >= 4; // Línea 3 hacia arriba plica hacia abajo
+        bool stemGoesDown = groupStemDown[idx] ?? (step >= 4);
 
-        // Extraer alteración (# o b) si existe
-        if (note.noteName.contains('#') || note.noteName.contains('♯')) {
+        // Extraer alteración (#, b o n) si existe evitando falso positivo con nota en minuscula 'b4'
+        final cleanNote = note.noteName.trim();
+        final isSharp = cleanNote.contains('#') || cleanNote.contains('♯');
+        final isFlat = !isSharp &&
+            (cleanNote.contains('♭') ||
+                RegExp(r'^([A-Ga-g]|Do|Re|Mi|Fa|Sol|La|Si)b', caseSensitive: false).hasMatch(cleanNote));
+        final isNatural = !isSharp &&
+            !isFlat &&
+            (cleanNote.contains('♮') ||
+                RegExp(r'^([A-Ga-g]|Do|Re|Mi|Fa|Sol|La|Si)n', caseSensitive: false).hasMatch(cleanNote));
+
+        if (isSharp) {
           _smuflEngine.drawAccidental(
             canvas,
             center: Offset(noteCenterX - (staffSpacing * 0.95), noteY),
@@ -345,12 +385,20 @@ class RealSheetMusicPainter extends CustomPainter {
             accidental: '#',
             color: noteColor,
           );
-        } else if (note.noteName.contains('b') || note.noteName.contains('♭')) {
+        } else if (isFlat) {
           _smuflEngine.drawAccidental(
             canvas,
             center: Offset(noteCenterX - (staffSpacing * 0.95), noteY),
             staffSpace: staffSpacing,
             accidental: 'b',
+            color: noteColor,
+          );
+        } else if (isNatural) {
+          _smuflEngine.drawAccidental(
+            canvas,
+            center: Offset(noteCenterX - (staffSpacing * 0.95), noteY),
+            staffSpace: staffSpacing,
+            accidental: 'n',
             color: noteColor,
           );
         }
@@ -459,7 +507,7 @@ class RealSheetMusicPainter extends CustomPainter {
       final firstCenterX = leftMargin + (firstNote.startTick * stepWidth) + (stepWidth / 2);
       final lastCenterX = leftMargin + (lastNote.startTick * stepWidth) + (stepWidth / 2);
 
-      final firstStemGoesDown = firstStep >= 4;
+      final firstStemGoesDown = groupStemDown[firstIdx] ?? (firstStep >= 4);
       final stemLength = staffSpacing * 3.5;
       final noteWidth = staffSpacing * 0.60;
 
