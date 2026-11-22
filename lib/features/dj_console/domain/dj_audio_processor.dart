@@ -4,6 +4,52 @@ import '../../song_library/domain/song_package_entity.dart';
 import '../../universal_importer/domain/canonical_midi_exporter.dart';
 import 'dj_stem_isolation_entity.dart';
 
+/// Circular delay line with persistent ring buffer and bounded feedback for glitch-free block processing.
+class StatefulDelayLine {
+  final int maxDelaySamples;
+  late final Float32List _buffer;
+  int _writeIndex = 0;
+
+  StatefulDelayLine({this.maxDelaySamples = 88200}) {
+    _buffer = Float32List(maxDelaySamples);
+  }
+
+  Float32List process({
+    required Float32List input,
+    required int delaySamples,
+    double feedback = 0.40,
+    double dryWet = 0.50,
+  }) {
+    if (input.isEmpty) return Float32List(0);
+    if (delaySamples <= 0) return Float32List.fromList(input);
+
+    final safeDelay = delaySamples.clamp(1, maxDelaySamples - 1);
+    final safeFeedback = feedback.clamp(0.0, 0.85);
+    final safeDryWet = dryWet.clamp(0.0, 1.0);
+    final len = input.length;
+    final output = Float32List(len);
+
+    for (int i = 0; i < len; i++) {
+      final dry = input[i];
+      int readIndex = _writeIndex - safeDelay;
+      if (readIndex < 0) readIndex += maxDelaySamples;
+
+      final delayed = _buffer[readIndex];
+      _buffer[_writeIndex] = dry + delayed * safeFeedback;
+      _writeIndex = (_writeIndex + 1) % maxDelaySamples;
+
+      output[i] = dry * (1.0 - safeDryWet) + delayed * safeDryWet;
+    }
+
+    return output;
+  }
+
+  void reset() {
+    _buffer.fillRange(0, _buffer.length, 0.0);
+    _writeIndex = 0;
+  }
+}
+
 /// High-performance, deterministic stereo audio processor for the Virtual DJ Console.
 ///
 /// Features:
@@ -15,11 +61,18 @@ import 'dj_stem_isolation_entity.dart';
 /// - Soft limiter (tanh saturation) to guarantee zero digital clipping at 0 dBFS.
 class DjAudioProcessor {
   final int sampleRate;
+  final StatefulDelayLine _delayLineA;
+  final StatefulDelayLine _delayLineB;
 
-  DjAudioProcessor({this.sampleRate = 44100});
+  DjAudioProcessor({this.sampleRate = 44100})
+      : _delayLineA = StatefulDelayLine(maxDelaySamples: sampleRate * 2),
+        _delayLineB = StatefulDelayLine(maxDelaySamples: sampleRate * 2);
+
+  StatefulDelayLine get delayLineA => _delayLineA;
+  StatefulDelayLine get delayLineB => _delayLineB;
 
   /// Processes and blends two stereo input buffers into a unified output buffer
-  /// using the calculated deck gains, EQ coefficients, and soft limiter.
+  /// using the calculated deck gains, EQ coefficients, stems, and soft limiter.
   Float32List mixBuffers({
     required Float32List bufferA,
     required Float32List bufferB,
@@ -31,6 +84,8 @@ class DjAudioProcessor {
     double eqLowB = 1.0,
     double eqMidB = 1.0,
     double eqHighB = 1.0,
+    DjStemIsolationEntity stemsA = const DjStemIsolationEntity(),
+    DjStemIsolationEntity stemsB = const DjStemIsolationEntity(),
     double filterA = 0.0,
     double filterB = 0.0,
     bool delayActiveA = false,
@@ -41,33 +96,60 @@ class DjAudioProcessor {
     int delaySamplesB = 0,
     double delayFeedbackB = 0.4,
     double delayDryWetB = 0.5,
+    bool usePersistentDelay = true,
   }) {
-    // Apply channel FX to Deck A if active
+    // 1. Apply 4-Stem isolation to Deck A if active
     var processedA = bufferA;
+    if (!stemsA.isBypass) {
+      processedA = applyStemIsolation(processedA, stemsA);
+    }
+    // 2. Apply channel FX to Deck A if active
     if (filterA != 0.0) {
       processedA = applyBipolarFilter(processedA, filterA);
     }
     if (delayActiveA && delaySamplesA > 0) {
-      processedA = applyDelay(
-        processedA,
-        delaySamples: delaySamplesA,
-        feedback: delayFeedbackA,
-        dryWet: delayDryWetA,
-      );
+      processedA = usePersistentDelay
+          ? _delayLineA.process(
+              input: processedA,
+              delaySamples: delaySamplesA,
+              feedback: delayFeedbackA,
+              dryWet: delayDryWetA,
+            )
+          : applyDelay(
+              processedA,
+              delaySamples: delaySamplesA,
+              feedback: delayFeedbackA,
+              dryWet: delayDryWetA,
+            );
+    } else if (usePersistentDelay) {
+      _delayLineA.reset();
     }
 
-    // Apply channel FX to Deck B if active
+    // 1. Apply 4-Stem isolation to Deck B if active
     var processedB = bufferB;
+    if (!stemsB.isBypass) {
+      processedB = applyStemIsolation(processedB, stemsB);
+    }
+    // 2. Apply channel FX to Deck B if active
     if (filterB != 0.0) {
       processedB = applyBipolarFilter(processedB, filterB);
     }
     if (delayActiveB && delaySamplesB > 0) {
-      processedB = applyDelay(
-        processedB,
-        delaySamples: delaySamplesB,
-        feedback: delayFeedbackB,
-        dryWet: delayDryWetB,
-      );
+      processedB = usePersistentDelay
+          ? _delayLineB.process(
+              input: processedB,
+              delaySamples: delaySamplesB,
+              feedback: delayFeedbackB,
+              dryWet: delayDryWetB,
+            )
+          : applyDelay(
+              processedB,
+              delaySamples: delaySamplesB,
+              feedback: delayFeedbackB,
+              dryWet: delayDryWetB,
+            );
+    } else if (usePersistentDelay) {
+      _delayLineB.reset();
     }
 
     // Apply 3-Band Equalizer crossover filtering to Deck A
@@ -115,13 +197,15 @@ class DjAudioProcessor {
     double eqHigh = 1.0,
   }) {
     if (input.isEmpty) return Float32List(0);
+    final len = input.length;
+    if (eqLow <= 0.0001 && eqMid <= 0.0001 && eqHigh <= 0.0001) {
+      return Float32List(len);
+    }
     if ((eqLow - 1.0).abs() < 0.001 &&
         (eqMid - 1.0).abs() < 0.001 &&
         (eqHigh - 1.0).abs() < 0.001) {
       return Float32List.fromList(input);
     }
-
-    final len = input.length;
     final output = Float32List(len);
 
     // Filter coefficients for 250 Hz low-crossover and 2500 Hz high-crossover

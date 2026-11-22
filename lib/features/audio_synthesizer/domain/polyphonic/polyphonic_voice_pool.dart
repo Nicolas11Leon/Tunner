@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 import '../../../../core/dsl/domain/i_synth_voice_pool_port.dart';
+import '../pcm_wav_synthesizer.dart';
 import 'adsr_envelope_generator.dart';
 import 'polyphonic_synth_voice.dart';
 
@@ -265,5 +266,36 @@ class PolyphonicVoicePool implements ISynthVoicePoolPort {
       leftOut[i] = limited;
       rightOut[i] = limited;
     }
+  }
+
+  /// Renderiza la polifonía activa directamente a un arreglo de bytes en formato RIFF/WAVE PCM estándar de 16 bits estéreo.
+  Uint8List renderWavBlock({
+    required double durationSeconds,
+    int sampleRate = 44100,
+  }) {
+    final numSamples = (sampleRate * durationSeconds).round();
+    final leftOut = Float64List(numSamples);
+    final rightOut = Float64List(numSamples);
+    renderBlock(leftOut: leftOut, rightOut: rightOut, numSamples: numSamples);
+
+    final pcmBytes = ByteData(numSamples * 4);
+    for (int i = 0; i < numSamples; i++) {
+      final sampleL = (leftOut[i] * 32767.0).clamp(-32768.0, 32767.0).round();
+      final sampleR = (rightOut[i] * 32767.0).clamp(-32768.0, 32767.0).round();
+      pcmBytes.setInt16(i * 4, sampleL, Endian.little);
+      pcmBytes.setInt16(i * 4 + 2, sampleR, Endian.little);
+    }
+
+    final header = PcmWavSynthesizer.buildWavHeader(
+      pcmDataBytes: pcmBytes.lengthInBytes,
+      sampleRate: sampleRate,
+      channels: 2,
+      bitsPerSample: 16,
+    );
+
+    final wavBuffer = BytesBuilder(copy: false);
+    wavBuffer.add(header);
+    wavBuffer.add(pcmBytes.buffer.asUint8List());
+    return wavBuffer.toBytes();
   }
 }

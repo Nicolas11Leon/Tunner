@@ -18,6 +18,7 @@ class DjHardwareConsolePainter extends CustomPainter {
   final double jogRotationB;
   final DjKeymapProfileEntity? keymapProfile;
   final bool showKeyBadges;
+  final double Function(DjSkinZoneEntity zone)? getControlValue;
 
   DjHardwareConsolePainter({
     required this.skin,
@@ -27,6 +28,7 @@ class DjHardwareConsolePainter extends CustomPainter {
     this.jogRotationB = 0.0,
     this.keymapProfile,
     this.showKeyBadges = true,
+    this.getControlValue,
   });
 
   @override
@@ -462,14 +464,23 @@ class DjHardwareConsolePainter extends CustomPainter {
       ..strokeWidth = 1.2;
     canvas.drawCircle(center, radius, knobBorder);
 
-    // Indicator Pip / Needle Notch
+    // Indicator Pip / Needle Notch oriented along real analog rotary dial
     final indicatorPaint = Paint()
       ..color = zone.isLedLit ? Color(zone.ledColor) : const Color(0xFF00E5FF)
       ..strokeWidth = 2.0
       ..strokeCap = StrokeCap.round;
 
-    final notchStart = Offset(center.dx, center.dy - radius * 0.25);
-    final notchEnd = Offset(center.dx, center.dy - radius * 0.85);
+    final value = (getControlValue?.call(zone) ?? 0.5).clamp(0.0, 1.0);
+    final dialAngle = startAngle + (sweepAngle * value);
+
+    final notchStart = Offset(
+      center.dx + (radius * 0.25) * math.cos(dialAngle),
+      center.dy + (radius * 0.25) * math.sin(dialAngle),
+    );
+    final notchEnd = Offset(
+      center.dx + (radius * 0.85) * math.cos(dialAngle),
+      center.dy + (radius * 0.85) * math.sin(dialAngle),
+    );
     canvas.drawLine(notchStart, notchEnd, indicatorPaint);
 
     // Label under knob
@@ -484,6 +495,7 @@ class DjHardwareConsolePainter extends CustomPainter {
 
   void _paintFader(Canvas canvas, Rect rect, DjSkinZoneEntity zone) {
     final isHorizontal = rect.width > rect.height;
+    final value = (getControlValue?.call(zone) ?? 0.5).clamp(0.0, 1.0);
 
     // Track Groove
     final trackPaint = Paint()
@@ -506,15 +518,20 @@ class DjHardwareConsolePainter extends CustomPainter {
         ..strokeWidth = 1.0;
       canvas.drawRRect(RRect.fromRectAndRadius(trackRect, const Radius.circular(3)), border);
 
-      // Fader Cap
+      // Fader Cap positioned by value [0.0..1.0]
+      const capWidth = 14.0;
+      final minCapX = trackRect.left + (capWidth / 2);
+      final maxCapX = trackRect.right - (capWidth / 2);
+      final capCenterX = minCapX + (value * (maxCapX - minCapX));
+
       final capRect = Rect.fromCenter(
-        center: rect.center,
-        width: 14.0,
+        center: Offset(capCenterX, trackRect.center.dy),
+        width: capWidth,
         height: rect.height * 0.75,
       );
       _paintFaderCap(canvas, capRect);
     } else {
-      // Vertical Channel Fader
+      // Vertical Channel Fader / Pitch Fader
       final trackRect = Rect.fromCenter(
         center: rect.center,
         width: 6.0,
@@ -538,11 +555,16 @@ class DjHardwareConsolePainter extends CustomPainter {
         canvas.drawLine(Offset(trackRect.right + 1, y), Offset(trackRect.right + 4, y), hashPaint);
       }
 
-      // Fader Cap
+      // Fader Cap positioned by value [0.0..1.0] (1.0 at top, 0.0 at bottom)
+      const capHeight = 12.0;
+      final minCapY = trackRect.bottom - (capHeight / 2);
+      final maxCapY = trackRect.top + (capHeight / 2);
+      final capCenterY = minCapY - (value * (minCapY - maxCapY));
+
       final capRect = Rect.fromCenter(
-        center: rect.center,
+        center: Offset(trackRect.center.dx, capCenterY),
         width: rect.width * 0.75,
-        height: 12.0,
+        height: capHeight,
       );
       _paintFaderCap(canvas, capRect);
     }
@@ -692,6 +714,7 @@ class DjHardwareConsolePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant DjHardwareConsolePainter oldDelegate) {
+    if (getControlValue != null) return true;
     return oldDelegate.skin.id != skin.id ||
         oldDelegate.selectedZone?.id != selectedZone?.id ||
         oldDelegate.isLearnModeActive != isLearnModeActive ||

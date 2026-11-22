@@ -9,6 +9,37 @@ import 'package:flutter/material.dart';
 class SmuflGlyphPathEngine {
   const SmuflGlyphPathEngine();
 
+  // W3C SMuFL 1.4 Canonical Codepoints (Bravura reference mapping)
+  static const int codepointGClef = 0xE050;
+  static const int codepointFClef = 0xE062;
+  static const int codepointCClef = 0xE05C;
+  static const int codepointNoteheadWhole = 0xE0A2;
+  static const int codepointNoteheadHalf = 0xE0A3;
+  static const int codepointNoteheadBlack = 0xE0A4;
+  static const int codepointAugmentationDot = 0xE1E7;
+  static const int codepointFlag8thUp = 0xE240;
+  static const int codepointFlag8thDown = 0xE241;
+  static const int codepointFlag16thUp = 0xE242;
+  static const int codepointFlag16thDown = 0xE243;
+  static const int codepointAccidentalFlat = 0xE260;
+  static const int codepointAccidentalNatural = 0xE261;
+  static const int codepointAccidentalSharp = 0xE262;
+  static const int codepointRestWhole = 0xE4E3;
+  static const int codepointRestHalf = 0xE4E4;
+  static const int codepointRestQuarter = 0xE4E5;
+  static const int codepointRest8th = 0xE4E6;
+  static const int codepointRest16th = 0xE4E7;
+
+  /// Retorna el punto de anclaje de plica ascendente (`stemUpSE`) relativo al centro de la nota.
+  Offset getStemUpAnchor(double staffSpace) {
+    return Offset(staffSpace * 0.58, -staffSpace * 0.16);
+  }
+
+  /// Retorna el punto de anclaje de plica descendente (`stemDownNW`) relativo al centro de la nota.
+  Offset getStemDownAnchor(double staffSpace) {
+    return Offset(-staffSpace * 0.58, staffSpace * 0.16);
+  }
+
   /// Dibuja una cabeza de nota musical vectorial con la rotación y proporciones canónicas de SMuFL.
   ///
   /// - Negra / Corchea ([noteheadBlack]): Elipse rellena inclinada a ~14 grados.
@@ -65,7 +96,7 @@ class SmuflGlyphPathEngine {
     canvas.restore();
   }
 
-  /// Dibuja un punto de prolongación (*augmentation dot*) vectorial según SMuFL.
+  /// Dibuja un puntillo de aumentacion vectorial SMuFL (`augmentationDot`, U+E1E7).
   void drawAugmentationDot(
     Canvas canvas, {
     required Offset center,
@@ -93,13 +124,15 @@ class SmuflGlyphPathEngine {
   }) {
     final stemThickness = math.max(1.2, staffSpace * 0.12);
     final stemLength = staffSpace * lengthSpaces;
-    final noteWidth = staffSpace * 0.60;
+    final anchor = isUp ? getStemUpAnchor(staffSpace) : getStemDownAnchor(staffSpace);
 
-    // Si la plica va hacia arriba, se ancla al borde derecho de la cabeza.
-    // Si va hacia abajo, se ancla al borde izquierdo.
-    final startX = isUp ? (noteCenter.dx + noteWidth - stemThickness / 2) : (noteCenter.dx - noteWidth + stemThickness / 2);
-    final startY = noteCenter.dy;
-    final endY = isUp ? (startY - stemLength) : (startY + stemLength);
+    // Si la plica va hacia arriba, se ancla en stemUpSE (borde derecho de la cabeza).
+    // Si va hacia abajo, se ancla en stemDownNW (borde izquierdo de la cabeza).
+    final startX = isUp
+        ? (noteCenter.dx + anchor.dx - stemThickness / 2)
+        : (noteCenter.dx + anchor.dx + stemThickness / 2);
+    final startY = noteCenter.dy + anchor.dy;
+    final endY = isUp ? (noteCenter.dy - stemLength) : (noteCenter.dy + stemLength);
 
     final paint = Paint()
       ..color = color
@@ -258,7 +291,7 @@ class SmuflGlyphPathEngine {
     canvas.restore();
   }
 
-  /// Dibuja la Clave de Do vectorial SMuFL (`cClef`), anclada en una línea ([anchorLine]).
+  /// Dibuja la Clave de Do vectorial SMuFL (`cClef`, U+E05C), centrada en la línea seleccionada.
   void drawCClef(
     Canvas canvas, {
     required Offset anchorLine,
@@ -275,29 +308,31 @@ class SmuflGlyphPathEngine {
       ..color = color
       ..strokeWidth = 2.2
       ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
 
     final fillPaint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
 
-    // Dos barras verticales
-    canvas.drawLine(const Offset(-7, -15), const Offset(-7, 15), strokePaint);
-    canvas.drawLine(const Offset(-4, -15), const Offset(-4, 15), Paint()..color = color..strokeWidth = 3.8..style = PaintingStyle.stroke);
+    // Dos barras verticales a la izquierda
+    canvas.drawLine(const Offset(-10, -20), const Offset(-10, 20), strokePaint);
+    canvas.drawRect(const Rect.fromLTWH(-7, -20, 2.5, 40), fillPaint);
 
-    // Arcos superior e inferior convergiendo en la línea ancla
-    final topArch = Path()
-      ..moveTo(-4, -15)
-      ..cubicTo(4, -15, 6, -8, 0, 0);
-    canvas.drawPath(topArch, strokePaint);
+    // Arcos superior e inferior que confluyen en la línea central (y = 0)
+    final path = Path();
+    path.moveTo(-4, -20);
+    path.cubicTo(6, -20, 8, -10, -4, 0);
+    path.cubicTo(8, 10, 6, 20, -4, 20);
+    canvas.drawPath(path, strokePaint);
 
-    final bottomArch = Path()
-      ..moveTo(-4, 15)
-      ..cubicTo(4, 15, 6, 8, 0, 0);
-    canvas.drawPath(bottomArch, strokePaint);
-
-    // Vértice central
-    canvas.drawCircle(const Offset(0, 0), 2.2, fillPaint);
+    // Muesca central
+    final notch = Path();
+    notch.moveTo(-4, -4);
+    notch.lineTo(0, 0);
+    notch.lineTo(-4, 4);
+    notch.close();
+    canvas.drawPath(notch, fillPaint);
 
     canvas.restore();
   }

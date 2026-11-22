@@ -127,21 +127,31 @@ class PcmWavSynthesizer {
     return wavBuffer.toBytes();
   }
 
-  /// Sintetiza una onda senoidal pura para el diapasón de concierto con envolvente suave ADSR.
+  /// Sintetiza una onda senoidal pura para el diapasón de concierto con envolvente suave ADSR o bucle sin clics.
   ///
   /// * [frequency]: Frecuencia exacta en hercios (ej. 440.0, 442.0, 432.0, 415.0).
-  /// * [durationSeconds]: Duración del tono continuo. Por defecto 1.5 segundos en bucle.
+  /// * [durationSeconds]: Duración aproximada del tono continuo (por defecto 1.5 s).
+  /// * [seamlessLoop]: Cuando es true, ajusta el búfer a un número entero exacto de ciclos (M)
+  ///   con cruce por cero en ambos extremos (fase 0 y fase 2*pi*M) para reproducción continua sin clics ni caídas.
   static Uint8List generateSineToneWav({
     required double frequency,
     double durationSeconds = 1.5,
     int sampleRate = defaultSampleRate,
+    bool seamlessLoop = true,
   }) {
-    final int totalSamples = (sampleRate * durationSeconds).round();
-    final pcmBytes = ByteData(totalSamples * 2);
+    final safeFreq = frequency > 0 ? frequency : 440.0;
+    int totalSamples;
 
+    if (seamlessLoop) {
+      final cycles = math.max(1, (safeFreq * durationSeconds).round());
+      totalSamples = (cycles * sampleRate / safeFreq).round();
+    } else {
+      totalSamples = (sampleRate * durationSeconds).round();
+    }
+
+    final pcmBytes = ByteData(totalSamples * 2);
     const double maxAmplitude = 24000.0; // Amplitud confortable sin distorsión
 
-    // Envolvente anti-pop: 15 ms de rampa ascendente y 20 ms de rampa descendente
     final int attackSamples = (sampleRate * 0.015).round();
     final int releaseSamples = (sampleRate * 0.020).round();
     final int releaseStartIndex = totalSamples - releaseSamples;
@@ -149,15 +159,16 @@ class PcmWavSynthesizer {
     for (int i = 0; i < totalSamples; i++) {
       final double t = i / sampleRate;
 
-      // Cálculo de envolvente de amplitud
       double envelope = 1.0;
-      if (i < attackSamples) {
-        envelope = i / attackSamples; // Rampa lineal de entrada
-      } else if (i >= releaseStartIndex) {
-        envelope = (totalSamples - i) / releaseSamples; // Rampa lineal de salida
+      if (!seamlessLoop) {
+        if (i < attackSamples) {
+          envelope = i / attackSamples;
+        } else if (i >= releaseStartIndex) {
+          envelope = (totalSamples - i) / releaseSamples;
+        }
       }
 
-      final double sampleValue = maxAmplitude * envelope * math.sin(2.0 * math.pi * frequency * t);
+      final double sampleValue = maxAmplitude * envelope * math.sin(2.0 * math.pi * safeFreq * t);
       final int sampleClamped = sampleValue.clamp(-32768.0, 32767.0).round();
       pcmBytes.setInt16(i * 2, sampleClamped, Endian.little);
     }

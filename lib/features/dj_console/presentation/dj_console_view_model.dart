@@ -13,6 +13,7 @@ import '../../song_library/domain/song_decomposer_service.dart';
 import '../domain/dj_audio_processor.dart';
 import '../domain/dj_gamepad_input_service.dart';
 import '../domain/dj_hardware_catalog.dart';
+import '../domain/i_dj_console_blueprint_storage_service.dart';
 import '../domain/i_dj_keymap_persistence_service.dart';
 import '../domain/dj_mix_wav_encoder.dart';
 import '../domain/dj_transition_sfx_synthesizer.dart';
@@ -45,6 +46,9 @@ class DjConsoleViewModel extends ChangeNotifier {
   final IAudioSynthesizerService _audioSynthesizer;
   final StudioFileSystemRepository _fileSystemRepository;
   final IPlatformFileGateway _fileGateway;
+  final IDjConsoleBlueprintStorageService _blueprintStorageService;
+
+  IDjConsoleBlueprintStorageService get blueprintStorageService => _blueprintStorageService;
   late final DjGamepadInputService _inputService;
 
   Timer? _playbackTicker;
@@ -89,13 +93,15 @@ class DjConsoleViewModel extends ChangeNotifier {
     IAudioSynthesizerService? audioSynthesizer,
     StudioFileSystemRepository? fileSystemRepository,
     IPlatformFileGateway? fileGateway,
+    IDjConsoleBlueprintStorageService? blueprintStorageService,
   })  : _orchestrator = orchestrator ?? DjPerformanceOrchestrator(),
         _persistenceService = persistenceService ?? const NoOpDjKeymapPersistenceService(),
         _audioProcessor = audioProcessor ?? DjAudioProcessor(),
         _deckAudioPlayer = deckAudioPlayer ?? MemoryDjDeckAudioPlayer(),
         _audioSynthesizer = audioSynthesizer ?? const NoOpAudioSynthesizerService(),
         _fileSystemRepository = fileSystemRepository ?? const NoOpStudioFileSystemRepository(),
-        _fileGateway = fileGateway ?? const NoOpPlatformFileGateway() {
+        _fileGateway = fileGateway ?? const NoOpPlatformFileGateway(),
+        _blueprintStorageService = blueprintStorageService ?? const NoOpDjConsoleBlueprintStorageService() {
     _inputService = inputService ??
         DjGamepadInputService(
           profile: DjControllerProfileEntity.defaultUnified(),
@@ -169,6 +175,46 @@ class DjConsoleViewModel extends ChangeNotifier {
   double get rotationAngleA => _rotationAngleA;
   double get rotationAngleB => _rotationAngleB;
   Uint8List? get lastRecordedWavBytes => _lastRecordedWavBytes;
+
+  /// Retorna el nivel VU calibrado [0.0, 1.2] midiendo la energía RMS real del audio
+  /// en la ventana actual de 33 ms alrededor de la posición del cabezal de reproducción.
+  double getVuLevel(String deckId) {
+    final id = _normalizeDeckId(deckId);
+    final deck = id == 'A' ? deckA : deckB;
+    if (!deck.isPlaying) return 0.0;
+    final samples = id == 'A'
+        ? (_deckSamplesA ??= _audioProcessor.generateDemoGroove(
+            bpm: deck.effectiveBpm,
+            frequencyHz: 55.0,
+            durationMs: 4000,
+          ))
+        : (_deckSamplesB ??= _audioProcessor.generateDemoGroove(
+            bpm: deck.effectiveBpm,
+            frequencyHz: 65.4,
+            durationMs: 4000,
+          ));
+    if (samples.isEmpty) return 0.0;
+
+    final sampleRate = _audioProcessor.sampleRate;
+    final sliceLen = (sampleRate * 0.033).round();
+    final maxStart = math.max(1, samples.length - sliceLen);
+    final start = ((deck.currentPositionMs / 1000.0) * sampleRate).round() % maxStart;
+
+    double sumSq = 0.0;
+    int count = 0;
+    for (int i = 0; i < sliceLen && (start + i) < samples.length; i++) {
+      final s = samples[start + i];
+      sumSq += s * s;
+      count++;
+    }
+    if (count == 0) return 0.0;
+    final rms = math.sqrt(sumSq / count);
+    final isAllKilled = deck.isKillLow && deck.isKillMid && deck.isKillHigh;
+    final effectiveLevel = isAllKilled
+        ? 0.0
+        : (rms * deck.volume * (deck.gainLow * 0.4 + deck.gainMid * 0.4 + deck.gainHigh * 0.2));
+    return (effectiveLevel * 1.8).clamp(0.0, 1.2);
+  }
 
   // Hardware skins & Pro Workstation getters
   DjHardwareSkinEntity get activeSkin => _activeSkin.withActiveActions(activeLitActions);
@@ -322,12 +368,14 @@ class DjConsoleViewModel extends ChangeNotifier {
           bufferB: sliceB,
           gainA: _orchestrator.deckAGain,
           gainB: _orchestrator.deckBGain,
-          eqLowA: deckA.gainLow,
-          eqMidA: deckA.gainMid,
-          eqHighA: deckA.gainHigh,
-          eqLowB: deckB.gainLow,
-          eqMidB: deckB.gainMid,
-          eqHighB: deckB.gainHigh,
+          eqLowA: deckA.isKillLow ? 0.0 : deckA.gainLow,
+          eqMidA: deckA.isKillMid ? 0.0 : deckA.gainMid,
+          eqHighA: deckA.isKillHigh ? 0.0 : deckA.gainHigh,
+          eqLowB: deckB.isKillLow ? 0.0 : deckB.gainLow,
+          eqMidB: deckB.isKillMid ? 0.0 : deckB.gainMid,
+          eqHighB: deckB.isKillHigh ? 0.0 : deckB.gainHigh,
+          stemsA: deckA.stems,
+          stemsB: deckB.stems,
           filterA: fxA.filterPosition,
           filterB: fxB.filterPosition,
           delayActiveA: fxA.isDelayActive,
@@ -432,12 +480,30 @@ class DjConsoleViewModel extends ChangeNotifier {
   }
 
   void toggleKeyLock(String deckId) {
-    _orchestrator.toggleKeyLock(deckId);
+    final id = _normalizeDeckId(deckId);
+    _orchestrator.toggleKeyLock(id);
+    _syncDeckPlaybackRate(id);
     if (!_isDisposed) notifyListeners();
   }
 
   void syncKey(String deckId) {
-    _orchestrator.syncKey(deckId);
+    final id = _normalizeDeckId(deckId);
+    _orchestrator.syncKey(id);
+    _syncDeckPlaybackRate(id);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void _syncDeckPlaybackRate(String deckId) {
+    final id = _normalizeDeckId(deckId);
+    final deck = id == 'A' ? deckA : deckB;
+    final rate = deck.effectivePlaybackRate.clamp(0.5, 2.0);
+    _deckAudioPlayer.setDeckPlaybackRate(id, rate);
+  }
+
+  void setTrim(String deckId, double trim) {
+    final id = _normalizeDeckId(deckId);
+    _orchestrator.setTrim(id, trim);
+    _syncAudioVolumes();
     if (!_isDisposed) notifyListeners();
   }
 
@@ -510,6 +576,42 @@ class DjConsoleViewModel extends ChangeNotifier {
   void toggleSplitCue() {
     _orchestrator.toggleSplitCue();
     if (!_isDisposed) notifyListeners();
+  }
+
+  /// Genera un búfer estéreo Split-Cue en tiempo real (Izquierda: Master, Derecha: Cue Monitor PFL)
+  /// utilizando [DjAudioProcessor.encodeSplitCueStereo].
+  Float32List generateSplitCueChunk({
+    required Float32List sliceA,
+    required Float32List sliceB,
+  }) {
+    final masterMono = _audioProcessor.mixBuffers(
+      bufferA: sliceA,
+      bufferB: sliceB,
+      gainA: _orchestrator.deckAGain,
+      gainB: _orchestrator.deckBGain,
+      eqLowA: deckA.isKillLow ? 0.0 : deckA.gainLow,
+      eqMidA: deckA.isKillMid ? 0.0 : deckA.gainMid,
+      eqHighA: deckA.isKillHigh ? 0.0 : deckA.gainHigh,
+      eqLowB: deckB.isKillLow ? 0.0 : deckB.gainLow,
+      eqMidB: deckB.isKillMid ? 0.0 : deckB.gainMid,
+      eqHighB: deckB.isKillHigh ? 0.0 : deckB.gainHigh,
+      filterA: fxA.filterPosition,
+      filterB: fxB.filterPosition,
+    );
+
+    final cueA = cueMonitor.cueDeckA ? sliceA : Float32List(sliceA.length);
+    final cueB = cueMonitor.cueDeckB ? sliceB : Float32List(sliceB.length);
+    final cueMono = _audioProcessor.mixBuffers(
+      bufferA: cueA,
+      bufferB: cueB,
+      gainA: 1.0,
+      gainB: 1.0,
+    );
+
+    return _audioProcessor.encodeSplitCueStereo(
+      masterMono: masterMono,
+      cueMono: cueMono,
+    );
   }
 
   /// Ejecuta una coreografía automatizada de 15 segundos para pruebas integrales de todos los subsistemas.
@@ -649,6 +751,16 @@ class DjConsoleViewModel extends ChangeNotifier {
       _deckAudioPlayer.seekDeck('A', Duration(milliseconds: deckA.currentPositionMs));
     } else if (action == DjAction.deckBBeatJumpForward || action == DjAction.deckBBeatJumpBack) {
       _deckAudioPlayer.seekDeck('B', Duration(milliseconds: deckB.currentPositionMs));
+    } else if (action == DjAction.deckAPitchUp ||
+        action == DjAction.deckAPitchDown ||
+        action == DjAction.deckASync ||
+        action == DjAction.deckAKeySync) {
+      _syncDeckPlaybackRate('A');
+    } else if (action == DjAction.deckBPitchUp ||
+        action == DjAction.deckBPitchDown ||
+        action == DjAction.deckBSync ||
+        action == DjAction.deckBKeySync) {
+      _syncDeckPlaybackRate('B');
     } else if (action == DjAction.triggerSamplerRiser) {
       _playSamplerPadSound(DjSamplerPadType.whiteNoiseRiser);
     } else if (action == DjAction.triggerSamplerDrop) {
@@ -1191,6 +1303,124 @@ class DjConsoleViewModel extends ChangeNotifier {
     final def = DjKeymapProfileEntity.defaultErgonomic();
     _orchestrator.setKeymapProfile(def);
     if (!_isDisposed) notifyListeners();
+  }
+
+  /// Retorna el valor acustico o visual normalizado [0.0, 1.0] asociado a una zona del hardware.
+  double getControlValue(DjSkinZoneEntity zone) {
+    final lowerId = zone.id.toLowerCase();
+    final deckId = zone.deckId?.toLowerCase();
+    final isDeckB = deckId == 'deckb' || deckId == 'b' || lowerId.contains('_b_') || lowerId.contains('_b');
+    final deck = isDeckB ? deckB : deckA;
+    final fx = isDeckB ? fxB : fxA;
+
+    switch (zone.controlType) {
+      case DjControlType.jogWheel:
+        final rawAngle = isDeckB ? rotationAngleB : rotationAngleA;
+        return ((rawAngle % (2.0 * math.pi)) / (2.0 * math.pi)).clamp(0.0, 1.0);
+
+      case DjControlType.fader:
+        if (lowerId.contains('crossfader') || zone.action == DjAction.crossfaderCenter) {
+          // Bipolar [-1.0, 1.0] -> [0.0, 1.0]
+          return ((crossfader.position + 1.0) / 2.0).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('pitch') || lowerId.contains('tempo') ||
+            zone.action == DjAction.deckAPitchUp || zone.action == DjAction.deckBPitchUp) {
+          // pitchMultiplier [0.84, 1.16], 1.0 -> 0.5
+          return ((deck.pitchMultiplier - 0.84) / (1.16 - 0.84)).clamp(0.0, 1.0);
+        }
+        // Channel fader
+        return deck.volume.clamp(0.0, 1.0);
+
+      case DjControlType.knob:
+        if (lowerId.contains('filter') ||
+            zone.action == DjAction.deckAFilterSweepRight ||
+            zone.action == DjAction.deckBFilterSweepRight ||
+            zone.action == DjAction.deckAFilterReset ||
+            zone.action == DjAction.deckBFilterReset) {
+          // Bipolar filter [-1.0, 1.0] -> [0.0, 1.0]
+          return ((fx.filterPosition + 1.0) / 2.0).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('high') || lowerId.contains('_hi') ||
+            zone.action == DjAction.deckAKillHigh || zone.action == DjAction.deckBKillHigh) {
+          return (deck.effectiveGainHigh / 1.5).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('mid') ||
+            zone.action == DjAction.deckAKillMid || zone.action == DjAction.deckBKillMid) {
+          return (deck.effectiveGainMid / 1.5).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('low') ||
+            zone.action == DjAction.deckAKillLow || zone.action == DjAction.deckBKillLow) {
+          return (deck.effectiveGainLow / 1.5).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('master') || zone.action == DjAction.masterVolumeUp) {
+          return masterVolume.clamp(0.0, 1.0);
+        }
+        return 0.5;
+
+      case DjControlType.pad:
+      case DjControlType.button:
+        return 1.0;
+    }
+  }
+
+  /// Modifica de forma continua y suave un parametro analogico (fader, knob o jog wheel).
+  void updateContinuousControl(DjSkinZoneEntity zone, double delta) {
+    final lowerId = zone.id.toLowerCase();
+    final deckId = zone.deckId?.toLowerCase();
+    final isDeckB = deckId == 'deckb' || deckId == 'b' || lowerId.contains('_b_') || lowerId.contains('_b');
+    final targetDeck = isDeckB ? 'B' : 'A';
+    final deck = isDeckB ? deckB : deckA;
+    final fx = isDeckB ? fxB : fxA;
+
+    switch (zone.controlType) {
+      case DjControlType.jogWheel:
+        scratchDeck(targetDeck, delta * 2.0);
+        break;
+
+      case DjControlType.fader:
+        if (lowerId.contains('crossfader') || zone.action == DjAction.crossfaderCenter) {
+          final nextPos = (crossfader.position + (delta * 2.0)).clamp(-1.0, 1.0);
+          setCrossfaderPosition(nextPos);
+        } else if (lowerId.contains('pitch') || lowerId.contains('tempo') ||
+            zone.action == DjAction.deckAPitchUp || zone.action == DjAction.deckBPitchUp) {
+          adjustPitch(targetDeck, -delta * 0.32);
+        } else {
+          // Channel fader: subir arrastrando hacia arriba (-delta)
+          final newVol = (deck.volume - delta).clamp(0.0, 1.0);
+          setDeckVolume(targetDeck, newVol);
+        }
+        break;
+
+      case DjControlType.knob:
+        if (lowerId.contains('filter') ||
+            zone.action == DjAction.deckAFilterSweepRight ||
+            zone.action == DjAction.deckBFilterSweepRight ||
+            zone.action == DjAction.deckAFilterReset ||
+            zone.action == DjAction.deckBFilterReset) {
+          final nextFilter = (fx.filterPosition - (delta * 2.0)).clamp(-1.0, 1.0);
+          setChannelFilter(targetDeck, nextFilter);
+        } else if (lowerId.contains('high') || lowerId.contains('_hi') ||
+            zone.action == DjAction.deckAKillHigh || zone.action == DjAction.deckBKillHigh) {
+          final nextGain = (deck.gainHigh - (delta * 1.5)).clamp(0.0, 1.5);
+          setEqGains(targetDeck, high: nextGain);
+        } else if (lowerId.contains('mid') ||
+            zone.action == DjAction.deckAKillMid || zone.action == DjAction.deckBKillMid) {
+          final nextGain = (deck.gainMid - (delta * 1.5)).clamp(0.0, 1.5);
+          setEqGains(targetDeck, mid: nextGain);
+        } else if (lowerId.contains('low') ||
+            zone.action == DjAction.deckAKillLow || zone.action == DjAction.deckBKillLow) {
+          final nextGain = (deck.gainLow - (delta * 1.5)).clamp(0.0, 1.5);
+          setEqGains(targetDeck, low: nextGain);
+        } else if (lowerId.contains('master') || zone.action == DjAction.masterVolumeUp) {
+          final nextVol = (masterVolume - delta).clamp(0.0, 1.0);
+          setMasterVolume(nextVol);
+        }
+        break;
+
+      case DjControlType.pad:
+      case DjControlType.button:
+        break;
+    }
   }
 
   @override

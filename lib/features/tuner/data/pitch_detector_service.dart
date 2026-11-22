@@ -123,6 +123,7 @@ class PitchDetectorService implements IPitchDetectorService {
       } else if (message is MicrophoneCalibrationProfile) {
         currentGain = message.digitalGain;
         enableDc = message.enableDcBlocker;
+        filter.calibratedDcOffset = message.calibratedDcOffset;
         mpm = McleodPitchMethod(
           silenceThreshold: message.noiseGateThreshold,
           minClarity: filterConfig.enabled ? filterConfig.minClarity : 0.65,
