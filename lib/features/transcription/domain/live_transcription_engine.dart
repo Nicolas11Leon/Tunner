@@ -205,7 +205,7 @@ class LiveTranscriptionEngine {
         noteName: _candidate!.noteName,
       );
     } else if (_activePackage != null) {
-      final bpm = math.max(20, _activePackage!.defaultBpm);
+      final bpm = math.max(20, _activeBpm ?? _activePackage!.defaultBpm);
       final msPerTick = 15000.0 / bpm;
       if (_silenceAccumulatedMs >= msPerTick * 0.5) {
         updated = _finalizeSpan(
@@ -225,7 +225,7 @@ class LiveTranscriptionEngine {
     String noteName = '',
   }) {
     var package = _activePackage!;
-    final bpm = math.max(20, package.defaultBpm);
+    final bpm = math.max(20, _activeBpm ?? package.defaultBpm);
     final msPerTick = 15000.0 / bpm;
     final rawTicks = math.max(1, (durationMs / msPerTick).round());
     int remainingTicks = RhythmicQuantizer.quantizeDuration(rawTicks);

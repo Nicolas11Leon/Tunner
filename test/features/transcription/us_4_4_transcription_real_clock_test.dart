@@ -171,7 +171,19 @@ void main() {
       expect(finalPkg, isNotNull);
       final notes = finalPkg!.score.measures.first.notes.where((n) => !n.isRest).toList();
       expect(notes, isNotEmpty);
-      expect(notes.first.durationTicks, greaterThanOrEqualTo(4));
+      expect(notes.first.durationTicks, equals(4));
+
+      // Verificar tambien PolyphonicTranscriptionEngine con bpm override = 60
+      final polyEngine = PolyphonicTranscriptionEngine(minFramesForOnset: 2);
+      polyEngine.start(initialPackage: _emptyPackage(bpm: 120), bpm: 60);
+      polyEngine.processPolyphonicFrame(noteNames: const ['Do4', 'Mi4'], timestampMs: 1000.0);
+      polyEngine.processPolyphonicFrame(noteNames: const ['Do4', 'Mi4'], timestampMs: 1500.0);
+      polyEngine.processPolyphonicFrame(noteNames: const ['Do4', 'Mi4'], timestampMs: 2000.0);
+      final polyPkg = polyEngine.stop();
+      expect(polyPkg, isNotNull);
+      final polyNotes = polyPkg!.score.measures.first.notes.where((n) => !n.isRest).toList();
+      expect(polyNotes, isNotEmpty);
+      expect(polyNotes.first.durationTicks, equals(4));
     });
 
     test('AudioToScoreTranscriptionEngine decodifica WAV 64-bit IEEE Float (0xFFFE extensible)', () {
