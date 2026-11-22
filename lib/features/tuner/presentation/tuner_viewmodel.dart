@@ -2016,16 +2016,19 @@ class TunerViewModel extends ChangeNotifier
   void setTrackVolume(String trackId, double volume) {
     _mixerConsole = _mixerConsole.copyWithTrackVolume(trackId, volume);
     notifyListeners();
+    unawaited(_triggerAutoSave());
   }
 
   void toggleTrackMute(String trackId) {
     _mixerConsole = _mixerConsole.toggleMute(trackId);
     notifyListeners();
+    unawaited(_triggerAutoSave());
   }
 
   void toggleTrackSolo(String trackId) {
     _mixerConsole = _mixerConsole.toggleSolo(trackId);
     notifyListeners();
+    unawaited(_triggerAutoSave());
   }
 
   @override
@@ -2206,10 +2209,31 @@ class TunerViewModel extends ChangeNotifier
       if (settings.workspaceScores.isNotEmpty) {
         _workspaceScores.clear();
         _workspaceScores.addAll(settings.workspaceScores);
+
+        SongPackage? restoredActive;
+        if (settings.activeScoreId != null) {
+          restoredActive = _workspaceScores
+              .where((s) => s.id == settings.activeScoreId)
+              .firstOrNull;
+        }
+        restoredActive ??= _workspaceScores
+            .where((s) => s.id == _activePackage.id)
+            .firstOrNull;
+        restoredActive ??= _workspaceScores.first;
+        _activePackage = restoredActive;
       }
 
       if (_shouldSeedDefaults) {
         _seedDefaultWorkspaceIfEmpty();
+      }
+
+      if (settings.mixerConsole != null) {
+        _mixerConsole = settings.mixerConsole!;
+      } else if (settings.workspaceScores.isNotEmpty) {
+        _mixerConsole = MixerConsoleEntity(
+          metronomeTrack: _mixerConsole.metronomeTrack,
+          stems: _activePackage.tracks,
+        );
       }
 
       _micProfile = settings.micCalibrationProfile;
@@ -2272,8 +2296,24 @@ class TunerViewModel extends ChangeNotifier
       activeWorkspace: _activeWorkspace,
       micCalibrationProfile: _micProfile,
       acousticRigorProfile: _acousticRigorProfile,
+      mixerConsole: _mixerConsole,
+      activeScoreId: _activePackage.id,
     );
     return _recorderController.saveSettings(settings);
+  }
+
+  void _commitActiveScoreMutation() {
+    final workspaceIdx = _workspaceScores.indexWhere((s) => s.id == _activePackage.id);
+    if (workspaceIdx >= 0) {
+      _workspaceScores[workspaceIdx] = _activePackage;
+    } else {
+      _workspaceScores.insert(0, _activePackage);
+    }
+    final curatedIdx = _curatedLibrary.indexWhere((s) => s.id == _activePackage.id);
+    if (curatedIdx >= 0) {
+      _curatedLibrary[curatedIdx] = _activePackage;
+    }
+    unawaited(_triggerAutoSave());
   }
 
   // --- Delegación hacia ScoreEditorController ---
@@ -2305,6 +2345,30 @@ class TunerViewModel extends ChangeNotifier
       playAudibleFeedback: playAudibleFeedback,
     );
     _validatePerformance();
+    _commitActiveScoreMutation();
+    notifyListeners();
+  }
+
+  @override
+  void insertScoreChordNotes({
+    required int measureIndex,
+    required int startTick,
+    required int durationTicks,
+    required List<String> noteNames,
+    bool playAudibleFeedback = true,
+  }) {
+    _activePackage = _scoreEditorController.insertScoreChordNotes(
+      activePackage: _activePackage,
+      measureIndex: measureIndex,
+      startTick: startTick,
+      durationTicks: durationTicks,
+      noteNames: noteNames,
+      referencePitch: _referencePitch,
+      bpm: _bpm,
+      playAudibleFeedback: playAudibleFeedback,
+    );
+    _validatePerformance();
+    _commitActiveScoreMutation();
     notifyListeners();
   }
 
@@ -2318,6 +2382,7 @@ class TunerViewModel extends ChangeNotifier
       measureIndex: measureIndex,
       startTick: startTick,
     );
+    _commitActiveScoreMutation();
     notifyListeners();
   }
 
@@ -2326,6 +2391,7 @@ class TunerViewModel extends ChangeNotifier
     final prev = _scoreEditorController.undoScoreEdit(_activePackage);
     if (prev != null) {
       _activePackage = prev;
+      _commitActiveScoreMutation();
       notifyListeners();
     }
   }
@@ -2335,6 +2401,7 @@ class TunerViewModel extends ChangeNotifier
     final next = _scoreEditorController.redoScoreEdit(_activePackage);
     if (next != null) {
       _activePackage = next;
+      _commitActiveScoreMutation();
       notifyListeners();
     }
   }
@@ -2342,6 +2409,7 @@ class TunerViewModel extends ChangeNotifier
   @override
   void addScoreMeasure() {
     _activePackage = _scoreEditorController.addScoreMeasure(_activePackage);
+    _commitActiveScoreMutation();
     notifyListeners();
   }
 
@@ -2351,6 +2419,7 @@ class TunerViewModel extends ChangeNotifier
     if (_currentMeasureIndex >= _activePackage.totalMeasures) {
       _currentMeasureIndex = _activePackage.totalMeasures - 1;
     }
+    _commitActiveScoreMutation();
     notifyListeners();
   }
 
@@ -2358,6 +2427,7 @@ class TunerViewModel extends ChangeNotifier
     final transposed = _scoreEditorController.transposeActiveScore(_activePackage, semitones);
     if (transposed != null) {
       _activePackage = transposed;
+      _commitActiveScoreMutation();
       notifyListeners();
     }
   }
@@ -2369,6 +2439,7 @@ class TunerViewModel extends ChangeNotifier
     );
     if (transposed != null) {
       _activePackage = transposed;
+      _commitActiveScoreMutation();
       notifyListeners();
     }
   }

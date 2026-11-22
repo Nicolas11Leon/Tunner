@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -129,6 +130,47 @@ class ScoreEditorController {
           duration: Duration(milliseconds: ms),
           volume: 0.85,
         );
+      }
+    }
+
+    return updated;
+  }
+
+  SongPackage insertScoreChordNotes({
+    required SongPackage activePackage,
+    required int measureIndex,
+    required int startTick,
+    required int durationTicks,
+    required List<String> noteNames,
+    required double referencePitch,
+    required int bpm,
+    bool playAudibleFeedback = true,
+  }) {
+    _scoreHistory.recordState(activePackage);
+    final updated = _editorOps.insertChordNotes(
+      package: activePackage,
+      measureIndex: measureIndex,
+      startTick: startTick,
+      durationTicks: durationTicks,
+      noteNames: noteNames,
+    );
+
+    if (playAudibleFeedback) {
+      final ms = (durationTicks * (60000.0 / bpm / 4.0)).round();
+      for (final noteName in noteNames) {
+        if (noteName.isEmpty || noteName == '--' || noteName.toLowerCase() == 'rest') {
+          continue;
+        }
+        final freq = NoteEntity.frequencyForNote(noteName, a4Ref: referencePitch);
+        if (freq > 20.0) {
+          unawaited(
+            _audioSynthesizer.playNoteTone(
+              frequency: freq,
+              duration: Duration(milliseconds: ms),
+              volume: 0.75,
+            ),
+          );
+        }
       }
     }
 

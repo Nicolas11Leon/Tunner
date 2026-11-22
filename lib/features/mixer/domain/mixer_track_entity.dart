@@ -167,4 +167,28 @@ class MixerConsoleEntity {
     if (track == null) return 0.0;
     return track.getEffectiveGain(hasAnySolo: hasAnySolo);
   }
+
+  Map<String, dynamic> toMap() => {
+        'metronomeTrack': metronomeTrack.toMap(),
+        'stems': stems.map((t) => t.toMap()).toList(),
+      };
+
+  factory MixerConsoleEntity.fromMap(Map<String, dynamic> map) {
+    final defaultSetup = MixerConsoleEntity.defaultSetup();
+    final rawMetro = map['metronomeTrack'];
+    final metronomeTrack = rawMetro is Map<String, dynamic>
+        ? AudioTrack.fromMap(rawMetro)
+        : defaultSetup.metronomeTrack;
+
+    final rawStems = map['stems'] as List<dynamic>? ?? [];
+    final stems = rawStems
+        .whereType<Map<String, dynamic>>()
+        .map(AudioTrack.fromMap)
+        .toList();
+
+    return MixerConsoleEntity(
+      metronomeTrack: metronomeTrack,
+      stems: stems,
+    );
+  }
 }
