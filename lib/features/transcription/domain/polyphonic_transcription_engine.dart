@@ -40,18 +40,22 @@ class PolyphonicChordCandidate {
 class PolyphonicTranscriptionEngine {
   final int minFramesForOnset;
   final double defaultFrameDurationMs;
+  final int Function()? clockMsProvider;
   final ScoreEditorOperations _operations;
 
   bool _isTranscribing = false;
   SongPackage? _activePackage;
+  int? _activeBpm;
   int _currentMeasureIndex = 0;
   int _currentTickInMeasure = 0;
   PolyphonicChordCandidate? _candidate;
   double _silenceAccumulatedMs = 0.0;
+  double? _lastFrameTimestampMs;
 
   PolyphonicTranscriptionEngine({
     this.minFramesForOnset = 2,
     this.defaultFrameDurationMs = 20.0,
+    this.clockMsProvider,
     ScoreEditorOperations? operations,
   }) : _operations = operations ?? const ScoreEditorOperations();
 
@@ -67,8 +71,10 @@ class PolyphonicTranscriptionEngine {
     required SongPackage initialPackage,
     int startMeasureIndex = 0,
     int startTick = 0,
+    int? bpm,
   }) {
     _activePackage = initialPackage;
+    _activeBpm = bpm;
     _currentMeasureIndex = initialPackage.score.measures.isEmpty
         ? 0
         : startMeasureIndex.clamp(0, initialPackage.score.measures.length - 1);
@@ -78,6 +84,7 @@ class PolyphonicTranscriptionEngine {
     _currentTickInMeasure = startTick.clamp(0, math.max(0, maxTicks - 1));
     _candidate = null;
     _silenceAccumulatedMs = 0.0;
+    _lastFrameTimestampMs = clockMsProvider?.call().toDouble();
     _isTranscribing = true;
   }
 
@@ -87,11 +94,25 @@ class PolyphonicTranscriptionEngine {
     required List<String> noteNames,
     double energyRms = 0.1,
     double? frameDurationMs,
+    double? timestampMs,
   }) {
     if (!_isTranscribing || _activePackage == null) return null;
 
-    final dtMs = math.max(1.0, frameDurationMs ?? defaultFrameDurationMs);
-    final bpm = math.max(20, _activePackage!.defaultBpm);
+    double dtMs;
+    if (frameDurationMs != null) {
+      dtMs = math.max(1.0, frameDurationMs);
+    } else {
+      final effectiveTs = timestampMs ?? clockMsProvider?.call().toDouble();
+      if (effectiveTs != null && _lastFrameTimestampMs != null) {
+        dtMs = (effectiveTs - _lastFrameTimestampMs!).clamp(1.0, 2000.0);
+      } else {
+        dtMs = defaultFrameDurationMs;
+      }
+      if (effectiveTs != null) {
+        _lastFrameTimestampMs = effectiveTs;
+      }
+    }
+    final bpm = math.max(20, _activeBpm ?? _activePackage!.defaultBpm);
     final msPerTick = 15000.0 / bpm;
 
     final validNotes =

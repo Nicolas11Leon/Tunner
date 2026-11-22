@@ -152,9 +152,20 @@ class AudioToScoreTranscriptionEngine {
           final parsedCh = byteData.getUint16(offset + 10, Endian.little);
           final parsedSr = byteData.getUint32(offset + 12, Endian.little);
           final parsedBps = byteData.getUint16(offset + 22, Endian.little);
+          if (audioFormat == 0xFFFE && offset + 34 <= bytes.length) {
+            // WAVEFORMATEXTENSIBLE: SubFormat GUID primeros 2 bytes (1=PCM, 3=IEEE Float)
+            final subFormatCode = byteData.getUint16(offset + 32, Endian.little);
+            if (subFormatCode == 1 || subFormatCode == 3) {
+              audioFormat = subFormatCode;
+            }
+          }
           if (parsedCh > 0) channels = parsedCh;
           if (parsedSr > 0) sampleRate = parsedSr;
-          if (parsedBps == 8 || parsedBps == 16 || parsedBps == 24 || parsedBps == 32) {
+          if (parsedBps == 8 ||
+              parsedBps == 16 ||
+              parsedBps == 24 ||
+              parsedBps == 32 ||
+              parsedBps == 64) {
             bitsPerSample = parsedBps;
           }
         } else if (chunkId == 'data') {
@@ -200,6 +211,12 @@ class AudioToScoreTranscriptionEngine {
             sum += byteData.getFloat32(byteIndex, Endian.little).clamp(-1.0, 1.0);
           } else {
             sum += byteData.getInt32(byteIndex, Endian.little) / 2147483648.0;
+          }
+        } else if (bitsPerSample == 64) {
+          if (audioFormat == 3) {
+            sum += byteData.getFloat64(byteIndex, Endian.little).clamp(-1.0, 1.0);
+          } else {
+            sum += byteData.getInt64(byteIndex, Endian.little) / 9223372036854775808.0;
           }
         }
       }

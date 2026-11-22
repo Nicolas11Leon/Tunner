@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../mixer/domain/mixer_track_entity.dart';
+import '../../sheet_music/domain/score_tree.dart';
 import '../../song_library/domain/song_package_entity.dart';
 import '../../transcription/domain/audio_to_score_transcription_engine.dart';
 import '../domain/i_score_parser_service.dart';
@@ -130,12 +131,14 @@ class UniversalScoreImporterService implements IScoreParserService {
     required Uint8List bytes,
     required String fileName,
     int bpm = 120,
+    TimeSignature timeSignature = TimeSignature.commonTime44,
   }) {
     final title = fileName.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), '');
     final score = _audioTranscriber.transcribeAudioFile(
       audioBytes: bytes,
       title: title,
       bpm: bpm,
+      timeSignature: timeSignature,
     );
 
     int totalNotes = 0;

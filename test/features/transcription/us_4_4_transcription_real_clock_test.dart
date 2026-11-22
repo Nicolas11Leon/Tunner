@@ -8,6 +8,7 @@ import 'package:tunner/features/song_library/domain/song_package_entity.dart';
 import 'package:tunner/features/transcription/domain/audio_to_score_transcription_engine.dart';
 import 'package:tunner/features/transcription/domain/live_transcription_engine.dart';
 import 'package:tunner/features/transcription/domain/polyphonic_transcription_engine.dart';
+import 'package:tunner/features/universal_importer/data/universal_score_importer_service.dart';
 
 SongPackage _emptyPackage({int bpm = 120, TimeSignature ts = TimeSignature.commonTime44}) {
   return SongPackage(
@@ -155,6 +156,76 @@ void main() {
       final pitchedNotes = score.measures.first.notes.where((n) => !n.isRest).toList();
       expect(pitchedNotes, isNotEmpty);
       expect(pitchedNotes.first.noteName, equals('La4'));
+    });
+
+    test('LiveTranscriptionEngine soporta timestampMs y bpm override en start()', () {
+      final engine = LiveTranscriptionEngine(minFramesForOnset: 2);
+      engine.start(initialPackage: _emptyPackage(bpm: 120), bpm: 60);
+
+      // A 60 BPM, 1 sub-tick = 250 ms; 1000 ms = 4 ticks (negra)
+      engine.processPitchFrame(frequencyHz: 440.0, clarity: 0.95, noteName: 'La4', timestampMs: 1000.0);
+      engine.processPitchFrame(frequencyHz: 440.0, clarity: 0.95, noteName: 'La4', timestampMs: 1500.0);
+      engine.processPitchFrame(frequencyHz: 440.0, clarity: 0.95, noteName: 'La4', timestampMs: 2000.0);
+      final finalPkg = engine.stop();
+
+      expect(finalPkg, isNotNull);
+      final notes = finalPkg!.score.measures.first.notes.where((n) => !n.isRest).toList();
+      expect(notes, isNotEmpty);
+      expect(notes.first.durationTicks, greaterThanOrEqualTo(4));
+    });
+
+    test('AudioToScoreTranscriptionEngine decodifica WAV 64-bit IEEE Float (0xFFFE extensible)', () {
+      const sampleRate = 16000;
+      const numSamples = 12000;
+      final samples = List<double>.generate(
+        numSamples,
+        (i) => 0.7 * math.sin(2.0 * math.pi * 440.0 * i / sampleRate),
+      );
+      final dataSize = numSamples * 8;
+      // WAVEFORMATEXTENSIBLE fmt chunk size = 40 (8 header + 40 body = 48)
+      final totalBytes = 12 + 48 + 8 + dataSize;
+      final bd = ByteData(totalBytes);
+      bd.setUint8(0, 0x52); bd.setUint8(1, 0x49); bd.setUint8(2, 0x46); bd.setUint8(3, 0x46);
+      bd.setUint32(4, totalBytes - 8, Endian.little);
+      bd.setUint8(8, 0x57); bd.setUint8(9, 0x41); bd.setUint8(10, 0x56); bd.setUint8(11, 0x45);
+      // fmt
+      bd.setUint8(12, 0x66); bd.setUint8(13, 0x6D); bd.setUint8(14, 0x74); bd.setUint8(15, 0x20);
+      bd.setUint32(16, 40, Endian.little);
+      bd.setUint16(20, 0xFFFE, Endian.little); // WAVEFORMATEXTENSIBLE
+      bd.setUint16(22, 1, Endian.little);
+      bd.setUint32(24, sampleRate, Endian.little);
+      bd.setUint32(28, sampleRate * 8, Endian.little);
+      bd.setUint16(32, 8, Endian.little);
+      bd.setUint16(34, 64, Endian.little); // 64-bit
+      bd.setUint16(36, 22, Endian.little); // cbSize
+      bd.setUint16(38, 64, Endian.little); // wValidBitsPerSample
+      bd.setUint32(40, 4, Endian.little);  // dwChannelMask
+      bd.setUint16(44, 3, Endian.little);  // SubFormat = 3 (IEEE Float)
+      // data
+      bd.setUint8(60, 0x64); bd.setUint8(61, 0x61); bd.setUint8(62, 0x74); bd.setUint8(63, 0x61);
+      bd.setUint32(64, dataSize, Endian.little);
+      for (int i = 0; i < numSamples; i++) {
+        bd.setFloat64(68 + i * 8, samples[i], Endian.little);
+      }
+
+      const engine = AudioToScoreTranscriptionEngine();
+      final score = engine.transcribeAudioFile(audioBytes: bd.buffer.asUint8List(), bpm: 120);
+      final pitched = score.measures.first.notes.where((n) => !n.isRest).toList();
+      expect(pitched, isNotEmpty);
+      expect(pitched.first.noteName, equals('La4'));
+    });
+
+    test('UniversalScoreImporterService.transcribeAudioToScoreResult respeta timeSignature opcional', () {
+      final wav16 = PcmWavSynthesizer.generateMusicalNoteWav(frequency: 440.0, durationMs: 500);
+      const importer = UniversalScoreImporterService();
+      final result = importer.transcribeAudioToScoreResult(
+        bytes: wav16,
+        fileName: 'valse_test.wav',
+        bpm: 120,
+        timeSignature: TimeSignature.waltzTime34,
+      );
+      expect(result.package.score.measures.first.timeSignature.numerator, 3);
+      expect(result.package.score.measures.first.timeSignature.denominator, 4);
     });
   });
 }

@@ -9,7 +9,7 @@ Este documento define el plan tecnico paso a paso para implementar la historia d
 - **ID del Plan:** `PLAN-FASE4-TRANSCRIPTION-US44-2026-152`
 - **Titulo de la Implementacion:** Reloj Musical Real (ms a subTicks), Insercion de Silencios, Division de Compas y WAV Multi-Bit / 27.5 Hz
 - **Fase del Proyecto:** Fase 4 (Transcripcion Inteligente En Vivo y Offline)
-- **Estado:** En Progreso
+- **Estado:** Completado
 - **ADR Relacionado:** [docs/04_adrs/0152_transcription_real_clock_rests_and_multibit_wav.md](../04_adrs/0152_transcription_real_clock_rests_and_multibit_wav.md)
 - **Documento Funcional Base:** [docs/02_use_cases/160_uc_transcription_real_clock_rests_and_multibit_wav.md](../02_use_cases/160_uc_transcription_real_clock_rests_and_multibit_wav.md)
 
@@ -49,18 +49,18 @@ Proveer medicion temporal real en milisegundos convertida a sub-ticks musicales 
 
 ### Paso 1: Capa de Dominio (Reloj Musical y Motores de Transcripcion)
 - [x] Redactar Caso de Uso 160, ADR 0152 y este Plan de Implementacion.
-- [ ] Asegurar que `ScoreEditorOperations.insertOrUpdateNote` cree `HierarchicalNote.rest` cuando `noteName.isEmpty`.
-- [ ] Implementar reloj musical en `LiveTranscriptionEngine` y `PolyphonicTranscriptionEngine` (`frameDurationMs`, `timestampMs`, `bpm`, formula `subTicks = (durationMs / (15000.0 / bpm)).round()`, insercion de `HierarchicalNote.rest`, division de notas/silencios en barra de compas, eliminacion de `math.min(startTick, 15)`).
-- [ ] Actualizar `AudioToScoreTranscriptionEngine` con `windowSize = 4096`, umbral `25.0 Hz`, decodificador WAV PCM 8/16/24/32 bits e IEEE Float (`audioFormat == 3`) y `TimeSignature` parametrizado.
+- [x] Asegurar que `ScoreEditorOperations.insertOrUpdateNote` cree `HierarchicalNote.rest` cuando `noteName.isEmpty`.
+- [x] Implementar reloj musical en `LiveTranscriptionEngine` y `PolyphonicTranscriptionEngine` (`frameDurationMs`, `timestampMs`, `bpm`, formula `subTicks = (durationMs / (15000.0 / bpm)).round()`, insercion de `HierarchicalNote.rest`, division de notas/silencios en barra de compas, eliminacion de `math.min(startTick, 15)`).
+- [x] Actualizar `AudioToScoreTranscriptionEngine` con `windowSize = 4096`, umbral `25.0 Hz`, decodificador WAV PCM 8/16/24/32 bits e IEEE Float (`audioFormat == 3`, `32/64` bits y `0xFFFE` extensible) y `TimeSignature` parametrizado.
 
 ### Paso 2: Integracion en Controladores e Importador
-- [ ] Pasar `bpm` y `timestampMs` reales durante captura en vivo desde `TunerViewModel` y `ScoreEditorController`.
-- [ ] Exponer `timeSignature` opcional en `UniversalScoreImporterService.transcribeAudioToScoreResult`.
+- [x] Pasar `bpm` y `timestampMs` reales durante captura en vivo desde `TunerViewModel` y `ScoreEditorController`.
+- [x] Exponer `timeSignature` opcional en `UniversalScoreImporterService.transcribeAudioToScoreResult`.
 
 ### Paso 3: Pruebas, Verificacion y Limpieza
-- [ ] Crear `test/features/transcription/us_4_4_transcription_real_clock_test.dart` cubriendo reloj `ms -> subTicks` a distintos BPM, silencios en vivo mono y polifonicos, division entre compases, metricas no-4/4 (`6/8`, `3/4`, `12/8`), deteccion $A_0 = 27.5\text{ Hz}$ y WAV 8/16/24/32 PCM + IEEE Float.
-- [ ] Ejecutar `flutter analyze --no-fatal-infos` (0 issues).
-- [ ] Ejecutar pruebas nuevas y toda la suite existente en `test/features/transcription/` y `test/features/notation/` (100% pass).
+- [x] Crear `test/features/transcription/us_4_4_transcription_real_clock_test.dart` cubriendo reloj `ms -> subTicks` a distintos BPM, silencios en vivo mono y polifonicos, division entre compases, metricas no-4/4 (`6/8`, `3/4`, `12/8`), deteccion $A_0 = 27.5\text{ Hz}$ y WAV 8/16/24/32/64 PCM + IEEE Float + `0xFFFE`.
+- [x] Ejecutar `flutter analyze --no-fatal-infos` (0 issues).
+- [x] Ejecutar pruebas nuevas y toda la suite existente en `test/features/transcription/` y `test/features/notation/` (100% pass).
 
 ---
 
@@ -73,8 +73,8 @@ Proveer medicion temporal real en milisegundos convertida a sub-ticks musicales 
 
 ## 5. Criterios de Aceptacion (Definition of Done)
 
-- [ ] Codigo adherido estrictamente a Clean Architecture y reglas de `AGENTS.md` (cero emojis).
-- [ ] `flutter analyze --no-fatal-infos` reporta 0 issues.
-- [ ] `flutter test` pasa al 100% en las pruebas de US-4.4 y pruebas existentes relacionadas.
-- [ ] Documentacion tecnica completa (UC 160 con 2 diagramas Mermaid, ADR 0152 y Plan).
-- [ ] Pull Request abierto hacia `qa` vinculado al Issue de GitHub sin ejecutar merge.
+- [x] Codigo adherido estrictamente a Clean Architecture y reglas de `AGENTS.md` (cero emojis).
+- [x] `flutter analyze --no-fatal-infos` reporta 0 issues.
+- [x] `flutter test` pasa al 100% en las pruebas de US-4.4 y pruebas existentes relacionadas.
+- [x] Documentacion tecnica completa (UC 160 con 2 diagramas Mermaid, ADR 0152 y Plan).
+- [x] Pull Request abierto hacia `qa` vinculado al Issue de GitHub sin ejecutar merge.
