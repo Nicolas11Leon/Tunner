@@ -1,6 +1,8 @@
 # Plan de Implementacion US-5.2: Importacion/Carga .tnt y .tunner, Patchbay con Foco/Sinergia y Almacenamiento Real
 
 - **Issue:** #157
+- **Caso de Uso:** `UC-165` (`docs/02_use_cases/165_uc_modular_rack_tnt_tunner_patchbay_and_storage.md`)
+- **ADR:** `ADR-0157` (`docs/04_adrs/0157_modular_rack_tnt_tunner_patchbay_synergy_and_di_storage.md`)
 - **Rama:** `feature/us-5.2-modular-rack-tnt-tunner-patchbay-and-storage`
 - **Base:** `qa`
 - **Estado:** Completado (Validado con `flutter analyze --no-fatal-infos` 0 issues y 72/72 tests aprobados)

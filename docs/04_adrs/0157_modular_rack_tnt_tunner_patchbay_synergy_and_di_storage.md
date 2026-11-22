@@ -1,4 +1,4 @@
-# ADR-0139: Persistencia Real .tnt/.tunner, Pre-validacion de Sinergia en Patchbay y Resolucion DI en ModularStudioRackView
+# ADR-0157: Persistencia Real .tnt/.tunner, Pre-validacion de Sinergia en Patchbay y Resolucion DI en ModularStudioRackView
 
 - **Estado:** Aceptado
 - **Fecha:** 2026-11-22

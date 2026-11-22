@@ -1,10 +1,10 @@
-# UC-147: Importacion/Carga de Archivos .tnt y .tunner, Patchbay con Foco/Sinergia y Almacenamiento Real en Rack Modular
+# UC-165: Importacion/Carga de Archivos .tnt y .tunner, Patchbay con Foco/Sinergia y Almacenamiento Real en Rack Modular
 
 ## 1. Informacion General
 
 | Campo | Valor |
 | :--- | :--- |
-| **ID** | UC-147 |
+| **ID** | UC-165 |
 | **Historia de Usuario** | US-5.2 (EPIC-05) |
 | **Actores** | Musico / Productor (Usuario), Sistema Tunner (`ModularRackViewModel`, `StudioPatchbayModal`, `SynergyPolicyEngine`, `LocalProjectStorageRepository`) |
 | **Precondiciones** | El usuario se encuentra en la vista del Rack Modular (`ModularStudioRackView`) con `StudioCompositionRoot` montado en el arbol de widgets (o un `ModularRackViewModel` inyectado). |
