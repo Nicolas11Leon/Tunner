@@ -25,6 +25,7 @@ class ScorePlaybackCoordinator {
   double _bpm = 120.0;
 
   HierarchicalScore? _activeScore;
+  final Map<int, Timer> _activePreviewTimers = {};
 
   // Callbacks de notificación
   void Function(int measureIndex, int subTick)? onTick;
@@ -78,11 +79,15 @@ class ScorePlaybackCoordinator {
     final midi = noteNameToMidi(note.noteName);
     if (midi < 0) return;
 
+    // Cancelar cualquier timer previo para este mismo pitch
+    _activePreviewTimers[midi]?.cancel();
+
     voicePool.noteOn(midi, velocity);
 
     // Liberar la nota al concluir la duración de pre-escucha
-    Timer(Duration(milliseconds: (durationSeconds * 1000).round()), () {
+    _activePreviewTimers[midi] = Timer(Duration(milliseconds: (durationSeconds * 1000).round()), () {
       voicePool.noteOff(midi);
+      _activePreviewTimers.remove(midi);
     });
   }
 
@@ -108,6 +113,10 @@ class ScorePlaybackCoordinator {
     _playbackTimer = null;
     _clockStopwatch.stop();
     _isPlaying = false;
+    for (final timer in _activePreviewTimers.values) {
+      timer.cancel();
+    }
+    _activePreviewTimers.clear();
     voicePool.allNotesOff();
     onPlaybackStopped?.call();
   }
@@ -122,6 +131,10 @@ class ScorePlaybackCoordinator {
     _isPlaying = false;
     _currentMeasureIndex = 0;
     _currentSubTick = 0;
+    for (final timer in _activePreviewTimers.values) {
+      timer.cancel();
+    }
+    _activePreviewTimers.clear();
     voicePool.panic();
     onTick?.call(0, 0);
     onPlaybackStopped?.call();
@@ -226,6 +239,10 @@ class ScorePlaybackCoordinator {
     _playbackTimer?.cancel();
     _playbackTimer = null;
     _clockStopwatch.stop();
+    for (final timer in _activePreviewTimers.values) {
+      timer.cancel();
+    }
+    _activePreviewTimers.clear();
     voicePool.panic();
   }
 }
