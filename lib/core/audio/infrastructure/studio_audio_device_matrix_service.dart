@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import '../../logging/infrastructure/studio_debug_logger.dart';
 import '../domain/audio_device_entity.dart';
@@ -380,29 +381,130 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier implements IStudioAu
     }
   }
 
+  @override
+  void processMasterStereoSamples(List<double> left, List<double> right) {
+    if (left.isEmpty && right.isEmpty) return;
+
+    final length = left.length > right.length ? left.length : right.length;
+    final processedLeft = List<double>.filled(length, 0.0);
+    final processedRight = List<double>.filled(length, 0.0);
+
+    final isMuted = _matrix.isMuted;
+    final isMono = _matrix.isMono;
+    final effectiveGain = _matrix.effectiveMasterGain;
+
+    if (!isMuted && effectiveGain > 0.0001) {
+      for (int i = 0; i < length; i++) {
+        var l = i < left.length ? left[i] : 0.0;
+        var r = i < right.length ? right[i] : 0.0;
+
+        // 1. Colapso monoaural si corresponde
+        if (isMono) {
+          final mono = 0.5 * (l + r);
+          l = mono;
+          r = mono;
+        }
+
+        // 2. Ecualización maestra si no está en bypass
+        if (!_matrix.isEqBypassed) {
+          final eq1 = _filterLow.processStereoSample(l, r);
+          final eq2 = _filterMid.processStereoSample(eq1.$1, eq1.$2);
+          final eq3 = _filterHigh.processStereoSample(eq2.$1, eq2.$2);
+          l = eq3.$1;
+          r = eq3.$2;
+        }
+
+        // 3. Dinámica maestra (Compresor/Limitador)
+        if (!_matrix.isCompBypassed) {
+          final comp = _dynamicsProcessor.processStereoSample(l, r);
+          l = comp.$1;
+          r = comp.$2;
+        }
+
+        // 4. Ganancia efectiva
+        l *= effectiveGain;
+        r *= effectiveGain;
+
+        processedLeft[i] = l;
+        processedRight[i] = r;
+      }
+    }
+
+    // 5. Medición acústica real de RMS y Peak
+    double sumSqL = 0.0;
+    double sumSqR = 0.0;
+    double peakL = 0.0;
+    double peakR = 0.0;
+
+    for (int i = 0; i < length; i++) {
+      final absL = processedLeft[i].abs();
+      final absR = processedRight[i].abs();
+      sumSqL += absL * absL;
+      sumSqR += absR * absR;
+      if (absL > peakL) peakL = absL;
+      if (absR > peakR) peakR = absR;
+    }
+
+    final rmsL = length > 0 ? math.sqrt(sumSqL / length) : 0.0;
+    final rmsR = length > 0 ? math.sqrt(sumSqR / length) : 0.0;
+
+    final peakDbL = StudioMasterAudioMixer.dbFromLinearGain(peakL);
+    final peakDbR = StudioMasterAudioMixer.dbFromLinearGain(peakR);
+    final grDb = _matrix.isCompBypassed ? 0.0 : _dynamicsProcessor.currentGainReductionDb;
+
+    _masterMeterData = StudioStereoLevelMeterData(
+      leftRms: rmsL,
+      rightRms: rmsR,
+      leftPeakDb: peakDbL,
+      rightPeakDb: peakDbR,
+      isClipping: peakDbL >= StudioMasterAudioMixer.clippingThresholdDb ||
+          peakDbR >= StudioMasterAudioMixer.clippingThresholdDb,
+      gainReductionDb: grDb,
+    );
+
+    if (!_meterController.isClosed) {
+      _meterController.add(_masterMeterData);
+    }
+
+    // 6. Volcado hacia grabación maestra activa
+    if (_matrix.isMasterRecording) {
+      _captureService.appendStereoSamples(processedLeft, processedRight);
+    }
+  }
+
   void _startMeterLoop() {
     _vuMeterSimulationTimer?.cancel();
-    // Bucle a 60 FPS (~16.6 ms) para balística visual de vúmetro estéreo
+    // Bucle de balística a ~30 FPS (33 ms) para atenuación exponencial natural en reposo (Release Decay)
     _vuMeterSimulationTimer = Timer.periodic(const Duration(milliseconds: 33), (_) {
       if (_meterController.isClosed) return;
 
-      final effGain = _matrix.effectiveMasterGain;
-      if (effGain <= 0.001) {
-        _masterMeterData = StudioStereoLevelMeterData.zero;
-      } else {
-        // En ausencia de DSP nativo estéreo continuo, estimamos nivel ponderado
-        final basePeak = (0.75 * effGain).clamp(0.0, 1.2);
-        final basePeakDb = StudioMasterAudioMixer.dbFromLinearGain(basePeak);
-        final grDb = _matrix.isCompBypassed ? 0.0 : _dynamicsProcessor.currentGainReductionDb;
-        _masterMeterData = StudioStereoLevelMeterData(
-          leftRms: 0.60 * effGain,
-          rightRms: 0.62 * effGain,
-          leftPeakDb: basePeakDb,
-          rightPeakDb: basePeakDb + 0.2,
-          isClipping: basePeakDb >= StudioMasterAudioMixer.clippingThresholdDb,
-          gainReductionDb: grDb,
-        );
+      if (_masterMeterData.leftRms <= 0.0001 && _masterMeterData.rightRms <= 0.0001) {
+        if (_masterMeterData != StudioStereoLevelMeterData.zero) {
+          _masterMeterData = StudioStereoLevelMeterData.zero;
+          _meterController.add(_masterMeterData);
+        }
+        return;
       }
+
+      // Caída exponencial suave (factor 0.85 por ciclo ~20 dB/s)
+      const decay = 0.85;
+      final decayedRmsL = _masterMeterData.leftRms * decay;
+      final decayedRmsR = _masterMeterData.rightRms * decay;
+      final decayedPeakDbL = _masterMeterData.leftPeakDb <= -90.0
+          ? -96.0
+          : _masterMeterData.leftPeakDb - 1.5;
+      final decayedPeakDbR = _masterMeterData.rightPeakDb <= -90.0
+          ? -96.0
+          : _masterMeterData.rightPeakDb - 1.5;
+
+      _masterMeterData = StudioStereoLevelMeterData(
+        leftRms: decayedRmsL < 0.0001 ? 0.0 : decayedRmsL,
+        rightRms: decayedRmsR < 0.0001 ? 0.0 : decayedRmsR,
+        leftPeakDb: decayedPeakDbL < -96.0 ? -96.0 : decayedPeakDbL,
+        rightPeakDb: decayedPeakDbR < -96.0 ? -96.0 : decayedPeakDbR,
+        isClipping: false,
+        gainReductionDb: _matrix.isCompBypassed ? 0.0 : _dynamicsProcessor.currentGainReductionDb,
+      );
       _meterController.add(_masterMeterData);
     });
   }
