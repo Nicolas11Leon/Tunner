@@ -8,6 +8,12 @@ abstract class IPitchDetectorService {
   /// Callback invocado cuando se detecta una frecuencia fundamental válida (en Hz).
   Function(double pitchHz)? onPitchDetected;
 
+  /// Callback invocado cuando se detecta el nivel de claridad armónica [0.0..1.0] (NSDF peak).
+  Function(double clarity)? onClarityDetected;
+
+  /// Callback invocado periódicamente con la ventana de audio PCM normalizada [-1.0..1.0] capturada.
+  Function(List<double> audioWindow)? onAudioWindowCaptured;
+
   /// Callback invocado periódicamente con el nivel acústico RMS normalizado [0.0..1.0] para el medidor VU.
   Function(double rmsLevel)? onRmsLevelChanged;
 
