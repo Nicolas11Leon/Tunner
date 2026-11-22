@@ -2491,6 +2491,7 @@ class TunerViewModel extends ChangeNotifier
       activePackage: _activePackage,
       currentMeasureIndex: _currentMeasureIndex,
       currentSubTick: _currentSubTick,
+      bpm: _bpm,
     );
     if (finalPkg != null) {
       _activePackage = finalPkg;
@@ -2503,6 +2504,7 @@ class TunerViewModel extends ChangeNotifier
       activePackage: _activePackage,
       currentMeasureIndex: _currentMeasureIndex,
       currentSubTick: _currentSubTick,
+      bpm: _bpm,
       ensureChordRecognitionActive: () {
         if (!_isChordRecognitionActive) {
           _isChordRecognitionActive = true;
