@@ -246,9 +246,9 @@ class StemAudioSynthesizer {
     } else if (icon == 'flute' || id.contains('flute') || id.contains('flauta')) {
       freqMultiplier = 2.0; // Octava aguda
     } else if (icon == 'guitar' || id.contains('guitar') || id.contains('guitarra')) {
-      freqMultiplier = 1.5; // Quinta armónica
+      freqMultiplier = 1.5; // Quinta justa armonica (neutral entre mayor y menor)
     } else {
-      freqMultiplier = 1.25; // Tercera armónica
+      freqMultiplier = 1.0; // Registro unisono seguro sin disonancias modales
     }
 
     final safeBpm = bpm.clamp(20, 300);

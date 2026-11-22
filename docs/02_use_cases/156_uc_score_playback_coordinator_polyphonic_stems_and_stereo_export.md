@@ -88,8 +88,7 @@ sequenceDiagram
 1. El secuenciador de sub-ticks avanza al siguiente tick.
 2. Si la reproducción de partitura está habilitada, se identifican todas las notas de la voz principal cuya propiedad `startTick == subTick`.
 3. Se calcula la ganancia efectiva de la voz principal con `mixerConsole.getEffectiveGain(leadTrackId)`.
-4. Se sintetizan todas las notas concurrentes en el grupo polifónico.
-5. Se itera sobre las pistas de acompañamiento (`tracks.skip(1)`) y se sintetizan sus notas correspondientes escaladas por sus respectivas ganancias.
+4. Se sintetizan todas las notas concurrentes en el grupo polifónico escaladas por `voiceGain`.
 
 ### 4.4 Flujo de Exportacion Estereo
 1. Se invoca `StemAudioSynthesizer.exportStemsAndMidi`.
@@ -97,7 +96,12 @@ sequenceDiagram
 3. Para la mezcla maestra (`master_mixdown.wav`), se sintetizan los canales izquierdo y derecho intercalados en formato PCM de 16 bits a 44.1 kHz con encabezado WAV de 2 canales.
 4. Se exportan los stems individuales y el archivo Standard MIDI File.
 
-### 4.5 Postcondiciones
+### 4.5 Flujos Alternativos y Manejo de Errores
+1. **FA-01 (Re-disparo rapido en Tap-to-Listen):** Si el usuario toca una misma nota MIDI antes de concluir los 450 ms del temporizador previo, `ScorePlaybackCoordinator.previewNote` cancela el `Timer` previo en `_activePreviewTimers[midi]` y programa uno nuevo sin acumular fugas.
+2. **FA-02 (Pista silenciada o en Mute):** Si `mixerConsole.getEffectiveGain(trackId) <= 0.001`, el secuenciador y el exportador omiten la emision sonora de dicha pista manteniendo el resto del balance intacto.
+3. **FA-03 (Partitura vacia en exportacion):** Si `score.measures` esta vacio, `StemAudioSynthesizer` genera la duracion minima segura sin lanzar excepciones de indice.
+
+### 4.6 Postcondiciones
 - Cero artefactos de fase o duplicidad de audio en audición táctil.
 - Reproducción polifónica fiel a la partitura y balance del mezclador.
 - Archivos WAV estéreo estándar legibles por cualquier DAW o reproductor.

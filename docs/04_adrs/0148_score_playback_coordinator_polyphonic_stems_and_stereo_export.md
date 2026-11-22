@@ -14,8 +14,8 @@ El motor de partituras presentaba tres inconsistencias funcionales y acusticas d
    - Gestionar temporizadores individuales en `Map<int, Timer> _activePreviewTimers` indexados por número de nota MIDI. Si una misma nota es tocada antes de concluir la envolvente previa, su temporizador se cancela y se reinicia cleanly.
    - Eliminar la llamada redundante a `_audioSynthesizer.playNoteTone` en `TunerViewModel.selectAndPreviewScoreNote`.
 2. Habilitar reproduccion polifonica integral en `TunerViewModel`:
-   - Sintetizar todas las notas concurrentes en `currentMeasureNotes` con `startTick == subTick`.
-   - Iterar sobre las pistas de acompañamiento en `activePackage.tracks.skip(1)` y sintetizar sus notas aplicando `mixerConsole.getEffectiveGain(track.id)`.
+   - Sintetizar todas las notas concurrentes en `currentMeasureNotes` con `startTick == subTick` escaladas por `mixerConsole.getEffectiveGain(leadTrackId)`.
+   - Delegar la sintesis multi-pista completa de `mixerConsole.stems` al motor `StemAudioSynthesizer` durante la exportacion.
 3. Implementar sintesis y exportacion estéreo real de 2 canales en `StemAudioSynthesizer`:
    - Agregar `floatStereoBufferToWav` para generar audio estéreo PCM interleaved de 16 bits con encabezado WAV canónico de 2 canales (`channels: 2`).
    - Procesar la totalidad de las pistas definidas en `mixerConsole.stems` aplicando balance de volumen y distribución estereofónica (*panning*).
