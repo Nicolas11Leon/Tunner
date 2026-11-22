@@ -178,6 +178,7 @@ class TunerViewModel extends ChangeNotifier
   bool _isChordRecognitionActive = false;
   List<double> _activeChromaVector = List<double>.filled(12, 0.0);
   List<double>? _latestAudioSamples;
+  double _lastClarity = 0.0;
   final List<ChordEntity> _chordHistory = [];
   final TapTempoEngine _tapTempoEngine = TapTempoEngine();
   TapTempoResult? _lastTapTempoResult;
@@ -553,6 +554,7 @@ class TunerViewModel extends ChangeNotifier
   @override
   List<double> get activeChromaVector => _activeChromaVector;
   List<double>? get latestAudioSamples => _latestAudioSamples;
+  double get lastClarity => _lastClarity;
   List<ChordEntity> get chordHistory => List.unmodifiable(_chordHistory);
   TapTempoResult? get lastTapTempoResult => _lastTapTempoResult;
   LearnerProfileEntity get learnerProfile => _learnerProfile;
@@ -820,6 +822,19 @@ class TunerViewModel extends ChangeNotifier
       notifyListeners();
     };
 
+    _pitchService.onClarityDetected = (clarity) {
+      _lastClarity = clarity;
+      notifyListeners();
+    };
+
+    _pitchService.onAudioWindowCaptured = (window) {
+      _latestAudioSamples = window;
+      if (_isChordRecognitionActive) {
+        processChordSamples(window);
+      }
+      notifyListeners();
+    };
+
     _pitchService.onPitchDetected = (pitch) {
       if (_echoSuppressor.shouldSuppressPitch(pitch)) {
         return;
@@ -863,7 +878,7 @@ class TunerViewModel extends ChangeNotifier
       final transcribedPkg = _scoreEditorController.processLiveTranscriptionFrame(
         activePackage: _activePackage,
         pitchHz: pitch,
-        clarity: pitch > 20.0 ? 0.95 : 0.0,
+        clarity: _lastClarity > 0.0 ? _lastClarity : (pitch > 20.0 ? 0.95 : 0.0),
         noteName: noteEntity.name,
       );
       if (transcribedPkg != null) {
@@ -905,6 +920,7 @@ class TunerViewModel extends ChangeNotifier
         _frequency = 0.0;
         _noteName = "--";
         _cents = 0.0;
+        _lastClarity = 0.0;
         _vocalPedagogyController.resetOnSilence();
 
         final silentPkg = _scoreEditorController.processLiveTranscriptionFrame(

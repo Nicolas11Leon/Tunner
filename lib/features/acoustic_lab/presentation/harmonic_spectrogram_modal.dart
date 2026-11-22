@@ -22,12 +22,13 @@ class HarmonicSpectrogramModal extends StatelessWidget {
     final palette = vm.currentPalette;
     const analyzer = HarmonicSeriesAnalyzer(maxHarmonics: 8);
 
-    final analysis = analyzer.analyze(
-      fundamentalHz: vm.frequency > 20.0 ? vm.frequency : 440.0,
-      samples: vm.latestAudioSamples,
-    );
-
     final hasSignal = vm.frequency > 20.0;
+    final analysis = hasSignal
+        ? analyzer.analyze(
+            fundamentalHz: vm.frequency,
+            samples: vm.latestAudioSamples,
+          )
+        : TimbreAnalysisResult.empty;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.72,
@@ -108,72 +109,95 @@ class HarmonicSpectrogramModal extends StatelessWidget {
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
-                      children: analysis.harmonics.map((h) {
-                        final heightFactor = hasSignal ? h.relativeAmplitude.clamp(0.06, 1.0) : 0.08;
-                        final isFund = h.harmonicNumber == 1;
-
-                        return Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                // Nivel en decibelios
-                                Text(
-                                  "${h.dbLevel.toStringAsFixed(0)}dB",
-                                  style: TextStyle(
-                                    color: palette.textMutedColor,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                      children: () {
+                        final bars = analysis.harmonics.isNotEmpty
+                            ? analysis.harmonics
+                            : List.generate(
+                                8,
+                                (i) => HarmonicBarEntity(
+                                  harmonicNumber: i + 1,
+                                  frequencyHz: hasSignal ? vm.frequency * (i + 1) : 0.0,
+                                  relativeAmplitude: 0.0,
+                                  dbLevel: -60.0,
+                                  intervalLabel: HarmonicBarEntity.getLabelForHarmonic(i + 1),
                                 ),
-                                const SizedBox(height: 4),
+                              );
+                        return bars.map((h) {
+                          final heightFactor = hasSignal && h.relativeAmplitude > 0.0
+                              ? h.relativeAmplitude.clamp(0.06, 1.0)
+                              : 0.06;
+                          final isFund = h.harmonicNumber == 1;
 
-                                // Barra vectorial
-                                Expanded(
-                                  child: Align(
-                                    alignment: Alignment.bottomCenter,
-                                    child: FractionallySizedBox(
-                                      heightFactor: heightFactor,
-                                      widthFactor: 0.85,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.bottomCenter,
-                                            end: Alignment.topCenter,
-                                            colors: isFund
-                                                ? [palette.primaryAccent, palette.primaryAccent.withValues(alpha: 0.7)]
-                                                : [palette.secondaryAccent, palette.secondaryAccent.withValues(alpha: 0.6)],
+                          return Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  // Nivel en decibelios
+                                  Text(
+                                    hasSignal && h.relativeAmplitude > 0.0
+                                        ? "${h.dbLevel.toStringAsFixed(0)}dB"
+                                        : "--",
+                                    style: TextStyle(
+                                      color: palette.textMutedColor,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+
+                                  // Barra vectorial
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.bottomCenter,
+                                      child: FractionallySizedBox(
+                                        heightFactor: heightFactor,
+                                        widthFactor: 0.85,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              begin: Alignment.bottomCenter,
+                                              end: Alignment.topCenter,
+                                              colors: hasSignal && h.relativeAmplitude > 0.0
+                                                  ? (isFund
+                                                      ? [palette.primaryAccent, palette.primaryAccent.withValues(alpha: 0.7)]
+                                                      : [palette.secondaryAccent, palette.secondaryAccent.withValues(alpha: 0.6)])
+                                                  : [
+                                                      palette.staffLinesColor.withValues(alpha: 0.2),
+                                                      palette.staffLinesColor.withValues(alpha: 0.1),
+                                                    ],
+                                            ),
+                                            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                                           ),
-                                          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 6),
+                                  const SizedBox(height: 6),
 
-                                // Número de armónico
-                                Text(
-                                  "H${h.harmonicNumber}",
-                                  style: TextStyle(
-                                    color: isFund ? palette.primaryAccent : palette.textColor,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
+                                  // Número de armónico
+                                  Text(
+                                    "H${h.harmonicNumber}",
+                                    style: TextStyle(
+                                      color: hasSignal && isFund ? palette.primaryAccent : palette.textColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  "${h.frequencyHz.round()}Hz",
-                                  style: TextStyle(
-                                    color: palette.textMutedColor,
-                                    fontSize: 8,
+                                  Text(
+                                    h.frequencyHz > 0 ? "${h.frequencyHz.round()}Hz" : "--",
+                                    style: TextStyle(
+                                      color: palette.textMutedColor,
+                                      fontSize: 8,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      }).toList(),
+                          );
+                        }).toList();
+                      }(),
                     ),
                   ),
 

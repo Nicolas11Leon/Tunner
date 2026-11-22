@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 import '../../../core/logging/infrastructure/studio_debug_logger.dart';
@@ -45,6 +46,12 @@ class PitchDetectorService implements IPitchDetectorService {
   Function(double)? onPitchDetected;
 
   @override
+  Function(double)? onClarityDetected;
+
+  @override
+  Function(List<double>)? onAudioWindowCaptured;
+
+  @override
   Function(double)? onRmsLevelChanged;
 
   MicrophoneCalibrationProfile get activeProfile => _activeProfile;
@@ -74,6 +81,15 @@ class PitchDetectorService implements IPitchDetectorService {
       } else if (message is Map<String, dynamic>) {
         if (message.containsKey('rms') && onRmsLevelChanged != null) {
           onRmsLevelChanged!(message['rms'] as double);
+        }
+        if (message.containsKey('pitch') && onPitchDetected != null) {
+          onPitchDetected!(message['pitch'] as double);
+        }
+        if (message.containsKey('clarity') && onClarityDetected != null) {
+          onClarityDetected!(message['clarity'] as double);
+        }
+        if (message.containsKey('window') && onAudioWindowCaptured != null) {
+          onAudioWindowCaptured!(List<double>.from(message['window'] as List));
         }
       }
     });
@@ -170,9 +186,7 @@ class PitchDetectorService implements IPitchDetectorService {
 
           // Notificar nivel RMS para el medidor VU cada ~4 frames (aprox 20-25 Hz)
           rmsThrottleCounter++;
-          if (rmsThrottleCounter % 4 == 0) {
-            toMainPort.send({'rms': result.rms});
-          }
+          final shouldSendRms = (rmsThrottleCounter % 4 == 0);
 
           if (result.pitched) {
             final confirmedPitch = toneLockTracker.processFrame(
@@ -181,10 +195,28 @@ class PitchDetectorService implements IPitchDetectorService {
               config: filterConfig,
             );
             if (confirmedPitch != null) {
-              toMainPort.send(confirmedPitch);
+              final windowSize = math.min(1024, bufferFilledSamples);
+              final windowSlice = List<double>.from(
+                Float64List.sublistView(slidingFloatBuffer, bufferFilledSamples - windowSize, bufferFilledSamples),
+              );
+              final payload = <String, dynamic>{
+                'pitch': confirmedPitch,
+                'clarity': result.clarity,
+                'window': windowSlice,
+              };
+              if (shouldSendRms) {
+                payload['rms'] = result.rms;
+              }
+              toMainPort.send(payload);
             }
           } else {
             toneLockTracker.reset();
+            if (shouldSendRms) {
+              toMainPort.send({
+                'rms': result.rms,
+                'clarity': 0.0,
+              });
+            }
           }
         }
       }
