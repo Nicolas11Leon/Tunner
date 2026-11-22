@@ -156,12 +156,14 @@ class StudioCompositionRoot {
     );
   }
 
-  /// Crea el ViewModel de la Bóveda Multimedia con servicios de I/O inyectados.
+  /// Crea el ViewModel de la Bóveda Multimedia con servicios de I/O y audio inyectados.
   MediaVaultViewModel createMediaVaultViewModel() {
     return MediaVaultViewModel(
       ioService: const UniversalMediaIoService(),
       fileGateway: platformFileGateway,
       fileSystemRepository: fileSystemService.fileSystemRepository,
+      audioEngine: audioEngine,
+      audioSynthesizer: AudioSynthesizerService(audioEngine: audioEngine),
     );
   }
 
