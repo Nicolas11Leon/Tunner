@@ -38,6 +38,9 @@ class AppUserSettingsEntity {
   final WorkspaceType activeWorkspace;
   final MicrophoneCalibrationProfile micCalibrationProfile;
   final AcousticRigorProfile acousticRigorProfile;
+  final Map<String, Map<String, dynamic>> earTrainingItemsJson;
+  final Map<String, String> taskStatuses;
+  final List<String> completedLessonIds;
 
   const AppUserSettingsEntity({
     this.referencePitch = 440.0,
@@ -56,6 +59,9 @@ class AppUserSettingsEntity {
     this.activeWorkspace = WorkspaceType.learning,
     this.micCalibrationProfile = const MicrophoneCalibrationProfile(),
     this.acousticRigorProfile = const AcousticRigorProfile(),
+    this.earTrainingItemsJson = const {},
+    this.taskStatuses = const {},
+    this.completedLessonIds = const [],
     this.learnerProfile = const LearnerProfileEntity(
       type: LearnerProfileType.adultDeliberate,
       title: 'Modo Adulto (Práctica Deliberada)',
@@ -89,6 +95,9 @@ class AppUserSettingsEntity {
     WorkspaceType? activeWorkspace,
     MicrophoneCalibrationProfile? micCalibrationProfile,
     AcousticRigorProfile? acousticRigorProfile,
+    Map<String, Map<String, dynamic>>? earTrainingItemsJson,
+    Map<String, String>? taskStatuses,
+    List<String>? completedLessonIds,
   }) {
     return AppUserSettingsEntity(
       referencePitch: referencePitch ?? this.referencePitch,
@@ -108,6 +117,9 @@ class AppUserSettingsEntity {
       activeWorkspace: activeWorkspace ?? this.activeWorkspace,
       micCalibrationProfile: micCalibrationProfile ?? this.micCalibrationProfile,
       acousticRigorProfile: acousticRigorProfile ?? this.acousticRigorProfile,
+      earTrainingItemsJson: earTrainingItemsJson ?? this.earTrainingItemsJson,
+      taskStatuses: taskStatuses ?? this.taskStatuses,
+      completedLessonIds: completedLessonIds ?? this.completedLessonIds,
     );
   }
 
@@ -136,6 +148,9 @@ class AppUserSettingsEntity {
       'activeWorkspace': activeWorkspace.serializedKey,
       'micCalibrationProfile': micCalibrationProfile.toJson(),
       'acousticRigorProfile': acousticRigorProfile.toJson(),
+      'earTrainingItemsJson': earTrainingItemsJson,
+      'taskStatuses': taskStatuses,
+      'completedLessonIds': completedLessonIds,
     };
   }
 
@@ -242,6 +257,16 @@ class AppUserSettingsEntity {
       activeWorkspace: activeWorkspace,
       micCalibrationProfile: micCalibrationProfile,
       acousticRigorProfile: acousticRigorProfile,
+      earTrainingItemsJson: (map['earTrainingItemsJson'] as Map<String, dynamic>?)
+              ?.map((k, v) => MapEntry(k, Map<String, dynamic>.from(v as Map))) ??
+          const {},
+      taskStatuses: (map['taskStatuses'] as Map<String, dynamic>?)
+              ?.map((k, v) => MapEntry(k, v.toString())) ??
+          const {},
+      completedLessonIds: (map['completedLessonIds'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
     );
   }
 

@@ -172,6 +172,7 @@ class BlindEarTrainerEngine {
     MusicalInterval selected, {
     int responseTimeMs = 1200,
     double centsDeviation = 0.0,
+    bool hasAcousticCents = true,
   }) {
     final current = _currentQuestion;
     if (current == null) {
@@ -184,6 +185,7 @@ class BlindEarTrainerEngine {
       centsDeviation: centsDeviation,
       responseTimeMs: responseTimeMs,
       currentStreak: _currentStreak,
+      hasAcousticCents: hasAcousticCents,
     );
 
     _recordResult(result);

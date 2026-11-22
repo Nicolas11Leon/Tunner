@@ -33,6 +33,7 @@ class VocalPedagogyController {
   final VoidCallback _onAutoSave;
 
   DateTime? _lastLessonFrameTime;
+  void Function(String lessonId)? onLessonCompleted;
   ScaleQuantizationResult _lastAutoTuneResult = ScaleQuantizationResult.unvoiced(0.0);
   SongPackage? _lastConvertedVocalPackage;
   VocalScoreConversionResult? _lastVocalConversionResult;
@@ -93,12 +94,15 @@ class VocalPedagogyController {
           ? 0.05
           : (now.difference(_lastLessonFrameTime!).inMilliseconds / 1000.0).clamp(0.01, 0.25);
       _lastLessonFrameTime = now;
-      _guidedLessonEvaluator.evaluateSample(
+      final progress = _guidedLessonEvaluator.evaluateSample(
         frequencyHz: pitchHz,
         cents: cents,
         detectedNoteName: noteName,
         deltaSeconds: deltaSec,
       );
+      if (progress != null && progress.isLessonComplete) {
+        onLessonCompleted?.call(progress.lesson.id);
+      }
     }
   }
 

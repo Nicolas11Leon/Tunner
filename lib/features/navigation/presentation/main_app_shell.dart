@@ -1032,10 +1032,11 @@ class _MainAppShellState extends State<MainAppShell> {
                 context: context,
                 palette: viewModel.currentPalette,
                 onTaskSelected: (task) {
+                  viewModel.startPedagogicalTask(task);
                   _navigateToTab(2);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Tarea seleccionada: ${task.code.formatted} - ${task.title}'),
+                      content: Text('Tarea iniciada: ${task.code.formatted} - ${task.title}'),
                       duration: const Duration(seconds: 2),
                     ),
                   );
