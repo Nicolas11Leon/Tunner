@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 /// Categories of musical and session assets stored in the Multimedia Vault.
@@ -123,7 +124,7 @@ class MediaAssetEntity {
         tags.any((tag) => tag.toLowerCase().contains(normalized));
   }
 
-  Map<String, dynamic> toMetadataJson() {
+  Map<String, dynamic> toMetadataJson({bool includeRawBytes = false}) {
     return <String, dynamic>{
       'id': id,
       'title': title,
@@ -137,6 +138,7 @@ class MediaAssetEntity {
       'tags': tags,
       'createdAt': createdAt.toIso8601String(),
       'waveformPeaks': waveformPeaks,
+      if (includeRawBytes && rawBytes != null) 'rawBytesBase64': base64Encode(rawBytes!),
     };
   }
 
@@ -146,6 +148,10 @@ class MediaAssetEntity {
       (k) => k.name == kindName,
       orElse: () => MediaAssetKind.audioTrack,
     );
+    final rawBase64 = json['rawBytesBase64'] as String?;
+    final decodedRawBytes = (rawBase64 != null && rawBase64.isNotEmpty)
+        ? base64Decode(rawBase64)
+        : null;
 
     return MediaAssetEntity(
       id: json['id'] as String? ?? 'asset_unknown',
@@ -163,6 +169,7 @@ class MediaAssetEntity {
           const <String>[],
       createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      rawBytes: decodedRawBytes,
       waveformPeaks: (json['waveformPeaks'] as List<dynamic>?)
               ?.map((e) => (e as num).toDouble())
               .toList(growable: false) ??
