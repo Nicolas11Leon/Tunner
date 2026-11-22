@@ -2112,6 +2112,12 @@ class TunerViewModel extends ChangeNotifier
     );
   }
 
+  @visibleForTesting
+  void emitTelemetryForTesting({required double frequency}) {
+    _frequency = frequency;
+    _updateTelemetry();
+  }
+
   // --- Delegación hacia PracticeRecorderController ---
   Future<void> startPracticeRecording() => _recorderController.startPracticeRecording();
 
