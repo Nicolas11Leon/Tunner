@@ -275,7 +275,6 @@ class TunerViewModel extends ChangeNotifier
       recorderService: _recorderService,
       playbackService: _playbackService,
       persistenceService: _persistenceService,
-      audioSynthesizer: _audioSynthesizer,
       platformFileGateway: _platformFileGateway,
       initialTitle: _activePackage.title,
       initialBpm: _bpm,
@@ -907,6 +906,7 @@ class TunerViewModel extends ChangeNotifier
           autoTuneCentsDev: _vocalPedagogyController.lastAutoTuneResult.centsDeviation,
           autoTuneTargetNote: _vocalPedagogyController.lastAutoTuneResult.targetNoteName,
           expectedNoteName: _expectedNote?.noteName,
+          audioSamples: _latestAudioSamples,
         );
       }
 
@@ -2141,7 +2141,6 @@ class TunerViewModel extends ChangeNotifier
   Future<void> playActiveRecording([PracticeRecordingEntity? targetRecording]) =>
       _recorderController.playActiveRecording(
         targetRecording: targetRecording,
-        referencePitch: _referencePitch,
       );
 
   Future<void> pauseActiveRecording() => _recorderController.pauseActiveRecording();
@@ -2294,6 +2293,7 @@ class TunerViewModel extends ChangeNotifier
       customPalettes: _customPalettes,
       sessionHistory: _sessionHistory,
       recordingHistory: _recorderController.rawRecordingHistory,
+      multiTrackSession: _recorderController.multiTrackSession,
       tuningPresets: _tuningPresets,
       workspaceScores: _workspaceScores,
       learnerProfile: _learnerProfile,
