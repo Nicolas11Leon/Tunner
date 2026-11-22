@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../app/studio_composition_root.dart';
 import '../../../core/channels/domain/studio_patchbay_routing_service.dart';
 import '../../../core/channels/domain/studio_modular_plug.dart';
 import '../../../core/channels/domain/studio_plug_type.dart';
@@ -17,6 +19,7 @@ import '../domain/dj_hardware_catalog.dart';
 import '../domain/dj_channel_fx_entity.dart';
 import '../domain/dj_crossfader_entity.dart';
 import '../domain/dj_deck_entity.dart';
+import '../domain/dj_sampler_bank_entity.dart';
 import 'dj_console_view_model.dart';
 import 'dj_interactive_keymap_visualizer_modal.dart';
 import 'dj_keymap_editor_modal.dart';
@@ -125,14 +128,24 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
 
     widget.viewModel.addListener(_syncDecksToChannels);
 
-    _mediaVaultViewModel = MediaVaultViewModel(
-      onDispatchToTool: (asset, target) {
-        if (target == MediaSynergyTarget.djDeckA ||
-            target == MediaSynergyTarget.djDeckB) {
+    StudioCompositionRoot? root;
+    try {
+      root = context.read<StudioCompositionRoot>();
+    } catch (_) {
+      root = null;
+    }
+
+    _mediaVaultViewModel = root != null
+        ? root.createMediaVaultViewModel()
+        : MediaVaultViewModel();
+    _mediaVaultViewModel.onDispatchToTool = (asset, target) {
+      final samples = (asset.pcmSamples != null && asset.pcmSamples!.isNotEmpty)
+          ? Float32List.fromList(asset.pcmSamples!)
+          : Float32List(4410);
+      switch (target) {
+        case MediaSynergyTarget.djDeckA:
+        case MediaSynergyTarget.djDeckB:
           final deckId = target == MediaSynergyTarget.djDeckA ? 'A' : 'B';
-          final samples = (asset.pcmSamples != null && asset.pcmSamples!.isNotEmpty)
-              ? Float32List.fromList(asset.pcmSamples!)
-              : Float32List(4410);
           widget.viewModel.loadTrackWithBeatTracking(
             deckId,
             title: asset.title,
@@ -140,9 +153,28 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
             audioSamples: samples,
             sampleRate: asset.sampleRate,
           );
-        }
-      },
-    );
+          break;
+        case MediaSynergyTarget.djSamplerPad:
+          widget.viewModel.triggerSamplerPad(DjSamplerPadType.values.first);
+          break;
+        case MediaSynergyTarget.scoreEditor:
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Activo "${asset.title}" enviado al Editor de Partituras.')),
+            );
+          }
+          break;
+        case MediaSynergyTarget.mixerChannel:
+          widget.viewModel.loadTrackWithBeatTracking(
+            'A',
+            title: asset.title,
+            artist: 'Mixer Channel',
+            audioSamples: samples,
+            sampleRate: asset.sampleRate,
+          );
+          break;
+      }
+    };
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focusNode.requestFocus();
     });
@@ -461,6 +493,8 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                           onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
                           onActionTriggered: (action) => vm.executeAction(action),
                           onToggleLearnMode: () => vm.toggleLearnMode(),
+                          getControlValue: (zone) => vm.getControlValue(zone),
+                          onContinuousControl: (zone, delta) => vm.updateContinuousControl(zone, delta),
                           onOpenKeymapVisualizer: () => DjInteractiveKeymapVisualizerModal.show(context, vm, palette),
                         ),
                         const SizedBox(height: 12),

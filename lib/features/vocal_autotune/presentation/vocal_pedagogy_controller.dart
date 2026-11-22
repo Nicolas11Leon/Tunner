@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/logging/domain/i_studio_logger.dart';
 import '../../guided_lessons/domain/curated_guided_lessons.dart';
 import '../../guided_lessons/domain/guided_lesson_entity.dart';
 import '../../guided_lessons/domain/guided_lesson_evaluator.dart';
@@ -16,6 +17,7 @@ import '../../song_library/domain/song_decomposer_service.dart';
 import '../../song_library/domain/song_package_entity.dart';
 import '../../tuner/domain/hardware_audio_endpoint.dart';
 import '../domain/autotune_config_entity.dart';
+import '../domain/i_vocal_take_file_gateway.dart';
 import '../domain/scale_quantizer.dart';
 import '../domain/vocal_autotune_processor.dart';
 import '../domain/vocal_score_converter.dart';
@@ -29,10 +31,13 @@ class VocalPedagogyController {
   final VocalScoreConverter _vocalScoreConverter;
   final MinusOneOrchestrator _minusOneOrchestrator;
   final PortPermissionBroker _portPermissionBroker;
+  final IVocalTakeFileGateway _vocalTakeFileGateway;
+  final IStudioLogger _logger;
   final VoidCallback _onNotify;
   final VoidCallback _onAutoSave;
 
   DateTime? _lastLessonFrameTime;
+  void Function(String lessonId)? onLessonCompleted;
   ScaleQuantizationResult _lastAutoTuneResult = ScaleQuantizationResult.unvoiced(0.0);
   SongPackage? _lastConvertedVocalPackage;
   VocalScoreConversionResult? _lastVocalConversionResult;
@@ -49,12 +54,16 @@ class VocalPedagogyController {
     VocalScoreConverter vocalScoreConverter = const VocalScoreConverter(),
     MinusOneOrchestrator minusOneOrchestrator = const MinusOneOrchestrator(),
     PortPermissionBroker portPermissionBroker = const PortPermissionBroker(),
+    IVocalTakeFileGateway vocalTakeFileGateway = const NoOpVocalTakeFileGateway(),
+    IStudioLogger logger = const NoOpStudioLogger(),
   })  : _guidedLessonEvaluator = guidedLessonEvaluator,
         _autoTuneProcessor = autoTuneProcessor,
         _pedagogyAdapter = pedagogyAdapter,
         _vocalScoreConverter = vocalScoreConverter,
         _minusOneOrchestrator = minusOneOrchestrator,
         _portPermissionBroker = portPermissionBroker,
+        _vocalTakeFileGateway = vocalTakeFileGateway,
+        _logger = logger,
         _onNotify = onNotify,
         _onAutoSave = onAutoSave;
 
@@ -93,12 +102,15 @@ class VocalPedagogyController {
           ? 0.05
           : (now.difference(_lastLessonFrameTime!).inMilliseconds / 1000.0).clamp(0.01, 0.25);
       _lastLessonFrameTime = now;
-      _guidedLessonEvaluator.evaluateSample(
+      final progress = _guidedLessonEvaluator.evaluateSample(
         frequencyHz: pitchHz,
         cents: cents,
         detectedNoteName: noteName,
         deltaSeconds: deltaSec,
       );
+      if (progress != null && progress.isLessonComplete) {
+        onLessonCompleted?.call(progress.lesson.id);
+      }
     }
   }
 
@@ -167,15 +179,43 @@ class VocalPedagogyController {
     _onAutoSave();
   }
 
-  ({MultiTrackSessionEntity session, PracticeTakeEntity tunedTake})? applyAutoTuneToRecordingTake({
+  Future<({MultiTrackSessionEntity session, PracticeTakeEntity tunedTake})?> applyAutoTuneToRecordingTake({
     required MultiTrackSessionEntity session,
     required String takeId,
-  }) {
+  }) async {
     final takeIndex = session.takes.indexWhere((t) => t.id == takeId);
     if (takeIndex == -1) return null;
 
     final originalTake = session.takes[takeIndex];
-    final tunedTake = _autoTuneProcessor.processPracticeTake(take: originalTake);
+    var tunedTake = _autoTuneProcessor.processPracticeTake(take: originalTake);
+
+    if (originalTake.filePath.isNotEmpty) {
+      try {
+        final rawBytes = await _vocalTakeFileGateway.readTakeBytes(originalTake.filePath);
+        if (rawBytes != null && rawBytes.isNotEmpty) {
+          final processedWavBytes = await _autoTuneProcessor.processWavBytesAsync(
+            wavBytes: rawBytes,
+            pitchTrack: originalTake.pitchTrack,
+          );
+          final savedPath = await _vocalTakeFileGateway.saveAutoTunedWavBytes(
+            originalFilePath: originalTake.filePath,
+            takeId: originalTake.id,
+            bytes: processedWavBytes,
+          );
+          if (savedPath != null && savedPath.isNotEmpty) {
+            tunedTake = tunedTake.copyWith(filePath: savedPath);
+          }
+        }
+      } catch (e, st) {
+        _logger.warning(
+          'VocalPedagogyController',
+          'No se pudo procesar o persistir el WAV afinado para ${originalTake.id}: $e',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+
     final updatedTakes = List<PracticeTakeEntity>.from(session.takes)..add(tunedTake);
     return (
       session: session.copyWith(takes: updatedTakes),

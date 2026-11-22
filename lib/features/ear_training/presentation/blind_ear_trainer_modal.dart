@@ -41,6 +41,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
 
   bool _isBlindModeActive = true;
   bool _isPlayingAudio = false;
+  bool _isSungResponseMode = false;
   EarTrainingQuestion? _question;
   EarTrainingAnswerResult? _lastResult;
   DateTime? _questionStartTime;
@@ -51,16 +52,54 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
   void initState() {
     super.initState();
     _engine = BlindEarTrainerEngine();
+    widget.viewModel.telemetryListenable.addListener(_onLiveTelemetry);
     _generateNextQuestion();
   }
 
   @override
   void dispose() {
+    widget.viewModel.telemetryListenable.removeListener(_onLiveTelemetry);
     _note2Timer?.cancel();
     _stopTimer?.cancel();
     widget.viewModel.stopReferenceTone();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _onLiveTelemetry() {
+    if (!mounted || !_isSungResponseMode || _lastResult != null || _isPlayingAudio) {
+      return;
+    }
+    final freq = widget.viewModel.telemetryListenable.value.frequency;
+    if (freq > 20.0) {
+      _submitSungTone(freq);
+    }
+  }
+
+  void _toggleSungResponseMode() {
+    setState(() {
+      _isSungResponseMode = !_isSungResponseMode;
+    });
+    if (_isSungResponseMode && !widget.viewModel.isRecording) {
+      widget.viewModel.toggleRecording();
+    }
+  }
+
+  void _submitSungTone(double freq) {
+    if (_lastResult != null) return;
+    final q = _question;
+    if (q == null || freq <= 20.0) return;
+    final elapsedMs = _questionStartTime != null
+        ? DateTime.now().difference(_questionStartTime!).inMilliseconds
+        : 1800;
+    final result = _engine.submitSungFrequency(
+      freq,
+      responseTimeMs: elapsedMs,
+    );
+    widget.viewModel.recordEarTrainingAnswer(q.targetInterval, result);
+    setState(() {
+      _lastResult = result;
+    });
   }
 
   void _generateNextQuestion() {
@@ -116,7 +155,9 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
       selectedInterval,
       responseTimeMs: elapsedMs,
       centsDeviation: 0.0,
+      hasAcousticCents: false,
     );
+    widget.viewModel.recordEarTrainingAnswer(q.targetInterval, result);
 
     setState(() {
       _lastResult = result;
@@ -428,7 +469,45 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
+
+                    // Modo Responder Cantando / Tocando (Microfono)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            key: const Key('btn_sung_response_mode'),
+                            onPressed: _toggleSungResponseMode,
+                            icon: Icon(
+                              _isSungResponseMode ? Icons.mic : Icons.mic_none,
+                              size: 16,
+                              color: _isSungResponseMode ? palette.primaryAccent : palette.textMutedColor,
+                            ),
+                            label: Text(
+                              _isSungResponseMode
+                                  ? 'Modo Microfono Activo (${widget.viewModel.frequency > 20 ? "${widget.viewModel.frequency.toStringAsFixed(1)} Hz" : "escuchando..."})'
+                                  : 'Responder Cantando / Tocando (Micrófono)',
+                              style: TextStyle(
+                                color: _isSungResponseMode ? palette.primaryAccent : palette.textColor,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (_isSungResponseMode && _lastResult == null) ...[
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            key: const Key('btn_submit_sung_tone'),
+                            onPressed: widget.viewModel.frequency > 20.0
+                                ? () => _submitSungTone(widget.viewModel.frequency)
+                                : null,
+                            child: const Text('Evaluar', style: TextStyle(fontSize: 11)),
+                          ),
+                        ],
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
 
                     // Opciones de respuesta (Grid de 4 botones con atajos 1, 2, 3, 4)
                     if (q != null)

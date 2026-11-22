@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'drone_timbre.dart';
 
 /// Configuracion inmutable para el generador de tono pedal en el estudio de dron armónico.
@@ -33,7 +34,7 @@ class HarmonicDroneConfig {
     this.volume = 0.7,
     this.harmonicBalance = 0.35,
   })  : assert(rootNoteIndex >= 0 && rootNoteIndex <= 11),
-        assert(octave >= 1 && octave <= 6),
+        assert(octave >= 0 && octave <= 8),
         assert(volume >= 0.0 && volume <= 1.0),
         assert(harmonicBalance >= 0.0 && harmonicBalance <= 1.0);
 
@@ -64,6 +65,12 @@ class HarmonicDroneConfig {
   /// Calcula el numero de nota MIDI absoluto para la fundamental.
   /// En estandar MIDI, Do4 (C4) es 60, Do3 (C3) es 48, Do2 (C2) es 36.
   int get rootMidiNumber => (octave + 1) * 12 + rootNoteIndex;
+
+  /// Calcula la frecuencia en Hz de la nota fundamental según el registro y la octava.
+  /// Fórmula canónica: f = a4Ref * 2^((rootMidiNumber - 69) / 12)
+  double calculateFundamentalFrequency([double a4Ref = 440.0]) {
+    return a4Ref * math.pow(2.0, (rootMidiNumber - 69.0) / 12.0);
+  }
 
   /// Crea una copia inmutable modificando unicamente los campos provistos.
   HarmonicDroneConfig copyWith({

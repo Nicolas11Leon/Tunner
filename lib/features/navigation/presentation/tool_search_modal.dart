@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../media_vault/domain/wav_pcm_codec.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/app_tool_item.dart';
 import 'app_tool_item_ui_ext.dart';
@@ -148,12 +152,36 @@ class _ToolSearchModalState extends State<ToolSearchModal> {
         DjConsoleModal.show(hostContext, djVm, widget.viewModel.currentPalette).whenComplete(djVm.dispose);
         break;
       case 'open_harmonic_tutor':
-        final tutorVm = HarmonicTutorViewModel();
+        final tutorVm = HarmonicTutorViewModel(
+          onPlayDroneSamples: (samples, sampleRate) {
+            final wavBytes = const WavPcmCodec().encodeMono16Bit(
+              Float64List.fromList(samples),
+              sampleRate: sampleRate,
+            );
+            unawaited(widget.viewModel.audioSynthesizer.startDroneLoop(wavBytes));
+          },
+          onStopDrone: () {
+            unawaited(widget.viewModel.audioSynthesizer.stopDroneLoop());
+          },
+        );
+        void onTelemetry() {
+          final freq = widget.viewModel.telemetryListenable.value.frequency;
+          if (freq > 0.0) {
+            tutorVm.onPitchDetected(freq);
+          }
+        }
+        widget.viewModel.telemetryListenable.addListener(onTelemetry);
         HarmonicTutorModal.show(
           hostContext,
           viewModel: tutorVm,
           palette: widget.viewModel.currentPalette,
-        ).whenComplete(tutorVm.dispose);
+          isMicrophoneActive: () => widget.viewModel.isRecording,
+          onToggleMicrophone: widget.viewModel.toggleRecording,
+          microphoneListenable: widget.viewModel,
+        ).whenComplete(() {
+          widget.viewModel.telemetryListenable.removeListener(onTelemetry);
+          tutorVm.dispose();
+        });
         break;
       default:
         break;

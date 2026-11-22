@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import '../../../core/theme/tunner_theme.dart';
 import '../../tuner_viewmodel.dart';
@@ -55,26 +57,39 @@ class _SpectralComparatorModalState extends State<SpectralComparatorModal> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = widget.viewModel.currentPalette;
-    final session = widget.viewModel.multiTrackSession;
-    final takes = session.takes;
+    return ListenableBuilder(
+      listenable: widget.viewModel,
+      builder: (context, _) {
+        final palette = widget.viewModel.currentPalette;
+        final session = widget.viewModel.multiTrackSession;
+        final takes = session.takes;
 
-    final takeA = _getTake(_selectedTakeAId) ?? session.takeA;
-    final takeB = _getTake(_selectedTakeBId) ?? session.takeB;
+        final takeA = _getTake(_selectedTakeAId) ?? session.takeA;
+        final takeB = _getTake(_selectedTakeBId) ?? session.takeB;
 
-    final SpectralComparisonResult comparison = (takeA != null && takeB != null)
-        ? _comparatorService.compareTakes(takeA, takeB)
-        : SpectralComparisonResult.empty;
+        final SpectralComparisonResult comparison = (takeA != null && takeB != null)
+            ? _comparatorService.compareTakes(takeA, takeB)
+            : SpectralComparisonResult.empty;
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.90,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        final maxComparisonMs = (takeA != null && takeB != null)
+            ? math.max(takeA.duration.inMilliseconds, takeB.duration.inMilliseconds)
+            : 0;
+        final totalDurationMs = maxComparisonMs > 0
+            ? maxComparisonMs
+            : widget.viewModel.playbackDuration.inMilliseconds;
+        final currentPlaybackPositionNormalized = totalDurationMs > 0
+            ? (widget.viewModel.playbackPosition.inMilliseconds / totalDurationMs).clamp(0.0, 1.0)
+            : 0.0;
+
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.90,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           // Barra superior con manija y cierre
           Center(
             child: Container(
@@ -279,6 +294,7 @@ class _SpectralComparatorModalState extends State<SpectralComparatorModal> {
                     palette: palette,
                     colorTakeA: _colorA,
                     colorTakeB: _colorB,
+                    currentPlaybackPositionNormalized: currentPlaybackPositionNormalized,
                   ),
                 ),
               ),
@@ -354,6 +370,8 @@ class _SpectralComparatorModalState extends State<SpectralComparatorModal> {
           ),
         ],
       ),
+    );
+      },
     );
   }
 

@@ -47,6 +47,13 @@ abstract class IScoreEditorSessionPort {
     required String noteName,
     bool playAudibleFeedback = true,
   });
+  void insertScoreChordNotes({
+    required int measureIndex,
+    required int startTick,
+    required int durationTicks,
+    required List<String> noteNames,
+    bool playAudibleFeedback = true,
+  });
   void deleteScoreNote({
     required int measureIndex,
     required int startTick,

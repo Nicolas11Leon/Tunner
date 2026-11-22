@@ -167,4 +167,48 @@ class EarTrainingItemEntity {
   String toString() =>
       'EarTrainingItemEntity(id: $id, name: $name, stability: ${stabilityDays.toStringAsFixed(2)}d, '
       'EF: ${easeFactor.toStringAsFixed(2)}, reps: $repetitions)';
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'category': category.name,
+      'semitones': semitones,
+      'centsDeviation': centsDeviation,
+      'stabilityDays': stabilityDays,
+      'easeFactor': easeFactor,
+      'repetitions': repetitions,
+      'lapses': lapses,
+      'totalAttempts': totalAttempts,
+      'averageCentsError': averageCentsError,
+      'lastReviewDate': lastReviewDate?.toIso8601String(),
+      'nextReviewDate': nextReviewDate.toIso8601String(),
+    };
+  }
+
+  factory EarTrainingItemEntity.fromJson(Map<String, dynamic> json) {
+    final categoryName = json['category'] as String? ?? EarTrainingCategory.interval.name;
+    final parsedCategory = EarTrainingCategory.values.firstWhere(
+      (c) => c.name == categoryName,
+      orElse: () => EarTrainingCategory.interval,
+    );
+    return EarTrainingItemEntity(
+      id: json['id'] as String? ?? 'unknown',
+      name: json['name'] as String? ?? 'Ejercicio',
+      category: parsedCategory,
+      semitones: (json['semitones'] as num?)?.toDouble() ?? 0.0,
+      centsDeviation: (json['centsDeviation'] as num?)?.toDouble() ?? 0.0,
+      stabilityDays: (json['stabilityDays'] as num?)?.toDouble() ?? 1.0,
+      easeFactor: (json['easeFactor'] as num?)?.toDouble() ?? 2.50,
+      repetitions: (json['repetitions'] as num?)?.toInt() ?? 0,
+      lapses: (json['lapses'] as num?)?.toInt() ?? 0,
+      totalAttempts: (json['totalAttempts'] as num?)?.toInt() ?? 0,
+      averageCentsError: (json['averageCentsError'] as num?)?.toDouble() ?? 0.0,
+      lastReviewDate: json['lastReviewDate'] != null
+          ? DateTime.tryParse(json['lastReviewDate'] as String)
+          : null,
+      nextReviewDate: DateTime.tryParse(json['nextReviewDate'] as String? ?? '') ??
+          DateTime.now(),
+    );
+  }
 }
