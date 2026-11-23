@@ -504,6 +504,7 @@ class TunerScreen extends StatelessWidget {
       onPressed: () => InstrumentSoundFontSelectorModal.show(
         context,
         synthService: viewModel.soundFontSynthesizer,
+        fileGateway: viewModel.platformFileGateway,
         onPlayPreviewWav: viewModel.audioSynthesizer.playPcmWav,
         onInstrumentSelected: (patch, name) {
           viewModel.selectSoundFontPatch(patch);

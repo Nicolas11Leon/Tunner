@@ -61,6 +61,16 @@ class DjConsoleViewModel extends ChangeNotifier {
   bool _isDisposed = false;
   Uint8List? _lastRecordedWavBytes;
 
+  /// Telemetría dedicada de alta frecuencia (30 Hz) para medidores VU y fase de beat.
+  final ValueNotifier<({double vuA, double vuB, double phaseA, double phaseB})> _telemetryNotifier =
+      ValueNotifier<({double vuA, double vuB, double phaseA, double phaseB})>(
+    (vuA: 0.0, vuB: 0.0, phaseA: 0.0, phaseB: 0.0),
+  );
+
+  /// Notificador reactivo de telemetría (VU RMS y fase normalizada de pulso [0.0, 1.0)) actualizado a 30 Hz.
+  ValueNotifier<({double vuA, double vuB, double phaseA, double phaseB})> get telemetryNotifier =>
+      _telemetryNotifier;
+
   // Hardware Skins & Gamepad Mapping
   DjHardwareSkinEntity _activeSkin = DjHardwareCatalog.ddjFlx4();
   bool _isHardwareViewActive = false;
@@ -149,6 +159,7 @@ class DjConsoleViewModel extends ChangeNotifier {
 
   IDjDeckAudioPlayer get deckAudioPlayer => _deckAudioPlayer;
   IAudioSynthesizerService get audioSynthesizer => _audioSynthesizer;
+  StudioFileSystemRepository get fileSystemRepository => _fileSystemRepository;
   IPlatformFileGateway get fileGateway => _fileGateway;
 
   void _initAudioEngine() {
@@ -393,9 +404,25 @@ class DjConsoleViewModel extends ChangeNotifier {
       }
 
       if (changed && !_isDisposed) {
+        _publishTelemetrySnapshot();
         notifyListeners();
       }
     });
+  }
+
+  double _computeBeatPhase(DjDeckEntity deck) {
+    final beatMs = 60000.0 / deck.effectiveBpm.clamp(20.0, 300.0);
+    return (deck.currentPositionMs % beatMs) / beatMs;
+  }
+
+  void _publishTelemetrySnapshot() {
+    if (_isDisposed) return;
+    _telemetryNotifier.value = (
+      vuA: getVuLevel('A'),
+      vuB: getVuLevel('B'),
+      phaseA: _computeBeatPhase(deckA),
+      phaseB: _computeBeatPhase(deckB),
+    );
   }
 
   void toggleShowKeyBadges([bool? val]) {
@@ -542,6 +569,23 @@ class DjConsoleViewModel extends ChangeNotifier {
   void triggerSamplerPad(DjSamplerPadType pad) {
     _orchestrator.triggerSamplerPad(pad);
     _playSamplerPadSound(pad);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  /// Carga y dispara un buffer PCM externo (por ejemplo, desde Media Vault)
+  /// a través del banco de Sampler Pads de la Consola DJ.
+  void triggerSamplerBuffer(
+    Float32List audioSamples, {
+    int sampleRate = 44100,
+    DjSamplerPadType pad = DjSamplerPadType.stadiumImpact,
+  }) {
+    _orchestrator.triggerSamplerPad(pad);
+    _lastSamplerBuffer = audioSamples;
+    final wavBytes = ProceduralInstrumentSynthesizer.floatBufferToWavBytes(
+      audioSamples,
+      sampleRate: sampleRate,
+    );
+    _audioSynthesizer.playPcmWav(wavBytes, volume: _orchestrator.sampler.masterVolume);
     if (!_isDisposed) notifyListeners();
   }
 
@@ -1431,6 +1475,7 @@ class DjConsoleViewModel extends ChangeNotifier {
     _momentaryLedTimer?.cancel();
     _scratchTimerA?.cancel();
     _scratchTimerB?.cancel();
+    _telemetryNotifier.dispose();
     _inputService.dispose();
     _deckAudioPlayer.dispose();
     _audioSynthesizer.dispose();

@@ -39,10 +39,34 @@ class TunnerApp extends StatefulWidget {
 class _TunnerAppState extends State<TunnerApp> {
   final StudioThemeController _fallbackThemeController =
       StudioThemeController();
+  StudioThemeController? _observedThemeController;
   String? _lastAppliedPaletteId;
+  String? _lastSyncedStudioThemeId;
+
+  void _attachThemeControllerSync(StudioThemeController controller) {
+    if (identical(_observedThemeController, controller)) return;
+    _observedThemeController?.removeListener(_handleStudioThemeControllerChanged);
+    _observedThemeController = controller;
+    _observedThemeController?.addListener(_handleStudioThemeControllerChanged);
+  }
+
+  void _handleStudioThemeControllerChanged() {
+    if (!mounted) return;
+    final controller = _observedThemeController;
+    if (controller == null) return;
+    final currentId = controller.tokens.id;
+    if (currentId == _lastSyncedStudioThemeId) return;
+    _lastSyncedStudioThemeId = currentId;
+    try {
+      context.read<TunerViewModel>().setActiveStudioThemeId(currentId);
+    } catch (_) {
+      // Tolerante en árboles de prueba sin TunerViewModel montado.
+    }
+  }
 
   @override
   void dispose() {
+    _observedThemeController?.removeListener(_handleStudioThemeControllerChanged);
     _fallbackThemeController.dispose();
     widget.compositionRoot?.dispose();
     super.dispose();
@@ -82,6 +106,7 @@ class _TunnerAppState extends State<TunnerApp> {
       studioThemeController = _fallbackThemeController;
     }
 
+    _attachThemeControllerSync(studioThemeController);
     _syncSystemUiStyleIfChanged(palette);
 
     return StudioThemeScope(

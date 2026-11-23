@@ -138,6 +138,7 @@ class _ToolSearchModalState extends State<ToolSearchModal> {
         InstrumentSoundFontSelectorModal.show(
           hostContext,
           synthService: widget.viewModel.soundFontSynthesizer,
+          fileGateway: widget.viewModel.platformFileGateway,
           onPlayPreviewWav: widget.viewModel.audioSynthesizer.playPcmWav,
           onInstrumentSelected: (patch, name) => widget.viewModel.selectSoundFontPatch(patch),
         );

@@ -1,36 +1,38 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import '../../../core/theme/tunner_theme.dart';
+import '../../../core/design_system/studio_design_system.dart';
 import '../domain/spectral_comparator_service.dart';
 
 /// Pintor vectorial de alto rendimiento para la contrastación visual de entonación y espectro entre dos tomas.
 class SpectralComparatorPainter extends CustomPainter {
   final SpectralComparisonResult comparison;
-  final TunnerThemePalette palette;
+  final StudioDesignTokens tokens;
+  final TunnerThemePalette? palette;
   final Color colorTakeA;
   final Color colorTakeB;
   final double currentPlaybackPositionNormalized; // 0.0 a 1.0
 
   SpectralComparatorPainter({
     required this.comparison,
-    required this.palette,
+    this.tokens = StudioDesignTokens.studioOledMonochrome,
+    this.palette,
     Color? colorTakeA,
     Color? colorTakeB,
     this.currentPlaybackPositionNormalized = 0.0,
-  })  : colorTakeA = colorTakeA ?? const Color(0xFF00E5FF), // Cyan brillante para Toma A
-        colorTakeB = colorTakeB ?? const Color(0xFFFFD700); // Oro brillante para Toma B
+  })  : colorTakeA = colorTakeA ?? tokens.accentPrimary,
+        colorTakeB = colorTakeB ?? tokens.accentWarning;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.width <= 0 || size.height <= 0) return;
 
-    final bgPaint = Paint()..color = palette.staffBackground;
+    final bgPaint = Paint()..color = tokens.canvasBackground;
     canvas.drawRRect(
       RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(16)),
       bgPaint,
     );
 
-    // Distribución vertical: 75% para entonación (cents), 25% para brillo espectral (Hz)
+    // Distribución vertical: 72% para entonación (cents), 20% para brillo espectral (Hz)
     final pitchHeight = size.height * 0.72;
     final spectralTop = size.height * 0.76;
     final spectralHeight = size.height * 0.20;
@@ -57,16 +59,16 @@ class SpectralComparatorPainter extends CustomPainter {
       zeroY + (5.0 * scaleY),
     );
     final tolerancePaint = Paint()
-      ..color = palette.correctPitchColor.withValues(alpha: 0.12)
+      ..color = tokens.accentSuccess.withValues(alpha: 0.12)
       ..style = PaintingStyle.fill;
     canvas.drawRect(toleranceRect, tolerancePaint);
 
     final linePaint = Paint()
-      ..color = palette.staffLinesColor.withValues(alpha: 0.25)
+      ..color = tokens.borderHairline.withValues(alpha: 0.55)
       ..strokeWidth = 1.0;
 
     final centerLinePaint = Paint()
-      ..color = palette.correctPitchColor.withValues(alpha: 0.7)
+      ..color = tokens.accentSuccess.withValues(alpha: 0.75)
       ..strokeWidth = 1.5;
 
     // Líneas de referencia (-50, -25, 0, +25, +50 cents)
@@ -86,7 +88,7 @@ class SpectralComparatorPainter extends CustomPainter {
         canvas,
         label,
         Offset(4, y - 6),
-        isCenter ? palette.correctPitchColor : palette.textMutedColor,
+        isCenter ? tokens.accentSuccess : tokens.textMuted,
         9.0,
         fontWeight: isCenter ? FontWeight.bold : FontWeight.normal,
       );
@@ -170,10 +172,10 @@ class SpectralComparatorPainter extends CustomPainter {
     const maxCentroid = 2500.0;
 
     // Etiqueta lateral
-    _drawText(canvas, "TIMBRE", Offset(4, top + (height / 2) - 5), palette.textMutedColor, 8.0);
+    _drawText(canvas, "TIMBRE", Offset(4, top + (height / 2) - 5), tokens.textMuted, 8.0);
 
     final linePaint = Paint()
-      ..color = palette.staffLinesColor.withValues(alpha: 0.15)
+      ..color = tokens.borderHairline.withValues(alpha: 0.4)
       ..strokeWidth = 1.0;
     canvas.drawLine(Offset(startX, top), Offset(width - 12, top), linePaint);
     canvas.drawLine(Offset(startX, top + height), Offset(width - 12, top + height), linePaint);
@@ -234,7 +236,7 @@ class SpectralComparatorPainter extends CustomPainter {
     final graphWidth = width - 48;
     final x = 36.0 + (currentPlaybackPositionNormalized * graphWidth);
     final headPaint = Paint()
-      ..color = palette.playheadColor
+      ..color = tokens.accentPrimary
       ..strokeWidth = 2.0;
 
     canvas.drawLine(Offset(x, 4), Offset(x, height - 4), headPaint);
@@ -267,7 +269,10 @@ class SpectralComparatorPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant SpectralComparatorPainter oldDelegate) {
     return oldDelegate.comparison != comparison ||
+        oldDelegate.tokens != tokens ||
         oldDelegate.palette != palette ||
+        oldDelegate.colorTakeA != colorTakeA ||
+        oldDelegate.colorTakeB != colorTakeB ||
         oldDelegate.currentPlaybackPositionNormalized != currentPlaybackPositionNormalized;
   }
 }

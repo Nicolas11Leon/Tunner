@@ -1,3 +1,4 @@
+import 'i_task_catalog_index.dart';
 import 'pedagogical_task_contract.dart';
 import 'task_taxonomy_code.dart';
 
@@ -5,7 +6,7 @@ import 'task_taxonomy_code.dart';
 ///
 /// Implementa mapas hash y búsqueda prefijal invertida en $O(1)$ y $O(\text{prefijo})$,
 /// garantizando respuestas instantáneas sin bloqueos de UI ni consultas I/O a disco.
-class TaskCatalogIndex {
+class TaskCatalogIndex implements ITaskCatalogIndex {
   final Map<String, PedagogicalTaskEntity> _byCode = {};
   final Map<TaskDomain, List<PedagogicalTaskEntity>> _byDomain = {};
   final Map<TaskLevel, List<PedagogicalTaskEntity>> _byLevel = {};

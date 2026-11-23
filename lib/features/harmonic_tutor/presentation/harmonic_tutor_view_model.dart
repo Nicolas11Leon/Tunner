@@ -2,12 +2,13 @@ import 'package:flutter/foundation.dart';
 import '../domain/harmonic_reference_synth.dart';
 import '../domain/harmonic_role_entity.dart';
 import '../domain/harmonic_tutor_session_entity.dart';
+import '../domain/i_harmonic_reference_synth.dart';
 import '../domain/just_intonation_calculator.dart';
 
 /// ViewModel managing state, calculations, and reference synthesis
 /// for the Dynamic Just Intonation & Adaptive Harmonic Tuning Tutor.
 class HarmonicTutorViewModel extends ChangeNotifier {
-  final HarmonicReferenceSynth _synth;
+  final IHarmonicReferenceSynth _synth;
   final void Function(Float32List samples, int sampleRate)? onPlayDroneSamples;
   final VoidCallback? onStopDrone;
 
@@ -17,7 +18,7 @@ class HarmonicTutorViewModel extends ChangeNotifier {
   bool _isDisposed = false;
 
   HarmonicTutorViewModel({
-    HarmonicReferenceSynth? synth,
+    IHarmonicReferenceSynth? synth,
     HarmonicTutorSessionEntity? initialSession,
     this.onPlayDroneSamples,
     this.onStopDrone,
