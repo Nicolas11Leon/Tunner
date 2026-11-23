@@ -137,8 +137,9 @@ void main() {
       final pdfBytes = exporter.exportScore(score: bassScore);
       final pdfString = latin1.decode(pdfBytes);
 
-      // Clave de Fa emite puntos de 2.4x2.4 re f en los espacios 3 y 4
-      expect(pdfString.contains('2.4 2.4 re f'), isTrue);
+      // Clave de Fa emite trazos vectoriales sin operador re f (compatible Vector OMR)
+      expect(pdfString.contains('c S'), isTrue);
+      expect(pdfString.contains('h f'), isTrue);
       // G2 en Linea 1 (offset 0) no debe generar lineas adicionales inferiores
       // (En clave de Sol habria tenido offset -12 con multiples ledger lines)
       expect(pdfString.contains('1.4 w'), isTrue);

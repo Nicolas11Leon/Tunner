@@ -238,7 +238,18 @@ class CanonicalPdfExporter {
     buf.writeln('$x $botY l S');
 
     // Gota / punto terminal inferior
-    buf.writeln('${x - 2.0} ${botY + 2.0} 3.0 3.0 re f');
+    _writeFilledRectPath(buf, x - 2.0, botY + 2.0, 3.0, 3.0);
+  }
+
+  /// Traza un rectangulo relleno sin operador `re f` para mantener compatibilidad Vector OMR.
+  void _writeFilledRectPath(
+    StringBuffer buf,
+    double x,
+    double y,
+    double w,
+    double h,
+  ) {
+    buf.writeln('$x $y m ${x + w} $y l ${x + w} ${y + h} l $x ${y + h} l h f');
   }
 
   /// Renderiza un glifo vectorial estilizado SMuFL para la Clave de Fa sobre la cuarta línea (Fa3).
@@ -250,11 +261,11 @@ class CanonicalPdfExporter {
     buf.writeln('${x + 11.0} ${fLineY - 7.0} ${x + 4.0} ${fLineY - 12.0} ${x - 2.0} ${fLineY - 16.0} c S');
 
     // Punto principal sobre línea 4
-    buf.writeln('${x - 2.0} ${fLineY - 2.0} 4.0 4.0 re f');
+    _writeFilledRectPath(buf, x - 2.0, fLineY - 2.0, 4.0, 4.0);
 
     // Dos puntos en espacios 3 y 4
-    buf.writeln('${x + 15.0} ${fLineY + 2.0} 2.4 2.4 re f');
-    buf.writeln('${x + 15.0} ${fLineY - 4.5} 2.4 2.4 re f');
+    _writeFilledRectPath(buf, x + 15.0, fLineY + 2.0, 2.4, 2.4);
+    _writeFilledRectPath(buf, x + 15.0, fLineY - 4.5, 2.4, 2.4);
   }
 
   /// Dibuja una alteracion musical (#, b o n) antes de la cabeza de nota en PDF.
@@ -470,13 +481,13 @@ class CanonicalPdfExporter {
   /// Silencio de Redonda (colgado bajo la línea 4).
   void _renderWholeRest(StringBuffer buf, {required double x, required double bottomY}) {
     final y = bottomY + (staffSpace * 3.0) - 3.5;
-    buf.writeln('${x - 5.0} $y 10.0 3.5 re f');
+    _writeFilledRectPath(buf, x - 5.0, y, 10.0, 3.5);
   }
 
   /// Silencio de Blanca (apoyado sobre la línea 3).
   void _renderHalfRest(StringBuffer buf, {required double x, required double bottomY}) {
     final y = bottomY + (staffSpace * 2.0);
-    buf.writeln('${x - 5.0} $y 10.0 3.5 re f');
+    _writeFilledRectPath(buf, x - 5.0, y, 10.0, 3.5);
   }
 
   /// Silencio de Negra en zigzag vertical estilizado.
@@ -491,7 +502,7 @@ class CanonicalPdfExporter {
     final y = bottomY + (staffSpace * 2.0);
     buf.writeln('1.0 w');
     buf.writeln('${x + 2.0} ${y + 7.0} m ${x - 3.0} ${y - 7.0} l S');
-    buf.writeln('${x - 1.0} ${y + 4.0} 2.5 2.5 re f');
+    _writeFilledRectPath(buf, x - 1.0, y + 4.0, 2.5, 2.5);
   }
 
   /// Silencio de Semicorchea (dos gotas y plica oblicua).
@@ -499,8 +510,8 @@ class CanonicalPdfExporter {
     final y = bottomY + (staffSpace * 2.0);
     buf.writeln('1.0 w');
     buf.writeln('${x + 2.0} ${y + 10.0} m ${x - 4.0} ${y - 8.0} l S');
-    buf.writeln('${x - 1.0} ${y + 6.0} 2.2 2.2 re f');
-    buf.writeln('${x - 2.5} ${y + 0.5} 2.2 2.2 re f');
+    _writeFilledRectPath(buf, x - 1.0, y + 6.0, 2.2, 2.2);
+    _writeFilledRectPath(buf, x - 2.5, y + 0.5, 2.2, 2.2);
   }
 
   /// Pie de página con numeración y marca de agua de software libre.
