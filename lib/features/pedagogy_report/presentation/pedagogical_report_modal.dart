@@ -373,12 +373,24 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
 
       if (!mounted) return;
 
+      if (savedPath.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Exportacion cancelada o fallida.',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: Color(0xFFD32F2F),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            savedPath.isNotEmpty
-                ? 'Reporte PDF exportado exitosamente ($sizeKb KB) en $savedPath'
-                : 'Reporte PDF exportado exitosamente ($sizeKb KB)',
+            'Reporte PDF exportado exitosamente ($sizeKb KB) en $savedPath',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           backgroundColor: const Color(0xFF00C853),

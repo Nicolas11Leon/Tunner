@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design_system/studio_theme_provider.dart';
 import '../domain/studio_dock_zone.dart';
 import 'studio_dockable_panel_entity.dart';
 
@@ -23,11 +24,13 @@ class StudioDockableWindowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.of(context);
+
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0C0E14),
+        color: tokens.panelBackground,
         borderRadius: BorderRadius.circular(8.0),
-        border: Border.all(color: const Color(0xFF222B3D), width: 1.0),
+        border: Border.all(color: tokens.borderHairline, width: 1.0),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -38,10 +41,10 @@ class StudioDockableWindowCard extends StatelessWidget {
             child: Container(
               height: 36,
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              decoration: const BoxDecoration(
-                color: Color(0xFF141926),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(8.0)),
-                border: Border(bottom: BorderSide(color: Color(0xFF222B3D))),
+              decoration: BoxDecoration(
+                color: tokens.panelHeaderBackground,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(8.0)),
+                border: Border(bottom: BorderSide(color: tokens.borderHairline)),
               ),
               child: Row(
                 children: [
@@ -54,12 +57,12 @@ class StudioDockableWindowCard extends StatelessWidget {
                         width: 280,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E283C),
+                          color: tokens.elevatedSurface,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFF00E5FF), width: 1.5),
+                          border: Border.all(color: tokens.accentPrimary, width: 1.5),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.8),
+                              color: tokens.canvasBackground.withValues(alpha: 0.8),
                               blurRadius: 16,
                               offset: const Offset(0, 6),
                             ),
@@ -67,20 +70,20 @@ class StudioDockableWindowCard extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            Icon(panel.icon, color: const Color(0xFF00E5FF), size: 16),
+                            Icon(panel.icon, color: tokens.accentPrimary, size: 16),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 panel.title,
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: tokens.textPrimary,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const Icon(Icons.open_with, color: Color(0xFF00E5FF), size: 14),
+                            Icon(Icons.open_with, color: tokens.accentPrimary, size: 14),
                           ],
                         ),
                       ),
@@ -91,7 +94,7 @@ class StudioDockableWindowCard extends StatelessWidget {
                         cursor: SystemMouseCursors.grab,
                         child: Container(
                           padding: const EdgeInsets.all(4),
-                          child: const Icon(Icons.drag_indicator, size: 16, color: Color(0xFF7E8B9E)),
+                          child: Icon(Icons.drag_indicator, size: 16, color: tokens.textSecondary),
                         ),
                       ),
                     ),
@@ -101,19 +104,19 @@ class StudioDockableWindowCard extends StatelessWidget {
                         cursor: SystemMouseCursors.grab,
                         child: Container(
                           padding: const EdgeInsets.all(4),
-                          child: const Icon(Icons.drag_indicator, size: 16, color: Color(0xFF7E8B9E)),
+                          child: Icon(Icons.drag_indicator, size: 16, color: tokens.textSecondary),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Icon(panel.icon, size: 15, color: const Color(0xFF00E5FF)),
+                  Icon(panel.icon, size: 15, color: tokens.accentPrimary),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       panel.title,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: tokens.textPrimary,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.4,
@@ -127,7 +130,7 @@ class StudioDockableWindowCard extends StatelessWidget {
                     if (panel.currentZone != StudioDockZone.left)
                       IconButton(
                         tooltip: 'Mover al Panel Izquierdo',
-                        icon: const Icon(Icons.arrow_back, size: 14, color: Color(0xFF8E9BAE)),
+                        icon: Icon(Icons.arrow_back, size: 14, color: tokens.textSecondary),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
                         onPressed: () => onMoveToZone?.call(StudioDockZone.left),
@@ -135,7 +138,7 @@ class StudioDockableWindowCard extends StatelessWidget {
                     if (panel.currentZone != StudioDockZone.center)
                       IconButton(
                         tooltip: 'Mover al Panel Central',
-                        icon: const Icon(Icons.center_focus_strong, size: 14, color: Color(0xFF8E9BAE)),
+                        icon: Icon(Icons.center_focus_strong, size: 14, color: tokens.textSecondary),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
                         onPressed: () => onMoveToZone?.call(StudioDockZone.center),
@@ -143,7 +146,7 @@ class StudioDockableWindowCard extends StatelessWidget {
                     if (panel.currentZone != StudioDockZone.right)
                       IconButton(
                         tooltip: 'Mover al Panel Derecho',
-                        icon: const Icon(Icons.arrow_forward, size: 14, color: Color(0xFF8E9BAE)),
+                        icon: Icon(Icons.arrow_forward, size: 14, color: tokens.textSecondary),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
                         onPressed: () => onMoveToZone?.call(StudioDockZone.right),
@@ -151,7 +154,7 @@ class StudioDockableWindowCard extends StatelessWidget {
                     if (panel.currentZone != StudioDockZone.bottom)
                       IconButton(
                         tooltip: 'Mover al Panel Inferior',
-                        icon: const Icon(Icons.vertical_align_bottom, size: 14, color: Color(0xFF8E9BAE)),
+                        icon: Icon(Icons.vertical_align_bottom, size: 14, color: tokens.textSecondary),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
                         onPressed: () => onMoveToZone?.call(StudioDockZone.bottom),
@@ -161,8 +164,8 @@ class StudioDockableWindowCard extends StatelessWidget {
                   // Selector rápido de zona de anclaje (Quick Move desplegable)
                   PopupMenuButton<StudioDockZone>(
                     tooltip: 'Menú de zonas',
-                    icon: const Icon(Icons.dashboard_customize, size: 15, color: Color(0xFF8E9BAE)),
-                    color: const Color(0xFF181F2C),
+                    icon: Icon(Icons.dashboard_customize, size: 15, color: tokens.textSecondary),
+                    color: tokens.elevatedSurface,
                     padding: EdgeInsets.zero,
                     itemBuilder: (ctx) => StudioDockZone.values.map((zone) {
                       final isCurrent = panel.currentZone == zone;
@@ -173,13 +176,13 @@ class StudioDockableWindowCard extends StatelessWidget {
                             Icon(
                               isCurrent ? Icons.check_circle : Icons.circle_outlined,
                               size: 14,
-                              color: isCurrent ? const Color(0xFF00E5FF) : Colors.white60,
+                              color: isCurrent ? tokens.accentPrimary : tokens.textSecondary,
                             ),
                             const SizedBox(width: 8),
                             Text(
                               zone.displayName,
                               style: TextStyle(
-                                color: isCurrent ? const Color(0xFF00E5FF) : Colors.white,
+                                color: isCurrent ? tokens.accentPrimary : tokens.textPrimary,
                                 fontSize: 12,
                                 fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
                               ),
@@ -198,7 +201,7 @@ class StudioDockableWindowCard extends StatelessWidget {
                       icon: Icon(
                         isMaximized ? Icons.fullscreen_exit : Icons.fullscreen,
                         size: 16,
-                        color: const Color(0xFF8E9BAE),
+                        color: tokens.textSecondary,
                       ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
@@ -210,7 +213,7 @@ class StudioDockableWindowCard extends StatelessWidget {
                   if (panel.isClosable && onClose != null) ...[
                     IconButton(
                       tooltip: 'Cerrar Panel',
-                      icon: const Icon(Icons.close, size: 15, color: Color(0xFF8E9BAE)),
+                      icon: Icon(Icons.close, size: 15, color: tokens.textSecondary),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                       onPressed: onClose,

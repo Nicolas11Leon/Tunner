@@ -67,36 +67,51 @@ class HarmonicDroneSynthesizer {
   }
 
   /// Sintetiza el valor de una muestra normalizada [-1.0 .. 1.0] para una frecuencia dada
-  /// en el instante temporal [t] segun el timbre acustico especificado.
-  static double synthesizeVoiceSample(double frequency, double t, DroneTimbre timbre) {
+  /// en el instante temporal [t] segun el timbre acustico especificado, aplicando guarda
+  /// anti-aliasing de Nyquist (harmonicFreq < sampleRate * 0.48).
+  static double synthesizeVoiceSample(
+    double frequency,
+    double t,
+    DroneTimbre timbre, {
+    int sampleRate = defaultSampleRate,
+  }) {
     if (frequency <= 10.0) return 0.0;
+    final double nyquistLimit = sampleRate * 0.48;
+    if (frequency >= nyquistLimit) return 0.0;
+
     final double omega = 2.0 * math.pi * frequency;
+
+    double addHarmonic(int harmonicIndex, double weight) {
+      final double harmonicFreq = frequency * harmonicIndex;
+      if (harmonicFreq >= nyquistLimit) return 0.0;
+      return weight * math.sin(harmonicIndex * omega * t);
+    }
 
     switch (timbre) {
       case DroneTimbre.pureSine:
         // Onda senoidal pura sin armonicos superiores
-        return math.sin(omega * t);
+        return addHarmonic(1, 1.0);
 
       case DroneTimbre.warmFlute:
         // Armonicos suaves redondeados (fundamental + 2do y 3er armonico calidos)
-        return 0.75 * math.sin(omega * t) +
-            0.20 * math.sin(2.0 * omega * t) +
-            0.05 * math.sin(3.0 * omega * t);
+        return addHarmonic(1, 0.75) +
+            addHarmonic(2, 0.20) +
+            addHarmonic(3, 0.05);
 
       case DroneTimbre.richCello:
         // Serie armónica rica semejante a cuerda frotada
-        return 0.50 * math.sin(omega * t) +
-            0.25 * math.sin(2.0 * omega * t) +
-            0.15 * math.sin(3.0 * omega * t) +
-            0.07 * math.sin(4.0 * omega * t) +
-            0.03 * math.sin(5.0 * omega * t);
+        return addHarmonic(1, 0.50) +
+            addHarmonic(2, 0.25) +
+            addHarmonic(3, 0.15) +
+            addHarmonic(4, 0.07) +
+            addHarmonic(5, 0.03);
 
       case DroneTimbre.organ:
         // Densidad polifonica de organo tubular
-        return 0.45 * math.sin(omega * t) +
-            0.25 * math.sin(2.0 * omega * t) +
-            0.18 * math.sin(3.0 * omega * t) +
-            0.12 * math.sin(4.0 * omega * t);
+        return addHarmonic(1, 0.45) +
+            addHarmonic(2, 0.25) +
+            addHarmonic(3, 0.18) +
+            addHarmonic(4, 0.12);
     }
   }
 
@@ -140,13 +155,31 @@ class HarmonicDroneSynthesizer {
     final rawSamples = Float64List(totalGeneratedSamples);
     for (int i = 0; i < totalGeneratedSamples; i++) {
       final double t = i / sampleRate;
-      double sample = fundWeight * synthesizeVoiceSample(fFund, t, config.timbre);
+      double sample = fundWeight *
+          synthesizeVoiceSample(
+            fFund,
+            t,
+            config.timbre,
+            sampleRate: sampleRate,
+          );
 
       if (config.includeFifth && fFifth > 0) {
-        sample += fifthWeight * synthesizeVoiceSample(fFifth, t, config.timbre);
+        sample += fifthWeight *
+            synthesizeVoiceSample(
+              fFifth,
+              t,
+              config.timbre,
+              sampleRate: sampleRate,
+            );
       }
       if (config.includeOctave && fOct > 0) {
-        sample += octaveWeight * synthesizeVoiceSample(fOct, t, config.timbre);
+        sample += octaveWeight *
+            synthesizeVoiceSample(
+              fOct,
+              t,
+              config.timbre,
+              sampleRate: sampleRate,
+            );
       }
 
       rawSamples[i] = sample * normFactor;

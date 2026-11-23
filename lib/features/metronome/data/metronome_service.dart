@@ -58,14 +58,23 @@ class MetronomeService implements IMeteredMetronomeService {
     }
   }
 
+  /// Calcula la cantidad de sub-ticks de semicorchea (1/16) por unidad de pulso del denominador.
+  /// - Denominador 2 (x/2 alla breve): 16.0 / 2 = 8.0 semicorcheas por blanca.
+  /// - Denominador 4 (x/4 compas simple): 16.0 / 4 = 4.0 semicorcheas por negra.
+  /// - Denominador 8 (6/8, 9/8, 12/8 compuesto): 16.0 / 8 = 2.0 semicorcheas por corchea.
+  /// - Denominador 16 (x/16): 16.0 / 16 = 1.0 semicorchea por pulso.
+  static double computeSubTicksPerBeat(int meterDenominator) {
+    final safeDenominator = meterDenominator.clamp(1, 16);
+    return 16.0 / safeDenominator;
+  }
+
   static void _highResolutionTicksLogic(Map<String, dynamic> args) {
     final SendPort toMainPort = args['port'] as SendPort;
     final int bpm = ((args['bpm'] as int?) ?? 120).clamp(20, 300);
     final int ticksPerMeasure = ((args['ticksPerMeasure'] as int?) ?? 16).clamp(1, 64);
     final int meterDenominator = ((args['meterDenominator'] as int?) ?? 4).clamp(1, 16);
 
-    // 16th-note sub-tick interval: for x/2 meter (alla breve), half-note beat = 8 sixteenth sub-ticks
-    final double subTicksPerBeat = meterDenominator == 2 ? 8.0 : 4.0;
+    final double subTicksPerBeat = computeSubTicksPerBeat(meterDenominator);
     final double intervalMicros = 60000000.0 / (bpm * subTicksPerBeat);
     final Stopwatch stopwatch = Stopwatch()..start();
     int totalEmitted = 0;
@@ -94,4 +103,6 @@ class MetronomeService implements IMeteredMetronomeService {
     _isolate?.kill(priority: Isolate.immediate);
     _isolate = null;
   }
+
+  Future<void> dispose() => stop();
 }

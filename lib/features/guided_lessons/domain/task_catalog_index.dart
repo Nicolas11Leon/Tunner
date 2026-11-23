@@ -217,8 +217,8 @@ class TaskCatalogIndex {
         description: 'Reconoce a ciegas la consonancia perfecta entre notas base y quintas.',
         estimatedDurationMinutes: 3,
         searchTags: ['oido', 'intervalos', 'quinta', 'unisono', 'ciegas'],
-        status: TaskCompletionStatus.mastered,
-        bestGrade: TaskGrade.s,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
       StandardPedagogicalTask(
         code: const TaskTaxonomyCode(
@@ -231,8 +231,8 @@ class TaskCatalogIndex {
         description: 'Entrena el oído interno para distinguir modalidad mayor (alegre) y menor (melancólica).',
         estimatedDurationMinutes: 4,
         searchTags: ['terceras', 'mayor', 'menor', 'modo'],
-        status: TaskCompletionStatus.completed,
-        bestGrade: TaskGrade.a,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
       StandardPedagogicalTask(
         code: const TaskTaxonomyCode(
@@ -261,8 +261,8 @@ class TaskCatalogIndex {
         description: 'Desarrolla precisión rítmica con el metrónomo determinista en Isolate.',
         estimatedDurationMinutes: 5,
         searchTags: ['metronomo', 'pulso', '4/4', 'tempo', 'rushing'],
-        status: TaskCompletionStatus.completed,
-        bestGrade: TaskGrade.s,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
       StandardPedagogicalTask(
         code: const TaskTaxonomyCode(
@@ -275,8 +275,8 @@ class TaskCatalogIndex {
         description: 'Ejercicios de acentuación en subdivisión ternaria evitando dragging.',
         estimatedDurationMinutes: 7,
         searchTags: ['sincopa', '6/8', 'subdivision', 'contratiempo'],
-        status: TaskCompletionStatus.inProgress,
-        bestGrade: TaskGrade.b,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
       StandardPedagogicalTask(
         code: const TaskTaxonomyCode(
@@ -305,8 +305,8 @@ class TaskCatalogIndex {
         description: 'Sostén A4 (440 Hz) durante 8 segundos dentro de la tolerancia de ±3 cents.',
         estimatedDurationMinutes: 5,
         searchTags: ['afinacion', 'notas largas', 'estabilidad', 'mpm', 'cents'],
-        status: TaskCompletionStatus.mastered,
-        bestGrade: TaskGrade.s,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
       StandardPedagogicalTask(
         code: const TaskTaxonomyCode(
@@ -319,8 +319,8 @@ class TaskCatalogIndex {
         description: 'Alineación de armónicos superiores con el patrón estroboscópico de alta resolución.',
         estimatedDurationMinutes: 8,
         searchTags: ['estroboscopico', 'precision', 'tolerancia', 'nsdf'],
-        status: TaskCompletionStatus.completed,
-        bestGrade: TaskGrade.a,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
 
       // --- DOMINIO: LECTURA A PRIMERA VISTA (SGT) ---
@@ -335,8 +335,8 @@ class TaskCatalogIndex {
         description: 'Lee e interpreta notas de C4 a G4 siguiendo el playhead del pentagrama SMuFL.',
         estimatedDurationMinutes: 6,
         searchTags: ['partitura', 'clave de sol', 'smufl', 'lectura'],
-        status: TaskCompletionStatus.completed,
-        bestGrade: TaskGrade.s,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
 
       // --- DOMINIO: ARMONÍA & ACORDES (HRM) ---
@@ -351,8 +351,8 @@ class TaskCatalogIndex {
         description: 'Toca o analiza acordes identificando fundamental, tercera y quinta con el radar cromático.',
         estimatedDurationMinutes: 6,
         searchTags: ['acordes', 'triadas', 'voicing', 'polifonico'],
-        status: TaskCompletionStatus.completed,
-        bestGrade: TaskGrade.a,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
       StandardPedagogicalTask(
         code: const TaskTaxonomyCode(
@@ -381,8 +381,8 @@ class TaskCatalogIndex {
         description: 'Ejecuta la escala diatónica completa con regularidad temporal y articulación uniforme.',
         estimatedDurationMinutes: 5,
         searchTags: ['escala', 'tecnica', 'diatonica', 'bpm'],
-        status: TaskCompletionStatus.completed,
-        bestGrade: TaskGrade.b,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
 
       // --- TAREAS CONJUNTAS MULTI-HERRAMIENTA (HIPER-SINERGIA >= 3 HERRAMIENTAS) ---
@@ -407,8 +407,8 @@ class TaskCatalogIndex {
           'tutor',
           'lectura',
         ],
-        status: TaskCompletionStatus.inProgress,
-        bestGrade: TaskGrade.a,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
         requiredToolIds: const [
           'metronome',
           'score_notation',
@@ -542,8 +542,8 @@ class TaskCatalogIndex {
           'timbre',
           'armonicos',
         ],
-        status: TaskCompletionStatus.completed,
-        bestGrade: TaskGrade.s,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
         requiredToolIds: const [
           'practice_recorder',
           'chord_analyzer',

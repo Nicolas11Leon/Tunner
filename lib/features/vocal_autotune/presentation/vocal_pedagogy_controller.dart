@@ -187,7 +187,7 @@ class VocalPedagogyController {
     if (takeIndex == -1) return null;
 
     final originalTake = session.takes[takeIndex];
-    var tunedTake = _autoTuneProcessor.processPracticeTake(take: originalTake);
+    var tunedTake = await _autoTuneProcessor.processPracticeTakeAsync(take: originalTake);
 
     if (originalTake.filePath.isNotEmpty) {
       try {

@@ -340,9 +340,9 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                             if (widget.customSidebarExplorer != null) ...[
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF0F121C),
-                                  border: Border(bottom: BorderSide(color: Color(0xFF1E2538))),
+                                decoration: BoxDecoration(
+                                  color: tokens.panelHeaderBackground,
+                                  border: Border(bottom: BorderSide(color: tokens.borderHairline)),
                                 ),
                                 child: Row(
                                   children: [
@@ -350,16 +350,16 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                                       child: InkWell(
                                         key: const Key('sidebar_mode_explorer_btn'),
                                         onTap: () => setState(() => _sidebarMode = 'explorer'),
-                                        borderRadius: BorderRadius.circular(4),
+                                        borderRadius: BorderRadius.circular(tokens.radiusMedium),
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(vertical: 4),
                                           decoration: BoxDecoration(
                                             color: _sidebarMode == 'explorer'
-                                                ? const Color(0xFF1E283C)
+                                                ? tokens.elevatedSurface
                                                 : Colors.transparent,
-                                            borderRadius: BorderRadius.circular(4),
+                                            borderRadius: BorderRadius.circular(tokens.radiusMedium),
                                             border: _sidebarMode == 'explorer'
-                                                ? Border.all(color: const Color(0xFF00E5FF), width: 1)
+                                                ? Border.all(color: tokens.accentPrimary, width: tokens.borderWidth)
                                                 : null,
                                           ),
                                           child: Row(
@@ -370,8 +370,8 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                                                 Icons.folder_outlined,
                                                 size: 12,
                                                 color: _sidebarMode == 'explorer'
-                                                    ? const Color(0xFF00E5FF)
-                                                    : const Color(0xFF8E9BAE),
+                                                    ? tokens.accentPrimary
+                                                    : tokens.textSecondary,
                                               ),
                                               const SizedBox(width: 4),
                                               Flexible(
@@ -379,8 +379,8 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                                                   'Archivos',
                                                   style: TextStyle(
                                                     color: _sidebarMode == 'explorer'
-                                                        ? Colors.white
-                                                        : const Color(0xFF8E9BAE),
+                                                        ? tokens.textPrimary
+                                                        : tokens.textSecondary,
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.bold,
                                                   ),
@@ -398,16 +398,16 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                                       child: InkWell(
                                         key: const Key('sidebar_mode_tools_btn'),
                                         onTap: () => setState(() => _sidebarMode = 'tools'),
-                                        borderRadius: BorderRadius.circular(4),
+                                        borderRadius: BorderRadius.circular(tokens.radiusMedium),
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(vertical: 4),
                                           decoration: BoxDecoration(
                                             color: _sidebarMode == 'tools'
-                                                ? const Color(0xFF1E283C)
+                                                ? tokens.elevatedSurface
                                                 : Colors.transparent,
-                                            borderRadius: BorderRadius.circular(4),
+                                            borderRadius: BorderRadius.circular(tokens.radiusMedium),
                                             border: _sidebarMode == 'tools'
-                                                ? Border.all(color: const Color(0xFF00E5FF), width: 1)
+                                                ? Border.all(color: tokens.accentPrimary, width: tokens.borderWidth)
                                                 : null,
                                           ),
                                           child: Row(
@@ -418,8 +418,8 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                                                 Icons.grid_view_outlined,
                                                 size: 12,
                                                 color: _sidebarMode == 'tools'
-                                                    ? const Color(0xFF00E5FF)
-                                                    : const Color(0xFF8E9BAE),
+                                                    ? tokens.accentPrimary
+                                                    : tokens.textSecondary,
                                               ),
                                               const SizedBox(width: 4),
                                               Flexible(
@@ -427,8 +427,8 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                                                   'Herramientas',
                                                   style: TextStyle(
                                                     color: _sidebarMode == 'tools'
-                                                        ? Colors.white
-                                                        : const Color(0xFF8E9BAE),
+                                                        ? tokens.textPrimary
+                                                        : tokens.textSecondary,
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.bold,
                                                   ),

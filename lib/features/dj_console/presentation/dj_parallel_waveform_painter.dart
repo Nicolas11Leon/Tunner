@@ -24,7 +24,15 @@ class DjParallelWaveformPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (size.width <= 0 || size.height <= 0) return;
+    if (!size.width.isFinite ||
+        !size.height.isFinite ||
+        size.width <= 0 ||
+        size.height <= 0) {
+      return;
+    }
+
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
 
     // Background studio slate
     final bgRect = Offset.zero & size;
@@ -33,47 +41,55 @@ class DjParallelWaveformPainter extends CustomPainter {
       Paint()..color = const Color(0xFF0A0A0E),
     );
 
-    const double phaseMeterHeight = 16.0;
-    final double laneHeight = (size.height - phaseMeterHeight - 6.0) / 2.0;
+    final double phaseMeterHeight = math.min(16.0, size.height);
+    final double laneHeight = math.max(0.0, (size.height - phaseMeterHeight - 6.0) / 2.0);
 
     // 1. Phase Alignment Meter at top
     _paintPhaseMeter(canvas, Rect.fromLTWH(0, 0, size.width, phaseMeterHeight));
 
-    // 2. Deck A Waveform Lane
-    final rectA = Rect.fromLTWH(0, phaseMeterHeight + 2.0, size.width, laneHeight);
-    _paintWaveformLane(canvas, rectA, deckA, waveformA, const Color(0xFF00E676));
+    if (laneHeight > 0.0) {
+      // 2. Deck A Waveform Lane
+      final rectA = Rect.fromLTWH(0, phaseMeterHeight + 2.0, size.width, laneHeight);
+      _paintWaveformLane(canvas, rectA, deckA, waveformA, const Color(0xFF00E676));
 
-    // Divider line
-    canvas.drawLine(
-      Offset(0, phaseMeterHeight + laneHeight + 3.0),
-      Offset(size.width, phaseMeterHeight + laneHeight + 3.0),
-      Paint()
-        ..color = const Color(0xFF282834)
-        ..strokeWidth = 1.0,
-    );
+      // Divider line
+      canvas.drawLine(
+        Offset(0, phaseMeterHeight + laneHeight + 3.0),
+        Offset(size.width, phaseMeterHeight + laneHeight + 3.0),
+        Paint()
+          ..color = const Color(0xFF282834)
+          ..strokeWidth = 1.0,
+      );
 
-    // 3. Deck B Waveform Lane
-    final rectB = Rect.fromLTWH(0, phaseMeterHeight + laneHeight + 5.0, size.width, laneHeight);
-    _paintWaveformLane(canvas, rectB, deckB, waveformB, const Color(0xFF2979FF));
+      // 3. Deck B Waveform Lane
+      final rectB = Rect.fromLTWH(0, phaseMeterHeight + laneHeight + 5.0, size.width, laneHeight);
+      _paintWaveformLane(canvas, rectB, deckB, waveformB, const Color(0xFF2979FF));
+    }
+
+    canvas.restore();
   }
 
   void _paintPhaseMeter(Canvas canvas, Rect rect) {
+    if (rect.width <= 0 || rect.height <= 0) return;
     canvas.drawRect(rect, Paint()..color = const Color(0xFF14141C));
 
     final centerX = rect.center.dx;
     // Beat phase offset between Deck A and Deck B in [-0.5, +0.5]
-    final beatMsA = 60000.0 / math.max(1.0, deckA.effectiveBpm);
-    final beatMsB = 60000.0 / math.max(1.0, deckB.effectiveBpm);
+    final beatMsA = 60000.0 / math.max(1.0, deckA.effectiveBpm.isFinite ? deckA.effectiveBpm : 120.0);
+    final beatMsB = 60000.0 / math.max(1.0, deckB.effectiveBpm.isFinite ? deckB.effectiveBpm : 120.0);
     final phaseA = (deckA.currentPositionMs % beatMsA) / beatMsA;
     final phaseB = (deckB.currentPositionMs % beatMsB) / beatMsB;
 
     double diff = phaseB - phaseA;
+    if (!diff.isFinite) diff = 0.0;
     if (diff > 0.5) diff -= 1.0;
     if (diff < -0.5) diff += 1.0;
 
     final isLocked = diff.abs() < 0.08;
     final indicatorColor = isLocked ? const Color(0xFF00E676) : const Color(0xFFFF9100);
-    final indicatorX = (centerX + (diff * rect.width * 0.45)).clamp(rect.left + 8, rect.right - 8);
+    final minX = math.min(rect.left + 8.0, centerX);
+    final maxX = math.max(rect.right - 8.0, centerX);
+    final indicatorX = (centerX + (diff * rect.width * 0.45)).clamp(minX, maxX);
 
     // Center tick
     canvas.drawLine(
@@ -87,7 +103,7 @@ class DjParallelWaveformPainter extends CustomPainter {
     // Phase block
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(indicatorX, rect.center.dy), width: 14, height: 8),
+        Rect.fromCenter(center: Offset(indicatorX, rect.center.dy), width: 14, height: math.min(8.0, rect.height)),
         const Radius.circular(3),
       ),
       Paint()..color = indicatorColor,
@@ -101,13 +117,15 @@ class DjParallelWaveformPainter extends CustomPainter {
     List<SpectralWaveformBucket> buckets,
     Color deckAccent,
   ) {
+    if (rect.width <= 0 || rect.height <= 0) return;
+
     canvas.save();
     canvas.clipRect(rect);
 
     final centerY = rect.center.dy;
     final halfH = rect.height * 0.45;
-    final count = math.max(1, buckets.length);
-    final barWidth = rect.width / count;
+    final count = buckets.length;
+    final barWidth = count > 0 ? rect.width / count : rect.width;
 
     // Loop highlight region
     if (deck.isLoopActive && deck.durationMs > 0) {
@@ -126,16 +144,22 @@ class DjParallelWaveformPainter extends CustomPainter {
     }
 
     // Spectral RGB bars + Beatgrid ticks
+    final minBarH = math.min(2.0, halfH);
     for (int i = 0; i < count; i++) {
       final b = buckets[i];
       final x = rect.left + (i * barWidth);
 
       // RGB weighted color from low (red), mid (green), high (blue/cyan)
-      final r = (b.lowEnergy * 255).round().clamp(30, 255);
-      final g = (b.midEnergy * 255).round().clamp(30, 255);
-      final bl = (b.highEnergy * 255).round().clamp(40, 255);
+      final safeLow = b.lowEnergy.isFinite ? b.lowEnergy : 0.0;
+      final safeMid = b.midEnergy.isFinite ? b.midEnergy : 0.0;
+      final safeHigh = b.highEnergy.isFinite ? b.highEnergy : 0.0;
+      final safePeak = b.peakAmplitude.isFinite ? b.peakAmplitude : 0.0;
 
-      final barHeight = (b.peakAmplitude * halfH).clamp(2.0, halfH);
+      final r = (safeLow * 255).round().clamp(30, 255);
+      final g = (safeMid * 255).round().clamp(30, 255);
+      final bl = (safeHigh * 255).round().clamp(40, 255);
+
+      final barHeight = (safePeak * halfH).clamp(minBarH, halfH);
       final barRect = Rect.fromCenter(
         center: Offset(x + (barWidth * 0.5), centerY),
         width: math.max(1.5, barWidth * 0.72),

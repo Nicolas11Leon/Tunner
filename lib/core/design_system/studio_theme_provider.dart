@@ -14,7 +14,7 @@ class StudioThemeController extends ChangeNotifier {
   StudioDesignTokens get tokens => _tokens;
 
   void setTokens(StudioDesignTokens next) {
-    if (next.id == _tokens.id) {
+    if (identical(next, _tokens) || next == _tokens) {
       return;
     }
     _tokens = next;

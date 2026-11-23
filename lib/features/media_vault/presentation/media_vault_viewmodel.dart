@@ -105,13 +105,16 @@ class MediaVaultViewModel extends ChangeNotifier {
     final result = await exportTimeline(format);
     if (!result.success) return null;
     try {
-      final gw = gateway ?? _fileGateway;
       final repo = repository ?? _fileSystemRepository;
-      if (gw == null || repo == null) return null;
-      final dir = await gw.getDocumentsDirectoryPath();
-      final path = '$dir/${result.fileName}';
-      await repo.saveFile(relativePath: path, bytes: result.bytes);
-      return path;
+      if (repo == null) return null;
+      final cleanFileName = result.fileName
+          .replaceAll('\\', '/')
+          .split('/')
+          .where((segment) => segment.isNotEmpty && segment != '..' && segment != '.')
+          .join('_');
+      final relativePath = 'exports/${cleanFileName.isEmpty ? 'export.bin' : cleanFileName}';
+      await repo.saveFile(relativePath: relativePath, bytes: result.bytes);
+      return relativePath;
     } catch (e) {
       StudioDebugLogger.instance.warning('MediaVaultViewModel', 'Error guardando exportacion en disco: $e');
       return null;

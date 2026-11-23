@@ -49,8 +49,18 @@ class _ChordRadarPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (!size.width.isFinite ||
+        !size.height.isFinite ||
+        size.width <= 0 ||
+        size.height <= 0) {
+      return;
+    }
+
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+
     final center = Offset(size.width / 2, size.height / 2);
-    final maxRadius = math.min(size.width, size.height) / 2 - 24;
+    final maxRadius = math.max(1.0, math.min(size.width, size.height) / 2 - 24);
 
     // 1. Dibujar anillos concéntricos de referencia de energía
     final ringPaint = Paint()
@@ -86,8 +96,12 @@ class _ChordRadarPainter extends CustomPainter {
       canvas.drawLine(center, edge, axisPaint);
 
       // Calcular punto de energía
-      final energy = (i < chromaVector.length ? chromaVector[i] : 0.0).clamp(0.0, 1.0);
-      final pointRadius = math.max(6.0, maxRadius * (0.15 + 0.85 * energy));
+      final rawEnergy = i < chromaVector.length ? chromaVector[i] : 0.0;
+      final energy = (rawEnergy.isFinite ? rawEnergy : 0.0).clamp(0.0, 1.0);
+      final pointRadius = math.max(
+        math.min(6.0, maxRadius),
+        maxRadius * (0.15 + 0.85 * energy),
+      );
       energyPoints.add(center + dir * pointRadius);
 
       // 3. Dibujar etiqueta de la nota
@@ -158,6 +172,8 @@ class _ChordRadarPainter extends CustomPainter {
         canvas.drawCircle(point, 7.5, glowPaint);
       }
     }
+
+    canvas.restore();
   }
 
   @override

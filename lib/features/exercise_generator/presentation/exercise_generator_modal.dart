@@ -68,29 +68,36 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "GENERADOR DE EJERCICIOS Y ESCALAS",
-                      style: TextStyle(
-                        color: palette.textMutedColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.1,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "GENERADOR DE EJERCICIOS Y ESCALAS",
+                        style: TextStyle(
+                          color: palette.textMutedColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      "$_currentRootNote - ${_selectedType.displayName}",
-                      style: TextStyle(
-                        color: palette.primaryAccent,
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
+                      const SizedBox(height: 2),
+                      Text(
+                        "$_currentRootNote - ${_selectedType.displayName}",
+                        style: TextStyle(
+                          color: palette.primaryAccent,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 IconButton(
                   icon: Icon(Icons.close, color: palette.textColor),
                   onPressed: () => Navigator.of(context).pop(),
@@ -136,30 +143,39 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                     }).toList(),
                   ),
                   const SizedBox(height: 6),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    alignment: WrapAlignment.spaceBetween,
                     children: [
                       Wrap(
                         spacing: 6,
+                        runSpacing: 6,
                         children: [
                           _accidentalChip("♮ Natural", "", palette),
                           _accidentalChip("♯ Sostenido", "#", palette),
                           _accidentalChip("♭ Bemol", "b", palette),
                         ],
                       ),
-                      const Spacer(),
-                      IconButton(
-                        key: const Key('exercise_generator_octave_down_btn'),
-                        icon: const Icon(Icons.remove_circle_outline, size: 18),
-                        color: palette.textColor,
-                        onPressed: _selectedOctave > 0 ? () => setState(() => _selectedOctave--) : null,
-                      ),
-                      Text("Oct $_selectedOctave",
-                          style: TextStyle(color: palette.primaryAccent, fontWeight: FontWeight.bold)),
-                      IconButton(
-                        key: const Key('exercise_generator_octave_up_btn'),
-                        icon: const Icon(Icons.add_circle_outline, size: 18),
-                        color: palette.textColor,
-                        onPressed: _selectedOctave < 8 ? () => setState(() => _selectedOctave++) : null,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            key: const Key('exercise_generator_octave_down_btn'),
+                            icon: const Icon(Icons.remove_circle_outline, size: 18),
+                            color: palette.textColor,
+                            onPressed: _selectedOctave > 0 ? () => setState(() => _selectedOctave--) : null,
+                          ),
+                          Text("Oct $_selectedOctave",
+                              style: TextStyle(color: palette.primaryAccent, fontWeight: FontWeight.bold)),
+                          IconButton(
+                            key: const Key('exercise_generator_octave_up_btn'),
+                            icon: const Icon(Icons.add_circle_outline, size: 18),
+                            color: palette.textColor,
+                            onPressed: _selectedOctave < 8 ? () => setState(() => _selectedOctave++) : null,
+                          ),
+                        ],
                       ),
                     ],
                   ),

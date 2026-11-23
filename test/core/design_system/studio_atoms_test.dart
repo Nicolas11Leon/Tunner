@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tunner/core/design_system/domain/studio_icon_catalog.dart';
 import 'package:tunner/core/design_system/studio_design_system.dart';
 
 void main() {
   group('Studio Atoms and Molecules Unit Tests', () {
     testWidgets('StudioIcon renders technical glyphs without exceptions', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: Column(
-              children: const [
-                StudioIcon(glyph: StudioGlyphType.strobeTuner),
-                StudioIcon(glyph: StudioGlyphType.metronome),
-                StudioIcon(glyph: StudioGlyphType.audioWave),
-                StudioIcon(glyph: StudioGlyphType.earTraining),
-                StudioIcon(glyph: StudioGlyphType.violin),
-                StudioIcon(glyph: StudioGlyphType.synthesizer),
+              children: [
+                StudioIcon(StudioIconId.moduleScoreEditor),
+                StudioIcon(StudioIconId.modulePianoRoll),
+                StudioIcon(StudioIconId.moduleSpectrogram),
+                StudioIcon(StudioIconId.moduleChordAnalyzer),
+                StudioIcon(StudioIconId.moduleAutotune),
+                StudioIcon(StudioIconId.modulePedagogy),
               ],
             ),
           ),

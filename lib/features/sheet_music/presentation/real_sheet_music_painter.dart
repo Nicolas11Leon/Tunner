@@ -39,6 +39,17 @@ class RealSheetMusicPainter extends CustomPainter {
   final int? selectedNoteIndex;
   final int keySignatureFifths;
 
+  static final RegExp _digitsRegExp = RegExp(r'[-+]?\d+');
+  static final RegExp _accidentalSuffixRegExp = RegExp(r'[#♭♯♮n]+$');
+  static final RegExp _flatNoteRegExp = RegExp(
+    r'^([A-Ga-g]|Do|Re|Mi|Fa|Sol|La|Si)b',
+    caseSensitive: false,
+  );
+  static final RegExp _naturalNoteRegExp = RegExp(
+    r'^([A-Ga-g]|Do|Re|Mi|Fa|Sol|La|Si)n',
+    caseSensitive: false,
+  );
+
   final SmuflGlyphPathEngine _smuflEngine;
 
   RealSheetMusicPainter({
@@ -64,14 +75,14 @@ class RealSheetMusicPainter extends CustomPainter {
   int getNoteStep(String note) {
     if (note.isEmpty || note == "--") return -100;
     String raw = note
-        .replaceAll(RegExp(r'[-+]?\d+'), '')
-        .replaceAll(RegExp(r'[#♭♯♮n]+$'), '')
+        .replaceAll(_digitsRegExp, '')
+        .replaceAll(_accidentalSuffixRegExp, '')
         .toLowerCase();
     if (raw.length > 1 && raw.endsWith('b')) {
       raw = raw.substring(0, raw.length - 1);
     }
     int octave = 4;
-    final octaveMatch = RegExp(r'[-+]?\d+').firstMatch(note);
+    final octaveMatch = _digitsRegExp.firstMatch(note);
     if (octaveMatch != null) {
       octave = int.tryParse(octaveMatch.group(0)!) ?? 4;
     }
@@ -107,10 +118,17 @@ class RealSheetMusicPainter extends CustomPainter {
 
   /// Retorna el índice de la nota ubicada en las coordenadas [localOffset], o null si no se tocó ninguna.
   int? findNoteIndexAtOffset(Offset localOffset, Size size) {
+    if (!size.width.isFinite ||
+        !size.height.isFinite ||
+        size.width <= 0 ||
+        size.height <= 0) {
+      return null;
+    }
     final double leftMargin = _computeLeftMargin();
     final double rightMargin = 20.0;
     final double playAreaWidth = size.width - leftMargin - rightMargin;
-    final int totalMeasureTicks = timeSignature.totalTicks;
+    if (playAreaWidth <= 0) return null;
+    final int totalMeasureTicks = math.max(1, timeSignature.totalTicks);
     final double stepWidth = playAreaWidth / totalMeasureTicks;
 
     final double staffCenterY = size.height / 2.0;
@@ -160,12 +178,29 @@ class RealSheetMusicPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (!size.width.isFinite ||
+        !size.height.isFinite ||
+        size.width <= 0 ||
+        size.height <= 0) {
+      return;
+    }
+
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    try {
+      _paintScore(canvas, size);
+    } finally {
+      canvas.restore();
+    }
+  }
+
+  void _paintScore(Canvas canvas, Size size) {
     final linePaint = Paint()..color = palette.staffLinesColor..strokeWidth = 2.0;
 
     final double leftMargin = _computeLeftMargin();
     final double rightMargin = 20.0;
-    final double playAreaWidth = size.width - leftMargin - rightMargin;
-    final int totalMeasureTicks = timeSignature.totalTicks;
+    final double playAreaWidth = math.max(1.0, size.width - leftMargin - rightMargin);
+    final int totalMeasureTicks = math.max(1, timeSignature.totalTicks);
     final double stepWidth = playAreaWidth / totalMeasureTicks;
     final double staffSpacing = size.height / 14;
     final double centerY = size.height / 2;
@@ -370,12 +405,10 @@ class RealSheetMusicPainter extends CustomPainter {
         final cleanNote = note.noteName.trim();
         final isSharp = cleanNote.contains('#') || cleanNote.contains('♯');
         final isFlat = !isSharp &&
-            (cleanNote.contains('♭') ||
-                RegExp(r'^([A-Ga-g]|Do|Re|Mi|Fa|Sol|La|Si)b', caseSensitive: false).hasMatch(cleanNote));
+            (cleanNote.contains('♭') || _flatNoteRegExp.hasMatch(cleanNote));
         final isNatural = !isSharp &&
             !isFlat &&
-            (cleanNote.contains('♮') ||
-                RegExp(r'^([A-Ga-g]|Do|Re|Mi|Fa|Sol|La|Si)n', caseSensitive: false).hasMatch(cleanNote));
+            (cleanNote.contains('♮') || _naturalNoteRegExp.hasMatch(cleanNote));
 
         if (isSharp) {
           _smuflEngine.drawAccidental(
@@ -585,7 +618,9 @@ class RealSheetMusicPainter extends CustomPainter {
         oldDelegate.liveCents != liveCents ||
         oldDelegate.isCountingIn != isCountingIn ||
         oldDelegate.countInBeat != countInBeat ||
+        oldDelegate.timeSignature != timeSignature ||
         oldDelegate.measureIndex != measureIndex ||
+        oldDelegate.totalMeasures != totalMeasures ||
         oldDelegate.notes != notes ||
         oldDelegate.history != history ||
         oldDelegate.palette != palette ||
