@@ -72,6 +72,35 @@ class HarmonicDroneConfig {
     return a4Ref * math.pow(2.0, (rootMidiNumber - 69.0) / 12.0);
   }
 
+  /// Serializa la configuracion del dron armonico a JSON canonico.
+  Map<String, dynamic> toJson() => {
+        'rootNoteIndex': rootNoteIndex,
+        'octave': octave,
+        'includeFifth': includeFifth,
+        'includeOctave': includeOctave,
+        'timbre': timbre.name,
+        'volume': volume,
+        'harmonicBalance': harmonicBalance,
+      };
+
+  /// Reconstruye una instancia de [HarmonicDroneConfig] desde un mapa JSON.
+  factory HarmonicDroneConfig.fromJson(Map<String, dynamic> json) {
+    final rawTimbre = json['timbre'] as String?;
+    final parsedTimbre = DroneTimbre.values.firstWhere(
+      (t) => t.name == rawTimbre,
+      orElse: () => DroneTimbre.warmFlute,
+    );
+    return HarmonicDroneConfig(
+      rootNoteIndex: ((json['rootNoteIndex'] as num?)?.toInt() ?? 0).clamp(0, 11),
+      octave: ((json['octave'] as num?)?.toInt() ?? 3).clamp(0, 8),
+      includeFifth: json['includeFifth'] as bool? ?? true,
+      includeOctave: json['includeOctave'] as bool? ?? false,
+      timbre: parsedTimbre,
+      volume: ((json['volume'] as num?)?.toDouble() ?? 0.7).clamp(0.0, 1.0),
+      harmonicBalance: ((json['harmonicBalance'] as num?)?.toDouble() ?? 0.35).clamp(0.0, 1.0),
+    );
+  }
+
   /// Crea una copia inmutable modificando unicamente los campos provistos.
   HarmonicDroneConfig copyWith({
     int? rootNoteIndex,

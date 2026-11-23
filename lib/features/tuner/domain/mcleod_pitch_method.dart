@@ -29,6 +29,20 @@ class PitchDetectionResult {
         pitchHz = 0.0,
         clarity = 0.0;
 
+  Map<String, dynamic> toJson() => {
+        'pitched': pitched,
+        'pitchHz': pitchHz,
+        'clarity': clarity,
+        'rms': rms,
+      };
+
+  factory PitchDetectionResult.fromJson(Map<String, dynamic> json) => PitchDetectionResult(
+        pitched: json['pitched'] as bool? ?? false,
+        pitchHz: (json['pitchHz'] as num?)?.toDouble() ?? 0.0,
+        clarity: (json['clarity'] as num?)?.toDouble() ?? 0.0,
+        rms: (json['rms'] as num?)?.toDouble() ?? 0.0,
+      );
+
   @override
   String toString() {
     return 'PitchDetectionResult(pitched: $pitched, pitchHz: ${pitchHz.toStringAsFixed(2)}, clarity: ${clarity.toStringAsFixed(3)}, rms: ${rms.toStringAsFixed(4)})';

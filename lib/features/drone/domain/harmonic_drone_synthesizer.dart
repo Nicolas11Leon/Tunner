@@ -117,6 +117,7 @@ class HarmonicDroneSynthesizer {
 
   /// Genera un buffer de audio en formato canónico RIFF/WAVE PCM 16-bit Mono
   /// con bucle continuo matematico sin clics (seamless zero-discontinuity crossfade loop).
+  /// Cuando [applyConfigVolume] es true (por defecto), aplica `config.volume` acotado a [0.0, 1.0].
   Uint8List generateDroneWavBuffer({
     required HarmonicDroneConfig config,
     double a4Ref = 440.0,
@@ -124,6 +125,7 @@ class HarmonicDroneSynthesizer {
     int temperamentRootKey = 0,
     int sampleRate = defaultSampleRate,
     double durationSeconds = defaultDurationSeconds,
+    bool applyConfigVolume = true,
   }) {
     final freqs = calculateFrequencies(
       config: config,
@@ -149,7 +151,8 @@ class HarmonicDroneSynthesizer {
     final double totalWeight = fundWeight + fifthWeight + octaveWeight;
 
     final double normFactor = totalWeight > 0.0 ? 1.0 / totalWeight : 1.0;
-    const double targetMaxAmplitude = 26000.0; // Rango 16-bit confortable sin clipping
+    final double volumeGain = applyConfigVolume ? config.volume.clamp(0.0, 1.0) : 1.0;
+    final double targetMaxAmplitude = 26000.0 * volumeGain; // Rango 16-bit confortable sin clipping
 
     // Generar muestras en punto flotante continuo
     final rawSamples = Float64List(totalGeneratedSamples);

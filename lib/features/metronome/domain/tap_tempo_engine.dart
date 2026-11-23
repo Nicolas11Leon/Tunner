@@ -107,6 +107,19 @@ class TapTempoEngine {
     );
   }
 
+  /// Analiza de forma determinista una secuencia completa de marcas temporales en ms.
+  TapTempoResult analyzeTimestamps(List<int> timestampsMs) {
+    reset();
+    if (timestampsMs.isEmpty) {
+      return TapTempoResult.initial;
+    }
+    TapTempoResult latest = TapTempoResult.initial;
+    for (final ts in timestampsMs) {
+      latest = recordTap(ts);
+    }
+    return latest;
+  }
+
   /// Limpia la sesión actual de pulsaciones.
   void reset() {
     _timestampsMs.clear();
