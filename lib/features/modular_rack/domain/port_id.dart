@@ -46,6 +46,34 @@ class PortId {
     return signalType == other.signalType;
   }
 
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'displayName': displayName,
+        'signalType': signalType.code,
+        'direction': direction.code,
+        'ownerModuleId': ownerModuleId,
+      };
+
+  factory PortId.fromJson(Map<String, dynamic> json) {
+    final rawSignal = json['signalType'] as String? ?? SignalType.audioPcm.code;
+    final rawDir = json['direction'] as String? ?? PortDirection.input.code;
+    final signalType = SignalType.values.firstWhere(
+      (s) => s.code == rawSignal || s.name == rawSignal,
+      orElse: () => SignalType.audioPcm,
+    );
+    final direction = PortDirection.values.firstWhere(
+      (d) => d.code == rawDir || d.name == rawDir,
+      orElse: () => PortDirection.input,
+    );
+    return PortId(
+      id: json['id'] as String? ?? '',
+      displayName: json['displayName'] as String? ?? '',
+      signalType: signalType,
+      direction: direction,
+      ownerModuleId: json['ownerModuleId'] as String? ?? '',
+    );
+  }
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

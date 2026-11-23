@@ -108,6 +108,38 @@ class ModuleConnection {
     );
   }
 
+  Map<String, dynamic> toJson() => {
+        'connectionId': connectionId,
+        'sourcePort': sourcePort.toJson(),
+        'destinationPort': destinationPort?.toJson(),
+        'scope': scope.code,
+        'signalType': signalType.code,
+        'isEnabled': isEnabled,
+        'gain': gain,
+        'isMuted': isMuted,
+      };
+
+  factory ModuleConnection.fromJson(Map<String, dynamic> json) {
+    final rawScope = json['scope'] as String? ?? ConnectionScope.pointToPoint.code;
+    final scope = ConnectionScope.values.firstWhere(
+      (s) => s.code == rawScope || s.name == rawScope,
+      orElse: () => ConnectionScope.pointToPoint,
+    );
+    final sourceMap = json['sourcePort'] as Map<String, dynamic>? ?? const {};
+    final destMap = json['destinationPort'] as Map<String, dynamic>?;
+    final rawGain = (json['gain'] as num?)?.toDouble() ?? 1.0;
+
+    return ModuleConnection(
+      connectionId: json['connectionId'] as String? ?? '',
+      sourcePort: PortId.fromJson(sourceMap),
+      destinationPort: destMap != null ? PortId.fromJson(destMap) : null,
+      scope: scope,
+      isEnabled: json['isEnabled'] as bool? ?? true,
+      gain: (rawGain.isFinite ? rawGain : 1.0).clamp(0.0, 2.0),
+      isMuted: json['isMuted'] as bool? ?? false,
+    );
+  }
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

@@ -31,7 +31,13 @@ enum RackModuleType {
   guidedLessons('guided_lessons', 'Tutor & Lecciones Interactivas', 'TTR'),
 
   /// Entrenador auditivo de intervalos a ciegas.
-  earTrainer('ear_trainer', 'Entrenador Auditivo a Ciegas', 'EAR');
+  earTrainer('ear_trainer', 'Entrenador Auditivo a Ciegas', 'EAR'),
+
+  /// Consola DJ virtual con decks, EQ, FX, Camelot y Smart Automix.
+  djConsole('dj_console', 'Consola DJ & Automix Pro', 'DJ'),
+
+  /// Mezclador multipista de stems con paneo estereo, mute y solo.
+  stemMixer('stem_mixer', 'Mezclador Multipista de Stems', 'MIX');
 
   final String code;
   final String displayName;
@@ -247,6 +253,54 @@ class RackModuleEntity {
           ownerModuleId: id,
         ));
         break;
+
+      case RackModuleType.djConsole:
+        inputs.add(PortId(
+          id: 'clock_in',
+          displayName: 'Sincronia Reloj BPM',
+          signalType: SignalType.temporalClock,
+          direction: PortDirection.input,
+          ownerModuleId: id,
+        ));
+        inputs.add(PortId(
+          id: 'audio_in',
+          displayName: 'Entrada Audio Auxiliar DJ',
+          signalType: SignalType.audioPcm,
+          direction: PortDirection.input,
+          ownerModuleId: id,
+        ));
+        outputs.add(PortId(
+          id: 'master_audio_out',
+          displayName: 'Salida Master DJ PCM',
+          signalType: SignalType.audioPcm,
+          direction: PortDirection.output,
+          ownerModuleId: id,
+        ));
+        outputs.add(PortId(
+          id: 'clock_out',
+          displayName: 'Pulso Master BPM DJ',
+          signalType: SignalType.temporalClock,
+          direction: PortDirection.output,
+          ownerModuleId: id,
+        ));
+        break;
+
+      case RackModuleType.stemMixer:
+        inputs.add(PortId(
+          id: 'stem_audio_in',
+          displayName: 'Entrada Audio de Stems',
+          signalType: SignalType.audioPcm,
+          direction: PortDirection.input,
+          ownerModuleId: id,
+        ));
+        outputs.add(PortId(
+          id: 'master_mix_out',
+          displayName: 'Salida Master Mezclador',
+          signalType: SignalType.audioPcm,
+          direction: PortDirection.output,
+          ownerModuleId: id,
+        ));
+        break;
     }
 
     return RackModuleEntity(
@@ -276,6 +330,65 @@ class RackModuleEntity {
       isPoweredOn: isPoweredOn ?? this.isPoweredOn,
       inputPorts: inputPorts,
       outputPorts: outputPorts,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'moduleId': moduleId,
+        'moduleType': moduleType.code,
+        'title': title,
+        'viewMode': viewMode.code,
+        'orderIndex': orderIndex,
+        'isPoweredOn': isPoweredOn,
+        'inputPorts': inputPorts.map((p) => p.toJson()).toList(growable: false),
+        'outputPorts': outputPorts.map((p) => p.toJson()).toList(growable: false),
+      };
+
+  factory RackModuleEntity.fromJson(Map<String, dynamic> json) {
+    final rawType = json['moduleType'] as String? ?? RackModuleType.strobeTuner.code;
+    final moduleType = RackModuleType.values.firstWhere(
+      (t) => t.code == rawType || t.name == rawType,
+      orElse: () => RackModuleType.strobeTuner,
+    );
+    final rawViewMode = json['viewMode'] as String? ?? ModuleViewMode.expanded.code;
+    final viewMode = ModuleViewMode.values.firstWhere(
+      (v) => v.code == rawViewMode || v.name == rawViewMode,
+      orElse: () => ModuleViewMode.expanded,
+    );
+    final int orderIndex = (json['orderIndex'] as num?)?.toInt() ?? 0;
+    final String moduleId =
+        json['moduleId'] as String? ?? 'mod_${moduleType.code}_$orderIndex';
+
+    final rawInputs = json['inputPorts'] as List<dynamic>?;
+    final rawOutputs = json['outputPorts'] as List<dynamic>?;
+    final standardFallback = RackModuleEntity.standard(
+      moduleType,
+      orderIndex,
+      customId: moduleId,
+    );
+
+    final inputs = rawInputs != null
+        ? rawInputs
+            .whereType<Map<String, dynamic>>()
+            .map(PortId.fromJson)
+            .toList(growable: false)
+        : standardFallback.inputPorts;
+    final outputs = rawOutputs != null
+        ? rawOutputs
+            .whereType<Map<String, dynamic>>()
+            .map(PortId.fromJson)
+            .toList(growable: false)
+        : standardFallback.outputPorts;
+
+    return RackModuleEntity(
+      moduleId: moduleId,
+      moduleType: moduleType,
+      title: json['title'] as String? ?? moduleType.displayName,
+      viewMode: viewMode,
+      orderIndex: orderIndex,
+      isPoweredOn: json['isPoweredOn'] as bool? ?? true,
+      inputPorts: inputs,
+      outputPorts: outputs,
     );
   }
 }
