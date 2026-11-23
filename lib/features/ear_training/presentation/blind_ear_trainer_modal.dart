@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../core/theme/tunner_theme.dart';
+import '../../../core/design_system/studio_design_system.dart';
 import '../../navigation/presentation/contextual_help_sheet.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/blind_ear_trainer_engine.dart';
@@ -227,7 +227,8 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = widget.viewModel.currentPalette;
+    final tokens = StudioThemeScope.of(context);
+    final legacyPalette = widget.viewModel.currentPalette;
     final q = _question;
 
     return Focus(
@@ -237,10 +238,10 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
       child: Container(
         height: MediaQuery.of(context).size.height * 0.90,
         decoration: BoxDecoration(
-          color: palette.scaffoldBackground,
+          color: tokens.canvasBackground,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           border: Border.all(
-            color: palette.staffLinesColor.withValues(alpha: 0.3),
+            color: tokens.borderHairline,
             width: 1.2,
           ),
         ),
@@ -252,7 +253,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
               width: 44,
               height: 4,
               decoration: BoxDecoration(
-                color: palette.staffLinesColor.withValues(alpha: 0.4),
+                color: tokens.borderHairline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -265,10 +266,16 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: palette.primaryAccent.withValues(alpha: 0.15),
+                      color: tokens.elevatedSurface,
                       borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: tokens.borderHairline),
                     ),
-                    child: Icon(Icons.hearing_rounded, color: palette.primaryAccent, size: 22),
+                    child: StudioIcon(
+                      StudioIconId.audioHeadphones,
+                      color: tokens.accentPrimary,
+                      size: 20,
+                      tintCustomAsset: true,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -280,7 +287,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                             Text(
                               'ENTRENADOR A CIEGAS',
                               style: TextStyle(
-                                color: palette.textColor,
+                                color: tokens.textPrimary,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 1.1,
@@ -289,7 +296,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                             const SizedBox(width: 6),
                             ContextualHelpBadge(
                               toolId: 'ear_trainer',
-                              palette: palette,
+                              palette: legacyPalette,
                               size: 16,
                             ),
                           ],
@@ -297,7 +304,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                         Text(
                           'Discriminación de Intervalos sin Apoyo Visual',
                           style: TextStyle(
-                            color: palette.textColor.withValues(alpha: 0.6),
+                            color: tokens.textMuted,
                             fontSize: 11,
                           ),
                         ),
@@ -306,14 +313,19 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                   ),
                   // Botón Cerrar
                   IconButton(
-                    icon: Icon(Icons.close, color: palette.textColor.withValues(alpha: 0.7)),
+                    icon: StudioIcon(
+                      StudioIconId.uiCloseConfirm,
+                      size: 18,
+                      color: tokens.textSecondary,
+                      tintCustomAsset: true,
+                    ),
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
                 ],
               ),
             ),
 
-            const Divider(height: 1, color: Colors.white10),
+            Divider(height: 1, color: tokens.borderSubtle),
 
             // Panel de estadísticas de racha y puntuación
             Padding(
@@ -323,22 +335,22 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                   _buildStatBadge(
                     'RACHA',
                     '${_engine.currentStreak}',
-                    palette.primaryAccent,
-                    palette,
+                    tokens.accentPrimary,
+                    tokens,
                   ),
                   const SizedBox(width: 8),
                   _buildStatBadge(
                     'PUNTAJE',
                     '${_engine.totalScore}',
-                    const Color(0xFF10B981),
-                    palette,
+                    tokens.accentSuccess,
+                    tokens,
                   ),
                   const SizedBox(width: 8),
                   _buildStatBadge(
                     'PRECISIÓN',
                     '${_engine.accuracyPercentage.toStringAsFixed(0)}%',
-                    const Color(0xFF38BDF8),
-                    palette,
+                    tokens.accentSecondary,
+                    tokens,
                   ),
                   const Spacer(),
                   // Interruptor Modo a Ciegas
@@ -354,26 +366,36 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
                         color: _isBlindModeActive
-                            ? const Color(0xFF6366F1).withValues(alpha: 0.2)
-                            : Colors.white10,
+                            ? tokens.elevatedSurface
+                            : tokens.panelBackground,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: _isBlindModeActive ? const Color(0xFF6366F1) : Colors.white24,
+                          color: _isBlindModeActive
+                              ? tokens.accentPrimary
+                              : tokens.borderHairline,
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            _isBlindModeActive ? Icons.visibility_off : Icons.visibility,
-                            color: _isBlindModeActive ? const Color(0xFF818CF8) : Colors.white60,
-                            size: 16,
+                          StudioIcon(
+                            StudioIconId.uiLock,
+                            color: _isBlindModeActive
+                                ? tokens.accentPrimary
+                                : tokens.textMuted,
+                            size: 14,
+                            tintCustomAsset: true,
+                            fallbackOverride: _isBlindModeActive
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             _isBlindModeActive ? 'Modo a Ciegas' : 'Modo Visible',
                             style: TextStyle(
-                              color: _isBlindModeActive ? const Color(0xFF818CF8) : Colors.white70,
+                              color: _isBlindModeActive
+                                  ? tokens.accentPrimary
+                                  : tokens.textSecondary,
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                             ),
@@ -397,12 +419,12 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                       key: const Key('ear_trainer_stimulus_box'),
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: palette.cardBackground,
+                        color: tokens.panelBackground,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: _isPlayingAudio
-                              ? palette.primaryAccent
-                              : palette.staffLinesColor.withValues(alpha: 0.3),
+                              ? tokens.accentPrimary
+                              : tokens.borderHairline,
                           width: _isPlayingAudio ? 2.0 : 1.0,
                         ),
                       ),
@@ -419,23 +441,30 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: _isPlayingAudio
-                                    ? palette.primaryAccent
-                                    : palette.primaryAccent.withValues(alpha: 0.15),
-                                border: Border.all(color: palette.primaryAccent, width: 2),
+                                    ? tokens.accentPrimary
+                                    : tokens.elevatedSurface,
+                                border: Border.all(color: tokens.accentPrimary, width: 2),
                                 boxShadow: _isPlayingAudio
                                     ? [
                                         BoxShadow(
-                                          color: palette.primaryAccent.withValues(alpha: 0.5),
+                                          color: tokens.accentPrimary.withValues(alpha: 0.35),
                                           blurRadius: 20,
                                           spreadRadius: 2,
                                         ),
                                       ]
                                     : null,
                               ),
-                              child: Icon(
-                                _isPlayingAudio ? Icons.volume_up : Icons.play_arrow,
-                                color: _isPlayingAudio ? Colors.black : palette.primaryAccent,
-                                size: 36,
+                              child: Center(
+                                child: StudioIcon(
+                                  _isPlayingAudio
+                                      ? StudioIconId.audioVolumeOn
+                                      : StudioIconId.transportPlay,
+                                  color: _isPlayingAudio
+                                      ? tokens.textOnAccent
+                                      : tokens.accentPrimary,
+                                  size: 32,
+                                  tintCustomAsset: true,
+                                ),
                               ),
                             ),
                           ),
@@ -443,7 +472,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                           Text(
                             _isPlayingAudio ? 'Escuchando intervalo...' : 'Toca o presiona [Espacio] para re-escuchar',
                             style: TextStyle(
-                              color: palette.textColor.withValues(alpha: 0.8),
+                              color: tokens.textPrimary,
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                             ),
@@ -454,13 +483,14 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.3),
+                                color: tokens.inputSurface,
                                 borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: tokens.borderHairline),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'MODO A CIEGAS: PERCEPCIÓN AUDITIVA PURA',
                                 style: TextStyle(
-                                  color: Color(0xFFFBBF24),
+                                  color: tokens.accentWarning,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 0.8,
@@ -474,20 +504,27 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                                 Text(
                                   'Nota Base: ${q?.baseNoteName ?? ''}',
                                   style: TextStyle(
-                                    color: palette.textColor.withValues(alpha: 0.6),
+                                    color: tokens.textSecondary,
                                     fontSize: 12,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                Icon(
-                                  (q?.isAscending ?? true) ? Icons.arrow_upward : Icons.arrow_downward,
+                                StudioIcon(
+                                  (q?.isAscending ?? true)
+                                      ? StudioIconId.transportForward
+                                      : StudioIconId.transportRewind,
                                   size: 14,
-                                  color: palette.primaryAccent,
+                                  color: tokens.accentPrimary,
+                                  tintCustomAsset: true,
+                                  fallbackOverride: (q?.isAscending ?? true)
+                                      ? Icons.arrow_upward
+                                      : Icons.arrow_downward,
                                 ),
+                                const SizedBox(width: 4),
                                 Text(
                                   (q?.isAscending ?? true) ? 'Ascendente' : 'Descendente',
                                   style: TextStyle(
-                                    color: palette.primaryAccent,
+                                    color: tokens.accentPrimary,
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -507,17 +544,31 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                           child: OutlinedButton.icon(
                             key: const Key('btn_sung_response_mode'),
                             onPressed: _toggleSungResponseMode,
-                            icon: Icon(
-                              _isSungResponseMode ? Icons.mic : Icons.mic_none,
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: _isSungResponseMode
+                                    ? tokens.accentPrimary
+                                    : tokens.borderHairline,
+                              ),
+                            ),
+                            icon: StudioIcon(
+                              _isSungResponseMode
+                                  ? StudioIconId.audioMicOn
+                                  : StudioIconId.audioMicOff,
                               size: 16,
-                              color: _isSungResponseMode ? palette.primaryAccent : palette.textMutedColor,
+                              color: _isSungResponseMode
+                                  ? tokens.accentPrimary
+                                  : tokens.textMuted,
+                              tintCustomAsset: true,
                             ),
                             label: Text(
                               _isSungResponseMode
                                   ? 'Modo Microfono Activo (${widget.viewModel.frequency > 20 ? "${widget.viewModel.frequency.toStringAsFixed(1)} Hz" : "escuchando..."})'
                                   : 'Responder Cantando / Tocando (Micrófono)',
                               style: TextStyle(
-                                color: _isSungResponseMode ? palette.primaryAccent : palette.textColor,
+                                color: _isSungResponseMode
+                                    ? tokens.accentPrimary
+                                    : tokens.textPrimary,
                                 fontSize: 11,
                               ),
                             ),
@@ -527,6 +578,10 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                           const SizedBox(width: 8),
                           ElevatedButton(
                             key: const Key('btn_submit_sung_tone'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: tokens.accentPrimary,
+                              foregroundColor: tokens.textOnAccent,
+                            ),
                             onPressed: (widget.viewModel.frequency > 20.0 ||
                                     _lastDetectedSungFrequency > 20.0)
                                 ? () => _submitSungTone(
@@ -561,16 +616,16 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                           final isTarget = option == q.targetInterval;
                           final isSelected = _lastResult?.selectedInterval == option;
 
-                          Color buttonBg = palette.cardBackground;
-                          Color borderColor = palette.staffLinesColor.withValues(alpha: 0.4);
+                          Color buttonBg = tokens.panelBackground;
+                          Color borderColor = tokens.borderHairline;
 
                           if (isAnswered) {
                             if (isTarget) {
-                              buttonBg = const Color(0xFF10B981).withValues(alpha: 0.2);
-                              borderColor = const Color(0xFF10B981);
+                              buttonBg = tokens.accentSuccess.withValues(alpha: 0.16);
+                              borderColor = tokens.accentSuccess;
                             } else if (isSelected) {
-                              buttonBg = const Color(0xFFEF4444).withValues(alpha: 0.2);
-                              borderColor = const Color(0xFFEF4444);
+                              buttonBg = tokens.accentDanger.withValues(alpha: 0.16);
+                              borderColor = tokens.accentDanger;
                             }
                           }
 
@@ -591,14 +646,14 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: Colors.white10,
+                                      color: tokens.elevatedSurface,
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: Colors.white24),
+                                      border: Border.all(color: tokens.borderHairline),
                                     ),
                                     child: Text(
                                       '${index + 1}',
                                       style: TextStyle(
-                                        color: palette.textColor,
+                                        color: tokens.textPrimary,
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -613,7 +668,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                                         Text(
                                           option.shortName,
                                           style: TextStyle(
-                                            color: palette.textColor,
+                                            color: tokens.textPrimary,
                                             fontSize: 14,
                                             fontWeight: FontWeight.w900,
                                           ),
@@ -621,7 +676,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                                         Text(
                                           option.displayName,
                                           style: TextStyle(
-                                            color: palette.textColor.withValues(alpha: 0.7),
+                                            color: tokens.textSecondary,
                                             fontSize: 10,
                                           ),
                                           maxLines: 1,
@@ -646,13 +701,13 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: _lastResult!.isCorrect
-                              ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                              : const Color(0xFFEF4444).withValues(alpha: 0.15),
+                              ? tokens.accentSuccess.withValues(alpha: 0.14)
+                              : tokens.accentDanger.withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: _lastResult!.isCorrect
-                                ? const Color(0xFF10B981)
-                                : const Color(0xFFEF4444),
+                                ? tokens.accentSuccess
+                                : tokens.accentDanger,
                           ),
                         ),
                         child: Column(
@@ -660,20 +715,24 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                           children: [
                             Row(
                               children: [
-                                Icon(
-                                  _lastResult!.isCorrect ? Icons.check_circle : Icons.cancel,
+                                StudioIcon(
+                                  StudioIconId.uiCloseConfirm,
                                   color: _lastResult!.isCorrect
-                                      ? const Color(0xFF10B981)
-                                      : const Color(0xFFEF4444),
-                                  size: 20,
+                                      ? tokens.accentSuccess
+                                      : tokens.accentDanger,
+                                  size: 18,
+                                  tintCustomAsset: true,
+                                  fallbackOverride: _lastResult!.isCorrect
+                                      ? Icons.check_circle
+                                      : Icons.cancel,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
                                   _lastResult!.isCorrect ? '¡CORRECTO!' : 'RESPUESTA INCORRECTA',
                                   style: TextStyle(
                                     color: _lastResult!.isCorrect
-                                        ? const Color(0xFF10B981)
-                                        : const Color(0xFFEF4444),
+                                        ? tokens.accentSuccess
+                                        : tokens.accentDanger,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w900,
                                   ),
@@ -682,13 +741,14 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: Colors.black26,
+                                    color: tokens.inputSurface,
                                     borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: tokens.borderHairline),
                                   ),
                                   child: Text(
                                     'Grado ${_lastResult!.grade.letter}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -700,7 +760,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                             Text(
                               _lastResult!.feedbackMessage,
                               style: TextStyle(
-                                color: palette.textColor.withValues(alpha: 0.8),
+                                color: tokens.textSecondary,
                                 fontSize: 11,
                               ),
                             ),
@@ -708,15 +768,20 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                             ElevatedButton.icon(
                               key: const Key('btn_next_question'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: palette.primaryAccent,
-                                foregroundColor: Colors.black,
+                                backgroundColor: tokens.accentPrimary,
+                                foregroundColor: tokens.textOnAccent,
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
                               onPressed: _generateNextQuestion,
-                              icon: const Icon(Icons.arrow_forward, size: 18),
+                              icon: StudioIcon(
+                                StudioIconId.transportForward,
+                                size: 16,
+                                color: tokens.textOnAccent,
+                                tintCustomAsset: true,
+                              ),
                               label: const Text(
                                 'SIGUIENTE EJERCICIO [ENTER]',
                                 style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
@@ -742,14 +807,14 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
     String label,
     String value,
     Color accentColor,
-    TunnerThemePalette palette,
+    StudioDesignTokens tokens,
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: accentColor.withValues(alpha: 0.1),
+        color: tokens.panelBackground,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+        border: Border.all(color: accentColor.withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -757,7 +822,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
           Text(
             label,
             style: TextStyle(
-              color: palette.textColor.withValues(alpha: 0.5),
+              color: tokens.textMuted,
               fontSize: 8,
               fontWeight: FontWeight.bold,
             ),

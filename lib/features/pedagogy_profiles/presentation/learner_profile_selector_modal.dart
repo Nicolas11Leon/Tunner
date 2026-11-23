@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/theme/tunner_theme.dart';
+import '../../../core/design_system/studio_design_system.dart';
 import '../domain/learner_profile_entity.dart';
 import '../../tuner_viewmodel.dart';
 
@@ -9,11 +9,11 @@ class LearnerProfileSelectorModal extends StatelessWidget {
   const LearnerProfileSelectorModal({super.key});
 
   static Future<void> show(BuildContext context) {
-    final vm = Provider.of<TunerViewModel>(context, listen: false);
+    final tokens = StudioThemeScope.of(context);
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: vm.currentPalette.cardBackground,
+      backgroundColor: tokens.panelBackground,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -24,16 +24,15 @@ class LearnerProfileSelectorModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<TunerViewModel>();
-    final palette = vm.currentPalette;
+    final tokens = StudioThemeScope.of(context);
     final activeProfile = vm.learnerProfile;
-    final cardBorder = palette.staffLinesColor.withValues(alpha: 0.3);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.88,
       decoration: BoxDecoration(
-        color: palette.cardBackground,
+        color: tokens.panelBackground,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border.all(color: cardBorder),
+        border: Border.all(color: tokens.borderHairline),
       ),
       child: Column(
         children: [
@@ -43,7 +42,7 @@ class LearnerProfileSelectorModal extends StatelessWidget {
             height: 4,
             margin: const EdgeInsets.only(top: 10, bottom: 6),
             decoration: BoxDecoration(
-              color: palette.textMutedColor.withValues(alpha: 0.5),
+              color: tokens.borderHairline,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -56,11 +55,16 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: palette.primaryAccent.withValues(alpha: 0.2),
+                    color: tokens.elevatedSurface,
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: tokens.borderHairline),
                   ),
-                  child: Icon(Icons.psychology,
-                      size: 22, color: palette.primaryAccent),
+                  child: StudioIcon(
+                    StudioIconId.modulePedagogy,
+                    size: 20,
+                    color: tokens.accentPrimary,
+                    tintCustomAsset: true,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -72,27 +76,32 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: palette.textColor,
+                          color: tokens.textPrimary,
                         ),
                       ),
                       Text(
                         'Adaptación Cognitiva: Niños, Adultos y Conservatorio',
                         style: TextStyle(
                           fontSize: 11,
-                          color: palette.textMutedColor,
+                          color: tokens.textMuted,
                         ),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.close, color: palette.textMutedColor),
+                  icon: StudioIcon(
+                    StudioIconId.uiCloseConfirm,
+                    size: 18,
+                    color: tokens.textSecondary,
+                    tintCustomAsset: true,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: tokens.borderSubtle),
 
           // Lista de perfiles y ajustes
           Expanded(
@@ -105,7 +114,7 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
-                    color: palette.primaryAccent,
+                    color: tokens.accentPrimary,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -118,11 +127,11 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                   description:
                       'Exploración del sonido libre de frustración. Sin juicios ni números intimidantes. '
                       'La tolerancia se afina suavemente a medida que el niño acumula aciertos.',
-                  icon: Icons.child_care_rounded,
+                  iconId: StudioIconId.modulePedagogy,
+                  fallbackIcon: Icons.child_care_rounded,
                   isSelected: activeProfile.type == LearnerProfileType.childPlayful,
-                  accentColor: const Color(0xFF00E676),
-                  palette: palette,
-                  cardBorder: cardBorder,
+                  accentColor: tokens.accentSuccess,
+                  tokens: tokens,
                   onTap: () =>
                       vm.setLearnerProfileType(LearnerProfileType.childPlayful),
                 ),
@@ -136,11 +145,11 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                   description:
                       'Andragogía científica y mentalidad de crecimiento. Reduce la carga cognitiva extraña '
                       'y aporta pautas físicas de respiración, apoyo y relajación laringea.',
-                  icon: Icons.self_improvement_rounded,
+                  iconId: StudioIconId.moduleTuner,
+                  fallbackIcon: Icons.self_improvement_rounded,
                   isSelected: activeProfile.type == LearnerProfileType.adultDeliberate,
-                  accentColor: palette.primaryAccent,
-                  palette: palette,
-                  cardBorder: cardBorder,
+                  accentColor: tokens.accentPrimary,
+                  tokens: tokens,
                   onTap: () =>
                       vm.setLearnerProfileType(LearnerProfileType.adultDeliberate),
                 ),
@@ -154,12 +163,12 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                   description:
                       'Estación acústica para músicos de concierto. Cero concesiones en centésimas, '
                       'análisis espectral FFT de 8 armónicos, centroide y métricas de pulso.',
-                  icon: Icons.workspace_premium_rounded,
+                  iconId: StudioIconId.moduleSpectrogram,
+                  fallbackIcon: Icons.workspace_premium_rounded,
                   isSelected:
                       activeProfile.type == LearnerProfileType.conservatoryMastery,
-                  accentColor: const Color(0xFFFFB300),
-                  palette: palette,
-                  cardBorder: cardBorder,
+                  accentColor: tokens.accentWarning,
+                  tokens: tokens,
                   onTap: () => vm.setLearnerProfileType(
                       LearnerProfileType.conservatoryMastery),
                 ),
@@ -172,7 +181,7 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
-                    color: palette.primaryAccent,
+                    color: tokens.accentPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -180,9 +189,9 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: palette.cardBackground,
+                    color: tokens.canvasBackground,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: cardBorder),
+                    border: Border.all(color: tokens.borderHairline),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,7 +203,7 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                             'Ventana de afinación válida:',
                             style: TextStyle(
                               fontSize: 13,
-                              color: palette.textColor,
+                              color: tokens.textPrimary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -202,15 +211,16 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: palette.primaryAccent.withValues(alpha: 0.15),
+                              color: tokens.elevatedSurface,
                               borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: tokens.borderHairline),
                             ),
                             child: Text(
                               '+-${activeProfile.centsTolerance.toStringAsFixed(1)} cents',
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                color: palette.primaryAccent,
+                                color: tokens.accentPrimary,
                               ),
                             ),
                           ),
@@ -223,9 +233,8 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                         max: 30.0,
                         divisions: 27,
                         value: activeProfile.centsTolerance.clamp(3.0, 30.0),
-                        activeColor: palette.primaryAccent,
-                        inactiveColor:
-                            palette.staffLinesColor.withValues(alpha: 0.3),
+                        activeColor: tokens.accentPrimary,
+                        inactiveColor: tokens.borderHairline,
                         onChanged: (val) {
                           vm.updateLearnerProfile(
                             activeProfile.copyWith(
@@ -239,7 +248,7 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                         'Una tolerancia más amplia permite explorar notas sin fatiga motriz; una más estrecha entrena el oído para tocar en ensamble.',
                         style: TextStyle(
                           fontSize: 11,
-                          color: palette.textMutedColor,
+                          color: tokens.textMuted,
                         ),
                       ),
                     ],
@@ -255,19 +264,19 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.1,
-                      color: palette.primaryAccent,
+                      color: tokens.accentPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: palette.cardBackground,
+                      color: tokens.canvasBackground,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: vm.lastPedagogicalDiagnostic!.isInTune
-                            ? palette.correctPitchColor.withValues(alpha: 0.5)
-                            : palette.warningPitchColor.withValues(alpha: 0.5),
+                            ? tokens.accentSuccess.withValues(alpha: 0.5)
+                            : tokens.accentWarning.withValues(alpha: 0.5),
                       ),
                     ),
                     child: Column(
@@ -278,7 +287,7 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: palette.textColor,
+                            color: tokens.textPrimary,
                           ),
                         ),
                         if (vm.lastPedagogicalDiagnostic!.biomechanicalCue !=
@@ -288,7 +297,7 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                             'Pauta biomecánica: ${vm.lastPedagogicalDiagnostic!.biomechanicalCue!}',
                             style: TextStyle(
                               fontSize: 11.5,
-                              color: palette.primaryAccent,
+                              color: tokens.accentPrimary,
                             ),
                           ),
                         ],
@@ -297,7 +306,7 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                           vm.lastPedagogicalDiagnostic!.motivationalCue,
                           style: TextStyle(
                             fontSize: 11,
-                            color: palette.textMutedColor,
+                            color: tokens.textMuted,
                           ),
                         ),
                       ],
@@ -317,11 +326,11 @@ class LearnerProfileSelectorModal extends StatelessWidget {
     required String title,
     required String badge,
     required String description,
-    required IconData icon,
+    required StudioIconId iconId,
+    required IconData fallbackIcon,
     required bool isSelected,
     required Color accentColor,
-    required TunnerThemePalette palette,
-    required Color cardBorder,
+    required StudioDesignTokens tokens,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -334,16 +343,16 @@ class LearnerProfileSelectorModal extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? accentColor.withValues(alpha: 0.12)
-              : palette.cardBackground,
+              : tokens.canvasBackground,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? accentColor : cardBorder,
+            color: isSelected ? accentColor : tokens.borderHairline,
             width: isSelected ? 2.0 : 1.0,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: accentColor.withValues(alpha: 0.2),
+                    color: accentColor.withValues(alpha: 0.18),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -356,10 +365,16 @@ class LearnerProfileSelectorModal extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.2),
+                color: accentColor.withValues(alpha: 0.16),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 24, color: accentColor),
+              child: StudioIcon(
+                iconId,
+                size: 22,
+                color: accentColor,
+                tintCustomAsset: true,
+                fallbackOverride: fallbackIcon,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -375,12 +390,18 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.bold,
-                            color: palette.textColor,
+                            color: tokens.textPrimary,
                           ),
                         ),
                       ),
                       if (isSelected)
-                        Icon(Icons.check_circle, size: 20, color: accentColor),
+                        StudioIcon(
+                          StudioIconId.uiCloseConfirm,
+                          size: 18,
+                          color: accentColor,
+                          tintCustomAsset: true,
+                          fallbackOverride: Icons.check_circle,
+                        ),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -405,7 +426,7 @@ class LearnerProfileSelectorModal extends StatelessWidget {
                     description,
                     style: TextStyle(
                       fontSize: 11.5,
-                      color: palette.textMutedColor,
+                      color: tokens.textMuted,
                       height: 1.35,
                     ),
                   ),
