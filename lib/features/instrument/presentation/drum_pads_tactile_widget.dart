@@ -57,84 +57,112 @@ class _DrumPadsTactileWidgetState extends State<DrumPadsTactileWidget> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Text(widget.instrument.visualProfile.smuflGlyph, style: const TextStyle(fontSize: 18)),
-                  const SizedBox(width: 8),
-                  Text(
-                    widget.instrument.displayName.toUpperCase(),
-                    style: TextStyle(
-                      color: primaryColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
+              Expanded(
+                child: Row(
+                  children: [
+                    Text(widget.instrument.visualProfile.smuflGlyph, style: const TextStyle(fontSize: 18)),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        widget.instrument.displayName.toUpperCase(),
+                        style: TextStyle(
+                          color: primaryColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const Text(
-                'PADS DINÁMICOS CANAL 10 (MIDI GM)',
-                style: TextStyle(color: Colors.white38, fontSize: 10),
+              const SizedBox(width: 8),
+              const Flexible(
+                child: Text(
+                  'PADS DINÁMICOS CANAL 10 (MIDI GM)',
+                  style: TextStyle(color: Colors.white38, fontSize: 10),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: 1.8,
-              ),
-              itemCount: _pads.length,
-              itemBuilder: (context, index) {
-                final pad = _pads[index];
-                final isHit = _activeHitIndex == index;
-                final padColor = pad['color'] as Color;
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final int rows = (_pads.length / 4).ceil().clamp(1, 4);
+                final double rowSpacing = (rows - 1) * 8.0;
+                final double cellExtent =
+                    ((constraints.maxHeight - rowSpacing) / rows).clamp(28.0, 200.0);
 
-                return GestureDetector(
-                  onTapDown: (_) => _triggerPad(index, pad['gm'] as int),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 80),
-                    decoration: BoxDecoration(
-                      color: isHit
-                          ? padColor.withValues(alpha: 0.45)
-                          : Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isHit ? padColor : Colors.white12,
-                        width: isHit ? 2.0 : 1.0,
-                      ),
-                      boxShadow: isHit
-                          ? [
-                              BoxShadow(
-                                color: padColor.withValues(alpha: 0.5),
-                                blurRadius: 12,
-                                spreadRadius: 2,
-                              )
-                            ]
-                          : null,
-                    ),
-                    alignment: Alignment.center,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(pad['iconData'] as IconData, size: 14, color: isHit ? Colors.white : padColor),
-                        const SizedBox(height: 2),
-                        Text(
-                          pad['name'] as String,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: isHit ? Colors.white : Colors.white70,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
+                return GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    mainAxisExtent: cellExtent,
+                  ),
+                  itemCount: _pads.length,
+                  itemBuilder: (context, index) {
+                    final pad = _pads[index];
+                    final isHit = _activeHitIndex == index;
+                    final padColor = pad['color'] as Color;
+
+                    return GestureDetector(
+                      onTapDown: (_) => _triggerPad(index, pad['gm'] as int),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 80),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isHit
+                              ? padColor.withValues(alpha: 0.45)
+                              : Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isHit ? padColor : Colors.white12,
+                            width: isHit ? 2.0 : 1.0,
+                          ),
+                          boxShadow: isHit
+                              ? [
+                                  BoxShadow(
+                                    color: padColor.withValues(alpha: 0.5),
+                                    blurRadius: 12,
+                                    spreadRadius: 2,
+                                  )
+                                ]
+                              : null,
+                        ),
+                        alignment: Alignment.center,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(pad['iconData'] as IconData, size: 14, color: isHit ? Colors.white : padColor),
+                              const SizedBox(height: 2),
+                              Text(
+                                pad['name'] as String,
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: isHit ? Colors.white : Colors.white70,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               },
             ),

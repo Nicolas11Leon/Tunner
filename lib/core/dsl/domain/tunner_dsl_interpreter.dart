@@ -8,6 +8,8 @@ import 'tunner_ast_node.dart';
 class TunnerDslExecutionContext {
   final StudioOsAudioKernel kernel;
   double currentBpm;
+  double currentBeatOffset = 0.0;
+  double currentTimeOffsetMs = 0.0;
   int executedStatements = 0;
   final List<String> warnings = [];
   final bool isDryRun;
@@ -17,6 +19,9 @@ class TunnerDslExecutionContext {
     this.currentBpm = 120.0,
     this.isDryRun = false,
   });
+
+  /// Offset temporal acumulado en milisegundos desde el inicio del programa DSL.
+  int get currentScheduledOffsetMs => currentTimeOffsetMs.round();
 }
 
 /// Reporte inmutable del resultado de la ejecución de un script Tunner DSL.
@@ -24,6 +29,7 @@ class TunnerDslExecutionReport {
   final bool isSuccess;
   final int totalStatementsExecuted;
   final int executionTimeMicroseconds;
+  final int totalScheduledDurationMs;
   final List<String> warnings;
   final List<StudioOsAudioEvent> generatedEvents;
 
@@ -31,13 +37,14 @@ class TunnerDslExecutionReport {
     required this.isSuccess,
     required this.totalStatementsExecuted,
     required this.executionTimeMicroseconds,
+    this.totalScheduledDurationMs = 0,
     required this.warnings,
     required this.generatedEvents,
   });
 
   @override
   String toString() =>
-      'TunnerDslExecutionReport(success: $isSuccess, executed: $totalStatementsExecuted, time: ${executionTimeMicroseconds}us, warnings: ${warnings.length})';
+      'TunnerDslExecutionReport(success: $isSuccess, executed: $totalStatementsExecuted, time: ${executionTimeMicroseconds}us, scheduledMs: $totalScheduledDurationMs, warnings: ${warnings.length})';
 }
 
 /// Intérprete y evaluador en caliente del Árbol de Sintaxis Abstracta (AST) de Tunner DSL.
@@ -86,6 +93,7 @@ class TunnerDslInterpreter
         isSuccess: true,
         totalStatementsExecuted: context.executedStatements,
         executionTimeMicroseconds: stopwatch.elapsedMicroseconds,
+        totalScheduledDurationMs: context.currentScheduledOffsetMs,
         warnings: List.unmodifiable(context.warnings),
         generatedEvents: List.unmodifiable(newEvents),
       );
@@ -97,6 +105,7 @@ class TunnerDslInterpreter
         isSuccess: false,
         totalStatementsExecuted: context.executedStatements,
         executionTimeMicroseconds: stopwatch.elapsedMicroseconds,
+        totalScheduledDurationMs: context.currentScheduledOffsetMs,
         warnings: List.unmodifiable(context.warnings),
         generatedEvents: const [],
       );
@@ -163,6 +172,13 @@ class TunnerDslInterpreter
     context.executedStatements++;
     final midi = pitchToMidi(node.pitch);
     final freq = midiToFrequency(midi);
+    final scheduledOffsetMs = context.currentScheduledOffsetMs;
+    final beats = parseFraction(node.durationFraction) * 4.0;
+    final durationMsExact = calculateDurationMs(node.durationFraction, context.currentBpm);
+    final durationMs = durationMsExact.round();
+
+    context.currentBeatOffset += beats;
+    context.currentTimeOffsetMs += durationMsExact;
     if (context.isDryRun) return;
 
     await context.kernel.dispatchNote(
@@ -170,6 +186,8 @@ class TunnerDslInterpreter
       freq,
       midi,
       node.durationFraction,
+      scheduledOffsetMs: scheduledOffsetMs,
+      durationMs: durationMs,
     );
   }
 
@@ -187,6 +205,14 @@ class TunnerDslInterpreter
       midiNotes.add(m);
       frequencies.add(midiToFrequency(m));
     }
+
+    final scheduledOffsetMs = context.currentScheduledOffsetMs;
+    final beats = parseFraction(node.durationFraction) * 4.0;
+    final durationMsExact = calculateDurationMs(node.durationFraction, context.currentBpm);
+    final durationMs = durationMsExact.round();
+
+    context.currentBeatOffset += beats;
+    context.currentTimeOffsetMs += durationMsExact;
     if (context.isDryRun) return;
 
     await context.kernel.dispatchChord(
@@ -194,6 +220,8 @@ class TunnerDslInterpreter
       frequencies,
       midiNotes,
       node.durationFraction,
+      scheduledOffsetMs: scheduledOffsetMs,
+      durationMs: durationMs,
     );
   }
 
@@ -203,8 +231,20 @@ class TunnerDslInterpreter
     TunnerDslExecutionContext context,
   ) async {
     context.executedStatements++;
+    final scheduledOffsetMs = context.currentScheduledOffsetMs;
+    final beats = parseFraction(node.durationFraction) * 4.0;
+    final durationMsExact = calculateDurationMs(node.durationFraction, context.currentBpm);
+    final durationMs = durationMsExact.round();
+
+    context.currentBeatOffset += beats;
+    context.currentTimeOffsetMs += durationMsExact;
     if (context.isDryRun) return;
-    await context.kernel.dispatchRest(node.durationFraction);
+
+    await context.kernel.dispatchRest(
+      node.durationFraction,
+      scheduledOffsetMs: scheduledOffsetMs,
+      durationMs: durationMs,
+    );
   }
 
   @override
@@ -292,9 +332,10 @@ class TunnerDslInterpreter
   }
 
   /// Calcula la frecuencia en Hz a partir del número de nota MIDI estándar.
-  /// Fórmula canónica: f = 440.0 * 2^((midi - 69) / 12)
-  static double midiToFrequency(int midiNote) {
-    return 440.0 * math.pow(2.0, (midiNote - 69.0) / 12.0);
+  /// Fórmula canónica: f = referencePitchHz * 2^((midi - 69) / 12)
+  static double midiToFrequency(int midiNote, {double referencePitchHz = 440.0}) {
+    final safeRef = referencePitchHz > 0.0 ? referencePitchHz : 440.0;
+    return safeRef * math.pow(2.0, (midiNote - 69.0) / 12.0);
   }
 
   /// Convierte una fracción textual canónica (ej. '1/4', '1/8', '1/2', '1/16') a valor flotante relativo.

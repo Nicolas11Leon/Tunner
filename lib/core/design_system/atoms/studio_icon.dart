@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../domain/studio_icon_catalog.dart';
 
@@ -14,9 +15,11 @@ typedef StudioSvgBuilder = Widget Function(
 /// Átomo de iconografía progresiva de Tunner Studio.
 ///
 /// Orden de resolución sin romper la UI ni lanzar excepciones si faltan assets:
-/// 1. SVG vectorial (`assets/icons/svg/<id>.svg`) si [svgBuilder] está registrado.
-/// 2. PNG optimizado (`assets/icons/png/<id>.png`) vía [Image.asset].
-/// 3. Fallback limpio al [IconData] canónico mientras el asset no exista.
+/// 1. SVG vectorial (`assets/icons/svg/<id>.svg`) si [globalSvgBuilder] está registrado.
+/// 2. PNG optimizado (`assets/icons/png/<id>.png`) vía [Image.asset] sólo cuando
+///    el asset existe en la caché de manifiesto ([hasBundledPng]).
+/// 3. Fallback directo al [IconData] canónico mientras el asset no exista,
+///    evitando cargas fallidas asíncronas de [Image.asset].
 class StudioIcon extends StatelessWidget {
   final StudioIconId id;
   final double size;
@@ -26,6 +29,94 @@ class StudioIcon extends StatelessWidget {
 
   /// Hook global opcional para conectar `flutter_svg` en el futuro sin editar UI.
   static StudioSvgBuilder? globalSvgBuilder;
+
+  /// Los 38 PNGs actualmente presentes en `assets/icons/png/`.
+  static const Set<String> defaultBundledPngAssetPaths = <String>{
+    'assets/icons/png/audio_headphones.png',
+    'assets/icons/png/audio_mic_off.png',
+    'assets/icons/png/audio_mic_on.png',
+    'assets/icons/png/audio_volume_on.png',
+    'assets/icons/png/file_export_pdf.png',
+    'assets/icons/png/file_folder.png',
+    'assets/icons/png/file_musicxml_midi.png',
+    'assets/icons/png/file_new.png',
+    'assets/icons/png/file_open.png',
+    'assets/icons/png/file_preset.png',
+    'assets/icons/png/file_save.png',
+    'assets/icons/png/file_wav_audio.png',
+    'assets/icons/png/module_dj_console.png',
+    'assets/icons/png/module_drone.png',
+    'assets/icons/png/module_metronome.png',
+    'assets/icons/png/module_patchbay.png',
+    'assets/icons/png/module_rack.png',
+    'assets/icons/png/module_recorder.png',
+    'assets/icons/png/module_score_sheet.png',
+    'assets/icons/png/module_tuner.png',
+    'assets/icons/png/tool_terminal.png',
+    'assets/icons/png/transport_forward.png',
+    'assets/icons/png/transport_loop.png',
+    'assets/icons/png/transport_pause.png',
+    'assets/icons/png/transport_play.png',
+    'assets/icons/png/transport_record.png',
+    'assets/icons/png/transport_rewind.png',
+    'assets/icons/png/transport_stop.png',
+    'assets/icons/png/ui_add_remove.png',
+    'assets/icons/png/ui_automations.png',
+    'assets/icons/png/ui_close_confirm.png',
+    'assets/icons/png/ui_customizations.png',
+    'assets/icons/png/ui_lock.png',
+    'assets/icons/png/ui_power.png',
+    'assets/icons/png/ui_search.png',
+    'assets/icons/png/ui_settings.png',
+    'assets/icons/png/ui_sidebar_toggle.png',
+    'assets/icons/png/ui_workspace_layout.png',
+  };
+
+  static Set<String> _availablePngAssets =
+      Set<String>.from(defaultBundledPngAssetPaths);
+
+  /// Verifica en O(1) si el PNG para [pngAssetPath] está disponible en el bundle.
+  static bool hasBundledPng(String pngAssetPath) =>
+      _availablePngAssets.contains(pngAssetPath);
+
+  /// Verifica en O(1) si el [StudioIconId] tiene un PNG disponible en caché.
+  static bool hasBundledPngForId(StudioIconId id) =>
+      hasBundledPng(StudioIconCatalog.specFor(id).pngAssetPath);
+
+  /// Precarga dinámicamente el `AssetManifest` desde [bundle] (o [rootBundle])
+  /// para sincronizar los iconos PNG presentes en tiempo de ejecución.
+  static Future<void> preloadManifest([AssetBundle? bundle]) async {
+    try {
+      final manifest =
+          await AssetManifest.loadFromAssetBundle(bundle ?? rootBundle);
+      final pngAssets = manifest
+          .listAssets()
+          .where(
+            (path) =>
+                path.startsWith('${StudioIconCatalog.pngBaseDir}/') &&
+                path.endsWith('.png'),
+          )
+          .toSet();
+      if (pngAssets.isNotEmpty) {
+        _availablePngAssets = pngAssets;
+      }
+    } catch (_) {
+      // Si el bundle de test no expone AssetManifest binario, conservar el registro estático.
+    }
+  }
+
+  /// Registra rutas PNG adicionales en la caché (útil para tests o carga dinámica).
+  static void registerAvailablePngAssets(Iterable<String> assetPaths) {
+    _availablePngAssets = <String>{
+      ..._availablePngAssets,
+      ...assetPaths,
+    };
+  }
+
+  /// Restaura la caché de assets PNG al conjunto canónico por defecto.
+  static void resetManifestCache() {
+    _availablePngAssets = Set<String>.from(defaultBundledPngAssetPaths);
+  }
 
   const StudioIcon(
     this.id, {
@@ -149,6 +240,14 @@ class StudioIcon extends StatelessWidget {
           size,
           tintCustomAsset ? effectiveColor : null,
         ),
+      );
+    }
+
+    if (!hasBundledPng(spec.pngAssetPath)) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: fallback,
       );
     }
 

@@ -27,8 +27,15 @@ class UniversalInstrumentSearchModal extends StatefulWidget {
 }
 
 class _UniversalInstrumentSearchModalState extends State<UniversalInstrumentSearchModal> {
+  final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   HornbostelSachsCategory? _selectedCategory;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +97,7 @@ class _UniversalInstrumentSearchModalState extends State<UniversalInstrumentSear
 
           // Campo de búsqueda universal
           TextField(
+            controller: _searchController,
             style: const TextStyle(color: Colors.white, fontSize: 13),
             decoration: InputDecoration(
               hintText: 'Buscar (ej: saxo, guitarra, marimba, congas, C4)...',
@@ -98,7 +106,10 @@ class _UniversalInstrumentSearchModalState extends State<UniversalInstrumentSear
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear, color: Colors.white54, size: 18),
-                      onPressed: () => setState(() => _searchQuery = ''),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
                     )
                   : null,
               filled: true,

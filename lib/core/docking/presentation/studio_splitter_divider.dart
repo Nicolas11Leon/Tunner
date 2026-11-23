@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design_system/studio_theme_provider.dart';
 
 /// Divisor interactivo y arrastrable para redimensionar paneles divididos en tiempo real.
 class StudioSplitterDivider extends StatefulWidget {
@@ -21,6 +22,7 @@ class _StudioSplitterDividerState extends State<StudioSplitterDivider> {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.of(context);
     final isVertical = widget.direction == Axis.vertical;
 
     final cursor = isVertical
@@ -44,14 +46,14 @@ class _StudioSplitterDividerState extends State<StudioSplitterDivider> {
           width: isVertical ? double.infinity : 6.0,
           height: isVertical ? 6.0 : double.infinity,
           color: _isDragging
-              ? const Color(0xFF00E5FF)
-              : (_isHovered ? const Color(0xFF00E5FF).withValues(alpha: 0.5) : const Color(0xFF1E2433)),
+              ? tokens.accentPrimary
+              : (_isHovered ? tokens.accentPrimary.withValues(alpha: 0.5) : tokens.borderHairline),
           child: Center(
             child: Container(
               width: isVertical ? 24.0 : 2.0,
               height: isVertical ? 2.0 : 24.0,
               decoration: BoxDecoration(
-                color: _isDragging || _isHovered ? Colors.white : const Color(0xFF4A5568),
+                color: _isDragging || _isHovered ? tokens.textPrimary : tokens.textMuted,
                 borderRadius: BorderRadius.circular(1.0),
               ),
             ),

@@ -988,7 +988,7 @@ class ModularRackViewModel extends ChangeNotifier {
   /// Carga un preset de sesion predeterminado.
   void loadPreset(String presetName) {
     _activeModules.clear();
-    signalBus.dispose();
+    signalBus.clearRoutes();
 
     switch (presetName) {
       case 'calentamiento':
@@ -1075,7 +1075,7 @@ class ModularRackViewModel extends ChangeNotifier {
   /// Carga y restaura un proyecto completo, reconfigurando modulos y cableado en el SignalBus.
   void loadProjectPackage(TunnerProjectPackage package) {
     _activeModules.clear();
-    signalBus.dispose();
+    signalBus.clearRoutes();
 
     for (int i = 0; i < package.tools.length; i++) {
       final preset = package.tools[i];

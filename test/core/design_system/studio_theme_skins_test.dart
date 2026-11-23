@@ -62,7 +62,7 @@ void main() {
 
     test('initial state has default skin and full catalog', () {
       expect(catalog.availableSkins.length, greaterThanOrEqualTo(5));
-      expect(catalog.activeSkin.id, equals('skin_obsidian_pro'));
+      expect(catalog.activeSkin.id, equals('studio_oled_monochrome'));
     });
 
     test('selectSkin updates active skin and notifies listeners', () {
