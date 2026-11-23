@@ -69,16 +69,25 @@ class StudioMasterAudioMixer {
     return peak;
   }
 
-  /// Limitador suave (*soft-clipper limiter*) de función tangencial para prevenir
-  /// distorsión digital abrasiva por recorte de onda (*hard clipping*) en sobrecargas:
+  /// Limitador suave (*soft-clipper limiter*) C1-continuo para prevenir distorsión
+  /// digital por saturación dura (*hard clipping*) garantizando 0% THD bajo el umbral T = 0.85:
   ///
-  /// $$f(x) = \tanh(x)$$
-  static double applySoftClipper(double sample) {
-    if (sample > 3.0) return 1.0;
-    if (sample < -3.0) return -1.0;
-    // Aproximación numérica rápida de tanh(x) = (e^2x - 1) / (e^2x + 1)
-    final exp2x = math.exp(2.0 * sample);
-    return (exp2x - 1.0) / (exp2x + 1.0);
+  /// Para $|x| \le T$: $f(x) = x$
+  /// Para $|x| > T$: $f(x) = \operatorname{sgn}(x) \left[ T + (1 - T)\tanh\left(\frac{|x| - T}{1 - T}\right) \right]$
+  static double applySoftClipper(double sample, {double threshold = 0.85}) {
+    final absSample = sample.abs();
+    if (absSample <= threshold) {
+      return sample;
+    }
+    final excess = (absSample - threshold) / (1.0 - threshold);
+    if (excess >= 20.0) {
+      return sample < 0.0 ? -1.0 : 1.0;
+    }
+    // tanh(excess)
+    final exp2 = math.exp(2.0 * excess);
+    final tanhVal = (exp2 - 1.0) / (exp2 + 1.0);
+    final compressed = threshold + (1.0 - threshold) * tanhVal;
+    return sample < 0.0 ? -compressed : compressed;
   }
 
   /// Procesa y mezcla un par de muestras estéreo $(L, R)$ aplicando ganancia maestra,
@@ -100,9 +109,9 @@ class StudioMasterAudioMixer {
     l *= effectiveGain;
     r *= effectiveGain;
 
-    // Limitador suave si excede rango dinámico unitario
-    if (l.abs() > 0.95) l = applySoftClipper(l);
-    if (r.abs() > 0.95) r = applySoftClipper(r);
+    // Limitador suave C1-continuo (activo desde T = 0.85 sin discontinuidad de salto)
+    l = applySoftClipper(l);
+    r = applySoftClipper(r);
 
     return (l.clamp(-1.0, 1.0), r.clamp(-1.0, 1.0));
   }

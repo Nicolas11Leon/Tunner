@@ -807,6 +807,126 @@ class UniversalInstrumentDefinition {
     generalMidiNumber: 81, // Lead 2 (sawtooth)
   );
 
+  // --- 8. INSTRUMENTOS ÉTNICOS Y TRADICIONALES DEL MUNDO (HORNBOSTEL-SACHS) ---
+
+  static const UniversalInstrumentDefinition koraWestAfrican = UniversalInstrumentDefinition(
+    universalId: 'chordophone.plucked_strings.kora_west_african',
+    displayName: 'Kora de África Occidental',
+    searchKeywords: ['kora', 'ngoni', 'arpa laud', 'african harp', 'gambia', 'senegal', 'mandinga', 'tomora'],
+    category: HornbostelSachsCategory.chordophone,
+    subfamily: InstrumentSubfamily.pluckedStrings,
+    tuningKey: InstrumentKey.concertC,
+    notationClef: InstrumentClef.treble,
+    transpositionSemitones: 0,
+    acousticRange: AcousticRange(
+      minFrequencyHz: 87.31, // F2
+      maxFrequencyHz: 783.99, // G5
+      minMidiNote: 41,
+      maxMidiNote: 79,
+      standardTuningFrequencies: [
+        87.31, 130.81, 146.83, 164.81, 174.61, 196.00, 220.00, 246.94,
+        261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88,
+        523.25, 587.33, 659.25, 698.46, 783.99,
+      ],
+      standardTuningNoteNames: [
+        'F2', 'C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'Bb3',
+        'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'Bb4',
+        'C5', 'D5', 'E5', 'F5', 'G5',
+      ],
+    ),
+    timbralProfile: TimbralProfile.kora,
+    visualProfile: VisualInterfaceProfile.koraEthnic,
+    generalMidiNumber: 105, // Banjo / Plucked Kora
+  );
+
+  static const UniversalInstrumentDefinition sitarIndian = UniversalInstrumentDefinition(
+    universalId: 'chordophone.plucked_strings.sitar_indian',
+    displayName: 'Sitar Clásico de la India',
+    searchKeywords: ['sitar', 'veena', 'vina', 'india', 'raga', 'chikari', 'baaj', 'hindustani'],
+    category: HornbostelSachsCategory.chordophone,
+    subfamily: InstrumentSubfamily.pluckedStrings,
+    tuningKey: InstrumentKey.concertC,
+    notationClef: InstrumentClef.treble,
+    transpositionSemitones: 0,
+    acousticRange: AcousticRange(
+      minFrequencyHz: 65.41, // C2
+      maxFrequencyHz: 1046.50, // C6
+      minMidiNote: 36,
+      maxMidiNote: 84,
+      standardTuningFrequencies: [65.41, 98.00, 130.81, 174.61, 196.00, 261.63, 523.25],
+      standardTuningNoteNames: ['C2', 'G2', 'C3', 'F3', 'G3', 'C4', 'C5'],
+    ),
+    timbralProfile: TimbralProfile.sitar,
+    visualProfile: VisualInterfaceProfile.sitarEthnic,
+    generalMidiNumber: 104, // Sitar
+  );
+
+  static const UniversalInstrumentDefinition shakuhachiJapanese = UniversalInstrumentDefinition(
+    universalId: 'aerophone.woodwind.shakuhachi_japan',
+    displayName: 'Shakuhachi Tradicional Japonés',
+    searchKeywords: ['shakuhachi', 'dizi', 'xiao', 'bambu', 'japan', 'flauta zen', 'honkyoku'],
+    category: HornbostelSachsCategory.aerophone,
+    subfamily: InstrumentSubfamily.woodwind,
+    tuningKey: InstrumentKey.dKey,
+    notationClef: InstrumentClef.treble,
+    transpositionSemitones: 2, // Afinada en Re
+    acousticRange: AcousticRange(
+      minFrequencyHz: 293.66, // D4
+      maxFrequencyHz: 2349.32, // D7
+      minMidiNote: 62,
+      maxMidiNote: 98,
+      standardTuningFrequencies: [293.66, 349.23, 392.00, 440.00, 523.25],
+      standardTuningNoteNames: ['D4', 'F4', 'G4', 'A4', 'C5'],
+    ),
+    timbralProfile: TimbralProfile.shakuhachi,
+    visualProfile: VisualInterfaceProfile.shakuhachiEthnic,
+    generalMidiNumber: 77, // Shakuhachi
+  );
+
+  static const UniversalInstrumentDefinition charangoAndean = UniversalInstrumentDefinition(
+    universalId: 'chordophone.plucked_strings.charango_andean',
+    displayName: 'Charango Andino',
+    searchKeywords: ['charango', 'charango andino', 'bolivia', 'peru', 'temple natural', 'folclore andino'],
+    category: HornbostelSachsCategory.chordophone,
+    subfamily: InstrumentSubfamily.pluckedStrings,
+    tuningKey: InstrumentKey.concertC,
+    notationClef: InstrumentClef.treble,
+    transpositionSemitones: 0,
+    acousticRange: AcousticRange(
+      minFrequencyHz: 329.63, // E4 (octava grave del orden 3)
+      maxFrequencyHz: 2093.00, // C7
+      minMidiNote: 64,
+      maxMidiNote: 96,
+      standardTuningFrequencies: [659.25, 440.00, 329.63, 523.25, 392.00],
+      standardTuningNoteNames: ['E5', 'A4', 'E4', 'C5', 'G4'],
+    ),
+    timbralProfile: TimbralProfile.charango,
+    visualProfile: VisualInterfaceProfile.charangoEthnic,
+    generalMidiNumber: 24, // Acoustic Guitar (Nylon)
+  );
+
+  static const UniversalInstrumentDefinition cuatroVenezuelan = UniversalInstrumentDefinition(
+    universalId: 'chordophone.plucked_strings.cuatro_venezuelan',
+    displayName: 'Cuatro Tradicional Venezolano',
+    searchKeywords: ['cuatro', 'cuatro venezolano', 'cambur pinton', 'joropo', 'venezuela', 'llano'],
+    category: HornbostelSachsCategory.chordophone,
+    subfamily: InstrumentSubfamily.pluckedStrings,
+    tuningKey: InstrumentKey.concertC,
+    notationClef: InstrumentClef.treble,
+    transpositionSemitones: 0,
+    acousticRange: AcousticRange(
+      minFrequencyHz: 220.00, // A3
+      maxFrequencyHz: 1975.53, // B6
+      minMidiNote: 57,
+      maxMidiNote: 95,
+      standardTuningFrequencies: [246.94, 369.99, 293.66, 220.00],
+      standardTuningNoteNames: ['B3', 'F#4', 'D4', 'A3'],
+    ),
+    timbralProfile: TimbralProfile.cuatroVenezuelan,
+    visualProfile: VisualInterfaceProfile.cuatroVenezuelan,
+    generalMidiNumber: 24, // Acoustic Guitar
+  );
+
   // =========================================================================
   // LISTA MAESTRA Y MÉTODOS DE BÚSQUEDA Y FILTRADO TAXONÓMICO
   // =========================================================================
@@ -865,6 +985,13 @@ class UniversalInstrumentDefinition {
 
     // Electrónicos
     synthLeadSaw,
+
+    // Instrumentos Étnicos y Tradicionales del Mundo (Hornbostel-Sachs)
+    koraWestAfrican,
+    sitarIndian,
+    shakuhachiJapanese,
+    charangoAndean,
+    cuatroVenezuelan,
   ];
 
   /// Busca un instrumento por su identificador universal exacto.

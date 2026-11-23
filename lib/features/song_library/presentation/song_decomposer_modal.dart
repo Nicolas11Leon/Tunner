@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../sheet_music/domain/score_tree.dart';
 import '../../tuner_viewmodel.dart';
-import '../data/song_decomposer_service.dart';
+import '../domain/song_decomposer_service.dart';
 import '../../universal_importer/presentation/score_import_tab_view.dart';
 
 /// Modal interactivo de estudio para la creación, importación y descomposición pedagógica
@@ -122,13 +122,13 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
     }
   }
 
-  void _executeDecomposition() {
+  Future<void> _executeDecomposition() async {
     final parsedMeasures = SongDecomposerService.parseMelodyText(
       _notationController.text,
       _timeSignature,
     );
 
-    final decomposedPackage = SongDecomposerService.decomposeCustomScore(
+    final decomposedPackage = await SongDecomposerService.decomposeCustomScoreAsync(
       title: _titleController.text.trim().isEmpty ? "Obra Descompuesta" : _titleController.text.trim(),
       composer: _composerController.text.trim().isEmpty ? "Músico Local" : _composerController.text.trim(),
       bpm: _bpm,
@@ -140,6 +140,7 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
       includeRhythm: _includeRhythm,
     );
 
+    if (!mounted) return;
     widget.viewModel.addSongPackage(decomposedPackage);
     widget.viewModel.loadSongPackage(decomposedPackage);
 
@@ -688,22 +689,31 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
           // Selectores de Octava, Alteración y Duración
           Row(
             children: [
-              // Octava
+              // Octava (rango completo 0..8)
               Text("Octava:", style: TextStyle(color: palette.textMutedColor, fontSize: 11)),
               const SizedBox(width: 4),
-              for (final oct in [3, 4, 5])
-                Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: ChoiceChip(
-                    label: Text("$oct", style: const TextStyle(fontSize: 10)),
-                    selected: _selectedOctave == oct,
-                    onSelected: (_) => setState(() => _selectedOctave = oct),
-                    selectedColor: palette.primaryAccent,
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final oct in [0, 1, 2, 3, 4, 5, 6, 7, 8])
+                        Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: ChoiceChip(
+                            label: Text("$oct", style: const TextStyle(fontSize: 10)),
+                            selected: _selectedOctave == oct,
+                            onSelected: (_) => setState(() => _selectedOctave = oct),
+                            selectedColor: palette.primaryAccent,
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-              const Spacer(),
+              ),
+              const SizedBox(width: 6),
               // Alteración
               for (final acc in ['', '#', 'b'])
                 Padding(

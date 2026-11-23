@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:record/record.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../domain/i_practice_recorder_service.dart';
 
 /// Implementación de infraestructura para la grabación de audio de práctica utilizando el plugin [AudioRecorder].
@@ -52,7 +53,14 @@ class PracticeRecorderService implements IPracticeRecorderService {
         if (!_amplitudeController.isClosed) {
           _amplitudeController.add(normalized);
         }
-      } catch (_) {}
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'PracticeRecorderService',
+          'Amplitude polling failed while recording',
+          error: e,
+          stackTrace: st,
+        );
+      }
     });
   }
 

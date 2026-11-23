@@ -52,11 +52,12 @@ class StudioDesktopAppShell extends StatefulWidget {
   final VoidCallback? onOpenSpectrogram;
   final Widget? customSidebarExplorer;
   final String initialSidebarMode;
+  final String? bufferLatencyLabel;
 
   const StudioDesktopAppShell({
     super.key,
     this.appTitle = 'Tunner',
-    this.appVersion = 'v2.29.0',
+    this.appVersion = 'v1.0.0',
     required this.currentBreadcrumb,
     required this.navigationSections,
     required this.activeItemId,
@@ -77,6 +78,7 @@ class StudioDesktopAppShell extends StatefulWidget {
     this.isRecording = false,
     this.onToggleRecording,
     this.engineName = 'Tartini DSP 2.1',
+    this.bufferLatencyLabel,
     this.onMenuNewScore,
     this.onMenuImportFile,
     this.onMenuNewPreset,
@@ -90,15 +92,18 @@ class StudioDesktopAppShell extends StatefulWidget {
   });
 
   @override
-  State<StudioDesktopAppShell> createState() => _StudioDesktopAppShellState();
+  State<StudioDesktopAppShell> createState() => StudioDesktopAppShellState();
 }
 
-class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
+class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
   double _sidebarWidth = 260.0;
   bool _isSidebarVisible = true;
   bool _isDualSplitActive = false;
   double _dualSplitRatio = 0.50;
   late String _sidebarMode;
+
+  void toggleSidebar() => _toggleSidebar();
+  void toggleDualSplit() => _toggleDualSplit();
 
   @override
   void initState() {
@@ -210,6 +215,7 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                   ),
                   if (widget.secondaryView != null) ...[
                     IconButton(
+                      key: const Key('desktop_dual_split_btn'),
                       icon: Icon(
                         _isDualSplitActive ? Icons.vertical_split_rounded : Icons.splitscreen_rounded,
                         size: 16,
@@ -556,8 +562,16 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                                         crossAxisAlignment: CrossAxisAlignment.stretch,
                                         children: [
                                           SizedBox(
-                                            width: (constraints.maxWidth * _dualSplitRatio)
-                                                .clamp(200.0, constraints.maxWidth - 200.0),
+                                            width: () {
+                                              final minPane = constraints.maxWidth * 0.35 < 200.0
+                                                  ? constraints.maxWidth * 0.35
+                                                  : 200.0;
+                                              final maxPane = (constraints.maxWidth - minPane) > minPane
+                                                  ? (constraints.maxWidth - minPane)
+                                                  : minPane;
+                                              return (constraints.maxWidth * _dualSplitRatio)
+                                                  .clamp(minPane, maxPane);
+                                            }(),
                                             child: widget.activeView,
                                           ),
                                           StudioSplitter(
@@ -626,7 +640,7 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                   const SizedBox(width: 12),
                   Flexible(
                     child: Text(
-                      'BUFFER: 2048 • LATENCIA: < 8ms',
+                      widget.bufferLatencyLabel ?? 'BUFFER: 256 • LATENCIA: 5.3 ms',
                       style: TextStyle(
                         color: tokens.textMuted,
                         fontSize: 9.0,
@@ -668,7 +682,7 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
         if (val == 'updates') {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Tunner v2.29.0 está actualizado con el motor acústico más reciente.'),
+              content: Text('Tunner v1.0.0 Pro Studio está actualizado con el motor acústico más reciente.'),
               duration: Duration(seconds: 2),
             ),
           );
@@ -741,18 +755,20 @@ class _StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
       label: 'Window',
       tokens: tokens,
       onSelected: (val) {
+        if (val == 'home') widget.onNavigateToTabIndex?.call(0);
         if (val == 'tuner') widget.onNavigateToTabIndex?.call(1);
-        if (val == 'metronome') widget.onNavigateToTabIndex?.call(0);
         if (val == 'learning') widget.onNavigateToTabIndex?.call(2);
         if (val == 'studio') widget.onNavigateToTabIndex?.call(3);
         if (val == 'library') widget.onNavigateToTabIndex?.call(4);
+        if (val == 'dj') widget.onNavigateToTabIndex?.call(5);
       },
       items: [
-        _buildPopupMenuItem('tuner', '1. Afinador Estroboscópico Pro', Icons.tune_rounded, tokens, shortcut: 'Alt+1'),
-        _buildPopupMenuItem('metronome', '2. Metrónomo Determinista', Icons.access_time_rounded, tokens, shortcut: 'Alt+2'),
+        _buildPopupMenuItem('home', '1. Inicio & Dashboard de Rendimiento', Icons.dashboard_rounded, tokens, shortcut: 'Alt+1'),
+        _buildPopupMenuItem('tuner', '2. Afinador Estroboscópico Pro', Icons.tune_rounded, tokens, shortcut: 'Alt+2'),
         _buildPopupMenuItem('learning', '3. Conservatorio & Pedagogía', Icons.school_outlined, tokens, shortcut: 'Alt+3'),
         _buildPopupMenuItem('studio', '4. Rack Modular de Estudio', Icons.dashboard_customize_outlined, tokens, shortcut: 'Alt+4'),
         _buildPopupMenuItem('library', '5. Biblioteca de Canciones', Icons.menu_book_outlined, tokens, shortcut: 'Alt+5'),
+        _buildPopupMenuItem('dj', '6. Consola DJ Studio & Stems', Icons.album_rounded, tokens, shortcut: 'Alt+6'),
       ],
     );
   }

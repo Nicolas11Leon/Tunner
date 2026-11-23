@@ -1,8 +1,4 @@
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/design_system/atoms/studio_badge.dart';
 import '../../../core/design_system/atoms/studio_button.dart';
@@ -56,67 +52,32 @@ class _MediaVaultWorkspaceModalState extends State<MediaVaultWorkspaceModal> {
   }
 
   Future<void> _handleImportFile() async {
-    try {
-      final file = await FilePicker.pickFile(
-        type: FileType.custom,
-        allowedExtensions: const <String>[
-          'wav',
-          'mid',
-          'midi',
-          'musicxml',
-          'xml',
-          'mxl',
-          'abc',
-          'pdf',
-          'json',
-        ],
-      );
-      if (file == null) {
-        return;
-      }
-      final bytes = await file.readAsBytes();
-      await widget.viewModel.importExternalBytes(
-        fileName: file.name,
-        bytes: bytes,
-      );
-    } catch (_) {
-      // File picker canceled or unavailable on headless test runner.
-    }
+    await widget.viewModel.pickAndImportFile();
   }
 
   Future<void> _handleExport(MediaExportFormat format) async {
-    final result = await widget.viewModel.exportTimeline(format);
+    final savedPath = await widget.viewModel.exportTimelineToDisk(format);
     if (!mounted) {
       return;
     }
     final tokens = StudioThemeScope.of(context);
-    if (result.success) {
-      String savedPathNote = '';
-      try {
-        final dir = await getApplicationDocumentsDirectory();
-        final outFile = File('${dir.path}/${result.fileName}');
-        await outFile.writeAsBytes(result.bytes, flush: true);
-        savedPathNote = ' | Guardado en ${outFile.path}';
-      } catch (_) {
-        // Headless test environment without path_provider channel.
-      }
-      if (!mounted) {
-        return;
-      }
+    if (savedPath != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: tokens.panelHeaderBackground,
           content: Text(
-            '${result.message}$savedPathNote',
+            'Exportación completada | Guardado en $savedPath',
             style: TextStyle(color: tokens.textPrimary, fontSize: 12),
           ),
         ),
       );
     } else {
+      final result = await widget.viewModel.exportTimeline(format);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.message),
-          backgroundColor: tokens.accentDanger,
+          backgroundColor: result.success ? tokens.panelHeaderBackground : tokens.accentDanger,
         ),
       );
     }
@@ -527,6 +488,13 @@ class _MediaVaultWorkspaceModalState extends State<MediaVaultWorkspaceModal> {
                   style: TextStyle(color: tokens.textPrimary, fontSize: 12),
                 ),
               ),
+              PopupMenuItem<String>(
+                value: 'track:track_sampler_sfx',
+                child: Text(
+                  'Agregar a Pista Sampler / SFX',
+                  style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+                ),
+              ),
               const PopupMenuDivider(),
               ...MediaSynergyTarget.values.map(
                 (target) => PopupMenuItem<String>(
@@ -621,14 +589,23 @@ class _MediaVaultWorkspaceModalState extends State<MediaVaultWorkspaceModal> {
     TimelineTrackEntity track,
     StudioDesignTokens tokens,
   ) {
-    return DragTarget<MediaAssetEntity>(
-      key: Key('timeline_drop_lane_${track.trackId}'),
-      onAcceptWithDetails: (details) {
-        vm.dropAssetOnTrack(
-          asset: details.data,
-          trackId: track.trackId,
-        );
-      },
+    return Builder(
+      builder: (laneContext) => DragTarget<MediaAssetEntity>(
+        key: Key('timeline_drop_lane_${track.trackId}'),
+        onAcceptWithDetails: (details) {
+          int? dropMs;
+          final box = laneContext.findRenderObject() as RenderBox?;
+          if (box != null) {
+            final local = box.globalToLocal(details.offset);
+            final trackDx = (local.dx - 155.0) < 0.0 ? 0.0 : (local.dx - 155.0);
+            dropMs = ((trackDx / vm.pixelsPerSecond) * 1000.0).round();
+          }
+          vm.dropAssetOnTrack(
+            asset: details.data,
+            trackId: track.trackId,
+            dropMs: dropMs,
+          );
+        },
       builder: (context, candidateData, rejectedData) {
         final isHovered = candidateData.isNotEmpty;
         return Container(
@@ -713,46 +690,97 @@ class _MediaVaultWorkspaceModalState extends State<MediaVaultWorkspaceModal> {
                           final widthPx =
                               ((clip.durationMs / 1000.0) * vm.pixelsPerSecond)
                                   .clamp(92.0, 600.0);
+                          final asset = vm.allAssets
+                              .cast<MediaAssetEntity?>()
+                              .firstWhere(
+                                (a) => a?.id == clip.assetId,
+                                orElse: () => null,
+                              );
+                          var dragDeltaPx = 0.0;
                           return Positioned(
                             left: leftPx,
                             top: 6,
                             bottom: 6,
                             width: widthPx,
-                            child: Container(
-                              key: Key('timeline_clip_${clip.clipId}'),
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                              decoration: BoxDecoration(
-                                color: tokens.accentPrimary.withValues(alpha: 0.85),
-                                borderRadius:
-                                    BorderRadius.circular(tokens.radiusSmall),
-                                border: Border.all(color: tokens.borderFocus),
-                              ),
-                              child: Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: Text(
-                                      clip.label,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: tokens.textOnAccent,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                            child: StatefulBuilder(
+                              builder: (context, setClipState) => GestureDetector(
+                                onHorizontalDragUpdate: (details) {
+                                  setClipState(() {
+                                    dragDeltaPx += details.delta.dx;
+                                  });
+                                },
+                                onHorizontalDragEnd: (_) {
+                                  final deltaMs =
+                                      ((dragDeltaPx / vm.pixelsPerSecond) * 1000.0)
+                                          .round();
+                                  final newStartMs =
+                                      (clip.startMs + deltaMs).clamp(0, 600000);
+                                  setClipState(() {
+                                    dragDeltaPx = 0.0;
+                                  });
+                                  vm.moveClip(
+                                    trackId: track.trackId,
+                                    clipId: clip.clipId,
+                                    newStartMs: newStartMs,
+                                  );
+                                },
+                                child: Transform.translate(
+                                  offset: Offset(dragDeltaPx, 0),
+                                  child: Container(
+                                    key: Key('timeline_clip_${clip.clipId}'),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    decoration: BoxDecoration(
+                                      color: tokens.accentPrimary.withValues(alpha: 0.85),
+                                      borderRadius:
+                                          BorderRadius.circular(tokens.radiusSmall),
+                                      border: Border.all(color: tokens.borderFocus),
+                                    ),
+                                    child: Stack(
+                                      children: <Widget>[
+                                        if (asset != null &&
+                                            asset.waveformPeaks.isNotEmpty)
+                                          Positioned.fill(
+                                            child: CustomPaint(
+                                              painter: _ClipWaveformPainter(
+                                                peaks: asset.waveformPeaks,
+                                                color: tokens.textOnAccent
+                                                    .withValues(alpha: 0.28),
+                                              ),
+                                            ),
+                                          ),
+                                        Center(
+                                          child: Row(
+                                            children: <Widget>[
+                                              Expanded(
+                                                child: Text(
+                                                  clip.label,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    color: tokens.textOnAccent,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                              InkWell(
+                                                onTap: () => vm.removeClip(
+                                                  trackId: track.trackId,
+                                                  clipId: clip.clipId,
+                                                ),
+                                                child: Icon(
+                                                  Icons.close,
+                                                  size: 13,
+                                                  color: tokens.textOnAccent,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  InkWell(
-                                    onTap: () => vm.removeClip(
-                                      trackId: track.trackId,
-                                      clipId: clip.clipId,
-                                    ),
-                                    child: Icon(
-                                      Icons.close,
-                                      size: 13,
-                                      color: tokens.textOnAccent,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           );
@@ -763,6 +791,7 @@ class _MediaVaultWorkspaceModalState extends State<MediaVaultWorkspaceModal> {
           ),
         );
       },
+      ),
     );
   }
 
@@ -911,5 +940,40 @@ class _MediaVaultWorkspaceModalState extends State<MediaVaultWorkspaceModal> {
       case MediaAssetKind.djSessionPreset:
         return Icons.tune;
     }
+  }
+}
+
+class _ClipWaveformPainter extends CustomPainter {
+  final List<double> peaks;
+  final Color color;
+
+  const _ClipWaveformPainter({
+    required this.peaks,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (peaks.isEmpty || size.width <= 0 || size.height <= 0) return;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    final count = peaks.length;
+    final stepX = size.width / count;
+    final midY = size.height / 2.0;
+
+    for (int i = 0; i < count; i++) {
+      final amp = peaks[i].clamp(0.0, 1.0);
+      final halfH = (amp * size.height * 0.42).clamp(1.0, size.height * 0.45);
+      final x = (i + 0.5) * stepX;
+      canvas.drawLine(Offset(x, midY - halfH), Offset(x, midY + halfH), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ClipWaveformPainter oldDelegate) {
+    return oldDelegate.peaks != peaks || oldDelegate.color != color;
   }
 }

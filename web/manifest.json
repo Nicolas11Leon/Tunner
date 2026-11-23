@@ -1,12 +1,13 @@
 {
-    "name": "tunner",
-    "short_name": "tunner",
+    "name": "Tunner Studio",
+    "short_name": "Tunner",
+    "id": "org.tunner.studio",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#121212",
+    "theme_color": "#0D47A1",
+    "description": "Professional acoustic workstation, pitch estimator, metronome, and pedagogical audio engine.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

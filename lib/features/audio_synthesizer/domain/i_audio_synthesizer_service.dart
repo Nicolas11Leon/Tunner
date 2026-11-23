@@ -47,3 +47,45 @@ abstract class IAudioSynthesizerService {
   /// Libera recursos de audio nativos.
   void dispose();
 }
+
+/// Implementación nula / no-op para inicializaciones seguras sin dependencias de hardware.
+class NoOpAudioSynthesizerService implements IAudioSynthesizerService {
+  const NoOpAudioSynthesizerService();
+
+  @override
+  bool get isDiapasonPlaying => false;
+
+  @override
+  double get activeDiapasonFrequency => 0.0;
+
+  @override
+  bool get isDroneLoopPlaying => false;
+
+  @override
+  Future<void> playMetronomeClick({required bool isDownbeat, double volume = 1.0}) async {}
+
+  @override
+  Future<void> startDiapasonTone(double frequency, {double volume = 0.8}) async {}
+
+  @override
+  Future<void> stopDiapasonTone() async {}
+
+  @override
+  Future<void> playNoteTone({
+    required double frequency,
+    required Duration duration,
+    double volume = 0.8,
+  }) async {}
+
+  @override
+  Future<void> startDroneLoop(Uint8List wavBytes, {double volume = 0.7}) async {}
+
+  @override
+  Future<void> playPcmWav(Uint8List wavBytes, {double volume = 0.8}) async {}
+
+  @override
+  Future<void> stopDroneLoop() async {}
+
+  @override
+  void dispose() {}
+}

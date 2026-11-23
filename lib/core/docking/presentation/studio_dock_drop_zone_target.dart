@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../domain/studio_dock_zone.dart';
-import '../domain/studio_dockable_panel_entity.dart';
+import 'studio_dockable_panel_entity.dart';
 
 /// Área de anclaje que detecta cuando un panel arrastrado se sitúa sobre ella para acoplarlo.
 class StudioDockDropZoneTarget extends StatelessWidget {

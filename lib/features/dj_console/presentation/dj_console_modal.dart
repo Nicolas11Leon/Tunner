@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import '../../../core/channels/data/studio_patchbay_routing_service.dart';
+import 'package:provider/provider.dart';
+import '../../../app/studio_composition_root.dart';
+import '../../../core/channels/domain/studio_patchbay_routing_service.dart';
 import '../../../core/channels/domain/studio_modular_plug.dart';
 import '../../../core/channels/domain/studio_plug_type.dart';
 import '../../../core/channels/presentation/studio_channel_patchbay_bar_widget.dart';
@@ -13,10 +15,11 @@ import '../../media_vault/domain/media_asset_entity.dart';
 import '../../media_vault/domain/media_synergy_target.dart';
 import '../../media_vault/presentation/media_vault_viewmodel.dart';
 import '../../media_vault/presentation/media_vault_workspace_modal.dart';
-import '../data/dj_hardware_catalog.dart';
+import '../domain/dj_hardware_catalog.dart';
 import '../domain/dj_channel_fx_entity.dart';
 import '../domain/dj_crossfader_entity.dart';
 import '../domain/dj_deck_entity.dart';
+import '../domain/dj_sampler_bank_entity.dart';
 import 'dj_console_view_model.dart';
 import 'dj_interactive_keymap_visualizer_modal.dart';
 import 'dj_keymap_editor_modal.dart';
@@ -24,6 +27,7 @@ import 'dj_pro_workstation_panel.dart';
 import 'dj_track_loader_modal.dart';
 import 'dj_vertical_channel_strip.dart';
 import 'dj_visual_mapping_overlay.dart';
+import 'widgets/dj_hot_cue_pad_grid.dart';
 import 'vector_jog_wheel.dart';
 
 /// Full-featured Virtual DJ Performance Console Modal with Physical Hardware Skins & Gamepad.
@@ -124,14 +128,24 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
 
     widget.viewModel.addListener(_syncDecksToChannels);
 
-    _mediaVaultViewModel = MediaVaultViewModel(
-      onDispatchToTool: (asset, target) {
-        if (target == MediaSynergyTarget.djDeckA ||
-            target == MediaSynergyTarget.djDeckB) {
+    StudioCompositionRoot? root;
+    try {
+      root = context.read<StudioCompositionRoot>();
+    } catch (_) {
+      root = null;
+    }
+
+    _mediaVaultViewModel = root != null
+        ? root.createMediaVaultViewModel()
+        : MediaVaultViewModel();
+    _mediaVaultViewModel.onDispatchToTool = (asset, target) {
+      final samples = (asset.pcmSamples != null && asset.pcmSamples!.isNotEmpty)
+          ? Float32List.fromList(asset.pcmSamples!)
+          : Float32List(4410);
+      switch (target) {
+        case MediaSynergyTarget.djDeckA:
+        case MediaSynergyTarget.djDeckB:
           final deckId = target == MediaSynergyTarget.djDeckA ? 'A' : 'B';
-          final samples = (asset.pcmSamples != null && asset.pcmSamples!.isNotEmpty)
-              ? Float32List.fromList(asset.pcmSamples!)
-              : Float32List(4410);
           widget.viewModel.loadTrackWithBeatTracking(
             deckId,
             title: asset.title,
@@ -139,9 +153,28 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
             audioSamples: samples,
             sampleRate: asset.sampleRate,
           );
-        }
-      },
-    );
+          break;
+        case MediaSynergyTarget.djSamplerPad:
+          widget.viewModel.triggerSamplerPad(DjSamplerPadType.values.first);
+          break;
+        case MediaSynergyTarget.scoreEditor:
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Activo "${asset.title}" enviado al Editor de Partituras.')),
+            );
+          }
+          break;
+        case MediaSynergyTarget.mixerChannel:
+          widget.viewModel.loadTrackWithBeatTracking(
+            'A',
+            title: asset.title,
+            artist: 'Mixer Channel',
+            audioSamples: samples,
+            sampleRate: asset.sampleRate,
+          );
+          break;
+      }
+    };
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focusNode.requestFocus();
     });
@@ -460,6 +493,8 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
                           onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
                           onActionTriggered: (action) => vm.executeAction(action),
                           onToggleLearnMode: () => vm.toggleLearnMode(),
+                          getControlValue: (zone) => vm.getControlValue(zone),
+                          onContinuousControl: (zone, delta) => vm.updateContinuousControl(zone, delta),
                           onOpenKeymapVisualizer: () => DjInteractiveKeymapVisualizerModal.show(context, vm, palette),
                         ),
                         const SizedBox(height: 12),
@@ -752,30 +787,17 @@ class _DjConsoleModalState extends State<DjConsoleModal> {
               style: TextStyle(color: palette.textMutedColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
             ),
             const SizedBox(height: 4),
-            Row(
-              children: List.generate(4, (idx) {
-                final pos = deck.hotCues[idx];
-                final isSet = pos != null;
-                return Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(right: idx < 3 ? 4 : 0),
-                    child: OutlinedButton(
-                      key: Key('deck_${deckId}_hotcue_$idx'),
-                      onPressed: () => vm.triggerHotCue(deckId, idx),
-                      onLongPress: () => vm.clearHotCue(deckId, idx),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: isSet ? accentColor.withValues(alpha: 0.3) : Colors.transparent,
-                        side: BorderSide(color: isSet ? accentColor : palette.staffLinesColor.withValues(alpha: 0.2)),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                      ),
-                      child: Text(
-                        '${idx + 1}',
-                        style: TextStyle(color: isSet ? accentColor : palette.textMutedColor, fontWeight: FontWeight.bold, fontSize: 11),
-                      ),
-                    ),
-                  ),
-                );
-              }),
+            DjHotCuePadGrid(
+              deckId: deckId,
+              deck: deck,
+              accentColor: accentColor,
+              inactiveTextColor: palette.textMutedColor,
+              inactiveBorderColor: palette.staffLinesColor.withValues(alpha: 0.2),
+              verticalPadding: 8,
+              fontSize: 11,
+              compactMinimumSize: false,
+              onTriggerHotCue: (idx) => vm.triggerHotCue(deckId, idx),
+              onClearHotCue: (idx) => vm.clearHotCue(deckId, idx),
             ),
             const SizedBox(height: 6),
 

@@ -69,6 +69,10 @@ void main() {
 
       expect(viewModel.deckA.isPlaying, isTrue);
       expect(find.text('PAUSE'), findsOneWidget);
+
+      await tester.tap(playBtnA);
+      await tester.pump();
+      expect(viewModel.deckA.isPlaying, isFalse);
     });
 
     testWidgets('Tapping crossfader buttons updates position accurately', (tester) async {

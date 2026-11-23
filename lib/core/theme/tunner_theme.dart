@@ -269,9 +269,10 @@ class TunnerThemePalette {
     required String baseStyle, // "dark", "oled", "wood", "light"
     required Color primaryAccent,
     Color? secondaryAccent,
+    String? customId,
   }) {
     final secAccent = secondaryAccent ?? const Color(0xFFFFD54F);
-    final id = "custom_${DateTime.now().millisecondsSinceEpoch}";
+    final id = customId ?? "custom_${DateTime.now().millisecondsSinceEpoch}";
 
     switch (baseStyle.toLowerCase()) {
       case "oled":

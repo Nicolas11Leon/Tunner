@@ -87,7 +87,7 @@ Buscamos diversos perfiles interdisciplinarios:
 ## 4. Entorno de Desarrollo y Puesta en Marcha
 
 ### Requisitos
-* [Flutter SDK](https://flutter.dev/docs/get-started/install) (Canal estable `^3.11.5` o superior).
+* [Flutter SDK](https://flutter.dev/docs/get-started/install) (Canal estable `3.41+` / Dart `^3.11.5`).
 * [Dart SDK](https://dart.dev/get-dart) incluido con Flutter.
 * Git.
 
@@ -99,12 +99,13 @@ cd Tunner
 
 # 2. Configura el repositorio original como upstream
 git remote add upstream https://github.com/Nicolas11Leon/Tunner.git
+git fetch upstream
 
 # 3. Descarga las dependencias del proyecto
 flutter pub get
 
 # 4. Verifica el estado del código con el linter oficial
-flutter analyze
+flutter analyze --no-fatal-infos
 
 # 5. Ejecuta la suite de pruebas automatizadas
 flutter test
@@ -112,41 +113,73 @@ flutter test
 
 ---
 
-## 5. Flujo Canónico de Trabajo (Git & Pull Requests)
+## 5. Flujo Canónico de Trabajo (GitFlow & Pull Requests a `qa`)
 
-1. **Crea una rama para tu contribución:**
+### 5.1 Regla Innegociable: Solo el Mantenedor Principal toca `main`
+
+> [!IMPORTANT]
+> **La rama `main` está estrictamente protegida.**  
+> Únicamente el Mantenedor Principal ([@Nicolas11Leon](https://github.com/Nicolas11Leon)) tiene permisos para fusionar en `main` al consolidar una versión canónica de release.  
+> **Toda contribución comunitaria debe ramificarse desde `qa` y enviarse mediante Pull Request con destino a `qa`.**
+
+```mermaid
+gitGraph
+    commit id: "v1.0.0 (main)"
+    branch qa
+    checkout qa
+    commit id: "qa-base"
+    branch feature/tarea-comunitaria
+    checkout feature/tarea-comunitaria
+    commit id: "feat: clean architecture"
+    commit id: "test: unit & regression"
+    checkout qa
+    merge feature/tarea-comunitaria id: "PR merge a qa"
+    checkout main
+    merge qa id: "Release Oficial (Solo Mantenedor)"
+```
+
+### 5.2 Protocolo de Contribución Paso a Paso
+
+1. **Reclama la Tarea en GitHub Issues / Projects:**  
+   Antes de escribir código, busca una tarea en el [Tablero Kanban de GitHub Projects](https://github.com/Nicolas11Leon/Tunner/projects) o en los [Issues abiertos](https://github.com/Nicolas11Leon/Tunner/issues). Deja un comentario: *"Deseo trabajar en este issue"*. Un mantenedor te lo asignará oficialmente para evitar esfuerzos duplicados.
+2. **Crea una rama a partir de `qa`:**
    ```bash
-   git checkout -b feature/nombre-descriptivo
+   git fetch upstream
+   git checkout -b feature/nombre-descriptivo upstream/qa
    # o para corrección de errores:
-   git checkout -b fix/descripcion-del-bug
+   git checkout -b fix/descripcion-del-bug upstream/qa
    ```
-2. **Desarrolla siguiendo Clean Architecture:**
-   * Las reglas de negocio van en `lib/features/<modulo>/domain/`.
-   * Los accesos I/O van en `lib/features/<modulo>/data/`.
+3. **Desarrolla siguiendo Clean Architecture:**
+   * Las reglas de negocio van en `lib/features/<modulo>/domain/` (Dart puro, sin dependencias de Flutter UI ni paquetes de terceros).
+   * Los accesos a hardware, streams y códecs van en `lib/features/<modulo>/data/` o `lib/core/audio/infrastructure/`.
    * Los widgets y controladores van en `lib/features/<modulo>/presentation/`.
-3. **Escribe pruebas unitarias:**
-   * Cada nueva entidad o caso de uso de dominio debe tener su archivo correspondiente en `test/features/<modulo>/`.
-4. **Verifica antes de hacer commit:**
+4. **Escribe pruebas unitarias y de integración:**
+   * Cada nueva entidad o caso de uso de dominio debe tener su archivo de test en `test/features/<modulo>/` o `test/core/`.
+5. **Verifica antes de hacer commit:**
    ```bash
-   flutter analyze   # Debe reportar 0 issues
-   flutter test      # Todas las pruebas deben pasar
+   flutter analyze --no-fatal-infos   # Debe reportar 0 issues
+   flutter test                      # 100% de las pruebas deben pasar
    ```
-5. **Realiza commits atómicos y claros siguiendo Conventional Commits:**
+6. **Realiza commits atómicos siguiendo Conventional Commits (Política de Cero Emojis):**
    * `feat: add Kirnberger II temperament calculation`
    * `fix: prevent divide by zero in centroid calculation for silent audio`
    * `docs: clarify buffer size impact on MPM algorithm`
    * `test: add unit tests for SoundFont sample looping`
-6. **Envía tu Pull Request:**
+7. **Envía tu Pull Request contra `qa`:**
+   * Abre el PR en GitHub seleccionando **`base: qa`** (nunca `base: main`).
    * Describe de manera concisa el problema que resuelve y las decisiones técnicas tomadas.
-   * Vincula el issue o caso de uso correspondiente.
-   * Nos aseguraremos de revisar tu propuesta con rigor técnico y entusiasmo constructivo.
+   * Vincula el issue correspondiente (ej. `Closes #XX`).
 
 ---
 
-## 6. Ideas para Empezar ("Good First Issues")
+## 6. Tablero Kanban de GitHub Projects e Ideas para Empezar
 
-¿Quieres empezar pero no sabes por dónde? Aquí tienes algunas ideas inmediatas y bienvenidas:
+Todas las tareas de Tunner se visualizan y organizan en el **Tablero Kanban Oficial de GitHub Projects**:
+* **Enlace al Tablero:** [Tunner Kanban Board](https://github.com/Nicolas11Leon/Tunner/projects)
 
+### Áreas de Colaboración Inmediata ("Good First Issues" y "Help Wanted")
+
+* [ ] **Scripts y Plantillas para Tunner DSL (`.tun`):** Crear nuevas plantillas de composición declarativa en `assets/dsl/` para cadenas de masterización, sintetizadores o jam sessions.
 * [ ] **Añadir nuevos temperamentos históricos:** Implementar nuevos sistemas (ej. Werckmeister IV, Kirnberger I o temperamento Neidhardt) en `lib/features/tuner/domain/temperaments.dart`.
 * [ ] **Ampliación de presets de instrumentos:** Añadir más instrumentos étnicos y tradicionales en `UniversalInstrumentCatalog` respetando la taxonomía Hornbostel-Sachs.
 * [ ] **Mejoras de accesibilidad visual:** Agregar temas de alto contraste y compatibilidad con modos monocromáticos para daltonismo en `TunnerThemePalette`.

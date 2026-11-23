@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tunner/core/audio/domain/studio_master_clock_service.dart';
+import 'package:tunner/core/audio/infrastructure/studio_master_clock_service.dart';
 import 'package:tunner/core/audio/domain/studio_transport_status.dart';
 import 'package:tunner/core/audio/infrastructure/memory_audio_hardware_persistence_service.dart';
 import 'package:tunner/core/audio/infrastructure/memory_studio_audio_engine.dart';

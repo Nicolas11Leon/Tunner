@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../audio_synthesizer/data/audio_synthesizer_service.dart';
+import 'package:flutter/services.dart';
 import '../../audio_synthesizer/domain/i_audio_synthesizer_service.dart';
 import '../domain/instrument_customization_profile.dart';
 import '../domain/musical_phrase_entity.dart';
-import '../data/procedural_instrument_synthesizer.dart';
+import '../domain/procedural_instrument_synthesizer.dart';
 import 'instrument_customization_modal.dart';
+import 'visual_interface_profile_ui_ext.dart';
 
 /// Teclado Maestro Emulador Universal Polifónico y Reproductor de Estrofas.
 /// Permite simular y escuchar cualquier nota, acorde o frase musical estructurada
@@ -58,14 +59,15 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
   int _octaveShift = 4; // C4 por defecto
   MusicalPhraseEntity _selectedPhrase = MusicalPhraseEntity.majorConcertArpeggio;
   bool _isPlayingPhrase = false;
-  int? _activePlayingNote;
+  final Set<int> _activePlayingNotes = <int>{};
+  bool _isSustainActive = false;
   Timer? _phraseTimer;
 
   @override
   void initState() {
     super.initState();
     _profile = widget.customization;
-    _audioService = widget.audioSynthesizer ?? AudioSynthesizerService();
+    _audioService = widget.audioSynthesizer ?? const NoOpAudioSynthesizerService();
   }
 
   @override
@@ -79,29 +81,75 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
   @override
   void dispose() {
     _phraseTimer?.cancel();
-    _audioService.dispose();
+    if (widget.audioSynthesizer == null) {
+      _audioService.dispose();
+    }
     super.dispose();
+  }
+
+  KeyEventResult _handlePhysicalKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    final baseMidi = (_octaveShift + 1) * 12; // C4 = 60
+    final keyMap = <LogicalKeyboardKey, int>{
+      LogicalKeyboardKey.keyA: baseMidi, // C
+      LogicalKeyboardKey.keyW: baseMidi + 1, // C#
+      LogicalKeyboardKey.keyS: baseMidi + 2, // D
+      LogicalKeyboardKey.keyE: baseMidi + 3, // D#
+      LogicalKeyboardKey.keyD: baseMidi + 4, // E
+      LogicalKeyboardKey.keyF: baseMidi + 5, // F
+      LogicalKeyboardKey.keyT: baseMidi + 6, // F#
+      LogicalKeyboardKey.keyG: baseMidi + 7, // G
+      LogicalKeyboardKey.keyY: baseMidi + 8, // G#
+      LogicalKeyboardKey.keyH: baseMidi + 9, // A
+      LogicalKeyboardKey.keyU: baseMidi + 10, // A#
+      LogicalKeyboardKey.keyJ: baseMidi + 11, // B
+      LogicalKeyboardKey.keyK: baseMidi + 12, // C5
+    };
+
+    if (keyMap.containsKey(event.logicalKey)) {
+      _playNote(keyMap[event.logicalKey]!);
+      return KeyEventResult.handled;
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.keyZ) {
+      if (_octaveShift > 1) {
+        setState(() => _octaveShift--);
+      }
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.keyX) {
+      if (_octaveShift < 7) {
+        setState(() => _octaveShift++);
+      }
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
   }
 
   void _playNote(int midiNote) {
     final freqHz = _profile.calculateFrequencyForMidiNote(midiNote);
     widget.onNotePlayed?.call(freqHz);
 
+    final double duration = _isSustainActive ? 2.2 : 0.8;
+
     // Sintetizar muestras acústicas con timbre y envolvente ADSR real
     final floatSamples = ProceduralInstrumentSynthesizer.synthesizeCustomNote(
       customization: _profile,
       frequencyHz: freqHz,
-      durationSeconds: 0.8,
+      durationSeconds: duration,
     );
 
     // Emitir sonido físico audible en parlantes / auriculares
     final wavBytes = ProceduralInstrumentSynthesizer.floatBufferToWavBytes(floatSamples);
     _audioService.playPcmWav(wavBytes, volume: 0.85);
 
-    setState(() => _activePlayingNote = midiNote);
-    Future<void>.delayed(const Duration(milliseconds: 200), () {
-      if (mounted && _activePlayingNote == midiNote) {
-        setState(() => _activePlayingNote = null);
+    setState(() => _activePlayingNotes.add(midiNote));
+    final decayMs = _isSustainActive ? 900 : 220;
+    Future<void>.delayed(Duration(milliseconds: decayMs), () {
+      if (mounted) {
+        setState(() => _activePlayingNotes.remove(midiNote));
       }
     });
   }
@@ -111,7 +159,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
       _phraseTimer?.cancel();
       setState(() {
         _isPlayingPhrase = false;
-        _activePlayingNote = null;
+        _activePlayingNotes.clear();
       });
       return;
     }
@@ -132,7 +180,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
       if (noteIndex >= _selectedPhrase.notes.length) {
         setState(() {
           _isPlayingPhrase = false;
-          _activePlayingNote = null;
+          _activePlayingNotes.clear();
         });
         return;
       }
@@ -143,7 +191,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
       if (!note.isRest) {
         _playNote(note.midiNote);
       } else {
-        setState(() => _activePlayingNote = null);
+        setState(() => _activePlayingNotes.clear());
       }
 
       noteIndex++;
@@ -159,14 +207,17 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
     final primaryColor = instrument.visualProfile.primaryAccentColor;
     final baseMidi = (_octaveShift + 1) * 12;
 
-    return Container(
-      height: 480,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F172A),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _handlePhysicalKey,
+      child: Container(
+        height: 480,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F172A),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
         children: [
           // Barra de cabecera con selector de octava y acceso a personalización
           Row(
@@ -288,6 +339,17 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
                 tooltip: 'Subir Octava',
                 onPressed: _octaveShift < 7 ? () => setState(() => _octaveShift++) : null,
               ),
+              const SizedBox(width: 8),
+              IconButton(
+                key: const Key('keyboard_sustain_btn'),
+                icon: Icon(
+                  Icons.surround_sound_rounded,
+                  color: _isSustainActive ? primaryColor : Colors.white54,
+                  size: 22,
+                ),
+                tooltip: _isSustainActive ? 'Sostenido: ACTIVO' : 'Sostenido: INACTIVO',
+                onPressed: () => setState(() => _isSustainActive = !_isSustainActive),
+              ),
             ],
           ),
 
@@ -314,7 +376,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
                         final octave = i ~/ 7;
                         final noteIdx = i % 7;
                         final midiNote = baseMidi + octave * 12 + whiteOffsets[noteIdx];
-                        final isHit = _activePlayingNote == midiNote;
+                        final isHit = _activePlayingNotes.contains(midiNote);
 
                         return Expanded(
                           child: GestureDetector(
@@ -356,7 +418,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
                               final octave = i ~/ 7;
                               final noteIdx = i % 7;
                               final midiNote = baseMidi + octave * 12 + whiteOffsets[noteIdx] + 1;
-                              final isHit = _activePlayingNote == midiNote;
+                              final isHit = _activePlayingNotes.contains(midiNote);
 
                               return GestureDetector(
                                 onTapDown: (_) => _playNote(midiNote),
@@ -381,6 +443,7 @@ class _UniversalMasterKeyboardWidgetState extends State<UniversalMasterKeyboardW
             ),
           ),
         ],
+      ),
       ),
     );
   }

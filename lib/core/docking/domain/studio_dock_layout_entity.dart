@@ -117,16 +117,29 @@ class StudioDockLayoutEntity {
     );
   }
 
-  /// Actualiza la proporción de división de un panel.
+  /// Actualiza la proporción de división de un panel garantizando left + right <= 0.85.
   StudioDockLayoutEntity updateRatio({
     double? left,
     double? right,
     double? bottom,
   }) {
+    double newLeft = (left ?? leftSplitRatio).clamp(0.15, 0.60);
+    double newRight = (right ?? rightSplitRatio).clamp(0.15, 0.60);
+    if (newLeft + newRight > 0.85) {
+      if (left != null && right == null) {
+        newLeft = (0.85 - newRight).clamp(0.15, 0.60);
+      } else if (right != null && left == null) {
+        newRight = (0.85 - newLeft).clamp(0.15, 0.60);
+      } else {
+        final scale = 0.85 / (newLeft + newRight);
+        newLeft *= scale;
+        newRight *= scale;
+      }
+    }
     return StudioDockLayoutEntity(
       zonePanelIds: zonePanelIds,
-      leftSplitRatio: (left ?? leftSplitRatio).clamp(0.15, 0.60),
-      rightSplitRatio: (right ?? rightSplitRatio).clamp(0.15, 0.60),
+      leftSplitRatio: newLeft,
+      rightSplitRatio: newRight,
       bottomSplitRatio: (bottom ?? bottomSplitRatio).clamp(0.15, 0.60),
     );
   }

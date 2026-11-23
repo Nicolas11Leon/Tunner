@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tunner/core/docking/domain/studio_dock_layout_entity.dart';
 import 'package:tunner/core/docking/domain/studio_dock_zone.dart';
-import 'package:tunner/core/docking/domain/studio_dockable_panel_entity.dart';
+import 'package:tunner/core/docking/presentation/studio_dockable_panel_entity.dart';
 import 'package:tunner/core/docking/presentation/studio_dock_drop_zone_target.dart';
 import 'package:tunner/core/docking/presentation/studio_workspace_docking_container.dart';
 import 'package:tunner/core/theme/tunner_theme.dart';

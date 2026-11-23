@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/tempo_entity.dart';
 
@@ -61,17 +62,34 @@ class _TapTempoModalState extends State<TapTempoModal> with SingleTickerProvider
         final currentBpm = widget.viewModel.bpm;
         final mark = TempoMark.fromBpm(currentBpm);
 
-        return Container(
-      height: MediaQuery.of(context).size.height * 0.78,
-      decoration: BoxDecoration(
-        color: palette.scaffoldBackground,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border.all(
-          color: palette.staffLinesColor.withValues(alpha: 0.3),
-          width: 1.2,
-        ),
-      ),
-      child: Column(
+        return Focus(
+          autofocus: true,
+          onKeyEvent: (node, event) {
+            if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+            if (event.logicalKey == LogicalKeyboardKey.keyT ||
+                event.logicalKey == LogicalKeyboardKey.space ||
+                event.logicalKey == LogicalKeyboardKey.enter ||
+                event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+              _onTap();
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+              Navigator.of(context).pop();
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.78,
+            decoration: BoxDecoration(
+              color: palette.scaffoldBackground,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border.all(
+                color: palette.staffLinesColor.withValues(alpha: 0.3),
+                width: 1.2,
+              ),
+            ),
+            child: Column(
         children: [
           // Barra de arrastre superior
           Container(
@@ -202,7 +220,7 @@ class _TapTempoModalState extends State<TapTempoModal> with SingleTickerProvider
                     scale: _pulseAnimation,
                     child: GestureDetector(
                       key: const Key('tap_tempo_pad'),
-                      onTap: _onTap,
+                      onTapDown: (_) => _onTap(),
                       child: Container(
                         width: 170,
                         height: 170,
@@ -337,6 +355,7 @@ class _TapTempoModalState extends State<TapTempoModal> with SingleTickerProvider
             ),
           ),
         ],
+      ),
       ),
     );
   },

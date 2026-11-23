@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/tunner_theme.dart';
-import '../data/dj_console_blueprint_storage_service.dart';
 import '../domain/dj_action.dart';
 import '../domain/dj_console_blueprint_entity.dart';
+import '../domain/dj_hardware_catalog.dart';
+import '../domain/dj_hardware_skin_entity.dart';
+import '../domain/dj_keymap_profile_entity.dart';
 import '../domain/dj_skin_zone_entity.dart';
+import '../domain/i_dj_console_blueprint_storage_service.dart';
 import 'dj_console_view_model.dart';
 
 /// Modal interactivo para crear, emular, editar y programar cualquier modelo de consola DJ física.
@@ -13,7 +16,7 @@ import 'dj_console_view_model.dart';
 class DjConsoleModelBuilderModal extends StatefulWidget {
   final DjConsoleViewModel viewModel;
   final TunnerThemePalette palette;
-  final DjConsoleBlueprintStorageService storageService;
+  final IDjConsoleBlueprintStorageService storageService;
 
   const DjConsoleModelBuilderModal({
     super.key,
@@ -26,16 +29,16 @@ class DjConsoleModelBuilderModal extends StatefulWidget {
     BuildContext context,
     DjConsoleViewModel viewModel,
     TunnerThemePalette palette, {
-    DjConsoleBlueprintStorageService? storageService,
+    IDjConsoleBlueprintStorageService? storageService,
   }) {
-    final service = storageService ?? DjConsoleBlueprintStorageService();
+    final effectiveStorage = storageService ?? viewModel.blueprintStorageService;
     return showDialog(
       context: context,
       barrierDismissible: true,
       builder: (ctx) => DjConsoleModelBuilderModal(
         viewModel: viewModel,
         palette: palette,
-        storageService: service,
+        storageService: effectiveStorage,
       ),
     );
   }
@@ -59,6 +62,13 @@ class _DjConsoleModelBuilderModalState
   void initState() {
     super.initState();
     _loadBaseTemplate();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _manufacturerController.dispose();
+    super.dispose();
   }
 
   void _loadBaseTemplate() {
@@ -193,7 +203,27 @@ class _DjConsoleModelBuilderModalState
       keyBindings: _keyBindings,
     );
 
+    final skin = DjHardwareSkinEntity(
+      id: uniqueId,
+      name: blueprint.name,
+      manufacturer: blueprint.manufacturer,
+      aspectRatio: blueprint.aspectRatio,
+      chassisColor: blueprint.chassisColor,
+      zones: blueprint.zones,
+    );
+    DjHardwareCatalog.registerCustomSkin(skin);
+
     await widget.storageService.saveBlueprint(blueprint);
+
+    if (_keyBindings.isNotEmpty) {
+      final customKeymap = DjKeymapProfileEntity(
+        id: 'keymap_$uniqueId',
+        name: 'Mapeo ${blueprint.name}',
+        keyBindings: Map<String, DjAction>.from(_keyBindings),
+      );
+      widget.viewModel.setKeymapProfile(customKeymap);
+    }
+
     widget.viewModel.selectSkin(uniqueId);
 
     if (mounted) {

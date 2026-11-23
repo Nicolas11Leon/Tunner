@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../design_system/studio_theme_provider.dart';
-import '../data/studio_workspace_file_system_service.dart';
+import '../domain/i_studio_workspace_file_system.dart';
 import '../domain/studio_file_system_node.dart';
 import '../domain/studio_file_type.dart';
 
@@ -9,7 +9,7 @@ class StudioFileSystemModals {
   /// Modal para crear un nuevo archivo seleccionando su tipo o extensión.
   static Future<StudioFileEntity?> showCreateFileModal(
     BuildContext context, {
-    required StudioWorkspaceFileSystemService service,
+    required IStudioWorkspaceFileSystem service,
     String? targetFolderId,
   }) {
     return showDialog<StudioFileEntity>(
@@ -24,7 +24,7 @@ class StudioFileSystemModals {
   /// Modal para crear una nueva carpeta o directorio.
   static Future<StudioFolderEntity?> showCreateFolderModal(
     BuildContext context, {
-    required StudioWorkspaceFileSystemService service,
+    required IStudioWorkspaceFileSystem service,
     String? targetFolderId,
   }) {
     return showDialog<StudioFolderEntity>(
@@ -39,7 +39,7 @@ class StudioFileSystemModals {
   /// Modal para renombrar un archivo o carpeta.
   static Future<void> showRenameNodeModal(
     BuildContext context, {
-    required StudioWorkspaceFileSystemService service,
+    required IStudioWorkspaceFileSystem service,
     required StudioFileSystemNode node,
   }) {
     return showDialog<void>(
@@ -54,7 +54,7 @@ class StudioFileSystemModals {
   /// Modal para mover un archivo o carpeta a otra carpeta de destino.
   static Future<void> showMoveNodeModal(
     BuildContext context, {
-    required StudioWorkspaceFileSystemService service,
+    required IStudioWorkspaceFileSystem service,
     required StudioFileSystemNode node,
   }) {
     return showDialog<void>(
@@ -69,7 +69,7 @@ class StudioFileSystemModals {
   /// Diálogo de confirmación para eliminación de nodos.
   static Future<bool?> showDeleteConfirmDialog(
     BuildContext context, {
-    required StudioWorkspaceFileSystemService service,
+    required IStudioWorkspaceFileSystem service,
     required StudioFileSystemNode node,
   }) {
     final tokens = StudioThemeScope.tokensOf(context);
@@ -121,7 +121,7 @@ class StudioFileSystemModals {
 }
 
 class _CreateFileModalDialog extends StatefulWidget {
-  final StudioWorkspaceFileSystemService service;
+  final IStudioWorkspaceFileSystem service;
   final String? targetFolderId;
 
   const _CreateFileModalDialog({
@@ -302,7 +302,7 @@ class _CreateFileModalDialogState extends State<_CreateFileModalDialog> {
 }
 
 class _CreateFolderModalDialog extends StatefulWidget {
-  final StudioWorkspaceFileSystemService service;
+  final IStudioWorkspaceFileSystem service;
   final String? targetFolderId;
 
   const _CreateFolderModalDialog({
@@ -422,7 +422,7 @@ class _CreateFolderModalDialogState extends State<_CreateFolderModalDialog> {
 }
 
 class _RenameNodeModalDialog extends StatefulWidget {
-  final StudioWorkspaceFileSystemService service;
+  final IStudioWorkspaceFileSystem service;
   final StudioFileSystemNode node;
 
   const _RenameNodeModalDialog({
@@ -535,7 +535,7 @@ class _RenameNodeModalDialogState extends State<_RenameNodeModalDialog> {
 }
 
 class _MoveNodeModalDialog extends StatefulWidget {
-  final StudioWorkspaceFileSystemService service;
+  final IStudioWorkspaceFileSystem service;
   final StudioFileSystemNode node;
 
   const _MoveNodeModalDialog({

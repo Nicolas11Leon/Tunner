@@ -120,8 +120,8 @@ void main() {
       expect(find.text("440.0 Hz"), findsWidgets);
       expect(find.textContaining("AFINADO"), findsOneWidget);
 
-      // Esperar a que el temporizador de silencio (60ms) culmine limpiamente
-      await tester.pump(const Duration(milliseconds: 70));
+      // Esperar a que el temporizador de silencio (350ms) culmine limpiamente
+      await tester.pump(const Duration(milliseconds: 360));
     });
   });
 }

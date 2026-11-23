@@ -1,21 +1,20 @@
 import 'package:flutter/foundation.dart';
-import '../../../features/project_format/data/local_project_storage_repository.dart';
-import '../../../features/project_format/data/tunner_binary_project_codec.dart';
+import '../../logging/infrastructure/studio_debug_logger.dart';
 import '../domain/studio_file_system_node.dart';
 import '../domain/studio_file_system_repository.dart';
 import '../domain/studio_file_type.dart';
+import '../domain/i_studio_workspace_file_system.dart';
 import 'local_disk_studio_file_system_repository.dart';
 
-/// Callback para cuando un archivo es seleccionado o ejecutado para apertura.
-typedef StudioOpenFileCallback = void Function(StudioFileEntity file);
+export '../domain/i_studio_workspace_file_system.dart';
 
 /// Servicio reactivo de orquestación del sistema de archivos del espacio de trabajo.
 /// Proporciona operaciones CRUD atómicas, búsqueda/filtrado en tiempo real (<2ms),
 /// gestión de expansión y persistencia física en disco sin bloqueo.
-class StudioWorkspaceFileSystemService extends ChangeNotifier {
+class StudioWorkspaceFileSystemService extends ChangeNotifier implements IStudioWorkspaceFileSystem {
   static final StudioWorkspaceFileSystemService _instance = StudioWorkspaceFileSystemService._internal();
   factory StudioWorkspaceFileSystemService({
-    LocalProjectStorageRepository? repository,
+    Object? repository,
     StudioFileSystemRepository? fileSystemRepository,
   }) {
     if (repository != null) {
@@ -27,25 +26,53 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
     return _instance;
   }
 
+  /// Crea una instancia aislada sin estado global compartido para DI y pruebas.
+  StudioWorkspaceFileSystemService.isolated({
+    Object? repository,
+    StudioFileSystemRepository? fileSystemRepository,
+  }) : _repository = repository {
+    _fileSystemRepository = fileSystemRepository ?? LocalDiskStudioFileSystemRepository();
+    _initializeDefaultTree();
+  }
+
   StudioWorkspaceFileSystemService._internal() {
-    _repository = LocalProjectStorageRepository(codec: TunnerBinaryProjectCodec());
     _fileSystemRepository = LocalDiskStudioFileSystemRepository();
     _initializeDefaultTree();
   }
 
-  late LocalProjectStorageRepository _repository;
+  Object? _repository;
   late StudioFileSystemRepository _fileSystemRepository;
   late StudioFolderEntity _rootFolder;
   String? _selectedNodeId;
   String _activeFolderId = 'root';
+  bool _isDisposed = false;
+
+  @override
+  void notifyListeners() {
+    if (!_isDisposed) {
+      super.notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
   String _searchQuery = '';
+  @override
   StudioOpenFileCallback? onOpenFile;
 
-  LocalProjectStorageRepository get repository => _repository;
+  Object? get repository => _repository;
+  @override
   StudioFileSystemRepository get fileSystemRepository => _fileSystemRepository;
+  @override
   StudioFolderEntity get rootFolder => _rootFolder;
+  @override
   String? get selectedNodeId => _selectedNodeId;
+  @override
   String get activeFolderId => _activeFolderId;
+  @override
   String get searchQuery => _searchQuery;
 
   /// Retorna el nodo actualmente seleccionado o null.
@@ -53,24 +80,26 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
       _selectedNodeId != null ? _rootFolder.findNode(_selectedNodeId!) : null;
 
   /// Carga de forma asíncrona la jerarquía real desde el disco.
+  @override
   Future<void> initializeWorkspace() async {
     try {
       final diskRoot = await _fileSystemRepository.loadRootWorkspace();
       _rootFolder = diskRoot;
       notifyListeners();
     } catch (e) {
-      debugPrint('StudioWorkspaceFileSystemService: Error al inicializar desde disco: $e');
+      StudioDebugLogger.instance.warning('StudioWorkspaceFileSystemService', 'Error al inicializar desde disco: $e');
     }
   }
 
   /// Recarga el árbol jerárquico re-escaneando el disco físico.
+  @override
   Future<void> refreshFromDisk() async {
     try {
       final diskRoot = await _fileSystemRepository.loadRootWorkspace();
       _rootFolder = diskRoot;
       notifyListeners();
     } catch (e) {
-      debugPrint('StudioWorkspaceFileSystemService: Error refrescando disco: $e');
+      StudioDebugLogger.instance.warning('StudioWorkspaceFileSystemService', 'Error refrescando disco: $e');
     }
   }
 
@@ -162,6 +191,7 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
   }
 
   /// Reinicia el árbol a su estado inicial canónico (para pruebas o nueva sesión).
+  @override
   void resetToDefaults() {
     _initializeDefaultTree();
     _selectedNodeId = null;
@@ -171,6 +201,7 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
   }
 
   /// Selecciona un nodo por su ID y si es carpeta la define como carpeta activa.
+  @override
   void selectNode(String nodeId) {
     _selectedNodeId = nodeId;
     final node = _rootFolder.findNode(nodeId);
@@ -183,6 +214,7 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
   }
 
   /// Conmuta la expansión de una carpeta.
+  @override
   void toggleFolder(String folderId) {
     _rootFolder = _rootFolder.toggleFolderExpansion(folderId);
     _activeFolderId = folderId;
@@ -190,24 +222,28 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
   }
 
   /// Colapsa todas las carpetas a nivel raíz.
+  @override
   void collapseAll() {
     _rootFolder = _rootFolder.setExpansionAll(false);
     notifyListeners();
   }
 
   /// Expande todas las carpetas del árbol.
+  @override
   void expandAll() {
     _rootFolder = _rootFolder.setExpansionAll(true);
     notifyListeners();
   }
 
   /// Establece el filtro de búsqueda en tiempo real.
+  @override
   void setSearchQuery(String query) {
     _searchQuery = query.trim();
     notifyListeners();
   }
 
   /// Crea un nuevo archivo en la carpeta especificada o en la carpeta activa.
+  @override
   StudioFileEntity createFile({
     required String name,
     String? parentFolderId,
@@ -216,6 +252,9 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
     dynamic payload,
     Uint8List? initialBytes,
   }) {
+    if (name.contains('/') || name.contains('\\') || name.contains('..') || name.trim().isEmpty) {
+      throw ArgumentError('Nombre de archivo invalido o contiene caracteres prohibidos: $name');
+    }
     final targetFolderId = parentFolderId ?? _activeFolderId;
     final type = fileType ?? StudioFileType.fromFileName(name);
     final fullName = name.contains('.') ? name : '$name${type.extension}';
@@ -223,7 +262,8 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
     final fileId = 'file_${DateTime.now().millisecondsSinceEpoch}_${name.hashCode.abs()}';
 
     final parentNode = _rootFolder.findNode(targetFolderId);
-    final parentPath = parentNode?.relativePath ?? '';
+    final rawParent = parentNode?.relativePath ?? '';
+    final parentPath = rawParent == '/' ? '' : rawParent;
     final relativePath = '$parentPath/$fullName';
 
     final bytes = initialBytes ?? Uint8List.fromList([0]);
@@ -248,23 +288,28 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
       relativePath: relativePath,
       bytes: bytes,
     ).catchError((e) {
-      debugPrint('StudioWorkspaceFileSystemService: Error guardando archivo en disco: $e');
+      StudioDebugLogger.instance.warning('StudioWorkspaceFileSystemService', 'Error guardando archivo en disco: $e');
     });
 
     return newFile;
   }
 
   /// Crea una nueva carpeta en la carpeta especificada o en la carpeta activa.
+  @override
   StudioFolderEntity createFolder({
     required String name,
     String? parentFolderId,
   }) {
+    if (name.contains('/') || name.contains('\\') || name.contains('..') || name.trim().isEmpty) {
+      throw ArgumentError('Nombre de carpeta invalido o contiene caracteres prohibidos: $name');
+    }
     final targetFolderId = parentFolderId ?? _activeFolderId;
     final now = DateTime.now().microsecondsSinceEpoch;
     final folderId = 'folder_${DateTime.now().millisecondsSinceEpoch}_${name.hashCode.abs()}';
 
     final parentNode = _rootFolder.findNode(targetFolderId);
-    final parentPath = parentNode?.relativePath ?? '';
+    final rawParent = parentNode?.relativePath ?? '';
+    final parentPath = rawParent == '/' ? '' : rawParent;
     final relativePath = '$parentPath/$name';
 
     final newFolder = StudioFolderEntity(
@@ -283,14 +328,19 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
 
     // Persistencia física en disco
     _fileSystemRepository.createFolder(relativePath).catchError((e) {
-      debugPrint('StudioWorkspaceFileSystemService: Error creando carpeta en disco: $e');
+      StudioDebugLogger.instance.warning('StudioWorkspaceFileSystemService', 'Error creando carpeta en disco: $e');
     });
 
     return newFolder;
   }
 
   /// Renombra un archivo o carpeta existente.
+  @override
   void renameNode(String nodeId, String newName) {
+    if (nodeId == 'root') return;
+    if (newName.contains('/') || newName.contains('\\') || newName.contains('..') || newName.trim().isEmpty) {
+      throw ArgumentError('Nombre invalido o contiene caracteres prohibidos: $newName');
+    }
     final node = _rootFolder.findNode(nodeId);
     if (node == null) return;
 
@@ -316,10 +366,19 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
       _rootFolder = _rootFolder.updateNode(updated);
     } else if (node is StudioFolderEntity) {
       newRelPath = '$parentRelPath/$newName';
+      final updatedChildren = node.children.map((c) {
+        if (c is StudioFileEntity) {
+          return c.copyWith(relativePath: '$newRelPath/${c.name}');
+        } else if (c is StudioFolderEntity) {
+          return c.updateRelativePathRecursively(newRelPath);
+        }
+        return c;
+      }).toList();
       final updated = node.copyWith(
         name: newName,
         relativePath: newRelPath,
         modifiedAtMicros: now,
+        children: updatedChildren,
       );
       _rootFolder = _rootFolder.updateNode(updated);
     }
@@ -330,19 +389,22 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
         oldRelativePath: oldRelPath,
         newRelativePath: newRelPath,
       ).catchError((e) {
-        debugPrint('StudioWorkspaceFileSystemService: Error renombrando en disco: $e');
+        StudioDebugLogger.instance.warning('StudioWorkspaceFileSystemService', 'Error renombrando en disco: $e');
       });
     }
   }
 
   /// Mueve un archivo o carpeta a una carpeta de destino.
+  @override
   void moveNode(String nodeId, String targetFolderId) {
     final node = _rootFolder.findNode(nodeId);
     final targetFolder = _rootFolder.findNode(targetFolderId);
     if (node == null || targetFolder == null || targetFolder is! StudioFolderEntity) return;
 
     final oldRelPath = node.relativePath;
-    final newRelPath = '${targetFolder.relativePath}/${node.name}';
+    final rawTarget = targetFolder.relativePath;
+    final targetPath = rawTarget == '/' ? '' : rawTarget;
+    final newRelPath = '$targetPath/${node.name}';
 
     _rootFolder = _rootFolder.moveChild(nodeId, targetFolderId);
     _selectedNodeId = nodeId;
@@ -352,11 +414,12 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
       oldRelativePath: oldRelPath,
       newRelativePath: newRelPath,
     ).catchError((e) {
-      debugPrint('StudioWorkspaceFileSystemService: Error moviendo en disco: $e');
+      StudioDebugLogger.instance.warning('StudioWorkspaceFileSystemService', 'Error moviendo en disco: $e');
     });
   }
 
   /// Elimina un nodo (archivo o carpeta con todos sus hijos).
+  @override
   void deleteNode(String nodeId) {
     if (nodeId == 'root') return; // Raíz no se elimina
     final node = _rootFolder.findNode(nodeId);
@@ -373,11 +436,12 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier {
     notifyListeners();
 
     _fileSystemRepository.deletePath(relPath).catchError((e) {
-      debugPrint('StudioWorkspaceFileSystemService: Error eliminando en disco: $e');
+      StudioDebugLogger.instance.warning('StudioWorkspaceFileSystemService', 'Error eliminando en disco: $e');
     });
   }
 
   /// Retorna el árbol filtrado en base al término de búsqueda actual.
+  @override
   StudioFolderEntity get filteredRootFolder {
     if (_searchQuery.isEmpty) return _rootFolder;
     return _filterFolderRecursively(_rootFolder, _searchQuery.toLowerCase()) ??

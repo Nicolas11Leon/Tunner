@@ -29,6 +29,7 @@ class SongPackage {
   final int defaultBpm;
   final HierarchicalScore score;
   final List<AudioTrack> tracks; // Stems de acompañamiento (ej: Piano, Voz, Guitarras, Bajo)
+  final Map<String, HierarchicalScore> stemScores;
 
   const SongPackage({
     required this.id,
@@ -39,6 +40,7 @@ class SongPackage {
     required this.defaultBpm,
     required this.score,
     required this.tracks,
+    this.stemScores = const {},
   });
 
   int get totalMeasures => score.totalMeasures;
@@ -53,6 +55,7 @@ class SongPackage {
     int? defaultBpm,
     HierarchicalScore? score,
     List<AudioTrack>? tracks,
+    Map<String, HierarchicalScore>? stemScores,
   }) {
     return SongPackage(
       id: id ?? this.id,
@@ -63,6 +66,7 @@ class SongPackage {
       defaultBpm: defaultBpm ?? this.defaultBpm,
       score: score ?? this.score,
       tracks: tracks ?? this.tracks,
+      stemScores: stemScores ?? this.stemScores,
     );
   }
 
@@ -75,10 +79,27 @@ class SongPackage {
       'difficulty': difficulty.name,
       'defaultBpm': defaultBpm,
       'score': score.toMap(),
+      'tracks': tracks.map((t) => t.toMap()).toList(),
+      if (stemScores.isNotEmpty)
+        'stemScores': stemScores.map((k, v) => MapEntry(k, v.toMap())),
     };
   }
 
   factory SongPackage.fromMap(Map<String, dynamic> map) {
+    final rawTracks = map['tracks'] as List<dynamic>? ?? [];
+    final tracksList = rawTracks
+        .whereType<Map<String, dynamic>>()
+        .map((t) => AudioTrack.fromMap(t))
+        .toList();
+
+    final rawStemScores = map['stemScores'] as Map<String, dynamic>? ?? {};
+    final parsedStemScores = <String, HierarchicalScore>{};
+    rawStemScores.forEach((key, value) {
+      if (value is Map<String, dynamic>) {
+        parsedStemScores[key] = HierarchicalScore.fromMap(value);
+      }
+    });
+
     return SongPackage(
       id: map['id'] as String? ?? 'pkg_${DateTime.now().millisecondsSinceEpoch}',
       title: map['title'] as String? ?? 'Partitura sin título',
@@ -93,7 +114,8 @@ class SongPackage {
       ),
       defaultBpm: (map['defaultBpm'] as num?)?.toInt() ?? 120,
       score: HierarchicalScore.fromMap(map['score'] as Map<String, dynamic>? ?? {}),
-      tracks: const [],
+      tracks: tracksList,
+      stemScores: parsedStemScores,
     );
   }
 }

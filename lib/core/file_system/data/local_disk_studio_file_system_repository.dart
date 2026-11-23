@@ -1,9 +1,8 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import '../../../../features/dj_console/data/dj_audio_processor.dart';
-import '../../../../features/instrument/data/procedural_instrument_synthesizer.dart';
-import '../../../../features/instrument/domain/universal_instrument_definition.dart';
+import '../../logging/infrastructure/studio_debug_logger.dart';
+import '../domain/i_workspace_seed_provider.dart';
 import '../domain/studio_file_system_node.dart';
 import '../domain/studio_file_system_repository.dart';
 import '../domain/studio_file_type.dart';
@@ -13,10 +12,14 @@ import '../domain/studio_file_type.dart';
 /// y carpetas en el almacenamiento local del usuario (`~/Documents/TunnerProjects`).
 class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository {
   final String? _customRootPath;
+  final IWorkspaceSeedProvider? _seedProvider;
   String? _resolvedRootPath;
 
-  LocalDiskStudioFileSystemRepository({String? customRootPath})
-      : _customRootPath = customRootPath;
+  LocalDiskStudioFileSystemRepository({
+    String? customRootPath,
+    IWorkspaceSeedProvider? seedProvider,
+  })  : _customRootPath = customRootPath,
+        _seedProvider = seedProvider;
 
   /// Obtiene la ruta física absoluta de la carpeta raíz del espacio de trabajo.
   Future<String> getRootPath() async {
@@ -36,19 +39,89 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
     try {
       final docDir = await getApplicationDocumentsDirectory();
       _resolvedRootPath = '${docDir.path}/TunnerProjects';
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'LocalDiskStudioFileSystemRepository',
+        'Fallback a directorio temporal por error en path_provider: $e',
+        error: e,
+        stackTrace: st,
+      );
       final fallbackDir = Directory.systemTemp.createTempSync('tunner_projects_fallback_');
       _resolvedRootPath = fallbackDir.path;
     }
     return _resolvedRootPath!;
   }
 
-  /// Limpia la ruta relativa eliminando barras iniciales duplicadas.
+  /// Limpia la ruta relativa eliminando barras iniciales duplicadas y previene path traversal.
   String _normalizeRelativePath(String relPath) {
-    if (relPath.startsWith('/')) {
-      return relPath.substring(1);
+    final normalized = relPath.replaceAll('\\', '/');
+    if (RegExp(r'^[A-Za-z]:').hasMatch(normalized)) {
+      throw ArgumentError('Ruta absoluta con letra de unidad no permitida: $relPath');
     }
-    return relPath;
+    var clean = normalized;
+    while (clean.startsWith('/')) {
+      clean = clean.substring(1);
+    }
+    final rawSegments = clean.split('/');
+    final cleanSegments = <String>[];
+    for (final seg in rawSegments) {
+      if (seg == '..' || seg == '.' || seg.contains('\x00')) {
+        throw ArgumentError('Secuencia de Path Traversal no permitida: $relPath');
+      }
+      if (seg.isNotEmpty) {
+        cleanSegments.add(seg);
+      }
+    }
+    return cleanSegments.join('/');
+  }
+
+  /// Resuelve y verifica que [relPath] permanezca estrictamente confinado dentro de [rootPath]
+  /// incluso tras resolver enlaces simbólicos.
+  String _resolveSafePath(String relPath, String rootPath, {bool allowRoot = false}) {
+    final normRoot = rootPath.replaceAll('\\', '/').replaceAll(RegExp(r'/+$'), '');
+    final normInput = relPath.replaceAll('\\', '/');
+    String relCandidate = normInput;
+    if (normInput == normRoot) {
+      relCandidate = '';
+    } else if (normInput.startsWith('$normRoot/')) {
+      relCandidate = normInput.substring(normRoot.length + 1);
+    }
+
+    final cleanRel = _normalizeRelativePath(relCandidate);
+    if (!allowRoot && cleanRel.isEmpty) {
+      throw ArgumentError('No se permite operar directamente sobre la raiz del espacio de trabajo');
+    }
+
+    final rootDir = Directory(rootPath);
+    if (!rootDir.existsSync()) {
+      rootDir.createSync(recursive: true);
+    }
+    final canonicalRoot = rootDir.resolveSymbolicLinksSync();
+    final targetPath = cleanRel.isEmpty
+        ? canonicalRoot
+        : '$canonicalRoot${Platform.pathSeparator}${cleanRel.replaceAll('/', Platform.pathSeparator)}';
+
+    // Verificar contención por enlaces simbólicos en el ancestro existente más cercano
+    var probe = Directory(targetPath);
+    final trailingSegments = <String>[];
+    while (!probe.existsSync() && probe.parent.path != probe.path) {
+      trailingSegments.add(probe.path.split(Platform.pathSeparator).last);
+      probe = probe.parent;
+    }
+    final canonicalBase = probe.existsSync() ? probe.resolveSymbolicLinksSync() : probe.absolute.path;
+    final canonicalTarget = trailingSegments.isEmpty
+        ? canonicalBase
+        : '$canonicalBase${Platform.pathSeparator}${trailingSegments.reversed.join(Platform.pathSeparator)}';
+
+    final isInside = canonicalTarget == canonicalRoot ||
+        canonicalTarget.startsWith('$canonicalRoot${Platform.pathSeparator}');
+    if (!isInside) {
+      throw ArgumentError('Acceso denegado fuera del sandbox del workspace: $relPath');
+    }
+    if (!allowRoot && canonicalTarget == canonicalRoot) {
+      throw ArgumentError('No se permite operar directamente sobre la raiz del espacio de trabajo');
+    }
+    return canonicalTarget;
   }
 
   @override
@@ -89,25 +162,16 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
       flush: true,
     );
 
-    // Archivo de afinación pura A4 (440 Hz) con envolvente procedural
-    final a4Samples = ProceduralInstrumentSynthesizer.synthesizeNote(
-      instrument: UniversalInstrumentDefinition.fluteConcert,
-      frequencyHz: 440.0,
-      durationSeconds: 2.5,
-    );
-    final a4WavBytes = ProceduralInstrumentSynthesizer.floatBufferToWavBytes(a4Samples);
-    final demoTake = File('${audioDir.path}/Toma_Acustica_440Hz.wav');
-    await demoTake.writeAsBytes(a4WavBytes, flush: true);
-
-    // Archivo de bucle rítmico Club Groove 124 BPM
-    final grooveSamples = DjAudioProcessor().generateDemoGroove(
-      bpm: 124.0,
-      frequencyHz: 55.0,
-      durationMs: 7740,
-    );
-    final grooveWavBytes = ProceduralInstrumentSynthesizer.floatBufferToWavBytes(grooveSamples);
-    final demoGroove = File('${audioDir.path}/Loop_Club_Groove_124BPM.wav');
-    await demoGroove.writeAsBytes(grooveWavBytes, flush: true);
+    // Archivos semilla binarios provistos por adaptador externo (sin acoplar core a features)
+    if (_seedProvider != null) {
+      final binarySeeds = await _seedProvider.buildSeedBinaryFiles();
+      for (final entry in binarySeeds.entries) {
+        final safePath = _resolveSafePath(entry.key, rootDir.path);
+        final outFile = File(safePath);
+        await outFile.parent.create(recursive: true);
+        await outFile.writeAsBytes(entry.value, flush: true);
+      }
+    }
 
     final demoPreset = File('${tuningsDir.path}/Temperamento_Pitagorico.tpreset');
     await demoPreset.writeAsString('{"presetName": "Pitagórico", "referenceA4": 440.0}', flush: true);
@@ -120,9 +184,13 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   Future<StudioFolderEntity> _scanDirectoryRecursively(Directory dir, String rootPath) async {
     final now = DateTime.now().microsecondsSinceEpoch;
     final dirPath = dir.path;
-    final relativePath = dirPath == rootPath ? '/' : dirPath.replaceFirst('$rootPath/', '/');
-    final folderName = dirPath == rootPath ? 'PROYECTO TUNNER' : dirPath.split(Platform.pathSeparator).last;
-    final folderId = 'folder_${relativePath.hashCode.abs()}';
+    final sep = Platform.pathSeparator;
+    final normRoot = rootPath.endsWith(sep) ? rootPath.substring(0, rootPath.length - 1) : rootPath;
+    final relativePath = dirPath == normRoot
+        ? '/'
+        : dirPath.replaceFirst('$normRoot$sep', '/').replaceAll('\\', '/');
+    final folderName = dirPath == normRoot ? 'PROYECTO TUNNER' : dirPath.split(sep).last;
+    final folderId = dirPath == normRoot ? 'root' : 'folder_${relativePath.hashCode.abs()}';
 
     final children = <StudioFileSystemNode>[];
 
@@ -141,14 +209,18 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
           children.add(subFolder);
         } else if (entity is File) {
           final fileName = entity.path.split(Platform.pathSeparator).last;
-          final fileRelPath = entity.path.replaceFirst('$rootPath/', '/');
+          final fileRelPath = entity.path
+              .replaceFirst('$normRoot$sep', '/')
+              .replaceAll('\\', '/');
           final fileType = StudioFileType.fromFileName(fileName);
           int size = 0;
           int modified = now;
           try {
             size = await entity.length();
             modified = (await entity.lastModified()).microsecondsSinceEpoch;
-          } catch (_) {}
+          } catch (e) {
+            StudioDebugLogger.instance.warning('LocalDiskStudioFileSystemRepository', 'Metadatos de archivo inaccesibles: $e');
+          }
 
           children.add(
             StudioFileEntity(
@@ -164,7 +236,7 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
         }
       }
     } catch (e) {
-      debugPrint('LocalDiskStudioFileSystemRepository: Error escaneando ${dir.path}: $e');
+      StudioDebugLogger.instance.warning('LocalDiskStudioFileSystemRepository', 'Error escaneando ${dir.path}: $e');
     }
 
     return StudioFolderEntity(
@@ -180,8 +252,8 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   @override
   Future<void> saveFile({required String relativePath, required Uint8List bytes}) async {
     final rootPath = await getRootPath();
-    final cleanRel = _normalizeRelativePath(relativePath);
-    final file = File('$rootPath/$cleanRel');
+    final safePath = _resolveSafePath(relativePath, rootPath);
+    final file = File(safePath);
     await file.parent.create(recursive: true);
     await file.writeAsBytes(bytes, flush: true);
   }
@@ -189,8 +261,8 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   @override
   Future<Uint8List> readFile(String relativePath) async {
     final rootPath = await getRootPath();
-    final cleanRel = _normalizeRelativePath(relativePath);
-    final file = File('$rootPath/$cleanRel');
+    final safePath = _resolveSafePath(relativePath, rootPath);
+    final file = File(safePath);
     if (!await file.exists()) {
       throw FileSystemException('El archivo físico no existe', file.path);
     }
@@ -200,8 +272,8 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   @override
   Future<void> createFolder(String relativePath) async {
     final rootPath = await getRootPath();
-    final cleanRel = _normalizeRelativePath(relativePath);
-    final dir = Directory('$rootPath/$cleanRel');
+    final safePath = _resolveSafePath(relativePath, rootPath);
+    final dir = Directory(safePath);
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
@@ -210,16 +282,15 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   @override
   Future<void> deletePath(String relativePath) async {
     final rootPath = await getRootPath();
-    final cleanRel = _normalizeRelativePath(relativePath);
-    final absPath = '$rootPath/$cleanRel';
+    final safePath = _resolveSafePath(relativePath, rootPath, allowRoot: false);
 
-    final file = File(absPath);
+    final file = File(safePath);
     if (await file.exists()) {
       await file.delete();
       return;
     }
 
-    final dir = Directory(absPath);
+    final dir = Directory(safePath);
     if (await dir.exists()) {
       await dir.delete(recursive: true);
     }
@@ -228,11 +299,8 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
   @override
   Future<void> movePath({required String oldRelativePath, required String newRelativePath}) async {
     final rootPath = await getRootPath();
-    final cleanOld = _normalizeRelativePath(oldRelativePath);
-    final cleanNew = _normalizeRelativePath(newRelativePath);
-
-    final oldPath = '$rootPath/$cleanOld';
-    final newPath = '$rootPath/$cleanNew';
+    final oldPath = _resolveSafePath(oldRelativePath, rootPath, allowRoot: false);
+    final newPath = _resolveSafePath(newRelativePath, rootPath, allowRoot: false);
 
     final oldFile = File(oldPath);
     if (await oldFile.exists()) {

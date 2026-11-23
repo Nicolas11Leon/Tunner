@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 import 'studio_file_type.dart';
 
 /// Nodo base inmutable para el sistema de archivos jerárquico del estudio.
@@ -220,12 +220,34 @@ class StudioFolderEntity extends StudioFileSystemNode {
     if (nodeToMove is StudioFileEntity) {
       relocatedNode = nodeToMove.copyWith(relativePath: newRelativePath);
     } else if (nodeToMove is StudioFolderEntity) {
-      relocatedNode = nodeToMove.copyWith(relativePath: newRelativePath);
+      relocatedNode = nodeToMove.updateRelativePathRecursively(targetPath);
     } else {
       relocatedNode = nodeToMove;
     }
 
     return withoutNode.insertChild(targetFolderId, relocatedNode);
+  }
+
+  /// Actualiza recursivamente el relativePath de esta carpeta y de todos sus hijos.
+  StudioFolderEntity updateRelativePathRecursively(String newParentPath) {
+    final cleanParent = newParentPath.endsWith('/') && newParentPath.length > 1
+        ? newParentPath.substring(0, newParentPath.length - 1)
+        : newParentPath;
+    final newFolderRelPath = cleanParent.isEmpty || cleanParent == '/'
+        ? '/$name'
+        : '$cleanParent/$name';
+    final updatedChildren = children.map((c) {
+      if (c is StudioFileEntity) {
+        return c.copyWith(relativePath: '$newFolderRelPath/${c.name}');
+      } else if (c is StudioFolderEntity) {
+        return c.updateRelativePathRecursively(newFolderRelPath);
+      }
+      return c;
+    }).toList();
+    return copyWith(
+      relativePath: newFolderRelPath,
+      children: updatedChildren,
+    );
   }
 
   /// Colapsa o expande todas las carpetas del árbol.

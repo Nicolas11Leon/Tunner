@@ -1,7 +1,8 @@
 /// Clave de notación del pentagrama para el instrumento.
 enum InstrumentClef {
   treble('Clave de Sol', '𝄞'),
-  bass('Clave de Fa', '𝄢');
+  bass('Clave de Fa', '𝄢'),
+  alto('Clave de Do', '𝄡');
 
   final String displayName;
   final String symbol;
@@ -17,6 +18,7 @@ enum InstrumentKey {
   fKey(-7, 'Fa (F)'),
   gKey(-5, 'Sol (G)'),
   aKey(-3, 'La (A)'),
+  dKey(2, 'Re (D)'),
   bassC(-12, 'Do (C) Octava Grave'),
   highOctaveC(12, 'Do (C) Octava Aguda');
 
@@ -295,6 +297,71 @@ class InstrumentProfileEntity {
     maxFrequencyHz: 1300.0,
   );
 
+  // Perfiles adicionales sincronizados con UniversalInstrumentDefinition.masterCatalog (40 instrumentos)
+  static const InstrumentProfileEntity viola = InstrumentProfileEntity(
+    id: 'viola', name: 'Viola', family: InstrumentFamily.strings, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 130.81, maxFrequencyHz: 1318.51,
+  );
+  static const InstrumentProfileEntity electricGuitar = InstrumentProfileEntity(
+    id: 'electric_guitar', name: 'Guitarra Eléctrica', family: InstrumentFamily.strings, key: InstrumentKey.bassC, transpositionSemitones: -12, minFrequencyHz: 82.41, maxFrequencyHz: 1318.51,
+  );
+  static const InstrumentProfileEntity electricBass = InstrumentProfileEntity(
+    id: 'electric_bass', name: 'Bajo Eléctrico', family: InstrumentFamily.strings, key: InstrumentKey.bassC, clef: InstrumentClef.bass, transpositionSemitones: -12, minFrequencyHz: 41.20, maxFrequencyHz: 392.00,
+  );
+  static const InstrumentProfileEntity ukulele = InstrumentProfileEntity(
+    id: 'ukulele', name: 'Ukelele', family: InstrumentFamily.strings, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 261.63, maxFrequencyHz: 880.00,
+  );
+  static const InstrumentProfileEntity grandPiano = InstrumentProfileEntity(
+    id: 'grand_piano', name: 'Piano de Cola', family: InstrumentFamily.percussion, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 27.50, maxFrequencyHz: 4186.01,
+  );
+  static const InstrumentProfileEntity harpsichord = InstrumentProfileEntity(
+    id: 'harpsichord', name: 'Clavecín', family: InstrumentFamily.percussion, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 65.41, maxFrequencyHz: 2093.00,
+  );
+  static const InstrumentProfileEntity concertMarimba = InstrumentProfileEntity(
+    id: 'concert_marimba', name: 'Marimba de Concierto', family: InstrumentFamily.percussion, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 65.41, maxFrequencyHz: 2093.00,
+  );
+  static const InstrumentProfileEntity vibraphone = InstrumentProfileEntity(
+    id: 'vibraphone', name: 'Vibráfono', family: InstrumentFamily.percussion, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 174.61, maxFrequencyHz: 1396.91,
+  );
+  static const InstrumentProfileEntity glockenspiel = InstrumentProfileEntity(
+    id: 'glockenspiel', name: 'Glockenspiel / Lira', family: InstrumentFamily.percussion, key: InstrumentKey.highOctaveC, transpositionSemitones: 24, minFrequencyHz: 783.99, maxFrequencyHz: 4186.01,
+  );
+  static const InstrumentProfileEntity acousticDrumKit = InstrumentProfileEntity(
+    id: 'acoustic_drum_kit', name: 'Batería Acústica', family: InstrumentFamily.percussion, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 50.0, maxFrequencyHz: 1000.0,
+  );
+  static const InstrumentProfileEntity snareDrumConcert = InstrumentProfileEntity(
+    id: 'snare_drum', name: 'Caja / Tarola', family: InstrumentFamily.percussion, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 120.0, maxFrequencyHz: 800.0,
+  );
+  static const InstrumentProfileEntity orchestralTimpani = InstrumentProfileEntity(
+    id: 'orchestral_timpani', name: 'Timbales Sinfónicos', family: InstrumentFamily.percussion, key: InstrumentKey.concertC, clef: InstrumentClef.bass, transpositionSemitones: 0, minFrequencyHz: 65.41, maxFrequencyHz: 220.00,
+  );
+  static const InstrumentProfileEntity congasAfroCuban = InstrumentProfileEntity(
+    id: 'congas', name: 'Congas Afrocubanas', family: InstrumentFamily.percussion, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 90.0, maxFrequencyHz: 450.0,
+  );
+  static const InstrumentProfileEntity voiceSoprano = InstrumentProfileEntity(
+    id: 'voice_soprano', name: 'Voz Soprano', family: InstrumentFamily.vocals, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 261.63, maxFrequencyHz: 1046.50,
+  );
+  static const InstrumentProfileEntity voiceBass = InstrumentProfileEntity(
+    id: 'voice_bass', name: 'Voz Bajo', family: InstrumentFamily.vocals, key: InstrumentKey.concertC, clef: InstrumentClef.bass, transpositionSemitones: 0, minFrequencyHz: 82.41, maxFrequencyHz: 329.63,
+  );
+  static const InstrumentProfileEntity synthLeadSaw = InstrumentProfileEntity(
+    id: 'synth_lead', name: 'Sintetizador Lead Saw', family: InstrumentFamily.percussion, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 65.41, maxFrequencyHz: 2093.00,
+  );
+  static const InstrumentProfileEntity koraWestAfrican = InstrumentProfileEntity(
+    id: 'kora', name: 'Kora Africana (21 Cuerdas)', family: InstrumentFamily.strings, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 110.00, maxFrequencyHz: 1046.50,
+  );
+  static const InstrumentProfileEntity sitarIndian = InstrumentProfileEntity(
+    id: 'sitar', name: 'Sitar Clásico Hindú', family: InstrumentFamily.strings, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 130.81, maxFrequencyHz: 1046.50,
+  );
+  static const InstrumentProfileEntity shakuhachiJapanese = InstrumentProfileEntity(
+    id: 'shakuhachi', name: 'Flauta Shakuhachi Japonesa', family: InstrumentFamily.woodwinds, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 293.66, maxFrequencyHz: 1174.66,
+  );
+  static const InstrumentProfileEntity charangoAndean = InstrumentProfileEntity(
+    id: 'charango', name: 'Charango Andino', family: InstrumentFamily.strings, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 329.63, maxFrequencyHz: 1318.51,
+  );
+  static const InstrumentProfileEntity cuatroVenezuelan = InstrumentProfileEntity(
+    id: 'cuatro', name: 'Cuatro Llanero', family: InstrumentFamily.strings, key: InstrumentKey.concertC, transpositionSemitones: 0, minFrequencyHz: 220.00, maxFrequencyHz: 880.00,
+  );
+
   static const List<InstrumentProfileEntity> standardInstruments = [
     flute,
     piccolo,
@@ -313,9 +380,30 @@ class InstrumentProfileEntity {
     trombone,
     tuba,
     violin,
+    viola,
     guitar,
+    electricGuitar,
+    electricBass,
+    ukulele,
     cello,
     doubleBass,
+    grandPiano,
+    harpsichord,
+    concertMarimba,
+    vibraphone,
+    glockenspiel,
+    acousticDrumKit,
+    snareDrumConcert,
+    orchestralTimpani,
+    congasAfroCuban,
     voice,
+    voiceSoprano,
+    voiceBass,
+    synthLeadSaw,
+    koraWestAfrican,
+    sitarIndian,
+    shakuhachiJapanese,
+    charangoAndean,
+    cuatroVenezuelan,
   ];
 }

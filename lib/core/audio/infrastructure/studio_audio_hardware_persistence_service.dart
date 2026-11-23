@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../logging/infrastructure/studio_debug_logger.dart';
 import '../domain/audio_device_matrix_entity.dart';
 import '../domain/i_studio_audio_hardware_persistence_service.dart';
 
@@ -44,7 +44,14 @@ class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersi
     if (pending != null) {
       try {
         await pending;
-      } catch (_) {}
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'StudioAudioHardwarePersistenceService',
+          'Pending matrix save failed prior to loadMatrix',
+          error: e,
+          stackTrace: st,
+        );
+      }
     }
 
     try {
@@ -61,7 +68,7 @@ class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersi
       final jsonMap = jsonDecode(content) as Map<String, dynamic>;
       return AudioDeviceMatrixEntity.fromJson(jsonMap);
     } catch (e) {
-      debugPrint('Error al cargar la matriz de hardware de audio: $e');
+      StudioDebugLogger.instance.warning('StudioAudioHardwarePersistenceService', 'Error al cargar la matriz de hardware de audio: $e');
       return AudioDeviceMatrixEntity.defaultConfiguration();
     }
   }
@@ -73,17 +80,28 @@ class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersi
 
     try {
       final file = await _getTargetFile();
-      final tempFile = File('${file.path}.tmp');
+      final tempFile = File('${file.path}.${DateTime.now().microsecondsSinceEpoch}.tmp');
 
       final jsonString = jsonEncode(matrix.toJson());
       await tempFile.writeAsString(jsonString, flush: true);
 
-      if (await tempFile.exists()) {
+      try {
         await tempFile.rename(file.path);
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'StudioAudioHardwarePersistenceService',
+          'Renombrado atomico fallback a escritura directa: $e',
+          error: e,
+          stackTrace: st,
+        );
+        await file.writeAsString(jsonString, flush: true);
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
       }
       completer.complete();
     } catch (e) {
-      debugPrint('Error al guardar la matriz de hardware de audio: $e');
+      StudioDebugLogger.instance.warning('StudioAudioHardwarePersistenceService', 'Error al guardar la matriz de hardware de audio: $e');
       completer.completeError(e);
     } finally {
       if (_pendingSaveOperation == completer.future) {
@@ -100,7 +118,7 @@ class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersi
         await file.delete();
       }
     } catch (e) {
-      debugPrint('Error al limpiar la matriz de hardware de audio: $e');
+      StudioDebugLogger.instance.warning('StudioAudioHardwarePersistenceService', 'Error al limpiar la matriz de hardware de audio: $e');
     }
   }
 }

@@ -32,12 +32,20 @@ class ModuleConnection {
   /// Indica si la conexión está actualmente activa y transmitiendo datos.
   final bool isEnabled;
 
+  /// Factor de ganancia o atenuación de la señal en esta conexión [0.0, 2.0].
+  final double gain;
+
+  /// Estado de silencio (mute) de esta conexión individual.
+  final bool isMuted;
+
   const ModuleConnection({
     required this.connectionId,
     required this.sourcePort,
     this.destinationPort,
     this.scope = ConnectionScope.pointToPoint,
     this.isEnabled = true,
+    this.gain = 1.0,
+    this.isMuted = false,
   });
 
   /// Tipo de señal que fluye por esta conexión.
@@ -47,6 +55,8 @@ class ModuleConnection {
   factory ModuleConnection.pointToPoint({
     required PortId source,
     required PortId destination,
+    double gain = 1.0,
+    bool isMuted = false,
   }) {
     if (!source.canConnectTo(destination)) {
       throw ArgumentError('Incompatibilidad de puertos: $source no puede conectar con $destination');
@@ -57,12 +67,16 @@ class ModuleConnection {
       destinationPort: destination,
       scope: ConnectionScope.pointToPoint,
       isEnabled: true,
+      gain: gain.clamp(0.0, 2.0),
+      isMuted: isMuted,
     );
   }
 
   /// Crea una conexión de difusión broadcast abierta hacia todos los módulos.
   factory ModuleConnection.broadcast({
     required PortId source,
+    double gain = 1.0,
+    bool isMuted = false,
   }) {
     if (source.direction != PortDirection.output) {
       throw ArgumentError('Solo puertos de salida pueden emitir en modo broadcast: $source');
@@ -73,16 +87,24 @@ class ModuleConnection {
       destinationPort: null,
       scope: ConnectionScope.broadcast,
       isEnabled: true,
+      gain: gain.clamp(0.0, 2.0),
+      isMuted: isMuted,
     );
   }
 
-  ModuleConnection copyWith({bool? isEnabled}) {
+  ModuleConnection copyWith({
+    bool? isEnabled,
+    double? gain,
+    bool? isMuted,
+  }) {
     return ModuleConnection(
       connectionId: connectionId,
       sourcePort: sourcePort,
       destinationPort: destinationPort,
       scope: scope,
       isEnabled: isEnabled ?? this.isEnabled,
+      gain: (gain ?? this.gain).clamp(0.0, 2.0),
+      isMuted: isMuted ?? this.isMuted,
     );
   }
 

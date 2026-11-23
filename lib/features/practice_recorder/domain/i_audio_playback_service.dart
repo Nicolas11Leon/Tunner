@@ -30,3 +30,38 @@ abstract class IAudioPlaybackService {
   /// Libera recursos del motor de reproducción.
   void dispose();
 }
+
+/// Implementación nula / no-op en dominio puro para pruebas y entornos aislados.
+class NoOpAudioPlaybackService implements IAudioPlaybackService {
+  const NoOpAudioPlaybackService();
+
+  @override
+  Future<void> play(String filePath) async {}
+
+  @override
+  Future<void> pause() async {}
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> seek(Duration position) async {}
+
+  @override
+  Future<void> setPlaybackRate(double rate) async {}
+
+  @override
+  Stream<Duration> get onPositionChanged => const Stream<Duration>.empty();
+
+  @override
+  Stream<Duration> get onDurationChanged => const Stream<Duration>.empty();
+
+  @override
+  Stream<void> get onPlayerComplete => const Stream<void>.empty();
+
+  @override
+  bool get isPlaying => false;
+
+  @override
+  void dispose() {}
+}

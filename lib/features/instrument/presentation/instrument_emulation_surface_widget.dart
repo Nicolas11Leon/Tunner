@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import '../domain/universal_instrument_definition.dart';
 import '../domain/visual_interface_profile.dart';
+import 'visual_interface_profile_ui_ext.dart';
 import 'fretboard_tactile_widget.dart';
 import 'keybed_tactile_widget.dart';
 import 'drum_pads_tactile_widget.dart';
@@ -107,12 +110,24 @@ class InstrumentEmulationSurfaceWidget extends StatelessWidget {
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: labels.map((label) {
+              children: List.generate(labels.length, (i) {
+                final label = labels[i];
+                const diatonicSemitones = <int>[0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19];
+                final baseMin = instrument.acousticRange.minFrequencyHz > 20.0
+                    ? instrument.acousticRange.minFrequencyHz
+                    : 220.0;
+                final maxHz = instrument.acousticRange.maxFrequencyHz > baseMin
+                    ? instrument.acousticRange.maxFrequencyHz
+                    : baseMin * 4.0;
+                final semitones = diatonicSemitones[i % diatonicSemitones.length];
+                final keyFreq = (baseMin * math.pow(2.0, semitones / 12.0))
+                    .clamp(baseMin, maxHz)
+                    .toDouble();
+
                 return InkWell(
+                  key: Key('acoustic_surface_btn_$i'),
                   onTap: () {
-                    // Dispara la frecuencia central fundamental
-                    final midFreq = (instrument.acousticRange.minFrequencyHz + instrument.acousticRange.maxFrequencyHz) / 2.0;
-                    onFrequencyTriggered?.call(midFreq);
+                    onFrequencyTriggered?.call(keyFreq);
                   },
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
@@ -135,7 +150,7 @@ class InstrumentEmulationSurfaceWidget extends StatelessWidget {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
             ),
           ),
         ],

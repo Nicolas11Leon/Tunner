@@ -19,10 +19,15 @@ enum StudioBiquadType {
 /// $$y[n] = \frac{b_0 x[n] + b_1 x[n-1] + b_2 x[n-2] - a_1 y[n-1] - a_2 y[n-2]}{a_0}$$
 class StudioMasterBiquadFilter {
   final StudioBiquadType type;
-  final double frequency;
-  final double gainDb;
-  final double q;
-  final int sampleRate;
+  double _frequency;
+  double _gainDb;
+  double _q;
+  int _sampleRate;
+
+  double get frequency => _frequency;
+  double get gainDb => _gainDb;
+  double get q => _q;
+  int get sampleRate => _sampleRate;
 
   // Coeficientes normalizados del filtro (divididos por a0)
   late double _b0;
@@ -45,11 +50,29 @@ class StudioMasterBiquadFilter {
 
   StudioMasterBiquadFilter({
     required this.type,
-    required this.frequency,
-    required this.gainDb,
-    this.q = 0.70710678, // Butterworth Q
-    this.sampleRate = 44100,
+    required double frequency,
+    required double gainDb,
+    double q = 0.70710678, // Butterworth Q
+    int sampleRate = 44100,
+  })  : _frequency = frequency,
+        _gainDb = gainDb,
+        _q = q,
+        _sampleRate = sampleRate {
+    _calculateCoefficients();
+  }
+
+  /// Actualiza los parámetros del filtro en caliente sin reiniciar los retardos de memoria previa,
+  /// previniendo transitorios abrasivos (clicks/pops) durante barridos de EQ en tiempo real.
+  void updateParameters({
+    double? frequency,
+    double? gainDb,
+    double? q,
+    int? sampleRate,
   }) {
+    if (frequency != null) _frequency = frequency;
+    if (gainDb != null) _gainDb = gainDb;
+    if (q != null) _q = q;
+    if (sampleRate != null) _sampleRate = sampleRate;
     _calculateCoefficients();
   }
 

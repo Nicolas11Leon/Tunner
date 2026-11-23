@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../data/dj_hardware_catalog.dart';
+import '../domain/dj_hardware_catalog.dart';
 import '../domain/dj_action.dart';
 import '../domain/dj_hardware_skin_entity.dart';
 import '../domain/dj_keymap_profile_entity.dart';
@@ -22,6 +22,8 @@ class DjVisualMappingOverlay extends StatefulWidget {
   final ValueChanged<bool>? onToggleShowKeyBadges;
   final ValueChanged<String>? onSkinSelected;
   final VoidCallback? onOpenKeymapVisualizer;
+  final double Function(DjSkinZoneEntity zone)? getControlValue;
+  final void Function(DjSkinZoneEntity zone, double delta)? onContinuousControl;
 
   const DjVisualMappingOverlay({
     super.key,
@@ -39,6 +41,8 @@ class DjVisualMappingOverlay extends StatefulWidget {
     this.onToggleShowKeyBadges,
     this.onSkinSelected,
     this.onOpenKeymapVisualizer,
+    this.getControlValue,
+    this.onContinuousControl,
   });
 
   @override
@@ -47,6 +51,8 @@ class DjVisualMappingOverlay extends StatefulWidget {
 
 class _DjVisualMappingOverlayState extends State<DjVisualMappingOverlay> {
   late bool _showBadges;
+  DjSkinZoneEntity? _activeDragZone;
+  Offset? _lastPanPosition;
 
   @override
   void initState() {
@@ -234,6 +240,61 @@ class _DjVisualMappingOverlayState extends State<DjVisualMappingOverlay> {
                     }
                   }
                 },
+                onPanStart: (details) {
+                  final localPos = details.localPosition;
+                  final nx = localPos.dx / constraints.maxWidth;
+                  final ny = localPos.dy / constraints.maxHeight;
+
+                  final hitZone = widget.skin.findZoneAt(nx, ny);
+                  if (hitZone != null) {
+                    if (widget.isLearnModeActive) {
+                      widget.onZoneSelected?.call(hitZone);
+                    } else {
+                      _activeDragZone = hitZone;
+                      _lastPanPosition = localPos;
+                      if (hitZone.controlType == DjControlType.button || hitZone.controlType == DjControlType.pad) {
+                        widget.onActionTriggered?.call(hitZone.action);
+                      }
+                    }
+                  }
+                },
+                onPanUpdate: (details) {
+                  final hitZone = _activeDragZone;
+                  if (hitZone != null && !widget.isLearnModeActive) {
+                    if (hitZone.controlType == DjControlType.button || hitZone.controlType == DjControlType.pad) {
+                      return;
+                    }
+                    final lastPos = _lastPanPosition ?? details.localPosition;
+                    final deltaPos = details.localPosition - lastPos;
+                    _lastPanPosition = details.localPosition;
+
+                    double delta = 0.0;
+                    if (hitZone.controlType == DjControlType.fader) {
+                      final isHorizontal = hitZone.normalizedWidth > hitZone.normalizedHeight;
+                      delta = isHorizontal
+                          ? (deltaPos.dx / (constraints.maxWidth * hitZone.normalizedWidth))
+                          : (deltaPos.dy / (constraints.maxHeight * hitZone.normalizedHeight));
+                    } else if (hitZone.controlType == DjControlType.knob) {
+                      delta = deltaPos.dy / (constraints.maxHeight * hitZone.normalizedHeight);
+                    } else if (hitZone.controlType == DjControlType.jogWheel) {
+                      delta = deltaPos.dx / (constraints.maxWidth * hitZone.normalizedWidth);
+                    }
+
+                    if (widget.onContinuousControl != null) {
+                      widget.onContinuousControl!(hitZone, delta);
+                    } else {
+                      widget.onActionTriggered?.call(hitZone.action);
+                    }
+                  }
+                },
+                onPanEnd: (_) {
+                  _activeDragZone = null;
+                  _lastPanPosition = null;
+                },
+                onPanCancel: () {
+                  _activeDragZone = null;
+                  _lastPanPosition = null;
+                },
                 child: RepaintBoundary(
                   child: CustomPaint(
                     size: Size(constraints.maxWidth, constraints.maxHeight),
@@ -245,6 +306,7 @@ class _DjVisualMappingOverlayState extends State<DjVisualMappingOverlay> {
                       jogRotationB: widget.jogRotationB,
                       keymapProfile: widget.keymapProfile,
                       showKeyBadges: _showBadges,
+                      getControlValue: widget.getControlValue,
                     ),
                   ),
                 ),

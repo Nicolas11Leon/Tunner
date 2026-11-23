@@ -1,26 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'app/studio_composition_root.dart';
 import 'core/design_system/studio_theme_provider.dart';
+import 'core/logging/infrastructure/studio_debug_logger.dart';
+import 'core/theme/tunner_theme.dart';
 import 'features/navigation/presentation/main_app_shell.dart';
 import 'features/tuner_viewmodel.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  final compositionRoot = StudioCompositionRoot.create();
+
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => TunerViewModel(seedDefaults: true)),
-        ChangeNotifierProvider(create: (_) => StudioThemeController()),
+        Provider<StudioCompositionRoot>.value(value: compositionRoot),
+        ChangeNotifierProvider(
+          create: (_) => compositionRoot.createTunerViewModel(seedDefaults: true),
+        ),
+        ChangeNotifierProvider.value(value: compositionRoot.themeController),
       ],
-      child: const TunnerApp(),
+      child: TunnerApp(compositionRoot: compositionRoot),
     ),
   );
 }
 
 /// Aplicación principal Tunner: Laboratorio Acústico y Partituras de Conservatorio.
 class TunnerApp extends StatefulWidget {
-  const TunnerApp({super.key});
+  final StudioCompositionRoot? compositionRoot;
+
+  const TunnerApp({super.key, this.compositionRoot});
 
   @override
   State<TunnerApp> createState() => _TunnerAppState();
@@ -29,27 +39,20 @@ class TunnerApp extends StatefulWidget {
 class _TunnerAppState extends State<TunnerApp> {
   final StudioThemeController _fallbackThemeController =
       StudioThemeController();
+  String? _lastAppliedPaletteId;
 
   @override
   void dispose() {
     _fallbackThemeController.dispose();
+    widget.compositionRoot?.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final viewModel = context.watch<TunerViewModel>();
-    StudioThemeController studioThemeController;
-    try {
-      studioThemeController = context.watch<StudioThemeController>();
-    } catch (_) {
-      studioThemeController = _fallbackThemeController;
-    }
-    final palette = viewModel.currentPalette;
+  void _syncSystemUiStyleIfChanged(TunnerThemePalette palette) {
+    if (_lastAppliedPaletteId == palette.id) return;
+    _lastAppliedPaletteId = palette.id;
 
     final isLight = palette.brightness == Brightness.light;
-
-    // Sincronización de la barra de estado del sistema con el tema activo
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -58,6 +61,28 @@ class _TunnerAppState extends State<TunnerApp> {
         systemNavigationBarIconBrightness: isLight ? Brightness.dark : Brightness.light,
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Selector granular: evita reconstruir MaterialApp en cada frame de pitch (60 FPS)
+    final palette = context.select<TunerViewModel, TunnerThemePalette>(
+      (vm) => vm.currentPalette,
+    );
+    StudioThemeController studioThemeController;
+    try {
+      studioThemeController = context.watch<StudioThemeController>();
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'TunnerApp',
+        'StudioThemeController no encontrado en arbol; usando fallback: $e',
+        error: e,
+        stackTrace: st,
+      );
+      studioThemeController = _fallbackThemeController;
+    }
+
+    _syncSystemUiStyleIfChanged(palette);
 
     return StudioThemeScope(
       controller: studioThemeController,

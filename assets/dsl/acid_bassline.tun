@@ -1,0 +1,31 @@
+// Acid Bassline - Sintetizador a 135 BPM y envolventes rapidas en Tunner DSL
+tempo 135;
+
+// Canal y conexion directa al bus maestro
+channel bass;
+connect @bass.out -> @master.in;
+
+// Modulacion de ecualizacion con realce de frecuencias graves
+set @eq.low = 4.0 dB;
+set @eq.high = 2.5 dB;
+
+// Sintetizador con oscilador diente de sierra y envolvente percusiva corta
+set @synth.waveform = "sawtooth";
+set @synth.attack = 5 ms;
+set @synth.decay = 90 ms;
+set @synth.sustain = 0.2;
+set @synth.release = 50 ms;
+
+// Patron secuencial de bajo acido en bucle
+loop 2 {
+  note C2 1/16;
+  note C2 1/16;
+  note Eb2 1/16;
+  note F2 1/16;
+  note F#2 1/16;
+  note G2 1/16;
+  note Bb2 1/16;
+  note C3 1/16;
+}
+
+play;

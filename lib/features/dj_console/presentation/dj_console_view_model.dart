@@ -1,20 +1,23 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:isolate';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import '../../audio_synthesizer/data/audio_synthesizer_service.dart';
-import '../../audio_synthesizer/data/memory_audio_synthesizer_service.dart';
+import 'package:flutter/widgets.dart';
+import '../../../core/file_system/domain/i_platform_file_gateway.dart';
+import '../../../core/file_system/domain/studio_file_system_repository.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../audio_synthesizer/domain/i_audio_synthesizer_service.dart';
-import '../../instrument/data/procedural_instrument_synthesizer.dart';
-import '../../song_library/data/song_decomposer_service.dart';
-import '../data/dj_audio_processor.dart';
-import '../data/dj_deck_audio_service.dart';
-import '../data/dj_gamepad_input_service.dart';
-import '../data/dj_hardware_catalog.dart';
-import '../data/dj_keymap_persistence_service.dart';
-import '../data/dj_mix_wav_encoder.dart';
-import '../data/dj_transition_sfx_synthesizer.dart';
-import '../data/memory_dj_deck_audio_player.dart';
+import '../../instrument/domain/procedural_instrument_synthesizer.dart';
+import '../../song_library/domain/song_decomposer_service.dart';
+import '../domain/dj_audio_processor.dart';
+import '../domain/dj_gamepad_input_service.dart';
+import '../domain/dj_hardware_catalog.dart';
+import '../domain/i_dj_console_blueprint_storage_service.dart';
+import '../domain/i_dj_keymap_persistence_service.dart';
+import '../domain/dj_mix_wav_encoder.dart';
+import '../domain/dj_transition_sfx_synthesizer.dart';
+import '../domain/memory_dj_deck_audio_player.dart';
 import '../domain/bpm_beat_tracker_engine.dart';
 import '../domain/dj_action.dart';
 import '../domain/dj_channel_fx_entity.dart';
@@ -37,10 +40,15 @@ import '../domain/i_dj_deck_audio_player.dart';
 /// for the Virtual DJ Performance Console with Hardware Skins and Gamepad support.
 class DjConsoleViewModel extends ChangeNotifier {
   final DjPerformanceOrchestrator _orchestrator;
-  final DjKeymapPersistenceService _persistenceService;
+  final IDjKeymapPersistenceService _persistenceService;
   final DjAudioProcessor _audioProcessor;
   final IDjDeckAudioPlayer _deckAudioPlayer;
   final IAudioSynthesizerService _audioSynthesizer;
+  final StudioFileSystemRepository _fileSystemRepository;
+  final IPlatformFileGateway _fileGateway;
+  final IDjConsoleBlueprintStorageService _blueprintStorageService;
+
+  IDjConsoleBlueprintStorageService get blueprintStorageService => _blueprintStorageService;
   late final DjGamepadInputService _inputService;
 
   Timer? _playbackTicker;
@@ -52,9 +60,6 @@ class DjConsoleViewModel extends ChangeNotifier {
   double _rotationAngleB = 0.0;
   bool _isDisposed = false;
   Uint8List? _lastRecordedWavBytes;
-
-  static bool get _isTestEnvironment =>
-      !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
 
   // Hardware Skins & Gamepad Mapping
   DjHardwareSkinEntity _activeSkin = DjHardwareCatalog.ddjFlx4();
@@ -71,6 +76,8 @@ class DjConsoleViewModel extends ChangeNotifier {
   List<SpectralWaveformBucket> _waveformB =
       DjTransitionSfxSynthesizer.generateSyntheticTrackWaveform(bpm: 128.0);
   Float32List? _lastSamplerBuffer;
+  Float32List? _deckSamplesA;
+  Float32List? _deckSamplesB;
 
   // Showcase / Auto-Demo Routine (15s)
   bool _isShowcaseRunning = false;
@@ -79,18 +86,22 @@ class DjConsoleViewModel extends ChangeNotifier {
 
   DjConsoleViewModel({
     DjPerformanceOrchestrator? orchestrator,
-    DjKeymapPersistenceService? persistenceService,
+    IDjKeymapPersistenceService? persistenceService,
     DjAudioProcessor? audioProcessor,
     DjGamepadInputService? inputService,
     IDjDeckAudioPlayer? deckAudioPlayer,
     IAudioSynthesizerService? audioSynthesizer,
+    StudioFileSystemRepository? fileSystemRepository,
+    IPlatformFileGateway? fileGateway,
+    IDjConsoleBlueprintStorageService? blueprintStorageService,
   })  : _orchestrator = orchestrator ?? DjPerformanceOrchestrator(),
-        _persistenceService = persistenceService ?? DjKeymapPersistenceService(),
+        _persistenceService = persistenceService ?? const NoOpDjKeymapPersistenceService(),
         _audioProcessor = audioProcessor ?? DjAudioProcessor(),
-        _deckAudioPlayer = deckAudioPlayer ??
-            (_isTestEnvironment ? MemoryDjDeckAudioPlayer() : DjDeckAudioService()),
-        _audioSynthesizer = audioSynthesizer ??
-            (_isTestEnvironment ? MemoryAudioSynthesizerService() : AudioSynthesizerService()) {
+        _deckAudioPlayer = deckAudioPlayer ?? MemoryDjDeckAudioPlayer(),
+        _audioSynthesizer = audioSynthesizer ?? const NoOpAudioSynthesizerService(),
+        _fileSystemRepository = fileSystemRepository ?? const NoOpStudioFileSystemRepository(),
+        _fileGateway = fileGateway ?? const NoOpPlatformFileGateway(),
+        _blueprintStorageService = blueprintStorageService ?? const NoOpDjConsoleBlueprintStorageService() {
     _inputService = inputService ??
         DjGamepadInputService(
           profile: DjControllerProfileEntity.defaultUnified(),
@@ -105,12 +116,40 @@ class DjConsoleViewModel extends ChangeNotifier {
     };
 
     _initPersistenceAndKeyHandler();
-    _startTicker();
     _initAudioEngine();
+  }
+
+  /// Indica si el ticker periódico de 30 Hz está activo en este momento.
+  bool get isTickerActive => _playbackTicker?.isActive ?? false;
+
+  bool get _hasActiveTickerWork =>
+      deckA.isPlaying ||
+      deckB.isPlaying ||
+      recorder.isRecording ||
+      _orchestrator.automix.isActive;
+
+  void _syncTickerLifecycle() {
+    if (_isDisposed) return;
+    if (_hasActiveTickerWork) {
+      if (_playbackTicker == null || !_playbackTicker!.isActive) {
+        _startTicker();
+      }
+    } else {
+      _playbackTicker?.cancel();
+      _playbackTicker = null;
+    }
+  }
+
+  @override
+  void notifyListeners() {
+    if (_isDisposed) return;
+    _syncTickerLifecycle();
+    super.notifyListeners();
   }
 
   IDjDeckAudioPlayer get deckAudioPlayer => _deckAudioPlayer;
   IAudioSynthesizerService get audioSynthesizer => _audioSynthesizer;
+  IPlatformFileGateway get fileGateway => _fileGateway;
 
   void _initAudioEngine() {
     _deckAudioPlayer.loadDeckTrack('A');
@@ -124,6 +163,7 @@ class DjConsoleViewModel extends ChangeNotifier {
     _deckAudioPlayer.setDeckVolume('B', gains.effectiveGainB);
   }
 
+  DjPerformanceOrchestrator get orchestrator => _orchestrator;
   DjDeckEntity get deckA => _orchestrator.deckA;
   DjDeckEntity get deckB => _orchestrator.deckB;
   DjCrossfaderEntity get crossfader => _orchestrator.crossfader;
@@ -135,6 +175,46 @@ class DjConsoleViewModel extends ChangeNotifier {
   double get rotationAngleA => _rotationAngleA;
   double get rotationAngleB => _rotationAngleB;
   Uint8List? get lastRecordedWavBytes => _lastRecordedWavBytes;
+
+  /// Retorna el nivel VU calibrado [0.0, 1.2] midiendo la energía RMS real del audio
+  /// en la ventana actual de 33 ms alrededor de la posición del cabezal de reproducción.
+  double getVuLevel(String deckId) {
+    final id = _normalizeDeckId(deckId);
+    final deck = id == 'A' ? deckA : deckB;
+    if (!deck.isPlaying) return 0.0;
+    final samples = id == 'A'
+        ? (_deckSamplesA ??= _audioProcessor.generateDemoGroove(
+            bpm: deck.effectiveBpm,
+            frequencyHz: 55.0,
+            durationMs: 4000,
+          ))
+        : (_deckSamplesB ??= _audioProcessor.generateDemoGroove(
+            bpm: deck.effectiveBpm,
+            frequencyHz: 65.4,
+            durationMs: 4000,
+          ));
+    if (samples.isEmpty) return 0.0;
+
+    final sampleRate = _audioProcessor.sampleRate;
+    final sliceLen = (sampleRate * 0.033).round();
+    final maxStart = math.max(1, samples.length - sliceLen);
+    final start = ((deck.currentPositionMs / 1000.0) * sampleRate).round() % maxStart;
+
+    double sumSq = 0.0;
+    int count = 0;
+    for (int i = 0; i < sliceLen && (start + i) < samples.length; i++) {
+      final s = samples[start + i];
+      sumSq += s * s;
+      count++;
+    }
+    if (count == 0) return 0.0;
+    final rms = math.sqrt(sumSq / count);
+    final isAllKilled = deck.isKillLow && deck.isKillMid && deck.isKillHigh;
+    final effectiveLevel = isAllKilled
+        ? 0.0
+        : (rms * deck.volume * (deck.gainLow * 0.4 + deck.gainMid * 0.4 + deck.gainHigh * 0.2));
+    return (effectiveLevel * 1.8).clamp(0.0, 1.2);
+  }
 
   // Hardware skins & Pro Workstation getters
   DjHardwareSkinEntity get activeSkin => _activeSkin.withActiveActions(activeLitActions);
@@ -172,17 +252,16 @@ class DjConsoleViewModel extends ChangeNotifier {
     if (fxA.filterPosition.abs() > 0.05) lit.add(DjAction.deckAFilterReset);
     if (fxB.filterPosition.abs() > 0.05) lit.add(DjAction.deckBFilterReset);
 
-    // Hot Cues LEDs (Deck A)
-    if (deckA.hotCues[0] != null || deckA.hotCues[1] != null) lit.add(DjAction.deckAHotCue1);
-    if (deckA.hotCues[2] != null || (deckA.hotCues[1] != null && deckA.hotCues[0] != null)) lit.add(DjAction.deckAHotCue2);
-    if (deckA.hotCues[3] != null || (deckA.hotCues[2] != null && deckA.hotCues[0] != null)) lit.add(DjAction.deckAHotCue3);
-    if (deckA.hotCues[4] != null || (deckA.hotCues[3] != null && deckA.hotCues[0] != null)) lit.add(DjAction.deckAHotCue4);
-
-    // Hot Cues LEDs (Deck B)
-    if (deckB.hotCues[0] != null || deckB.hotCues[1] != null) lit.add(DjAction.deckBHotCue1);
-    if (deckB.hotCues[2] != null || (deckB.hotCues[1] != null && deckB.hotCues[0] != null)) lit.add(DjAction.deckBHotCue2);
-    if (deckB.hotCues[3] != null || (deckB.hotCues[2] != null && deckB.hotCues[0] != null)) lit.add(DjAction.deckBHotCue3);
-    if (deckB.hotCues[4] != null || (deckB.hotCues[3] != null && deckB.hotCues[0] != null)) lit.add(DjAction.deckBHotCue4);
+    _collectHotCueLitActions(
+      deckA.hotCues,
+      const [DjAction.deckAHotCue1, DjAction.deckAHotCue2, DjAction.deckAHotCue3, DjAction.deckAHotCue4],
+      lit,
+    );
+    _collectHotCueLitActions(
+      deckB.hotCues,
+      const [DjAction.deckBHotCue1, DjAction.deckBHotCue2, DjAction.deckBHotCue3, DjAction.deckBHotCue4],
+      lit,
+    );
 
     // Momentary action pulse (e.g. CUE hit, pad hit)
     if (_momentaryLitAction != null) {
@@ -190,6 +269,17 @@ class DjConsoleViewModel extends ChangeNotifier {
     }
 
     return lit;
+  }
+
+  void _collectHotCueLitActions(
+    Map<int, int> hotCues,
+    List<DjAction> actions,
+    Set<DjAction> lit,
+  ) {
+    if (hotCues[0] != null || hotCues[1] != null) lit.add(actions[0]);
+    if (hotCues[2] != null || (hotCues[1] != null && hotCues[0] != null)) lit.add(actions[1]);
+    if (hotCues[3] != null || (hotCues[2] != null && hotCues[0] != null)) lit.add(actions[2]);
+    if (hotCues[4] != null || (hotCues[3] != null && hotCues[0] != null)) lit.add(actions[3]);
   }
 
   void _triggerMomentaryPulse(DjAction action) {
@@ -205,9 +295,9 @@ class DjConsoleViewModel extends ChangeNotifier {
 
   Future<void> _initPersistenceAndKeyHandler() async {
     final profile = await _persistenceService.loadActiveProfile();
+    if (_isDisposed) return;
     _orchestrator.setKeymapProfile(profile);
-    HardwareKeyboard.instance.addHandler(_handleHardwareKeyEvent);
-    if (!_isDisposed) notifyListeners();
+    notifyListeners();
   }
 
   void _startTicker() {
@@ -238,24 +328,54 @@ class DjConsoleViewModel extends ChangeNotifier {
         changed = true;
       }
 
-      // If recording is active, capture audio slice
+      // If recording is active, capture real audio slice from active decks
       if (recorder.isRecording) {
         final sampleRate = _audioProcessor.sampleRate;
         final sliceLength = (sampleRate * 0.033).round();
-        final dummyBufferA = Float32List(sliceLength);
-        final dummyBufferB = Float32List(sliceLength);
+        final sliceA = Float32List(sliceLength);
+        final sliceB = Float32List(sliceLength);
+
+        if (deckA.isPlaying) {
+          final samples = _deckSamplesA ??= _audioProcessor.generateDemoGroove(
+            bpm: deckA.effectiveBpm,
+            frequencyHz: 55.0,
+            durationMs: 4000,
+          );
+          final maxStart = math.max(1, samples.length - sliceLength);
+          final startSample =
+              ((deckA.currentPositionMs / 1000.0) * sampleRate).round() % maxStart;
+          for (int s = 0; s < sliceLength && (startSample + s) < samples.length; s++) {
+            sliceA[s] = samples[startSample + s];
+          }
+        }
+
+        if (deckB.isPlaying) {
+          final samples = _deckSamplesB ??= _audioProcessor.generateDemoGroove(
+            bpm: deckB.effectiveBpm,
+            frequencyHz: 65.4,
+            durationMs: 4000,
+          );
+          final maxStart = math.max(1, samples.length - sliceLength);
+          final startSample =
+              ((deckB.currentPositionMs / 1000.0) * sampleRate).round() % maxStart;
+          for (int s = 0; s < sliceLength && (startSample + s) < samples.length; s++) {
+            sliceB[s] = samples[startSample + s];
+          }
+        }
 
         final mixedChunk = _audioProcessor.mixBuffers(
-          bufferA: dummyBufferA,
-          bufferB: dummyBufferB,
+          bufferA: sliceA,
+          bufferB: sliceB,
           gainA: _orchestrator.deckAGain,
           gainB: _orchestrator.deckBGain,
-          eqLowA: deckA.gainLow,
-          eqMidA: deckA.gainMid,
-          eqHighA: deckA.gainHigh,
-          eqLowB: deckB.gainLow,
-          eqMidB: deckB.gainMid,
-          eqHighB: deckB.gainHigh,
+          eqLowA: deckA.isKillLow ? 0.0 : deckA.gainLow,
+          eqMidA: deckA.isKillMid ? 0.0 : deckA.gainMid,
+          eqHighA: deckA.isKillHigh ? 0.0 : deckA.gainHigh,
+          eqLowB: deckB.isKillLow ? 0.0 : deckB.gainLow,
+          eqMidB: deckB.isKillMid ? 0.0 : deckB.gainMid,
+          eqHighB: deckB.isKillHigh ? 0.0 : deckB.gainHigh,
+          stemsA: deckA.stems,
+          stemsB: deckB.stems,
           filterA: fxA.filterPosition,
           filterB: fxB.filterPosition,
           delayActiveA: fxA.isDelayActive,
@@ -294,7 +414,11 @@ class DjConsoleViewModel extends ChangeNotifier {
   }
 
   bool _handleHardwareKeyEvent(KeyEvent event) {
-    if (event is! KeyDownEvent) return false;
+    if (_isDisposed || event is! KeyDownEvent) return false;
+    final primaryFocus = FocusManager.instance.primaryFocus;
+    if (primaryFocus?.context?.widget is EditableText) {
+      return false;
+    }
 
     final keyLabel = event.logicalKey.keyLabel.isNotEmpty
         ? event.logicalKey.keyLabel
@@ -356,12 +480,30 @@ class DjConsoleViewModel extends ChangeNotifier {
   }
 
   void toggleKeyLock(String deckId) {
-    _orchestrator.toggleKeyLock(deckId);
+    final id = _normalizeDeckId(deckId);
+    _orchestrator.toggleKeyLock(id);
+    _syncDeckPlaybackRate(id);
     if (!_isDisposed) notifyListeners();
   }
 
   void syncKey(String deckId) {
-    _orchestrator.syncKey(deckId);
+    final id = _normalizeDeckId(deckId);
+    _orchestrator.syncKey(id);
+    _syncDeckPlaybackRate(id);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void _syncDeckPlaybackRate(String deckId) {
+    final id = _normalizeDeckId(deckId);
+    final deck = id == 'A' ? deckA : deckB;
+    final rate = deck.effectivePlaybackRate.clamp(0.5, 2.0);
+    _deckAudioPlayer.setDeckPlaybackRate(id, rate);
+  }
+
+  void setTrim(String deckId, double trim) {
+    final id = _normalizeDeckId(deckId);
+    _orchestrator.setTrim(id, trim);
+    _syncAudioVolumes();
     if (!_isDisposed) notifyListeners();
   }
 
@@ -434,6 +576,42 @@ class DjConsoleViewModel extends ChangeNotifier {
   void toggleSplitCue() {
     _orchestrator.toggleSplitCue();
     if (!_isDisposed) notifyListeners();
+  }
+
+  /// Genera un búfer estéreo Split-Cue en tiempo real (Izquierda: Master, Derecha: Cue Monitor PFL)
+  /// utilizando [DjAudioProcessor.encodeSplitCueStereo].
+  Float32List generateSplitCueChunk({
+    required Float32List sliceA,
+    required Float32List sliceB,
+  }) {
+    final masterMono = _audioProcessor.mixBuffers(
+      bufferA: sliceA,
+      bufferB: sliceB,
+      gainA: _orchestrator.deckAGain,
+      gainB: _orchestrator.deckBGain,
+      eqLowA: deckA.isKillLow ? 0.0 : deckA.gainLow,
+      eqMidA: deckA.isKillMid ? 0.0 : deckA.gainMid,
+      eqHighA: deckA.isKillHigh ? 0.0 : deckA.gainHigh,
+      eqLowB: deckB.isKillLow ? 0.0 : deckB.gainLow,
+      eqMidB: deckB.isKillMid ? 0.0 : deckB.gainMid,
+      eqHighB: deckB.isKillHigh ? 0.0 : deckB.gainHigh,
+      filterA: fxA.filterPosition,
+      filterB: fxB.filterPosition,
+    );
+
+    final cueA = cueMonitor.cueDeckA ? sliceA : Float32List(sliceA.length);
+    final cueB = cueMonitor.cueDeckB ? sliceB : Float32List(sliceB.length);
+    final cueMono = _audioProcessor.mixBuffers(
+      bufferA: cueA,
+      bufferB: cueB,
+      gainA: 1.0,
+      gainB: 1.0,
+    );
+
+    return _audioProcessor.encodeSplitCueStereo(
+      masterMono: masterMono,
+      cueMono: cueMono,
+    );
   }
 
   /// Ejecuta una coreografía automatizada de 15 segundos para pruebas integrales de todos los subsistemas.
@@ -573,6 +751,16 @@ class DjConsoleViewModel extends ChangeNotifier {
       _deckAudioPlayer.seekDeck('A', Duration(milliseconds: deckA.currentPositionMs));
     } else if (action == DjAction.deckBBeatJumpForward || action == DjAction.deckBBeatJumpBack) {
       _deckAudioPlayer.seekDeck('B', Duration(milliseconds: deckB.currentPositionMs));
+    } else if (action == DjAction.deckAPitchUp ||
+        action == DjAction.deckAPitchDown ||
+        action == DjAction.deckASync ||
+        action == DjAction.deckAKeySync) {
+      _syncDeckPlaybackRate('A');
+    } else if (action == DjAction.deckBPitchUp ||
+        action == DjAction.deckBPitchDown ||
+        action == DjAction.deckBSync ||
+        action == DjAction.deckBKeySync) {
+      _syncDeckPlaybackRate('B');
     } else if (action == DjAction.triggerSamplerRiser) {
       _playSamplerPadSound(DjSamplerPadType.whiteNoiseRiser);
     } else if (action == DjAction.triggerSamplerDrop) {
@@ -604,16 +792,42 @@ class DjConsoleViewModel extends ChangeNotifier {
     if (!_isDisposed) notifyListeners();
   }
 
+  String _normalizeDeckId(String deckId) {
+    final lower = deckId.trim().toLowerCase();
+    if (lower == 'a' || lower == 'deck_a') return 'A';
+    if (lower == 'b' || lower == 'deck_b') return 'B';
+    return deckId.trim().toUpperCase();
+  }
+
   void togglePlay(String deckId) {
-    _orchestrator.togglePlay(deckId);
-    final isPlaying = deckId == 'A' ? deckA.isPlaying : deckB.isPlaying;
+    final id = _normalizeDeckId(deckId);
+    _orchestrator.togglePlay(id);
+    final isPlaying = id == 'A' ? deckA.isPlaying : deckB.isPlaying;
     if (isPlaying) {
-      _deckAudioPlayer.playDeck(deckId);
+      _deckAudioPlayer.playDeck(id);
     } else {
-      _deckAudioPlayer.pauseDeck(deckId);
+      _deckAudioPlayer.pauseDeck(id);
     }
     _syncAudioVolumes();
     if (!_isDisposed) notifyListeners();
+  }
+
+  /// Inicia reproducción explícitamente en [deckId] sin alternar si ya está sonando.
+  void playDeck(String deckId) {
+    final id = _normalizeDeckId(deckId);
+    final isPlaying = id == 'A' ? deckA.isPlaying : deckB.isPlaying;
+    if (!isPlaying) {
+      togglePlay(id);
+    }
+  }
+
+  /// Pausa explícitamente [deckId] sin iniciarlo si ya estaba detenido.
+  void pauseDeck(String deckId) {
+    final id = _normalizeDeckId(deckId);
+    final isPlaying = id == 'A' ? deckA.isPlaying : deckB.isPlaying;
+    if (isPlaying) {
+      togglePlay(id);
+    }
   }
 
   /// Detiene la reproducción en todos los platos activos (Deck A y Deck B).
@@ -638,6 +852,9 @@ class DjConsoleViewModel extends ChangeNotifier {
 
   void syncBpm(String deckId) {
     _orchestrator.syncBpm(deckId);
+    final deck = deckId.toUpperCase() == 'A' ? deckA : deckB;
+    final rate = deck.pitchMultiplier.clamp(0.5, 2.0);
+    _deckAudioPlayer.setDeckPlaybackRate(deckId, rate);
     if (!_isDisposed) notifyListeners();
   }
 
@@ -657,11 +874,12 @@ class DjConsoleViewModel extends ChangeNotifier {
 
   /// Sincroniza la velocidad de reproducción y BPM del deck con el tempo objetivo del reloj maestro.
   void syncDeckToBpm(String deckId, double targetBpm) {
-    final deck = deckId == 'A' ? deckA : deckB;
+    final id = _normalizeDeckId(deckId);
+    final deck = id == 'A' ? deckA : deckB;
     if (deck.bpm <= 0) return;
     final multiplier = (targetBpm / deck.bpm).clamp(0.5, 2.0);
-    _orchestrator.setPitchMultiplier(deckId, multiplier);
-    _deckAudioPlayer.setDeckPlaybackRate(deckId, multiplier);
+    _orchestrator.setPitchMultiplier(id, multiplier);
+    _deckAudioPlayer.setDeckPlaybackRate(id, multiplier);
     if (!_isDisposed) notifyListeners();
   }
 
@@ -728,13 +946,16 @@ class DjConsoleViewModel extends ChangeNotifier {
   Uint8List? stopRecording() {
     _orchestrator.stopRecording();
     final consolidated = _orchestrator.consolidateRecordingBuffer();
-    if (consolidated.isNotEmpty) {
-      _lastRecordedWavBytes = DjMixWavEncoder.encode(
-        samples: consolidated,
-        sampleRate: _audioProcessor.sampleRate,
-        numChannels: 2,
-      );
+    if (consolidated.isEmpty) {
+      _lastRecordedWavBytes = null;
+      if (!_isDisposed) notifyListeners();
+      return null;
     }
+    _lastRecordedWavBytes = DjMixWavEncoder.encode(
+      samples: consolidated,
+      sampleRate: _audioProcessor.sampleRate,
+      numChannels: 1,
+    );
     if (!_isDisposed) notifyListeners();
     return _lastRecordedWavBytes;
   }
@@ -743,6 +964,19 @@ class DjConsoleViewModel extends ChangeNotifier {
     _orchestrator.clearRecording();
     _lastRecordedWavBytes = null;
     if (!_isDisposed) notifyListeners();
+  }
+
+  /// Persiste la última sesión de mezcla grabada como un archivo estándar WAV en disco.
+  Future<bool> saveRecordingToDisk(String filePath) async {
+    final bytes = _lastRecordedWavBytes ?? stopRecording();
+    if (bytes == null || bytes.isEmpty) return false;
+    try {
+      await _fileSystemRepository.saveFile(relativePath: filePath, bytes: bytes);
+      return true;
+    } catch (e) {
+      StudioDebugLogger.instance.warning('DjConsoleViewModel', 'Error al guardar mezcla WAV en disco: $e');
+      return false;
+    }
   }
 
   /// Automatically estimates BPM from audio samples using [BpmBeatTrackerEngine]
@@ -767,8 +1001,10 @@ class DjConsoleViewModel extends ChangeNotifier {
       sampleRate: sampleRate,
     );
     if (deckId == 'A') {
+      _deckSamplesA = audioSamples;
       _waveformA = spectralSummary;
     } else {
+      _deckSamplesB = audioSamples;
       _waveformB = spectralSummary;
     }
     final durationMs = ((audioSamples.length / sampleRate) * 1000.0).round();
@@ -793,6 +1029,70 @@ class DjConsoleViewModel extends ChangeNotifier {
     _syncAudioVolumes();
     if (!_isDisposed) notifyListeners();
     return estimatedBpm;
+  }
+
+  /// Versión asíncrona de [loadTrackWithBeatTracking] que ejecuta estimación de BPM,
+  /// detección armónica Camelot, resumen espectral y codificación WAV en un Isolate secundario.
+  Future<double> loadTrackWithBeatTrackingAsync(
+    String deckId, {
+    required String title,
+    required String artist,
+    required Float32List audioSamples,
+    int sampleRate = 44100,
+  }) async {
+    final analysis = await Isolate.run(() {
+      final estimatedBpm = BpmBeatTrackerEngine.estimateBpm(
+        samples: audioSamples,
+        sampleRate: sampleRate,
+      );
+      final estimatedKey = DjHarmonicCamelotEngine.estimateCamelotKeyFromSamples(
+        audioSamples,
+        sampleRate: sampleRate,
+      );
+      final spectralSummary =
+          DjTransitionSfxSynthesizer.computeSpectralWaveformSummary(
+        audioSamples,
+        sampleRate: sampleRate,
+      );
+      final wavBytes = ProceduralInstrumentSynthesizer.floatBufferToWavBytes(
+        audioSamples,
+        sampleRate: sampleRate,
+      );
+      return (
+        bpm: estimatedBpm,
+        camelotCode: estimatedKey.code,
+        spectralSummary: spectralSummary,
+        wavBytes: wavBytes,
+      );
+    });
+
+    if (_isDisposed) return analysis.bpm;
+
+    if (deckId == 'A') {
+      _deckSamplesA = audioSamples;
+      _waveformA = analysis.spectralSummary;
+    } else {
+      _deckSamplesB = audioSamples;
+      _waveformB = analysis.spectralSummary;
+    }
+    final durationMs = ((audioSamples.length / sampleRate) * 1000.0).round();
+    _orchestrator.loadTrack(
+      deckId,
+      title: title,
+      artist: artist,
+      bpm: analysis.bpm,
+      durationMs: durationMs,
+      camelotKey: analysis.camelotCode,
+    );
+    await _deckAudioPlayer.loadDeckTrack(
+      deckId,
+      wavBytes: analysis.wavBytes,
+      title: title,
+      bpm: analysis.bpm,
+    );
+    _syncAudioVolumes();
+    notifyListeners();
+    return analysis.bpm;
   }
 
   /// Carga una canción curada de la biblioteca oficial en la pletina especificada,
@@ -1005,6 +1305,124 @@ class DjConsoleViewModel extends ChangeNotifier {
     if (!_isDisposed) notifyListeners();
   }
 
+  /// Retorna el valor acustico o visual normalizado [0.0, 1.0] asociado a una zona del hardware.
+  double getControlValue(DjSkinZoneEntity zone) {
+    final lowerId = zone.id.toLowerCase();
+    final deckId = zone.deckId?.toLowerCase();
+    final isDeckB = deckId == 'deckb' || deckId == 'b' || lowerId.contains('_b_') || lowerId.contains('_b');
+    final deck = isDeckB ? deckB : deckA;
+    final fx = isDeckB ? fxB : fxA;
+
+    switch (zone.controlType) {
+      case DjControlType.jogWheel:
+        final rawAngle = isDeckB ? rotationAngleB : rotationAngleA;
+        return ((rawAngle % (2.0 * math.pi)) / (2.0 * math.pi)).clamp(0.0, 1.0);
+
+      case DjControlType.fader:
+        if (lowerId.contains('crossfader') || zone.action == DjAction.crossfaderCenter) {
+          // Bipolar [-1.0, 1.0] -> [0.0, 1.0]
+          return ((crossfader.position + 1.0) / 2.0).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('pitch') || lowerId.contains('tempo') ||
+            zone.action == DjAction.deckAPitchUp || zone.action == DjAction.deckBPitchUp) {
+          // pitchMultiplier [0.84, 1.16], 1.0 -> 0.5
+          return ((deck.pitchMultiplier - 0.84) / (1.16 - 0.84)).clamp(0.0, 1.0);
+        }
+        // Channel fader
+        return deck.volume.clamp(0.0, 1.0);
+
+      case DjControlType.knob:
+        if (lowerId.contains('filter') ||
+            zone.action == DjAction.deckAFilterSweepRight ||
+            zone.action == DjAction.deckBFilterSweepRight ||
+            zone.action == DjAction.deckAFilterReset ||
+            zone.action == DjAction.deckBFilterReset) {
+          // Bipolar filter [-1.0, 1.0] -> [0.0, 1.0]
+          return ((fx.filterPosition + 1.0) / 2.0).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('high') || lowerId.contains('_hi') ||
+            zone.action == DjAction.deckAKillHigh || zone.action == DjAction.deckBKillHigh) {
+          return (deck.effectiveGainHigh / 1.5).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('mid') ||
+            zone.action == DjAction.deckAKillMid || zone.action == DjAction.deckBKillMid) {
+          return (deck.effectiveGainMid / 1.5).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('low') ||
+            zone.action == DjAction.deckAKillLow || zone.action == DjAction.deckBKillLow) {
+          return (deck.effectiveGainLow / 1.5).clamp(0.0, 1.0);
+        }
+        if (lowerId.contains('master') || zone.action == DjAction.masterVolumeUp) {
+          return masterVolume.clamp(0.0, 1.0);
+        }
+        return 0.5;
+
+      case DjControlType.pad:
+      case DjControlType.button:
+        return 1.0;
+    }
+  }
+
+  /// Modifica de forma continua y suave un parametro analogico (fader, knob o jog wheel).
+  void updateContinuousControl(DjSkinZoneEntity zone, double delta) {
+    final lowerId = zone.id.toLowerCase();
+    final deckId = zone.deckId?.toLowerCase();
+    final isDeckB = deckId == 'deckb' || deckId == 'b' || lowerId.contains('_b_') || lowerId.contains('_b');
+    final targetDeck = isDeckB ? 'B' : 'A';
+    final deck = isDeckB ? deckB : deckA;
+    final fx = isDeckB ? fxB : fxA;
+
+    switch (zone.controlType) {
+      case DjControlType.jogWheel:
+        scratchDeck(targetDeck, delta * 2.0);
+        break;
+
+      case DjControlType.fader:
+        if (lowerId.contains('crossfader') || zone.action == DjAction.crossfaderCenter) {
+          final nextPos = (crossfader.position + (delta * 2.0)).clamp(-1.0, 1.0);
+          setCrossfaderPosition(nextPos);
+        } else if (lowerId.contains('pitch') || lowerId.contains('tempo') ||
+            zone.action == DjAction.deckAPitchUp || zone.action == DjAction.deckBPitchUp) {
+          adjustPitch(targetDeck, -delta * 0.32);
+        } else {
+          // Channel fader: subir arrastrando hacia arriba (-delta)
+          final newVol = (deck.volume - delta).clamp(0.0, 1.0);
+          setDeckVolume(targetDeck, newVol);
+        }
+        break;
+
+      case DjControlType.knob:
+        if (lowerId.contains('filter') ||
+            zone.action == DjAction.deckAFilterSweepRight ||
+            zone.action == DjAction.deckBFilterSweepRight ||
+            zone.action == DjAction.deckAFilterReset ||
+            zone.action == DjAction.deckBFilterReset) {
+          final nextFilter = (fx.filterPosition - (delta * 2.0)).clamp(-1.0, 1.0);
+          setChannelFilter(targetDeck, nextFilter);
+        } else if (lowerId.contains('high') || lowerId.contains('_hi') ||
+            zone.action == DjAction.deckAKillHigh || zone.action == DjAction.deckBKillHigh) {
+          final nextGain = (deck.gainHigh - (delta * 1.5)).clamp(0.0, 1.5);
+          setEqGains(targetDeck, high: nextGain);
+        } else if (lowerId.contains('mid') ||
+            zone.action == DjAction.deckAKillMid || zone.action == DjAction.deckBKillMid) {
+          final nextGain = (deck.gainMid - (delta * 1.5)).clamp(0.0, 1.5);
+          setEqGains(targetDeck, mid: nextGain);
+        } else if (lowerId.contains('low') ||
+            zone.action == DjAction.deckAKillLow || zone.action == DjAction.deckBKillLow) {
+          final nextGain = (deck.gainLow - (delta * 1.5)).clamp(0.0, 1.5);
+          setEqGains(targetDeck, low: nextGain);
+        } else if (lowerId.contains('master') || zone.action == DjAction.masterVolumeUp) {
+          final nextVol = (masterVolume - delta).clamp(0.0, 1.0);
+          setMasterVolume(nextVol);
+        }
+        break;
+
+      case DjControlType.pad:
+      case DjControlType.button:
+        break;
+    }
+  }
+
   @override
   void dispose() {
     _isDisposed = true;
@@ -1016,7 +1434,6 @@ class DjConsoleViewModel extends ChangeNotifier {
     _inputService.dispose();
     _deckAudioPlayer.dispose();
     _audioSynthesizer.dispose();
-    HardwareKeyboard.instance.removeHandler(_handleHardwareKeyEvent);
     super.dispose();
   }
 }

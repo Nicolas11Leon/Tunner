@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
+import '../../logging/infrastructure/studio_debug_logger.dart';
 import '../domain/audio_device_entity.dart';
 import '../domain/audio_pcm_frame.dart';
 import '../domain/audio_ring_buffer.dart';
@@ -83,8 +84,13 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
           inputChannels: 1,
         );
       }).toList();
-    } catch (e) {
-      debugPrint('StudioAudioInputEngine: Error listando dispositivos: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'StudioAudioInputEngine',
+        'Error listando dispositivos',
+        error: e,
+        stackTrace: st,
+      );
       return [AudioDeviceEntity.systemDefault()];
     }
   }
@@ -117,7 +123,10 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
     try {
       final hasPerm = await _recorder.hasPermission();
       if (!hasPerm) {
-        debugPrint('StudioAudioInputEngine: Permiso de micrófono denegado');
+        StudioDebugLogger.instance.warning(
+          'StudioAudioInputEngine',
+          'Permiso de microfono denegado',
+        );
         return;
       }
 
@@ -131,7 +140,14 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
               break;
             }
           }
-        } catch (_) {}
+        } catch (e, st) {
+          StudioDebugLogger.instance.warning(
+            'StudioAudioInputEngine',
+            'Failed to enumerate audio input devices; falling back to default',
+            error: e,
+            stackTrace: st,
+          );
+        }
       }
 
       final config = RecordConfig(
@@ -164,11 +180,21 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
         if (!_peakDbController.isClosed) {
           _peakDbController.add(frame.peakDb);
         }
-      }, onError: (e) {
-        debugPrint('StudioAudioInputEngine: Error en stream de audio: $e');
+      }, onError: (e, st) {
+        StudioDebugLogger.instance.warning(
+          'StudioAudioInputEngine',
+          'Error en stream de audio',
+          error: e,
+          stackTrace: st is StackTrace ? st : null,
+        );
       });
-    } catch (e) {
-      debugPrint('StudioAudioInputEngine: Error iniciando captura: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.error(
+        'StudioAudioInputEngine',
+        'Error iniciando captura',
+        error: e,
+        stackTrace: st,
+      );
       _isCapturing = false;
     }
   }
@@ -183,8 +209,13 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
       if (!_isTestEnvironment) {
         await _recorder.stop();
       }
-    } catch (e) {
-      debugPrint('StudioAudioInputEngine: Error deteniendo captura: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'StudioAudioInputEngine',
+        'Error deteniendo captura',
+        error: e,
+        stackTrace: st,
+      );
     } finally {
       _isCapturing = false;
       _ringBuffer.clear();

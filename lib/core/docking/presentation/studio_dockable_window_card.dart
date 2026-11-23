@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../domain/studio_dock_zone.dart';
-import '../domain/studio_dockable_panel_entity.dart';
+import 'studio_dockable_panel_entity.dart';
 
 /// Tarjeta de ventana desacoplable y arrastrable tipo DAW profesional.
 class StudioDockableWindowCard extends StatelessWidget {

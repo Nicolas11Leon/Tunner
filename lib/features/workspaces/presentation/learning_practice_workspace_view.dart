@@ -227,17 +227,19 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
           const SizedBox(height: 10),
 
           // Afinador Estroboscópico de Alta Precisión
-          StrobeTunerWidget(
-            cents: viewModel.cents,
-            frequency: viewModel.frequency,
-            noteName: viewModel.hasTransposition ? viewModel.writtenNoteName : viewModel.noteName,
-            soundingNoteName: viewModel.hasTransposition ? viewModel.noteName : null,
-            isRecording: viewModel.isRecording,
-            onPlayReferenceTone: () => viewModel.playReferenceTone("La4"),
-            palette: palette,
-            centsTolerance: viewModel.centsTolerance,
-          ),
-          const SizedBox(height: 10),
+          if (viewModel.workspaceConfiguration.showStrobeTuner) ...[
+            StrobeTunerWidget(
+              cents: viewModel.cents,
+              frequency: viewModel.frequency,
+              noteName: viewModel.hasTransposition ? viewModel.writtenNoteName : viewModel.noteName,
+              soundingNoteName: viewModel.hasTransposition ? viewModel.noteName : null,
+              isRecording: viewModel.isRecording,
+              onPlayReferenceTone: () => viewModel.playReferenceTone("La4"),
+              palette: palette,
+              centsTolerance: viewModel.centsTolerance,
+            ),
+            const SizedBox(height: 10),
+          ],
 
           // Tarjeta de Diagnóstico Biomecánico Pedagógico en Vivo
           if (diagnostic != null && viewModel.frequency > 0)
@@ -301,8 +303,9 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
           const SizedBox(height: 10),
 
           // Barra de Metrónomo Compacto (Clean-Tick Anti-Bleed)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          if (viewModel.workspaceConfiguration.showMetronome) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               color: palette.cardBackground,
               borderRadius: BorderRadius.circular(14),
@@ -383,6 +386,7 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
+          ],
 
           // Fila de Filtros y Evaluación Pedagógica
           SingleChildScrollView(

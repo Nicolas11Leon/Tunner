@@ -3,51 +3,94 @@ import 'dart:isolate';
 import '../domain/i_metronome_service.dart';
 
 /// Implementación de infraestructura para la temporización de alta resolución en Isolate de Dart.
-/// Implementa [IMetronomeService] y rinde el tiempo al sistema operativo sin busy-waiting.
-class MetronomeService implements IMetronomeService {
+/// Implementa [IMetronomeService], rinde el tiempo al sistema operativo sin busy-waiting
+/// y libera determinísticamente el puerto e Isolate en cada llamada a [stop].
+class MetronomeService implements IMeteredMetronomeService {
   Isolate? _isolate;
-  final ReceivePort _fromIsolatePort = ReceivePort();
+  ReceivePort? _fromIsolatePort;
+  StreamSubscription<dynamic>? _portSubscription;
+  int _generation = 0;
 
   @override
   Function(int currentSubTick)? onSubTick;
 
-  MetronomeService() {
-    _fromIsolatePort.listen((message) {
-      if (message is int && onSubTick != null) {
+  @override
+  Future<void> startWithMeter(int bpm, {int ticksPerMeasure = 16, int meterDenominator = 4}) =>
+      start(bpm, ticksPerMeasure: ticksPerMeasure, meterDenominator: meterDenominator);
+
+  @override
+  Future<void> start(int bpm, {int ticksPerMeasure = 16, int meterDenominator = 4}) async {
+    final int opGen = ++_generation;
+    if (_isolate != null || _fromIsolatePort != null) {
+      await stop();
+      _generation = opGen;
+    }
+
+    final safeBpm = bpm.clamp(20, 300);
+    final safeTicks = ticksPerMeasure.clamp(1, 64);
+    final safeDenominator = meterDenominator.clamp(1, 16);
+
+    final receivePort = ReceivePort();
+    _fromIsolatePort = receivePort;
+    _portSubscription = receivePort.listen((message) {
+      if (opGen == _generation && message is int && onSubTick != null) {
         onSubTick!(message);
       }
     });
-  }
 
-  @override
-  Future<void> start(int bpm, {int ticksPerMeasure = 16}) async {
-    if (_isolate != null) await stop();
-    _isolate = await Isolate.spawn(_highResolutionTicksLogic, {
-      'port': _fromIsolatePort.sendPort,
-      'bpm': bpm,
-      'ticksPerMeasure': ticksPerMeasure,
-    });
+    try {
+      final spawned = await Isolate.spawn(_highResolutionTicksLogic, {
+        'port': receivePort.sendPort,
+        'bpm': safeBpm,
+        'ticksPerMeasure': safeTicks,
+        'meterDenominator': safeDenominator,
+      });
+      if (opGen != _generation) {
+        spawned.kill(priority: Isolate.immediate);
+        return;
+      }
+      _isolate = spawned;
+    } catch (_) {
+      if (opGen == _generation) {
+        await stop();
+      }
+      rethrow;
+    }
   }
 
   static void _highResolutionTicksLogic(Map<String, dynamic> args) {
-    SendPort toMainPort = args['port'];
-    int bpm = args['bpm'];
-    int ticksPerMeasure = args['ticksPerMeasure'] ?? 16;
-    
-    // Intervalo exacto en microsegundos para resolución de semicorcheas
-    // 60,000,000 microsegundos por minuto / bpm / 4
-    int intervalMicros = (60000000 / bpm / 4).round();
-    int subTickCounter = 0;
+    final SendPort toMainPort = args['port'] as SendPort;
+    final int bpm = ((args['bpm'] as int?) ?? 120).clamp(20, 300);
+    final int ticksPerMeasure = ((args['ticksPerMeasure'] as int?) ?? 16).clamp(1, 64);
+    final int meterDenominator = ((args['meterDenominator'] as int?) ?? 4).clamp(1, 16);
 
-    // Timer.periodic rinde el tiempo al planificador del sistema operativo (0% busy-waiting)
-    Timer.periodic(Duration(microseconds: intervalMicros), (timer) {
-      toMainPort.send(subTickCounter);
-      subTickCounter = (subTickCounter + 1) % ticksPerMeasure;
-    });
+    // 16th-note sub-tick interval: for x/2 meter (alla breve), half-note beat = 8 sixteenth sub-ticks
+    final double subTicksPerBeat = meterDenominator == 2 ? 8.0 : 4.0;
+    final double intervalMicros = 60000000.0 / (bpm * subTicksPerBeat);
+    final Stopwatch stopwatch = Stopwatch()..start();
+    int totalEmitted = 0;
+
+    void scheduleNext() {
+      final int subTick = totalEmitted % ticksPerMeasure;
+      toMainPort.send(subTick);
+      totalEmitted++;
+
+      final int targetMicros = (totalEmitted * intervalMicros).round();
+      final int waitMicros = targetMicros - stopwatch.elapsedMicroseconds;
+      Timer(Duration(microseconds: waitMicros > 0 ? waitMicros : 0), scheduleNext);
+    }
+
+    // Emision inmediata del pulso 1 en t=0 sin espera de polling
+    scheduleNext();
   }
 
   @override
   Future<void> stop() async {
+    _generation++;
+    await _portSubscription?.cancel();
+    _portSubscription = null;
+    _fromIsolatePort?.close();
+    _fromIsolatePort = null;
     _isolate?.kill(priority: Isolate.immediate);
     _isolate = null;
   }

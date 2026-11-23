@@ -33,11 +33,11 @@ Crear un punto de entrada centralizado e intuitivo (`HomeDashboardScreen` / `Mai
     - Accesos rápidos a herramientas frecuentes.
   - `MainAppShell`:
     - Barra de navegación inferior con pestañas:
-      0: 🏠 Inicio (Dashboard)
-      1: 🎯 Afinador (TunerScreen limpio)
-      2: 🎓 Aprender (GuidedLessonsModal / Tutor)
-      3: 🎙️ Grabación & Práctica (PracticeRecorder & Evaluador)
-      4: 🎼 Canciones & Partituras (SongLibrary & Importador)
+      0: Inicio (Dashboard)
+      1: Afinador (TunerScreen limpio)
+      2: Aprender (GuidedLessonsModal / Tutor)
+      3: Grabación & Práctica (PracticeRecorder & Evaluador)
+      4: Canciones & Partituras (SongLibrary & Importador)
   - Descongestión visual de `TunerScreen`.
 - **Excluido (Out-of-Scope):**
   - Alterar la lógica interna de los algoritmos DSP o audio FFI (se preservan al 100%).

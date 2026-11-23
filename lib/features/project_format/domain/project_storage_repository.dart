@@ -28,3 +28,60 @@ abstract class ProjectStorageRepository {
   /// Deserializa una herramienta individual desde bytes binarios.
   TunnerToolPreset loadToolPresetFromBytes(Uint8List bytes);
 }
+
+/// Implementación en memoria / no-op para inicializaciones seguras sin I/O físico.
+class NoOpProjectStorageRepository implements ProjectStorageRepository {
+  const NoOpProjectStorageRepository();
+
+  @override
+  Future<void> saveProject(String filePath, TunnerProjectPackage project) async {}
+
+  @override
+  Future<TunnerProjectPackage> loadProject(String filePath) async {
+    return const TunnerProjectPackage(
+      projectId: 'blank',
+      projectName: 'Proyecto en Blanco',
+      tools: [],
+      createdAtMicros: 0,
+      updatedAtMicros: 0,
+    );
+  }
+
+  @override
+  TunnerProjectPackage loadProjectFromBytes(Uint8List bytes) {
+    return const TunnerProjectPackage(
+      projectId: 'blank',
+      projectName: 'Proyecto en Blanco',
+      tools: [],
+      createdAtMicros: 0,
+      updatedAtMicros: 0,
+    );
+  }
+
+  @override
+  Uint8List encodeProjectToBytes(TunnerProjectPackage project) => Uint8List(0);
+
+  @override
+  Future<void> saveToolPreset(String filePath, TunnerToolPreset tool) async {}
+
+  @override
+  Future<TunnerToolPreset> loadToolPreset(String filePath) async {
+    return const TunnerToolPreset(
+      moduleTypeCode: 'strobeTuner',
+      customTitle: 'Blank Preset',
+      savedAtMicros: 0,
+    );
+  }
+
+  @override
+  Uint8List encodeToolPresetToBytes(TunnerToolPreset tool) => Uint8List(0);
+
+  @override
+  TunnerToolPreset loadToolPresetFromBytes(Uint8List bytes) {
+    return const TunnerToolPreset(
+      moduleTypeCode: 'strobeTuner',
+      customTitle: 'Blank Preset',
+      savedAtMicros: 0,
+    );
+  }
+}

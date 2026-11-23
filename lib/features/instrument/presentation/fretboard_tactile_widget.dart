@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import '../domain/universal_instrument_definition.dart';
+import 'visual_interface_profile_ui_ext.dart';
 
 /// Visualizador y emulador táctil interactivo de diapasón con trastes (Fretboard).
 /// Permite visualizar la digitación de escalas y tocar notas al aire o trastes en vivo.
@@ -174,11 +177,35 @@ class FretboardTactileWidget extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            // Línea de la cuerda de acero/nylon
+                            // Línea de la cuerda + trastes 1..totalFrets interactivos
                             Expanded(
-                              child: Container(
-                                height: (stringsCount - s) * 0.6 + 0.8,
-                                color: Colors.white.withValues(alpha: 0.45),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Container(
+                                    height: (stringsCount - s) * 0.6 + 0.8,
+                                    color: Colors.white.withValues(alpha: 0.45),
+                                  ),
+                                  Row(
+                                    children: [
+                                      for (int fret = 1; fret <= totalFrets; fret++)
+                                        Expanded(
+                                          child: InkWell(
+                                            key: Key('fret_cell_${s}_$fret'),
+                                            onTap: () {
+                                              if (s < tuningFrequencies.length) {
+                                                // f = f_open * 2^(fret / 12)
+                                                final freq = tuningFrequencies[s] *
+                                                    math.pow(2.0, fret / 12.0);
+                                                onNoteTriggered?.call(freq.toDouble());
+                                              }
+                                            },
+                                            child: const SizedBox(height: 24),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           ],

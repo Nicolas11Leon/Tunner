@@ -79,6 +79,17 @@ void main() {
       await tester.pump();
       expect(viewModel.selectedTemperament.id, equals('pythagorean'));
 
+      // Desplazar y seleccionar Kirnberger I
+      final kirnbergerCard = find.byKey(const Key('temperament_card_kirnberger_i'));
+      await tester.scrollUntilVisible(
+        kirnbergerCard,
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(kirnbergerCard);
+      await tester.pump();
+      expect(viewModel.selectedTemperament.id, equals('kirnberger_i'));
+
       // Cambiar tónica a Re
       await tester.tap(find.text("Re"));
       await tester.pump();
@@ -139,7 +150,7 @@ void main() {
       expect(viewModel.cents, closeTo(13.69, 0.5));
 
       // Esperar que el temporizador de silencio termine limpiamente
-      await tester.pump(const Duration(milliseconds: 70));
+      await tester.pump(const Duration(milliseconds: 360));
     });
   });
 }

@@ -1,9 +1,10 @@
 import 'dart:io';
+import '../domain/i_stem_export_persistence_service.dart';
 import '../domain/stem_export_entity.dart';
 
 /// Servicio de infraestructura para escribir paquetes de stems y secuencias MIDI
 /// en el almacenamiento local offline del dispositivo.
-class StemExportPersistenceService {
+class StemExportPersistenceService implements IStemExportPersistenceService {
   final Future<String> Function()? documentsPathProvider;
 
   StemExportPersistenceService({this.documentsPathProvider});
@@ -17,7 +18,8 @@ class StemExportPersistenceService {
       basePath = Directory.systemTemp.path;
     }
 
-    final folderName = customSubfolder ?? "tunner_exports";
+    final rawFolderName = customSubfolder ?? "tunner_exports";
+    final folderName = rawFolderName.replaceAll(RegExp(r'[\\/:\*\?"<>\|\x00]'), '_').replaceAll('..', '_');
     final targetDir = Directory('$basePath/exports/$folderName');
     if (!await targetDir.exists()) {
       await targetDir.create(recursive: true);
@@ -27,6 +29,7 @@ class StemExportPersistenceService {
 
   /// Guarda en disco todos los archivos binarios contenidos en un [ExportBundleResult].
   /// Retorna la lista de rutas absolutas generadas.
+  @override
   Future<List<String>> saveExportBundle(
     ExportBundleResult bundle, {
     String? customSubfolder,
@@ -37,7 +40,8 @@ class StemExportPersistenceService {
     final savedPaths = <String>[];
 
     for (final file in bundle.files) {
-      final filePath = '${targetDir.path}/${file.fileName}';
+      final safeFileName = file.fileName.replaceAll(RegExp(r'[\\/:\*\?"<>\|\x00]'), '_').replaceAll('..', '_');
+      final filePath = '${targetDir.path}/$safeFileName';
       final ioFile = File(filePath);
       await ioFile.writeAsBytes(file.bytes, flush: true);
       savedPaths.add(filePath);

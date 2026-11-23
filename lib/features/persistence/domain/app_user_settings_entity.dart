@@ -1,6 +1,8 @@
 import 'dart:convert';
 import '../../../core/theme/tunner_theme.dart';
+import '../../mixer/domain/mixer_track_entity.dart';
 import '../../practice_evaluator/domain/practice_report_entity.dart';
+import '../../practice_recorder/domain/multitrack_session_entity.dart';
 import '../../practice_recorder/domain/practice_recording_entity.dart';
 import '../../pedagogy_profiles/domain/learner_profile_entity.dart';
 import '../../workspaces/domain/workspace_type.dart';
@@ -32,12 +34,22 @@ class AppUserSettingsEntity {
   final List<TunnerThemePalette> customPalettes;
   final List<PracticeReportEntity> sessionHistory;
   final List<PracticeRecordingEntity> recordingHistory;
+  final MultiTrackSessionEntity? multiTrackSession;
   final List<TuningPresetEntity> tuningPresets;
   final List<SongPackage> workspaceScores;
   final LearnerProfileEntity learnerProfile;
   final WorkspaceType activeWorkspace;
   final MicrophoneCalibrationProfile micCalibrationProfile;
   final AcousticRigorProfile acousticRigorProfile;
+  final String dspEngineName;
+  final int targetRenderFps;
+  final double centsPrecision;
+  final WorkspaceConfigurationEntity? workspaceConfiguration;
+  final Map<String, Map<String, dynamic>> earTrainingItemsJson;
+  final Map<String, String> taskStatuses;
+  final List<String> completedLessonIds;
+  final MixerConsoleEntity? mixerConsole;
+  final String? activeScoreId;
 
   const AppUserSettingsEntity({
     this.referencePitch = 440.0,
@@ -51,11 +63,21 @@ class AppUserSettingsEntity {
     this.customPalettes = const [],
     this.sessionHistory = const [],
     this.recordingHistory = const [],
+    this.multiTrackSession,
     this.tuningPresets = const [],
     this.workspaceScores = const [],
     this.activeWorkspace = WorkspaceType.learning,
     this.micCalibrationProfile = const MicrophoneCalibrationProfile(),
     this.acousticRigorProfile = const AcousticRigorProfile(),
+    this.dspEngineName = 'Tartini DSP 2.1',
+    this.targetRenderFps = 60,
+    this.centsPrecision = 0.1,
+    this.workspaceConfiguration,
+    this.earTrainingItemsJson = const {},
+    this.taskStatuses = const {},
+    this.completedLessonIds = const [],
+    this.mixerConsole,
+    this.activeScoreId,
     this.learnerProfile = const LearnerProfileEntity(
       type: LearnerProfileType.adultDeliberate,
       title: 'Modo Adulto (Práctica Deliberada)',
@@ -83,12 +105,23 @@ class AppUserSettingsEntity {
     List<TunnerThemePalette>? customPalettes,
     List<PracticeReportEntity>? sessionHistory,
     List<PracticeRecordingEntity>? recordingHistory,
+    MultiTrackSessionEntity? multiTrackSession,
+    bool clearMultiTrackSession = false,
     List<TuningPresetEntity>? tuningPresets,
     List<SongPackage>? workspaceScores,
     LearnerProfileEntity? learnerProfile,
     WorkspaceType? activeWorkspace,
     MicrophoneCalibrationProfile? micCalibrationProfile,
     AcousticRigorProfile? acousticRigorProfile,
+    String? dspEngineName,
+    int? targetRenderFps,
+    double? centsPrecision,
+    WorkspaceConfigurationEntity? workspaceConfiguration,
+    Map<String, Map<String, dynamic>>? earTrainingItemsJson,
+    Map<String, String>? taskStatuses,
+    List<String>? completedLessonIds,
+    MixerConsoleEntity? mixerConsole,
+    String? activeScoreId,
   }) {
     return AppUserSettingsEntity(
       referencePitch: referencePitch ?? this.referencePitch,
@@ -102,12 +135,22 @@ class AppUserSettingsEntity {
       customPalettes: customPalettes ?? this.customPalettes,
       sessionHistory: sessionHistory ?? this.sessionHistory,
       recordingHistory: recordingHistory ?? this.recordingHistory,
+      multiTrackSession: clearMultiTrackSession ? null : (multiTrackSession ?? this.multiTrackSession),
       tuningPresets: tuningPresets ?? this.tuningPresets,
       workspaceScores: workspaceScores ?? this.workspaceScores,
       learnerProfile: learnerProfile ?? this.learnerProfile,
       activeWorkspace: activeWorkspace ?? this.activeWorkspace,
       micCalibrationProfile: micCalibrationProfile ?? this.micCalibrationProfile,
       acousticRigorProfile: acousticRigorProfile ?? this.acousticRigorProfile,
+      dspEngineName: dspEngineName ?? this.dspEngineName,
+      targetRenderFps: targetRenderFps ?? this.targetRenderFps,
+      centsPrecision: centsPrecision ?? this.centsPrecision,
+      workspaceConfiguration: workspaceConfiguration ?? this.workspaceConfiguration,
+      earTrainingItemsJson: earTrainingItemsJson ?? this.earTrainingItemsJson,
+      taskStatuses: taskStatuses ?? this.taskStatuses,
+      completedLessonIds: completedLessonIds ?? this.completedLessonIds,
+      mixerConsole: mixerConsole ?? this.mixerConsole,
+      activeScoreId: activeScoreId ?? this.activeScoreId,
     );
   }
 
@@ -122,44 +165,109 @@ class AppUserSettingsEntity {
       'selectedTemperamentId': selectedTemperamentId,
       'temperamentRootKey': temperamentRootKey,
       'customPalettes': customPalettes.map((p) => p.toJson()).toList(),
-      // Limitar a las últimas 50 sesiones para evitar sobrecarga de I/O
-      'sessionHistory': sessionHistory.take(50).map((s) => s.toMap()).toList(),
-      // Limitar a las últimas 50 grabaciones
+      // Conservar las 50 sesiones mas recientes
+      'sessionHistory': (sessionHistory.length > 50
+              ? sessionHistory.sublist(sessionHistory.length - 50)
+              : sessionHistory)
+          .map((s) => s.toMap())
+          .toList(),
+      // Conservar las 50 grabaciones mas recientes (insertadas en indice 0)
       'recordingHistory': recordingHistory.take(50).map((r) => r.toMap()).toList(),
+      if (multiTrackSession != null) 'multiTrackSession': multiTrackSession!.toMap(),
       'tuningPresets': tuningPresets.map((t) => t.toMap()).toList(),
       'workspaceScores': workspaceScores.map((s) => s.toMap()).toList(),
       'learnerProfile': learnerProfile.toJson(),
       'activeWorkspace': activeWorkspace.serializedKey,
       'micCalibrationProfile': micCalibrationProfile.toJson(),
       'acousticRigorProfile': acousticRigorProfile.toJson(),
+      'dspEngineName': dspEngineName,
+      'targetRenderFps': targetRenderFps,
+      'centsPrecision': centsPrecision,
+      if (workspaceConfiguration != null)
+        'workspaceConfiguration': workspaceConfiguration!.toMap(),
+      'earTrainingItemsJson': earTrainingItemsJson,
+      'taskStatuses': taskStatuses,
+      'completedLessonIds': completedLessonIds,
+      if (mixerConsole != null) 'mixerConsole': mixerConsole!.toMap(),
+      if (activeScoreId != null) 'activeScoreId': activeScoreId,
     };
   }
 
-  factory AppUserSettingsEntity.fromMap(Map<String, dynamic> map) {
+  factory AppUserSettingsEntity.fromMap(
+    Map<String, dynamic> map, {
+    void Function(String message)? onCorruptEntry,
+  }) {
     final rawCustom = map['customPalettes'] as List<dynamic>? ?? [];
-    final customPalettes = rawCustom
-        .map((item) => TunnerThemePalette.fromJson(item as Map<String, dynamic>))
-        .toList();
+    final customPalettes = <TunnerThemePalette>[];
+    for (final item in rawCustom) {
+      if (item is Map<String, dynamic>) {
+        try {
+          customPalettes.add(TunnerThemePalette.fromJson(item));
+        } catch (e) {
+          onCorruptEntry?.call('Paleta corrupta omitida: $e');
+        }
+      }
+    }
 
     final rawSessions = map['sessionHistory'] as List<dynamic>? ?? [];
-    final sessionHistory = rawSessions
-        .map((item) => PracticeReportEntity.fromMap(item as Map<String, dynamic>))
-        .toList();
+    final sessionHistory = <PracticeReportEntity>[];
+    for (final item in rawSessions) {
+      if (item is Map<String, dynamic>) {
+        try {
+          sessionHistory.add(PracticeReportEntity.fromMap(item));
+        } catch (e) {
+          onCorruptEntry?.call('Sesion de practica corrupta omitida: $e');
+        }
+      }
+    }
 
     final rawRecordings = map['recordingHistory'] as List<dynamic>? ?? [];
-    final recordingHistory = rawRecordings
-        .map((item) => PracticeRecordingEntity.fromMap(item as Map<String, dynamic>))
-        .toList();
+    final recordingHistory = <PracticeRecordingEntity>[];
+    for (final item in rawRecordings) {
+      if (item is Map<String, dynamic>) {
+        try {
+          recordingHistory.add(PracticeRecordingEntity.fromMap(item));
+        } catch (e) {
+          onCorruptEntry?.call('Grabacion corrupta omitida: $e');
+        }
+      }
+    }
+
+    MultiTrackSessionEntity? multiTrackSession;
+    final rawMultiTrack = map['multiTrackSession'];
+    if (rawMultiTrack is Map<String, dynamic>) {
+      try {
+        multiTrackSession = MultiTrackSessionEntity.fromMap(rawMultiTrack);
+      } catch (e) {
+        onCorruptEntry?.call('Sesion multipista corrupta omitida: $e');
+      }
+    } else if (rawMultiTrack != null) {
+      onCorruptEntry?.call('Sesion multipista con formato invalido omitida.');
+    }
 
     final rawPresets = map['tuningPresets'] as List<dynamic>? ?? [];
-    final tuningPresets = rawPresets
-        .map((item) => TuningPresetEntity.fromMap(item as Map<String, dynamic>))
-        .toList();
+    final tuningPresets = <TuningPresetEntity>[];
+    for (final item in rawPresets) {
+      if (item is Map<String, dynamic>) {
+        try {
+          tuningPresets.add(TuningPresetEntity.fromMap(item));
+        } catch (e) {
+          onCorruptEntry?.call('Preset de afinacion corrupto omitido: $e');
+        }
+      }
+    }
 
     final rawScores = map['workspaceScores'] as List<dynamic>? ?? [];
-    final workspaceScores = rawScores
-        .map((item) => SongPackage.fromMap(item as Map<String, dynamic>))
-        .toList();
+    final workspaceScores = <SongPackage>[];
+    for (final item in rawScores) {
+      if (item is Map<String, dynamic>) {
+        try {
+          workspaceScores.add(SongPackage.fromMap(item));
+        } catch (e) {
+          onCorruptEntry?.call('Partitura corrupta omitida: $e');
+        }
+      }
+    }
 
     final rawProfile = map['learnerProfile'] as Map<String, dynamic>?;
     final learnerProfile = rawProfile != null
@@ -179,6 +287,23 @@ class AppUserSettingsEntity {
         ? AcousticRigorProfile.fromJson(rawRigorProfile)
         : const AcousticRigorProfile();
 
+    final rawWorkspaceConfig = map['workspaceConfiguration'] as Map<String, dynamic>?;
+    final workspaceConfiguration = rawWorkspaceConfig != null
+        ? WorkspaceConfigurationEntity.fromMap(rawWorkspaceConfig)
+        : null;
+
+    MixerConsoleEntity? mixerConsole;
+    final rawMixer = map['mixerConsole'];
+    if (rawMixer is Map<String, dynamic>) {
+      try {
+        mixerConsole = MixerConsoleEntity.fromMap(rawMixer);
+      } catch (e) {
+        onCorruptEntry?.call('Configuracion de mezclador corrupta omitida: $e');
+      }
+    }
+
+    final activeScoreId = map['activeScoreId'] as String?;
+
     return AppUserSettingsEntity(
       referencePitch: (map['referencePitch'] as num?)?.toDouble() ?? 440.0,
       selectedThemeId: map['selectedThemeId'] as String? ?? 'obsidian_studio',
@@ -194,12 +319,29 @@ class AppUserSettingsEntity {
       customPalettes: customPalettes,
       sessionHistory: sessionHistory,
       recordingHistory: recordingHistory,
+      multiTrackSession: multiTrackSession,
       tuningPresets: tuningPresets,
       workspaceScores: workspaceScores,
       learnerProfile: learnerProfile,
       activeWorkspace: activeWorkspace,
       micCalibrationProfile: micCalibrationProfile,
       acousticRigorProfile: acousticRigorProfile,
+      dspEngineName: map['dspEngineName'] as String? ?? 'Tartini DSP 2.1',
+      targetRenderFps: (map['targetRenderFps'] as num?)?.toInt() ?? 60,
+      centsPrecision: (map['centsPrecision'] as num?)?.toDouble() ?? 0.1,
+      workspaceConfiguration: workspaceConfiguration,
+      earTrainingItemsJson: (map['earTrainingItemsJson'] as Map<String, dynamic>?)
+              ?.map((k, v) => MapEntry(k, Map<String, dynamic>.from(v as Map))) ??
+          const {},
+      taskStatuses: (map['taskStatuses'] as Map<String, dynamic>?)
+              ?.map((k, v) => MapEntry(k, v.toString())) ??
+          const {},
+      completedLessonIds: (map['completedLessonIds'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      mixerConsole: mixerConsole,
+      activeScoreId: activeScoreId,
     );
   }
 

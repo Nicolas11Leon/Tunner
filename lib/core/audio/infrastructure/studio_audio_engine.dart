@@ -8,6 +8,9 @@ class StudioAudioEngine implements IStudioAudioEngine {
   static final StudioAudioEngine _instance = StudioAudioEngine._internal();
   factory StudioAudioEngine() => _instance;
 
+  /// Crea una instancia aislada sin estado global compartido para DI y pruebas.
+  StudioAudioEngine.isolated();
+
   StudioAudioEngine._internal();
 
   final Map<String, StudioAudioChannel> _channels = {};
@@ -15,10 +18,13 @@ class StudioAudioEngine implements IStudioAudioEngine {
   @override
   IStudioAudioChannel getChannel(String channelId) {
     final normalizedId = channelId.trim().toLowerCase();
-    return _channels.putIfAbsent(
-      normalizedId,
-      () => StudioAudioChannel(channelId: normalizedId),
-    );
+    final existing = _channels[normalizedId];
+    if (existing != null && !existing.isDisposed) {
+      return existing;
+    }
+    final fresh = StudioAudioChannel(channelId: normalizedId);
+    _channels[normalizedId] = fresh;
+    return fresh;
   }
 
   @override

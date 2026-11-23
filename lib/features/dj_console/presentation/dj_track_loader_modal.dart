@@ -1,10 +1,11 @@
-import 'dart:io';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../../../core/design_system/studio_theme_provider.dart';
-import '../../song_library/data/song_decomposer_service.dart';
+import '../../../core/file_system/domain/i_platform_file_gateway.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
+import '../../song_library/domain/song_decomposer_service.dart';
 import '../../song_library/domain/song_package_entity.dart';
-import '../data/dj_audio_processor.dart';
+import '../domain/dj_audio_processor.dart';
+import '../domain/pcm_wav_decoder.dart';
 import 'dj_console_view_model.dart';
 
 class DjStudioPresetTrack {
@@ -30,11 +31,13 @@ class DjStudioPresetTrack {
 class DjTrackLoaderModal extends StatefulWidget {
   final String deckId;
   final DjConsoleViewModel viewModel;
+  final IPlatformFileGateway? fileGateway;
 
   const DjTrackLoaderModal({
     super.key,
     required this.deckId,
     required this.viewModel,
+    this.fileGateway,
   });
 
   static const List<DjStudioPresetTrack> studioLibrary = [
@@ -80,7 +83,12 @@ class DjTrackLoaderModal extends StatefulWidget {
     ),
   ];
 
-  static Future<void> show(BuildContext context, {required String deckId, required DjConsoleViewModel viewModel}) {
+  static Future<void> show(
+    BuildContext context, {
+    required String deckId,
+    required DjConsoleViewModel viewModel,
+    IPlatformFileGateway? fileGateway,
+  }) {
     final tokens = StudioThemeScope.tokensOf(context);
     return showModalBottomSheet(
       context: context,
@@ -90,7 +98,11 @@ class DjTrackLoaderModal extends StatefulWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
       ),
-      builder: (_) => DjTrackLoaderModal(deckId: deckId, viewModel: viewModel),
+      builder: (_) => DjTrackLoaderModal(
+        deckId: deckId,
+        viewModel: viewModel,
+        fileGateway: fileGateway ?? viewModel.fileGateway,
+      ),
     );
   }
 
@@ -167,14 +179,39 @@ class _DjTrackLoaderModalState extends State<DjTrackLoaderModal> with SingleTick
 
   Future<void> _importLocalFile(BuildContext context) async {
     try {
-      final file = await FilePicker.pickFile(
-        type: FileType.custom,
+      final file = await widget.fileGateway?.pickFile(
         allowedExtensions: const ['wav', 'mp3', 'flac', 'ogg', 'm4a', 'aac', 'aiff'],
       );
       if (file != null && context.mounted) {
         final path = file.path;
         final name = file.name;
-        final bytes = await file.readAsBytes();
+        final bytes = file.bytes;
+
+        // Si es un archivo WAV con muestras PCM válidas, ejecutar análisis de BPM y Camelot real
+        if (bytes != null && bytes.isNotEmpty) {
+          final pcm = PcmWavDecoder.decodeWavToFloat32(bytes);
+          if (pcm.isNotEmpty) {
+            final bpm = await widget.viewModel.loadTrackWithBeatTrackingAsync(
+              widget.deckId,
+              title: name,
+              artist: 'Archivo Local',
+              audioSamples: pcm,
+            );
+            if (context.mounted) {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Pista analizada y cargada en Deck ${widget.deckId}: "$name" (${bpm.toStringAsFixed(1)} BPM)',
+                  ),
+                  backgroundColor: const Color(0xFF10B981),
+                ),
+              );
+            }
+            return;
+          }
+        }
+
         await widget.viewModel.loadDeckTrack(
           deckId: widget.deckId,
           filePath: path,
@@ -194,7 +231,7 @@ class _DjTrackLoaderModalState extends State<DjTrackLoaderModal> with SingleTick
         }
       }
     } catch (e) {
-      debugPrint('DjTrackLoaderModal: Error al seleccionar archivo: $e');
+      StudioDebugLogger.instance.warning('DjTrackLoaderModal', 'Error al seleccionar archivo: $e');
     }
   }
 
@@ -202,37 +239,25 @@ class _DjTrackLoaderModalState extends State<DjTrackLoaderModal> with SingleTick
     final path = _pathController.text.trim();
     if (path.isEmpty) return;
     try {
-      final file = File(path);
-      if (await file.exists()) {
-        final bytes = await file.readAsBytes();
-        final name = path.split('/').last;
-        await widget.viewModel.loadDeckTrack(
-          deckId: widget.deckId,
-          filePath: path,
-          wavBytes: bytes,
-          title: name,
-          artist: 'Archivo Local',
-          bpm: 124.0,
-        );
-        if (context.mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Audio cargado en Deck ${widget.deckId}: "$name"'),
-              backgroundColor: const Color(0xFF10B981),
-            ),
-          );
-        }
-      } else if (context.mounted) {
+      final name = path.split(RegExp(r'[/\\]')).last;
+      await widget.viewModel.loadDeckTrack(
+        deckId: widget.deckId,
+        filePath: path,
+        title: name,
+        artist: 'Archivo Local',
+        bpm: 124.0,
+      );
+      if (context.mounted) {
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('No se encontró el archivo: $path'),
-            backgroundColor: Colors.redAccent,
+            content: Text('Audio cargado en Deck ${widget.deckId}: "$name"'),
+            backgroundColor: const Color(0xFF10B981),
           ),
         );
       }
     } catch (e) {
-      debugPrint('DjTrackLoaderModal: Error al cargar ruta: $e');
+      StudioDebugLogger.instance.warning('DjTrackLoaderModal', 'Error al cargar ruta: $e');
     }
   }
 

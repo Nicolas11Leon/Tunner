@@ -119,6 +119,7 @@ void main() {
       expect(find.text('MODO DUAL SPLIT ACTIVO'), findsOneWidget);
 
       // 3. Tab switching inside viewport header
+      await tester.ensureVisible(find.text('Partituras'));
       await tester.tap(find.text('Partituras'));
       await tester.pumpAndSettle();
       expect(tabNavigated, equals(4));

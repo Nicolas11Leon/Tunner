@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import '../../mixer/domain/mixer_track_entity.dart';
@@ -8,11 +9,161 @@ import '../domain/i_score_parser_service.dart';
 import '../domain/parsed_score_result_entity.dart';
 import '../domain/vector_omr_engine.dart';
 
+class _PdfPoint {
+  final double x;
+  final double y;
+
+  const _PdfPoint(this.x, this.y);
+
+  double distanceTo(_PdfPoint other) {
+    final dx = x - other.x;
+    final dy = y - other.y;
+    return math.sqrt(dx * dx + dy * dy);
+  }
+}
+
+class _PdfMatrix {
+  final double a;
+  final double b;
+  final double c;
+  final double d;
+  final double e;
+  final double f;
+
+  const _PdfMatrix(this.a, this.b, this.c, this.d, this.e, this.f);
+
+  static const _PdfMatrix identity = _PdfMatrix(1.0, 0.0, 0.0, 1.0, 0.0, 0.0);
+
+  _PdfPoint transform(double x, double y) {
+    return _PdfPoint(
+      a * x + c * y + e,
+      b * x + d * y + f,
+    );
+  }
+
+  /// Pre-multiplica `this * other` conforme a ISO 32000-1 (`M_new * CTM`).
+  _PdfMatrix multiply(_PdfMatrix other) {
+    return _PdfMatrix(
+      a * other.a + b * other.c,
+      a * other.b + b * other.d,
+      c * other.a + d * other.c,
+      c * other.b + d * other.d,
+      e * other.a + f * other.c + other.e,
+      e * other.b + f * other.d + other.f,
+    );
+  }
+}
+
+class _PdfSubpath {
+  final _PdfPoint startPoint;
+  _PdfPoint currentPoint;
+  final bool isRect;
+  bool isClosed;
+  bool hasCurve = false;
+
+  double minX;
+  double maxX;
+  double minY;
+  double maxY;
+
+  final List<OmrLine> lineSegments = [];
+
+  _PdfSubpath(
+    this.startPoint, {
+    this.isRect = false,
+    this.isClosed = false,
+  })  : currentPoint = startPoint,
+        minX = startPoint.x,
+        maxX = startPoint.x,
+        minY = startPoint.y,
+        maxY = startPoint.y;
+
+  void includePoint(double x, double y) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+
+  void addLineTo(_PdfPoint end) {
+    lineSegments.add(OmrLine(x1: currentPoint.x, y1: currentPoint.y, x2: end.x, y2: end.y));
+    includePoint(end.x, end.y);
+    currentPoint = end;
+  }
+
+  void addCubicTo(_PdfPoint p1, _PdfPoint p2, _PdfPoint p3) {
+    hasCurve = true;
+    final p0 = currentPoint;
+    _updateCubicBounds1D(p0.x, p1.x, p2.x, p3.x, (val) {
+      if (val < minX) minX = val;
+      if (val > maxX) maxX = val;
+    });
+    _updateCubicBounds1D(p0.y, p1.y, p2.y, p3.y, (val) {
+      if (val < minY) minY = val;
+      if (val > maxY) maxY = val;
+    });
+    currentPoint = p3;
+  }
+
+  void close() {
+    if (!isClosed && !hasCurve && !isRect && currentPoint.distanceTo(startPoint) > 0.01) {
+      lineSegments.add(
+        OmrLine(x1: currentPoint.x, y1: currentPoint.y, x2: startPoint.x, y2: startPoint.y),
+      );
+    }
+    isClosed = true;
+    currentPoint = startPoint;
+  }
+
+  static void _updateCubicBounds1D(
+    double p0,
+    double p1,
+    double p2,
+    double p3,
+    void Function(double val) onExtremum,
+  ) {
+    onExtremum(p0);
+    onExtremum(p3);
+
+    final v0 = p1 - p0;
+    final v1 = p2 - p1;
+    final v2 = p3 - p2;
+    final a = v0 - 2.0 * v1 + v2;
+    final b = v1 - v0;
+    final c = v0;
+
+    double eval(double t) {
+      final mt = 1.0 - t;
+      return mt * mt * mt * p0 +
+          3.0 * mt * mt * t * p1 +
+          3.0 * mt * t * t * p2 +
+          t * t * t * p3;
+    }
+
+    if (a.abs() < 1e-9) {
+      if (b.abs() > 1e-9) {
+        final t = -c / (2.0 * b);
+        if (t > 0.0 && t < 1.0) onExtremum(eval(t));
+      }
+      return;
+    }
+
+    final disc = b * b - a * c;
+    if (disc >= 0.0) {
+      final sqrtDisc = math.sqrt(disc);
+      final t1 = (-b + sqrtDisc) / a;
+      final t2 = (-b - sqrtDisc) / a;
+      if (t1 > 0.0 && t1 < 1.0) onExtremum(eval(t1));
+      if (t2 > 0.0 && t2 < 1.0) onExtremum(eval(t2));
+    }
+  }
+}
+
 /// Decodificador especializado para partituras en formato PDF mediante Reconocimiento Óptico Vectorial (Vector OMR).
 /// 100% Offline, sin dependencias nativas externas.
-/// Extrae flujos de dibujo gráficos vectoriales (m, l, re, c) de objetos PDF,
-/// descomprime flujos FlateDecode (ZLib) y delega a [VectorOmrEngine] para reconstruir
-/// pentagramas, compases y notas musicales en un [HierarchicalScore].
+/// Extrae flujos de dibujo gráficos vectoriales (q, Q, cm, m, l, re, c, v, y, h, S, s, f, F, B)
+/// de objetos PDF, descomprime flujos FlateDecode (ZLib) y delega a [VectorOmrEngine]
+/// para reconstruir pentagramas, compases y notas musicales en un [HierarchicalScore].
 class PdfScoreParser implements IScoreParserService {
   final VectorOmrEngine _omrEngine;
 
@@ -59,23 +210,51 @@ class PdfScoreParser implements IScoreParserService {
     // 1. Extraer flujos de contenido gráfico (descomprimiendo FlateDecode si aplica)
     final drawingStreams = _extractDrawingStreams(bytes, warnings);
 
-    // 2. Extraer primitivas geométricas de líneas y rectángulos a partir de los operadores de dibujo
-    final lines = <OmrLine>[];
-    final rects = <OmrRect>[];
+    // 2. Procesar cada página/stream por separado para no colapsar coordenadas multipágina
+    final allMeasures = <MeasureEntity>[];
+    int nextMeasureIdx = 0;
+    int detectedBpm = 120;
+    bool anyPrimitives = false;
 
     for (final streamText in drawingStreams) {
-      _parseGraphicOperators(streamText, lines, rects);
+      final pageLines = <OmrLine>[];
+      final pageRects = <OmrRect>[];
+      _parseGraphicOperators(streamText, pageLines, pageRects);
+      if (pageLines.isEmpty && pageRects.isEmpty) continue;
+      anyPrimitives = true;
+
+      try {
+        final pageScore = _omrEngine.processGeometricElements(
+          lines: pageLines,
+          rects: pageRects,
+          title: title,
+        );
+        detectedBpm = pageScore.baseBpm;
+        for (final m in pageScore.measures) {
+          allMeasures.add(m.copyWith(index: nextMeasureIdx++));
+        }
+      } on FormatException catch (e) {
+        warnings.add(e.message);
+      }
     }
 
-    if (lines.isEmpty && rects.isEmpty) {
-      warnings.add('No se encontraron instrucciones gráficas vectoriales en los flujos del PDF.');
+    if (!anyPrimitives) {
+      throw const FormatException(
+        'No se encontraron instrucciones gráficas vectoriales ni pentagramas válidos en el PDF.',
+      );
     }
 
-    // 3. Procesar las primitivas geométricas con el motor Vector OMR
-    final score = _omrEngine.processGeometricElements(
-      lines: lines,
-      rects: rects,
+    if (allMeasures.isEmpty) {
+      throw const FormatException(
+        'El documento PDF no contiene pentagramas vectoriales válidos de 5 líneas.',
+      );
+    }
+
+    // 3. Consolidar partitura multipágina real
+    final score = HierarchicalScore(
       title: title,
+      baseBpm: detectedBpm,
+      measures: allMeasures,
     );
 
     int totalNotes = 0;
@@ -115,7 +294,6 @@ class PdfScoreParser implements IScoreParserService {
 
   /// Extrae el título del documento a partir de metadatos PDF o del nombre de archivo.
   String _extractPdfTitle(String headerSample, String fileName) {
-    // Búsqueda de metadato /Title (...)
     final titleMatch = RegExp(r'/Title\s*\(([^)]+)\)').firstMatch(headerSample);
     if (titleMatch != null) {
       final raw = titleMatch.group(1)?.trim();
@@ -124,7 +302,6 @@ class PdfScoreParser implements IScoreParserService {
       }
     }
 
-    // Nombre base de archivo limpio
     final dotIndex = fileName.lastIndexOf('.');
     final base = (dotIndex > 0) ? fileName.substring(0, dotIndex) : fileName;
     final clean = base.replaceAll(RegExp(r'[_\-]+'), ' ').trim();
@@ -137,7 +314,6 @@ class PdfScoreParser implements IScoreParserService {
     final length = bytes.length;
     int cursor = 0;
 
-    // Firmas ASCII para localizar streams
     final streamMarker = [0x73, 0x74, 0x72, 0x65, 0x61, 0x6D]; // "stream"
     final endStreamMarker = [0x65, 0x6E, 0x64, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6D]; // "endstream"
 
@@ -145,7 +321,6 @@ class PdfScoreParser implements IScoreParserService {
       final streamPos = _indexOfBytes(bytes, streamMarker, cursor);
       if (streamPos == -1) break;
 
-      // Buscar el inicio de los datos del stream (después de \r\n o \n)
       int dataStart = streamPos + 6;
       if (dataStart < length && bytes[dataStart] == 0x0D) {
         dataStart++;
@@ -157,7 +332,6 @@ class PdfScoreParser implements IScoreParserService {
       final endStreamPos = _indexOfBytes(bytes, endStreamMarker, dataStart);
       if (endStreamPos == -1) break;
 
-      // Ajustar fin para remover salto de línea previo a endstream si existe
       int dataEnd = endStreamPos;
       if (dataEnd > dataStart && bytes[dataEnd - 1] == 0x0A) {
         dataEnd--;
@@ -166,7 +340,6 @@ class PdfScoreParser implements IScoreParserService {
         }
       }
 
-      // Inspeccionar diccionario previo (hasta 512 bytes antes) para detectar compresión FlateDecode
       final dictStart = (streamPos > 512) ? streamPos - 512 : 0;
       final dictText = latin1.decode(bytes.sublist(dictStart, streamPos), allowInvalid: true);
       final isFlate = dictText.contains('/FlateDecode');
@@ -175,10 +348,14 @@ class PdfScoreParser implements IScoreParserService {
 
       if (isFlate) {
         try {
+          const int maxPdfStreamBytes = 32 * 1024 * 1024;
           final decompressed = ZLibDecoder().decodeBytes(rawStreamBytes);
+          if (decompressed.length > maxPdfStreamBytes) {
+            throw const FormatException('Stream PDF FlateDecode supera la cuota maxima segura.');
+          }
           streams.add(latin1.decode(decompressed, allowInvalid: true));
-        } catch (_) {
-          // Si falla zlib, intentar interpretarlo como texto plano
+        } catch (e) {
+          if (e is FormatException) rethrow;
           streams.add(latin1.decode(rawStreamBytes, allowInvalid: true));
         }
       } else {
@@ -188,7 +365,6 @@ class PdfScoreParser implements IScoreParserService {
       cursor = endStreamPos + 9;
     }
 
-    // Si no se encontraron bloques stream/endstream formales, intentar decodificar el cuerpo completo
     if (streams.isEmpty) {
       streams.add(latin1.decode(bytes, allowInvalid: true));
     }
@@ -213,15 +389,137 @@ class PdfScoreParser implements IScoreParserService {
     return -1;
   }
 
-  /// Tokeniza e interpreta operadores gráficos vectoriales en el texto del flujo PDF.
+  /// Tokeniza un flujo de contenido PDF ignorando comentarios, literales de cadena `(...)`
+  /// y bloques de diccionario/hexadecimal para evitar falsos operadores gráficos.
+  List<String> _tokenizePdfStream(String streamText) {
+    final tokens = <String>[];
+    final len = streamText.length;
+    int i = 0;
+
+    bool isWhitespace(int code) => code <= 0x20;
+    bool isDelimiter(int code) =>
+        code == 0x28 || // (
+        code == 0x29 || // )
+        code == 0x3C || // <
+        code == 0x3E || // >
+        code == 0x5B || // [
+        code == 0x5D || // ]
+        code == 0x7B || // {
+        code == 0x7D || // }
+        code == 0x2F || // /
+        code == 0x25; // %
+
+    while (i < len) {
+      final code = streamText.codeUnitAt(i);
+      if (isWhitespace(code)) {
+        i++;
+        continue;
+      }
+
+      // Comentario PDF (% ... fin de línea)
+      if (code == 0x25) {
+        while (i < len && streamText.codeUnitAt(i) != 0x0A && streamText.codeUnitAt(i) != 0x0D) {
+          i++;
+        }
+        continue;
+      }
+
+      // Cadena literal (...)
+      if (code == 0x28) {
+        int depth = 1;
+        i++;
+        while (i < len && depth > 0) {
+          final c = streamText.codeUnitAt(i);
+          if (c == 0x5C) {
+            i += 2; // backslash escape
+            continue;
+          }
+          if (c == 0x28) depth++;
+          if (c == 0x29) depth--;
+          i++;
+        }
+        continue;
+      }
+
+      // Cadenas hexadecimales <...> o diccionarios <<...>>
+      if (code == 0x3C) {
+        if (i + 1 < len && streamText.codeUnitAt(i + 1) == 0x3C) {
+          i += 2;
+          int dictDepth = 1;
+          while (i < len && dictDepth > 0) {
+            if (i + 1 < len &&
+                streamText.codeUnitAt(i) == 0x3C &&
+                streamText.codeUnitAt(i + 1) == 0x3C) {
+              dictDepth++;
+              i += 2;
+            } else if (i + 1 < len &&
+                streamText.codeUnitAt(i) == 0x3E &&
+                streamText.codeUnitAt(i + 1) == 0x3E) {
+              dictDepth--;
+              i += 2;
+            } else {
+              i++;
+            }
+          }
+        } else {
+          i++;
+          while (i < len && streamText.codeUnitAt(i) != 0x3E) {
+            i++;
+          }
+          if (i < len) i++;
+        }
+        continue;
+      }
+
+      // Arreglos [...] o llaves {...}
+      if (code == 0x5B || code == 0x5D || code == 0x7B || code == 0x7D) {
+        tokens.add(streamText[i]);
+        i++;
+        continue;
+      }
+
+      // Nombres (/F1) u operadores/números regulares
+      final start = i;
+      if (code == 0x2F) i++;
+      while (i < len) {
+        final c = streamText.codeUnitAt(i);
+        if (isWhitespace(c) || isDelimiter(c)) break;
+        i++;
+      }
+      tokens.add(streamText.substring(start, i));
+    }
+
+    return tokens;
+  }
+
+  /// Tokeniza e interpreta operadores gráficos vectoriales en el flujo PDF,
+  /// manteniendo la pila CTM (q, Q, cm) y el estado de subpaths Bezier cerrados (S/s vs f/F/B).
   void _parseGraphicOperators(String streamText, List<OmrLine> lines, List<OmrRect> rects) {
-    final tokens = streamText.split(RegExp(r'\s+'));
+    final tokens = _tokenizePdfStream(streamText);
     final numStack = <double>[];
-    double currentX = 0.0;
-    double currentY = 0.0;
+    final matrixStack = <_PdfMatrix>[];
+    _PdfMatrix ctm = _PdfMatrix.identity;
+
+    final subpaths = <_PdfSubpath>[];
+    _PdfSubpath? currentSubpath;
+    bool inTextObject = false;
 
     for (final token in tokens) {
       if (token.isEmpty) continue;
+
+      if (token == 'BT') {
+        inTextObject = true;
+        numStack.clear();
+        continue;
+      }
+      if (token == 'ET') {
+        inTextObject = false;
+        numStack.clear();
+        continue;
+      }
+      if (inTextObject) {
+        continue;
+      }
 
       final numVal = double.tryParse(token);
       if (numVal != null) {
@@ -229,12 +527,39 @@ class PdfScoreParser implements IScoreParserService {
         continue;
       }
 
-      // Operadores de dibujo vectorial
       switch (token) {
+        case 'q': // gsave
+          matrixStack.add(ctm);
+          numStack.clear();
+          break;
+
+        case 'Q': // grestore
+          if (matrixStack.isNotEmpty) {
+            ctm = matrixStack.removeLast();
+          }
+          numStack.clear();
+          break;
+
+        case 'cm': // concat matrix (a b c d e f cm)
+          if (numStack.length >= 6) {
+            final f = numStack.removeLast();
+            final e = numStack.removeLast();
+            final d = numStack.removeLast();
+            final c = numStack.removeLast();
+            final b = numStack.removeLast();
+            final a = numStack.removeLast();
+            ctm = _PdfMatrix(a, b, c, d, e, f).multiply(ctm);
+          }
+          numStack.clear();
+          break;
+
         case 'm': // moveto (x y m)
           if (numStack.length >= 2) {
-            currentY = numStack.removeLast();
-            currentX = numStack.removeLast();
+            final y = numStack.removeLast();
+            final x = numStack.removeLast();
+            final pt = ctm.transform(x, y);
+            currentSubpath = _PdfSubpath(pt);
+            subpaths.add(currentSubpath);
           }
           numStack.clear();
           break;
@@ -243,33 +568,12 @@ class PdfScoreParser implements IScoreParserService {
           if (numStack.length >= 2) {
             final y = numStack.removeLast();
             final x = numStack.removeLast();
-            lines.add(OmrLine(x1: currentX, y1: currentY, x2: x, y2: y));
-            currentX = x;
-            currentY = y;
-          }
-          numStack.clear();
-          break;
-
-        case 're': // rect (x y w h re)
-          if (numStack.length >= 4) {
-            final h = numStack.removeLast();
-            final w = numStack.removeLast();
-            final y = numStack.removeLast();
-            final x = numStack.removeLast();
-
-            final absW = w.abs();
-            final absH = h.abs();
-            final rect = OmrRect(x: x, y: y, width: absW, height: absH);
-            rects.add(rect);
-
-            // Reconocer líneas de pentagrama dibujadas como rectángulos delgados horizontales
-            if (absH <= 3.0 && absW >= 40.0) {
-              lines.add(OmrLine(x1: x, y1: y, x2: x + absW, y2: y));
+            final pt = ctm.transform(x, y);
+            currentSubpath ??= _PdfSubpath(ctm.transform(0.0, 0.0));
+            if (!subpaths.contains(currentSubpath)) {
+              subpaths.add(currentSubpath);
             }
-            // Reconocer barras de compás dibujadas como rectángulos delgados verticales
-            else if (absW <= 3.0 && absH >= 20.0) {
-              lines.add(OmrLine(x1: x, y1: y, x2: x, y2: y + absH));
-            }
+            currentSubpath.addLineTo(pt);
           }
           numStack.clear();
           break;
@@ -278,48 +582,251 @@ class PdfScoreParser implements IScoreParserService {
           if (numStack.length >= 6) {
             final y3 = numStack.removeLast();
             final x3 = numStack.removeLast();
-            numStack.removeLast(); // y2
-            numStack.removeLast(); // x2
-            numStack.removeLast(); // y1
-            numStack.removeLast(); // x1
+            final y2 = numStack.removeLast();
+            final x2 = numStack.removeLast();
+            final y1 = numStack.removeLast();
+            final x1 = numStack.removeLast();
 
-            // Tratar pequeñas curvas como cabezas de notas delimitadas
-            final minX = currentX < x3 ? currentX : x3;
-            final minY = currentY < y3 ? currentY : y3;
-            final spanW = (x3 - currentX).abs();
-            final spanH = (y3 - currentY).abs();
-
-            if (spanW >= 3.0 && spanW <= 25.0 && spanH >= 3.0 && spanH <= 25.0) {
-              rects.add(OmrRect(x: minX, y: minY, width: spanW, height: spanH));
+            final p1 = ctm.transform(x1, y1);
+            final p2 = ctm.transform(x2, y2);
+            final p3 = ctm.transform(x3, y3);
+            currentSubpath ??= _PdfSubpath(ctm.transform(0.0, 0.0));
+            if (!subpaths.contains(currentSubpath)) {
+              subpaths.add(currentSubpath);
             }
+            currentSubpath.addCubicTo(p1, p2, p3);
+          }
+          numStack.clear();
+          break;
 
-            currentX = x3;
-            currentY = y3;
+        case 'v': // curveto con primer punto de control igual al punto actual (x2 y2 x3 y3 v)
+          if (numStack.length >= 4) {
+            final y3 = numStack.removeLast();
+            final x3 = numStack.removeLast();
+            final y2 = numStack.removeLast();
+            final x2 = numStack.removeLast();
+
+            currentSubpath ??= _PdfSubpath(ctm.transform(0.0, 0.0));
+            if (!subpaths.contains(currentSubpath)) {
+              subpaths.add(currentSubpath);
+            }
+            final p1 = currentSubpath.currentPoint;
+            final p2 = ctm.transform(x2, y2);
+            final p3 = ctm.transform(x3, y3);
+            currentSubpath.addCubicTo(p1, p2, p3);
+          }
+          numStack.clear();
+          break;
+
+        case 'y': // curveto con segundo punto de control igual al punto final (x1 y1 x3 y3 y)
+          if (numStack.length >= 4) {
+            final y3 = numStack.removeLast();
+            final x3 = numStack.removeLast();
+            final y1 = numStack.removeLast();
+            final x1 = numStack.removeLast();
+
+            currentSubpath ??= _PdfSubpath(ctm.transform(0.0, 0.0));
+            if (!subpaths.contains(currentSubpath)) {
+              subpaths.add(currentSubpath);
+            }
+            final p1 = ctm.transform(x1, y1);
+            final p3 = ctm.transform(x3, y3);
+            currentSubpath.addCubicTo(p1, p3, p3);
+          }
+          numStack.clear();
+          break;
+
+        case 're': // rectangle (x y w h re)
+          if (numStack.length >= 4) {
+            final h = numStack.removeLast();
+            final w = numStack.removeLast();
+            final y = numStack.removeLast();
+            final x = numStack.removeLast();
+
+            final p0 = ctm.transform(x, y);
+            final p1 = ctm.transform(x + w, y);
+            final p2 = ctm.transform(x + w, y + h);
+            final p3 = ctm.transform(x, y + h);
+
+            final rectSubpath = _PdfSubpath(p0, isRect: true, isClosed: true);
+            rectSubpath.includePoint(p1.x, p1.y);
+            rectSubpath.includePoint(p2.x, p2.y);
+            rectSubpath.includePoint(p3.x, p3.y);
+            subpaths.add(rectSubpath);
+            currentSubpath = rectSubpath;
           }
           numStack.clear();
           break;
 
         case 'h': // closepath
+          currentSubpath?.close();
+          numStack.clear();
+          break;
+
         case 'S': // stroke
-        case 's': // close and stroke
+          _flushSubpaths(
+            subpaths: subpaths,
+            lines: lines,
+            rects: rects,
+            isFilled: false,
+            closeAll: false,
+          );
+          currentSubpath = null;
+          numStack.clear();
+          break;
+
+        case 's': // closepath and stroke
+          _flushSubpaths(
+            subpaths: subpaths,
+            lines: lines,
+            rects: rects,
+            isFilled: false,
+            closeAll: true,
+          );
+          currentSubpath = null;
+          numStack.clear();
+          break;
+
         case 'f': // fill
-        case 'F': // fill
+        case 'F': // fill (compatibilidad)
         case 'f*': // eofill
         case 'B': // fill and stroke
-        case 'b': // close, fill and stroke
-        case 'n': // end path without stroke/fill
-        case 'q': // gsave
-        case 'Q': // grestore
+        case 'B*': // eofill and stroke
+          _flushSubpaths(
+            subpaths: subpaths,
+            lines: lines,
+            rects: rects,
+            isFilled: true,
+            closeAll: false,
+          );
+          currentSubpath = null;
+          numStack.clear();
+          break;
+
+        case 'b': // closepath, fill and stroke
+        case 'b*': // closepath, eofill and stroke
+          _flushSubpaths(
+            subpaths: subpaths,
+            lines: lines,
+            rects: rects,
+            isFilled: true,
+            closeAll: true,
+          );
+          currentSubpath = null;
+          numStack.clear();
+          break;
+
+        case 'n': // end path without stroke or fill (ej. clipping path W n)
+          subpaths.clear();
+          currentSubpath = null;
           numStack.clear();
           break;
 
         default:
-          // Operadores desconocidos o identificadores: limpiar la pila si no es número
-          if (token.length > 2) {
-            numStack.clear();
-          }
+          // Cualquier otro operador gráfico consume sus operandos numéricos
+          numStack.clear();
           break;
       }
     }
+
+    // Respaldo para flujos sintéticos que omitan operador final de pintado
+    if (subpaths.isNotEmpty) {
+      _flushSubpaths(
+        subpaths: subpaths,
+        lines: lines,
+        rects: rects,
+        isFilled: true,
+        closeAll: false,
+      );
+    }
+  }
+
+  /// Emite líneas y cajas delimitadoras [OmrRect] a partir de los subpaths pendientes.
+  void _flushSubpaths({
+    required List<_PdfSubpath> subpaths,
+    required List<OmrLine> lines,
+    required List<OmrRect> rects,
+    required bool isFilled,
+    required bool closeAll,
+  }) {
+    final curveCandidates = <({int index, _PdfSubpath subpath, double w, double h})>[];
+
+    for (int i = 0; i < subpaths.length; i++) {
+      final sp = subpaths[i];
+
+      if (sp.isRect) {
+        final w = sp.maxX - sp.minX;
+        final h = sp.maxY - sp.minY;
+        rects.add(OmrRect(x: sp.minX, y: sp.minY, width: w, height: h, isFilled: isFilled));
+
+        if (h <= 3.0 && w >= 40.0) {
+          final midY = (sp.minY + sp.maxY) / 2.0;
+          lines.add(OmrLine(x1: sp.minX, y1: midY, x2: sp.maxX, y2: midY));
+        } else if (w <= 3.0 && h >= 15.0) {
+          final midX = (sp.minX + sp.maxX) / 2.0;
+          lines.add(OmrLine(x1: midX, y1: sp.minY, x2: midX, y2: sp.maxY));
+        } else if (h <= 4.5 && w >= 12.0) {
+          final midY = (sp.minY + sp.maxY) / 2.0;
+          lines.add(OmrLine(x1: sp.minX, y1: midY, x2: sp.maxX, y2: midY));
+        }
+        continue;
+      }
+
+      if (closeAll || sp.isClosed) {
+        sp.close();
+      }
+
+      lines.addAll(sp.lineSegments);
+
+      if (sp.hasCurve) {
+        final isClosedCurve = sp.isClosed ||
+            closeAll ||
+            isFilled ||
+            sp.currentPoint.distanceTo(sp.startPoint) <= 1.5;
+
+        if (isClosedCurve) {
+          final w = sp.maxX - sp.minX;
+          final h = sp.maxY - sp.minY;
+          if (w >= 3.0 && w <= 25.0 && h >= 3.0 && h <= 25.0) {
+            curveCandidates.add((index: i, subpath: sp, w: w, h: h));
+          }
+        }
+      }
+    }
+
+    // Detectar si un trazado relleno contiene un anillo interior hueco (contorno + agujero)
+    final skippedHoleIndices = <int>{};
+    final hollowOverrideIndices = <int>{};
+    if (isFilled && curveCandidates.length >= 2) {
+      for (final outer in curveCandidates) {
+        for (final inner in curveCandidates) {
+          if (outer.index == inner.index) continue;
+          final contains = inner.subpath.minX > outer.subpath.minX &&
+              inner.subpath.maxX < outer.subpath.maxX &&
+              inner.subpath.minY > outer.subpath.minY &&
+              inner.subpath.maxY < outer.subpath.maxY;
+          if (contains) {
+            hollowOverrideIndices.add(outer.index);
+            skippedHoleIndices.add(inner.index);
+          }
+        }
+      }
+    }
+
+    for (final c in curveCandidates) {
+      if (skippedHoleIndices.contains(c.index)) continue;
+      final effectiveFilled = hollowOverrideIndices.contains(c.index) ? false : isFilled;
+      rects.add(
+        OmrRect(
+          x: c.subpath.minX,
+          y: c.subpath.minY,
+          width: c.w,
+          height: c.h,
+          isFilled: effectiveFilled,
+        ),
+      );
+    }
+
+    subpaths.clear();
   }
 }

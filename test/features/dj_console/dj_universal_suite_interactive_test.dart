@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tunner/app/studio_workspace_seed_provider.dart';
 import 'package:tunner/core/file_system/data/local_disk_studio_file_system_repository.dart';
 import 'package:tunner/features/audio_synthesizer/data/memory_audio_synthesizer_service.dart';
 import 'package:tunner/features/dj_console/data/memory_dj_deck_audio_player.dart';
@@ -34,7 +35,10 @@ void main() {
 
     test('1. LocalDiskFileSystem seeds physical playable WAV files in disk with complete RIFF headers', () async {
       final tempDir = Directory.systemTemp.createTempSync('tunner_seed_test_');
-      final repo = LocalDiskStudioFileSystemRepository(customRootPath: tempDir.path);
+      final repo = LocalDiskStudioFileSystemRepository(
+        customRootPath: tempDir.path,
+        seedProvider: const StudioWorkspaceSeedProvider(),
+      );
 
       final rootFolder = await repo.loadRootWorkspace();
       expect(rootFolder.children.isNotEmpty, isTrue);

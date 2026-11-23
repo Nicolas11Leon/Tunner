@@ -145,7 +145,11 @@ void main() {
 
       final result = converter.convertTrackToScore(pitchTrack: samples);
       expect(result.totalNotes, equals(1));
-      expect(result.package.score.measures.first.notes.first.noteName, equals('La4'));
+      final notes = result.package.score.measures.first.notes;
+      final pitchedNotes = notes.where((n) => !n.isRest).toList();
+      expect(pitchedNotes.length, equals(1));
+      expect(pitchedNotes.first.noteName, equals('La4'));
+      expect(notes.first.isRest, isTrue);
     });
   });
 }

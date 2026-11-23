@@ -1,31 +1,40 @@
 import 'dart:async';
+import 'dart:math' as math;
+
 import 'atomic_signal_event.dart';
 import 'interoperable_module_node.dart';
 import 'module_connection.dart';
 import 'port_id.dart';
+import 'port_permission_broker.dart';
 import 'synergy_policy_engine.dart';
 
-/// Bus de señales en memoria local de Clean Architecture.
+/// Bus de senales en memoria local de Clean Architecture.
 /// Permite el despacho determinista de eventos de audio, pitch, notas y reloj
-/// entre módulos del rack sin acoplamientos y con soporte para hot-swapping e interoperabilidad atómica.
+/// entre modulos del rack con validacion por [PortPermissionBroker] y
+/// escalado de ganancia por conexion.
 class SignalBus {
+  final PortPermissionBroker _permissionBroker;
   final Map<String, StreamController<dynamic>> _portControllers = {};
+  final Map<String, PortId> _registeredPorts = {};
   final List<ModuleConnection> _connections = [];
   final Map<String, InteroperableModuleNode> _registeredNodes = {};
   final Map<String, List<StreamSubscription>> _nodeSubscriptions = {};
 
+  SignalBus({
+    PortPermissionBroker permissionBroker = const PortPermissionBroker(),
+  }) : _permissionBroker = permissionBroker;
+
   /// Lista de todas las conexiones activas registradas en el bus.
   List<ModuleConnection> get activeConnections => List.unmodifiable(_connections);
 
-  /// Nodos modulares atómicos registrados actualmente en el bus.
+  /// Nodos modulares atomicos registrados actualmente en el bus.
   Map<String, InteroperableModuleNode> get registeredNodes =>
       Map.unmodifiable(_registeredNodes);
 
-  /// Registra un nodo modular atómico y enlaza sus puertos automáticamente.
+  /// Registra un nodo modular atomico y enlaza sus puertos automaticamente.
   void registerNode(InteroperableModuleNode node) {
     _registeredNodes[node.nodeId] = node;
 
-    // Registrar puertos declarados
     for (final port in node.declaredInputPorts) {
       registerPort(port);
     }
@@ -33,7 +42,6 @@ class SignalBus {
       registerPort(port);
     }
 
-    // Suscribir el nodo a sus puertos de entrada declarados
     final subs = <StreamSubscription>[];
     for (final inPort in node.declaredInputPorts) {
       final sub = subscribe<AtomicSignalEvent>(inPort).listen((event) {
@@ -69,6 +77,7 @@ class SignalBus {
   /// Registra un puerto en el bus y crea su stream subyacente.
   void registerPort(PortId port) {
     final key = _generatePortKey(port);
+    _registeredPorts[key] = port;
     _portControllers.putIfAbsent(
       key,
       () => StreamController<dynamic>.broadcast(),
@@ -81,28 +90,41 @@ class SignalBus {
     _connections.removeWhere(
       (c) => c.sourcePort == port || c.destinationPort == port,
     );
+    _registeredPorts.remove(key);
     _portControllers[key]?.close();
     _portControllers.remove(key);
   }
 
-  /// Conecta dos puertos o crea una conexión broadcast verificando compatibilidad de tipos.
+  /// Conecta dos puertos o crea una conexion broadcast verificando politicas de
+  /// [PortPermissionBroker] y [SynergyPolicyEngine].
   void addConnection(ModuleConnection connection) {
-    // Si ya existe la misma conexión, no duplicar
     if (_connections.any((c) => c.connectionId == connection.connectionId)) {
       return;
     }
 
-    // Validar compatibilidad y políticas de sinergia si es punto a punto
     if (connection.destinationPort != null) {
+      if (!_permissionBroker.canAuthorizeConnection(
+        connection.sourcePort,
+        connection.destinationPort!,
+      )) {
+        throw ArgumentError(
+          'Conexion rechazada por PortPermissionBroker: ${connection.sourcePort.id} -> ${connection.destinationPort!.id}',
+        );
+      }
+
       final validation = SynergyPolicyEngine.validateConnection(
         sourcePort: connection.sourcePort,
         destinationPort: connection.destinationPort!,
       );
       if (!validation.isApproved) {
         throw ArgumentError(
-          'Conexión rechazada por SynergyPolicyEngine: ${validation.rejectionReason}',
+          'Conexion rechazada por SynergyPolicyEngine: ${validation.rejectionReason}',
         );
       }
+    } else if (connection.sourcePort.direction != PortDirection.output) {
+      throw ArgumentError(
+        'Solo puertos de salida pueden emitir en modo broadcast: ${connection.sourcePort.id}',
+      );
     }
 
     registerPort(connection.sourcePort);
@@ -113,48 +135,116 @@ class SignalBus {
     _connections.add(connection);
   }
 
-  /// Elimina una conexión por su identificador.
+  /// Elimina una conexion por su identificador.
   void removeConnection(String connectionId) {
     _connections.removeWhere((c) => c.connectionId == connectionId);
   }
 
-  /// Despacha un evento de datos desde un puerto de salida hacia los receptores conectados.
+  /// Despacha un evento de datos desde un puerto de salida hacia los receptores
+  /// conectados, validando cada enlace con [PortPermissionBroker.canAuthorizeConnection]
+  /// y aplicando el escalado de ganancia [ModuleConnection.gain].
   void emit(PortId sourcePort, dynamic data) {
     if (sourcePort.direction != PortDirection.output) {
       throw ArgumentError('Solo los puertos de salida pueden emitir datos.');
     }
 
-    // 1. Emitir en el propio stream del puerto de origen
     final sourceKey = _generatePortKey(sourcePort);
     _portControllers[sourceKey]?.add(data);
 
-    // 2. Enrutar hacia los destinos configurados
+    final dispatchedKeys = <String>{sourceKey};
+
     for (final conn in _connections) {
-      if (!conn.isEnabled) continue;
+      if (!conn.isEnabled || conn.isMuted) continue;
 
       if (conn.sourcePort == sourcePort) {
         if (conn.scope == ConnectionScope.broadcast) {
-          // Difusión global a todos los puertos de entrada compatibles del mismo SignalType
-          for (final entry in _portControllers.entries) {
-            if (entry.key != sourceKey && entry.key.contains(sourcePort.signalType.code)) {
-              entry.value.add(data);
+          for (final entry in _registeredPorts.entries) {
+            final destPort = entry.value;
+            if (!dispatchedKeys.contains(entry.key) &&
+                _permissionBroker.canAuthorizeConnection(conn.sourcePort, destPort)) {
+              dispatchedKeys.add(entry.key);
+              final scaledData = _applyConnectionGain(data, conn.gain);
+              _portControllers[entry.key]?.add(scaledData);
             }
           }
         } else if (conn.destinationPort != null) {
-          // Despacho punto a punto exclusivo
+          if (!_permissionBroker.canAuthorizeConnection(
+            conn.sourcePort,
+            conn.destinationPort!,
+          )) {
+            continue;
+          }
           final destKey = _generatePortKey(conn.destinationPort!);
-          _portControllers[destKey]?.add(data);
+          if (!dispatchedKeys.contains(destKey)) {
+            dispatchedKeys.add(destKey);
+            final scaledData = _applyConnectionGain(data, conn.gain);
+            _portControllers[destKey]?.add(scaledData);
+          }
         }
       }
     }
   }
 
-  /// Despacha un evento atómico directamente a través del bus y de sus nodos suscritos.
+  /// Escala buffers de audio PCM y eventos de amplitud segun el factor [rawGain]
+  /// de la conexion activa, preservando el rango fisico normalizado.
+  dynamic _applyConnectionGain(dynamic payload, double rawGain) {
+    final double gain = rawGain.clamp(0.0, 2.0);
+    if ((gain - 1.0).abs() <= 1e-6) {
+      return payload;
+    }
+
+    if (payload is AudioPcmEvent) {
+      final List<double> scaledSamples = List<double>.generate(
+        payload.samples.length,
+        (i) => (payload.samples[i] * gain).clamp(-1.0, 1.0),
+        growable: false,
+      );
+      double scaledRms;
+      if (scaledSamples.isNotEmpty) {
+        double sumSquares = 0.0;
+        for (final s in scaledSamples) {
+          sumSquares += s * s;
+        }
+        scaledRms = math.sqrt(sumSquares / scaledSamples.length).clamp(0.0, 1.0);
+      } else {
+        scaledRms = (payload.rmsLevel * gain).clamp(0.0, 1.0);
+      }
+      return AudioPcmEvent(
+        eventId: payload.eventId,
+        sourcePort: payload.sourcePort,
+        timestampMicros: payload.timestampMicros,
+        samples: scaledSamples,
+        sampleRate: payload.sampleRate,
+        rmsLevel: scaledRms,
+      );
+    }
+
+    if (payload is PitchDetectionEvent) {
+      return PitchDetectionEvent(
+        eventId: payload.eventId,
+        sourcePort: payload.sourcePort,
+        timestampMicros: payload.timestampMicros,
+        frequencyHz: payload.frequencyHz,
+        noteName: payload.noteName,
+        centsOffset: payload.centsOffset,
+        clarity: payload.clarity,
+        amplitude: (payload.amplitude * gain).clamp(0.0, 2.0),
+      );
+    }
+
+    if (payload is List<double>) {
+      return payload.map((s) => (s * gain).clamp(-1.0, 1.0)).toList(growable: false);
+    }
+
+    return payload;
+  }
+
+  /// Despacha un evento atomico directamente a traves del bus y de sus nodos suscritos.
   void emitAtomicEvent(AtomicSignalEvent event) {
     emit(event.sourcePort, event);
   }
 
-  /// Transmite una señal global a todos los nodos que acepten este tipo de señal.
+  /// Transmite una senal global a todos los nodos que acepten este tipo de senal.
   void broadcastGlobalSignal(AtomicSignalEvent event) {
     for (final node in _registeredNodes.values) {
       if (node.isProcessingActive && node.acceptedSignalTypes.contains(event.signalType)) {
@@ -180,6 +270,7 @@ class SignalBus {
     _nodeSubscriptions.clear();
     _registeredNodes.clear();
     _connections.clear();
+    _registeredPorts.clear();
     for (final controller in _portControllers.values) {
       controller.close();
     }
@@ -187,5 +278,5 @@ class SignalBus {
   }
 
   static String _generatePortKey(PortId port) =>
-      '${port.ownerModuleId}_${port.id}_${port.signalType.code}';
+      '${port.ownerModuleId}_${port.id}_${port.direction.name}_${port.signalType.code}';
 }

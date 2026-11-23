@@ -15,11 +15,13 @@ import '../../instrument/presentation/instrument_selector_modal.dart';
 class HomeDashboardScreen extends StatelessWidget {
   final void Function(int tabIndex) onNavigateToTab;
   final VoidCallback? onOpenTerminal;
+  final void Function(String deckId, String songKey)? onLoadDjTemplate;
 
   const HomeDashboardScreen({
     super.key,
     required this.onNavigateToTab,
     this.onOpenTerminal,
+    this.onLoadDjTemplate,
   });
 
   @override
@@ -351,14 +353,22 @@ class HomeDashboardScreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Flexible(
-                          child: Text(
-                            '48.0 kHz • 24-bit • Buffer: 1024 (< 8 ms) • RingBuffer: 16k lock-free',
-                            style: TextStyle(
-                              color: palette.secondaryAccent,
-                              fontSize: 11,
-                              fontFamily: 'monospace',
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                          child: Builder(
+                            builder: (_) {
+                              final m = viewModel.audioDeviceMatrixService?.matrix;
+                              final label = m != null
+                                  ? '${(m.sampleRate / 1000).toStringAsFixed(1)} kHz • 24-bit • Buffer: ${m.bufferSize} (${(m.bufferSize / m.sampleRate * 1000.0).toStringAsFixed(1)} ms) • RingBuffer: 16k lock-free'
+                                  : '48.0 kHz • 24-bit • Buffer: 256 (5.3 ms) • RingBuffer: 16k lock-free';
+                              return Text(
+                                label,
+                                style: TextStyle(
+                                  color: palette.secondaryAccent,
+                                  fontSize: 11,
+                                  fontFamily: 'monospace',
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -477,7 +487,12 @@ class HomeDashboardScreen extends StatelessWidget {
                         accentColor: palette.primaryAccent,
                         palette: palette,
                         onTap: () {
-                          if (viewModel.workspaceScores.isNotEmpty) {
+                          final bach = viewModel.workspaceScores.where(
+                            (s) => s.title.toLowerCase().contains('bach') || s.title.toLowerCase().contains('suite'),
+                          );
+                          if (bach.isNotEmpty) {
+                            viewModel.loadSongPackage(bach.first);
+                          } else if (viewModel.workspaceScores.isNotEmpty) {
                             viewModel.loadSongPackage(viewModel.workspaceScores.first);
                           }
                           onNavigateToTab(4);
@@ -491,7 +506,11 @@ class HomeDashboardScreen extends StatelessWidget {
                         icon: Icons.album,
                         accentColor: const Color(0xFF00E5FF),
                         palette: palette,
-                        onTap: () => onNavigateToTab(5),
+                        onTap: () {
+                          viewModel.updateBpm(126);
+                          onLoadDjTemplate?.call('A', 'elisa');
+                          onNavigateToTab(5);
+                        },
                       ),
                       _TemplateCard(
                         key: const Key('template_take_acoustic'),
@@ -501,7 +520,11 @@ class HomeDashboardScreen extends StatelessWidget {
                         icon: Icons.graphic_eq,
                         accentColor: const Color(0xFF10B981),
                         palette: palette,
-                        onTap: () => onNavigateToTab(3),
+                        onTap: () {
+                          viewModel.setReferencePitch(440.0);
+                          viewModel.playReferenceTone('La4');
+                          onNavigateToTab(3);
+                        },
                       ),
                       _TemplateCard(
                         key: const Key('template_preset_philharmonic'),
@@ -511,7 +534,10 @@ class HomeDashboardScreen extends StatelessWidget {
                         icon: Icons.tune,
                         accentColor: const Color(0xFFF59E0B),
                         palette: palette,
-                        onTap: () => onNavigateToTab(1),
+                        onTap: () {
+                          viewModel.setReferencePitch(442.0);
+                          onNavigateToTab(1);
+                        },
                       ),
                     ],
                   ),

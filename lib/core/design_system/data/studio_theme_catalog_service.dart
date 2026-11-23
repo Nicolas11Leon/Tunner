@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../domain/studio_theme_skin_entity.dart';
+import '../studio_design_tokens.dart';
 import '../studio_theme_provider.dart';
 
 /// Servicio de catálogo y gestión de estéticas / skins descargables de estudio.
@@ -12,6 +13,13 @@ class StudioThemeCatalogService extends ChangeNotifier {
       _instance._controller = controller;
     }
     return _instance;
+  }
+
+  /// Crea una instancia aislada sin estado global compartido para DI y pruebas.
+  StudioThemeCatalogService.isolated({StudioThemeController? controller})
+      : _controller = controller {
+    _skins = List<StudioThemeSkinEntity>.from(StudioThemeSkinEntity.defaultCatalog);
+    _activeSkin = StudioThemeSkinEntity.obsidianPro;
   }
 
   StudioThemeCatalogService._internal() {

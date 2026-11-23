@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../domain/app_user_settings_entity.dart';
 import '../domain/i_local_persistence_service.dart';
 
@@ -41,7 +41,14 @@ class JsonLocalPersistenceService implements ILocalPersistenceService {
     if (pending != null) {
       try {
         await pending;
-      } catch (_) {}
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'JsonLocalPersistenceService',
+          'Pending save failed prior to loadSettings',
+          error: e,
+          stackTrace: st,
+        );
+      }
     }
 
     try {
@@ -57,8 +64,13 @@ class JsonLocalPersistenceService implements ILocalPersistenceService {
 
       final jsonMap = jsonDecode(content) as Map<String, dynamic>;
       return AppUserSettingsEntity.fromMap(jsonMap);
-    } catch (e) {
-      debugPrint("Advertencia en JsonLocalPersistenceService.loadSettings: $e");
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'JsonLocalPersistenceService',
+        'Advertencia en loadSettings',
+        error: e,
+        stackTrace: st,
+      );
       return AppUserSettingsEntity.defaultSettings;
     }
   }
@@ -74,7 +86,14 @@ class JsonLocalPersistenceService implements ILocalPersistenceService {
     if (previous != null) {
       try {
         await previous;
-      } catch (_) {}
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'JsonLocalPersistenceService',
+          'Previous save failed prior to saveSettings',
+          error: e,
+          stackTrace: st,
+        );
+      }
     }
 
     try {
@@ -93,7 +112,13 @@ class JsonLocalPersistenceService implements ILocalPersistenceService {
       // 2. Renombrado atómico seguro
       try {
         await tempFile.rename(targetFile.path);
-      } catch (_) {
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'JsonLocalPersistenceService',
+          'Renombrado atomico fallback a escritura directa: $e',
+          error: e,
+          stackTrace: st,
+        );
         if (!await parentDir.exists()) {
           await parentDir.create(recursive: true);
         }
@@ -102,8 +127,13 @@ class JsonLocalPersistenceService implements ILocalPersistenceService {
           await tempFile.delete();
         }
       }
-    } catch (e) {
-      debugPrint("Error crítico al persistir configuraciones en JsonLocalPersistenceService: $e");
+    } catch (e, st) {
+      StudioDebugLogger.instance.error(
+        'JsonLocalPersistenceService',
+        'Error critico al persistir configuraciones',
+        error: e,
+        stackTrace: st,
+      );
     } finally {
       completer.complete();
     }
@@ -120,8 +150,13 @@ class JsonLocalPersistenceService implements ILocalPersistenceService {
       if (await tempFile.exists()) {
         await tempFile.delete();
       }
-    } catch (e) {
-      debugPrint("Advertencia al limpiar configuraciones en JsonLocalPersistenceService: $e");
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'JsonLocalPersistenceService',
+        'Advertencia al limpiar configuraciones',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 }

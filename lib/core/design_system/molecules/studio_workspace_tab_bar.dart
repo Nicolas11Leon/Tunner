@@ -37,27 +37,39 @@ class StudioWorkspaceTabBar extends StatelessWidget {
   static const List<StudioWorkspaceTabItem> defaultTabs = [
     StudioWorkspaceTabItem(
       index: 0,
-      label: 'Aprender',
-      icon: Icons.graphic_eq_rounded,
+      label: 'Inicio',
+      icon: Icons.dashboard_rounded,
       shortcut: 'F1',
+    ),
+    StudioWorkspaceTabItem(
+      index: 1,
+      label: 'Afinador',
+      icon: Icons.tune_rounded,
+      shortcut: 'F2',
+    ),
+    StudioWorkspaceTabItem(
+      index: 2,
+      label: 'Aprender',
+      icon: Icons.school_rounded,
+      shortcut: 'F3',
     ),
     StudioWorkspaceTabItem(
       index: 3,
       label: 'Rack Modular',
       icon: Icons.developer_board_rounded,
-      shortcut: 'F2',
+      shortcut: 'F4',
     ),
     StudioWorkspaceTabItem(
       index: 4,
       label: 'Partituras',
       icon: Icons.music_note_rounded,
-      shortcut: 'F3',
+      shortcut: 'F5',
     ),
     StudioWorkspaceTabItem(
       index: 5,
       label: 'Consola DJ',
       icon: Icons.album_rounded,
-      shortcut: 'F4',
+      shortcut: 'F6',
     ),
   ];
 
@@ -88,7 +100,7 @@ class StudioWorkspaceTabBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(4.0),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 3.0),
+                padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 3.0),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? tokens.panelHeaderBackground
@@ -115,7 +127,7 @@ class StudioWorkspaceTabBar extends StatelessWidget {
                       size: 13.0,
                       color: isSelected ? tokens.accentPrimary : tokens.textMuted,
                     ),
-                    const SizedBox(width: 6.0),
+                    const SizedBox(width: 4.0),
                     Text(
                       tab.label,
                       style: TextStyle(

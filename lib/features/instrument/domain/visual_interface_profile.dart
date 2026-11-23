@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 /// Tipo de renderizador de interfaz táctil para la emulación interactiva del instrumento.
 enum VisualRendererType {
   /// Diapasón con trastes, cuerdas y marcadores de posición (Guitarras, Bajos, Ukeleles, Banjo).
@@ -38,13 +36,13 @@ class VisualInterfaceProfile {
   final String visualMaterialTheme;
 
   /// Color primario de acento distintivo del instrumento.
-  final Color primaryAccentColor;
+  final int primaryAccentHex;
 
   /// Color secundario / de contraste.
-  final Color secondaryAccentColor;
+  final int secondaryAccentHex;
 
   /// Color de fondo o textura de superficie del módulo.
-  final Color surfaceColor;
+  final int surfaceHex;
 
   /// Glifo musical técnico representativo del instrumento (código técnico o clave musical SMuFL).
   final String smuflGlyph;
@@ -55,9 +53,9 @@ class VisualInterfaceProfile {
   const VisualInterfaceProfile({
     required this.rendererType,
     required this.visualMaterialTheme,
-    required this.primaryAccentColor,
-    required this.secondaryAccentColor,
-    required this.surfaceColor,
+    required this.primaryAccentHex,
+    required this.secondaryAccentHex,
+    required this.surfaceHex,
     required this.smuflGlyph,
     this.tactileLabels = const [],
   });
@@ -66,9 +64,9 @@ class VisualInterfaceProfile {
   static const VisualInterfaceProfile guitarWarm = VisualInterfaceProfile(
     rendererType: VisualRendererType.fretboard,
     visualMaterialTheme: 'wood_rosewood',
-    primaryAccentColor: Color(0xFFF59E0B), // Ámbar dorado
-    secondaryAccentColor: Color(0xFFD97706),
-    surfaceColor: Color(0xFF1E140F), // Madera oscura
+    primaryAccentHex: 0xFFF59E0B, // Ámbar dorado
+    secondaryAccentHex: 0xFFD97706,
+    surfaceHex: 0xFF1E140F, // Madera oscura
     smuflGlyph: 'STR',
     tactileLabels: ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'],
   );
@@ -77,9 +75,9 @@ class VisualInterfaceProfile {
   static const VisualInterfaceProfile electricBass = VisualInterfaceProfile(
     rendererType: VisualRendererType.fretboard,
     visualMaterialTheme: 'dark_carbon',
-    primaryAccentColor: Color(0xFF38BDF8), // Azul eléctrico
-    secondaryAccentColor: Color(0xFF0284C7),
-    surfaceColor: Color(0xFF0F172A), // Slate profundo
+    primaryAccentHex: 0xFF38BDF8, // Azul eléctrico
+    secondaryAccentHex: 0xFF0284C7,
+    surfaceHex: 0xFF0F172A, // Slate profundo
     smuflGlyph: 'BSS',
     tactileLabels: ['E1', 'A1', 'D2', 'G2'],
   );
@@ -88,9 +86,9 @@ class VisualInterfaceProfile {
   static const VisualInterfaceProfile violinClassical = VisualInterfaceProfile(
     rendererType: VisualRendererType.fingerboard,
     visualMaterialTheme: 'luthier_varnish',
-    primaryAccentColor: Color(0xFFE11D48), // Carmín de luthier
-    secondaryAccentColor: Color(0xFFBE123C),
-    surfaceColor: Color(0xFF1C1014),
+    primaryAccentHex: 0xFFE11D48, // Carmín de luthier
+    secondaryAccentHex: 0xFFBE123C,
+    surfaceHex: 0xFF1C1014,
     smuflGlyph: 'VLN',
     tactileLabels: ['G3', 'D4', 'A4', 'E5'],
   );
@@ -99,9 +97,9 @@ class VisualInterfaceProfile {
   static const VisualInterfaceProfile brassGolden = VisualInterfaceProfile(
     rendererType: VisualRendererType.valvesPads,
     visualMaterialTheme: 'brass_gold',
-    primaryAccentColor: Color(0xFFFBBF24), // Oro metálico
-    secondaryAccentColor: Color(0xFFD97706),
-    surfaceColor: Color(0xFF1A1608),
+    primaryAccentHex: 0xFFFBBF24, // Oro metálico
+    secondaryAccentHex: 0xFFD97706,
+    surfaceHex: 0xFF1A1608,
     smuflGlyph: 'BRS',
     tactileLabels: ['Pistón 1', 'Pistón 2', 'Pistón 3'],
   );
@@ -110,9 +108,9 @@ class VisualInterfaceProfile {
   static const VisualInterfaceProfile woodwindSilver = VisualInterfaceProfile(
     rendererType: VisualRendererType.valvesPads,
     visualMaterialTheme: 'silver_ebony',
-    primaryAccentColor: Color(0xFF34D399), // Esmeralda / plata
-    secondaryAccentColor: Color(0xFF059669),
-    surfaceColor: Color(0xFF0B1713),
+    primaryAccentHex: 0xFF34D399, // Esmeralda / plata
+    secondaryAccentHex: 0xFF059669,
+    surfaceHex: 0xFF0B1713,
     smuflGlyph: 'WND',
     tactileLabels: ['Llave C', 'Llave D', 'Llave E', 'Llave F', 'Llave G', 'Llave A', 'Llave B'],
   );
@@ -121,9 +119,9 @@ class VisualInterfaceProfile {
   static const VisualInterfaceProfile grandPianoIvory = VisualInterfaceProfile(
     rendererType: VisualRendererType.keybed,
     visualMaterialTheme: 'ivory_ebony',
-    primaryAccentColor: Color(0xFFA78BFA), // Púrpura conservatorio
-    secondaryAccentColor: Color(0xFF7C3AED),
-    surfaceColor: Color(0xFF140F21),
+    primaryAccentHex: 0xFFA78BFA, // Púrpura conservatorio
+    secondaryAccentHex: 0xFF7C3AED,
+    surfaceHex: 0xFF140F21,
     smuflGlyph: 'PNO',
     tactileLabels: ['88 Teclas (A0 - C8)'],
   );
@@ -132,9 +130,9 @@ class VisualInterfaceProfile {
   static const VisualInterfaceProfile marimbaConcert = VisualInterfaceProfile(
     rendererType: VisualRendererType.malletBars,
     visualMaterialTheme: 'rosewood_bars',
-    primaryAccentColor: Color(0xFFFB923C), // Naranja madera
-    secondaryAccentColor: Color(0xFFEA580C),
-    surfaceColor: Color(0xFF1C130D),
+    primaryAccentHex: 0xFFFB923C, // Naranja madera
+    secondaryAccentHex: 0xFFEA580C,
+    surfaceHex: 0xFF1C130D,
     smuflGlyph: 'MLT',
     tactileLabels: ['Láminas Cromáticas (C2 - C7)'],
   );
@@ -143,9 +141,9 @@ class VisualInterfaceProfile {
   static const VisualInterfaceProfile acousticDrums = VisualInterfaceProfile(
     rendererType: VisualRendererType.drumPads,
     visualMaterialTheme: 'percussion_chrome',
-    primaryAccentColor: Color(0xFF10B981), // Verde cromo
-    secondaryAccentColor: Color(0xFF059669),
-    surfaceColor: Color(0xFF0B1A14),
+    primaryAccentHex: 0xFF10B981, // Verde cromo
+    secondaryAccentHex: 0xFF059669,
+    surfaceHex: 0xFF0B1A14,
     smuflGlyph: 'DRM',
     tactileLabels: ['Bombo', 'Caja', 'Hi-Hat', 'Tom 1', 'Tom 2', 'Tom Piso', 'Crash', 'Ride'],
   );
@@ -154,9 +152,9 @@ class VisualInterfaceProfile {
   static const VisualInterfaceProfile vocalStudio = VisualInterfaceProfile(
     rendererType: VisualRendererType.vocalFormants,
     visualMaterialTheme: 'vocal_booth',
-    primaryAccentColor: Color(0xFF06B6D4), // Cian de estudio
-    secondaryAccentColor: Color(0xFF0891B2),
-    surfaceColor: Color(0xFF09171C),
+    primaryAccentHex: 0xFF06B6D4, // Cian de estudio
+    secondaryAccentHex: 0xFF0891B2,
+    surfaceHex: 0xFF09171C,
     smuflGlyph: 'VOX',
     tactileLabels: ['Formante F1', 'Formante F2', 'Vibrato Rate', 'Autotune Speed'],
   );
@@ -165,10 +163,65 @@ class VisualInterfaceProfile {
   static const VisualInterfaceProfile synthModern = VisualInterfaceProfile(
     rendererType: VisualRendererType.keybed,
     visualMaterialTheme: 'neon_synth',
-    primaryAccentColor: Color(0xFFEC4899), // Magenta Neón
-    secondaryAccentColor: Color(0xFFDB2777),
-    surfaceColor: Color(0xFF1B0C18),
+    primaryAccentHex: 0xFFEC4899, // Magenta Neón
+    secondaryAccentHex: 0xFFDB2777,
+    surfaceHex: 0xFF1B0C18,
     smuflGlyph: 'SYN',
     tactileLabels: ['Osc 1 (Saw)', 'Cutoff', 'Resonance', 'Glide'],
+  );
+
+  /// Preset visual para Kora de África Occidental.
+  static const VisualInterfaceProfile koraEthnic = VisualInterfaceProfile(
+    rendererType: VisualRendererType.fingerboard,
+    visualMaterialTheme: 'calabash_wood',
+    primaryAccentHex: 0xFFEAB308, // Oro africano
+    secondaryAccentHex: 0xFFCA8A04,
+    surfaceHex: 0xFF26180E,
+    smuflGlyph: 'KRA',
+    tactileLabels: ['F2', 'C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'Bb3', 'C4', 'D4', 'E4'],
+  );
+
+  /// Preset visual para Sitar de la India.
+  static const VisualInterfaceProfile sitarEthnic = VisualInterfaceProfile(
+    rendererType: VisualRendererType.fretboard,
+    visualMaterialTheme: 'teak_brass',
+    primaryAccentHex: 0xFFF97316, // Azafrán védico
+    secondaryAccentHex: 0xFFC2410C,
+    surfaceHex: 0xFF1F120A,
+    smuflGlyph: 'SIT',
+    tactileLabels: ['C2', 'G2', 'C3', 'F3', 'G3', 'C4', 'C5'],
+  );
+
+  /// Preset visual para Shakuhachi japonés.
+  static const VisualInterfaceProfile shakuhachiEthnic = VisualInterfaceProfile(
+    rendererType: VisualRendererType.valvesPads,
+    visualMaterialTheme: 'bamboo_natural',
+    primaryAccentHex: 0xFF84CC16, // Verde bambú
+    secondaryAccentHex: 0xFF65A30D,
+    surfaceHex: 0xFF1A1F12,
+    smuflGlyph: 'SHK',
+    tactileLabels: ['D4', 'F4', 'G4', 'A4', 'C5'],
+  );
+
+  /// Preset visual para Charango andino.
+  static const VisualInterfaceProfile charangoEthnic = VisualInterfaceProfile(
+    rendererType: VisualRendererType.fretboard,
+    visualMaterialTheme: 'andean_jacaranda',
+    primaryAccentHex: 0xFF06B6D4, // Turquesa andino
+    secondaryAccentHex: 0xFF0891B2,
+    surfaceHex: 0xFF131D24,
+    smuflGlyph: 'CHG',
+    tactileLabels: ['E5', 'A4', 'E5', 'C5', 'G4'],
+  );
+
+  /// Preset visual para Cuatro tradicional venezolano.
+  static const VisualInterfaceProfile cuatroVenezuelan = VisualInterfaceProfile(
+    rendererType: VisualRendererType.fretboard,
+    visualMaterialTheme: 'cedar_llanero',
+    primaryAccentHex: 0xFFE11D48, // Rojo llanero
+    secondaryAccentHex: 0xFFBE123C,
+    surfaceHex: 0xFF241216,
+    smuflGlyph: 'CTR',
+    tactileLabels: ['B3', 'F#4', 'D4', 'A3'],
   );
 }

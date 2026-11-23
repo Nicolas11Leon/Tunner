@@ -49,12 +49,14 @@ class HierarchicalNote {
   final int durationTicks; // Duración en sub-ticks de resolución base (semicorcheas)
   final String noteName;   // Nombre de la nota con octava (ej: "Do4", "Mi4", "Sol#5"). Vacío si es silencio.
   final bool isRest;       // True si representa un silencio musical
+  final bool isTied;       // True si la nota está ligada prolongando su duración acústica
 
   const HierarchicalNote({
     required this.startTick,
     required this.durationTicks,
     required this.noteName,
     this.isRest = false,
+    this.isTied = false,
   });
 
   /// Crea una nota afinada regular
@@ -62,12 +64,14 @@ class HierarchicalNote {
     required int startTick,
     required int durationTicks,
     required String noteName,
+    bool isTied = false,
   }) {
     return HierarchicalNote(
       startTick: startTick,
       durationTicks: durationTicks,
       noteName: noteName,
       isRest: false,
+      isTied: isTied,
     );
   }
 
@@ -81,6 +85,7 @@ class HierarchicalNote {
       durationTicks: durationTicks,
       noteName: '',
       isRest: true,
+      isTied: false,
     );
   }
 
@@ -91,12 +96,14 @@ class HierarchicalNote {
     int? durationTicks,
     String? noteName,
     bool? isRest,
+    bool? isTied,
   }) {
     return HierarchicalNote(
       startTick: startTick ?? this.startTick,
       durationTicks: durationTicks ?? this.durationTicks,
       noteName: noteName ?? this.noteName,
       isRest: isRest ?? this.isRest,
+      isTied: isTied ?? this.isTied,
     );
   }
 
@@ -105,6 +112,7 @@ class HierarchicalNote {
         'durationTicks': durationTicks,
         'noteName': noteName,
         'isRest': isRest,
+        'isTied': isTied,
       };
 
   factory HierarchicalNote.fromMap(Map<String, dynamic> map) {
@@ -113,6 +121,7 @@ class HierarchicalNote {
       durationTicks: (map['durationTicks'] as num?)?.toInt() ?? 4,
       noteName: map['noteName'] as String? ?? '',
       isRest: map['isRest'] as bool? ?? false,
+      isTied: map['isTied'] as bool? ?? false,
     );
   }
 }
@@ -122,11 +131,13 @@ class MeasureEntity {
   final int index; // Índice correlativo (0, 1, 2...)
   final TimeSignature timeSignature;
   final List<HierarchicalNote> notes;
+  final int keySignatureFifths; // Armadura de clave (-7 a +7)
 
   const MeasureEntity({
     required this.index,
     required this.timeSignature,
     required this.notes,
+    this.keySignatureFifths = 0,
   });
 
   /// Verifica si la suma de duraciones coincide exactamente con la métrica del compás.
@@ -148,11 +159,13 @@ class MeasureEntity {
     int? index,
     TimeSignature? timeSignature,
     List<HierarchicalNote>? notes,
+    int? keySignatureFifths,
   }) {
     return MeasureEntity(
       index: index ?? this.index,
       timeSignature: timeSignature ?? this.timeSignature,
       notes: notes ?? this.notes,
+      keySignatureFifths: keySignatureFifths ?? this.keySignatureFifths,
     );
   }
 
@@ -160,6 +173,7 @@ class MeasureEntity {
         'index': index,
         'timeSignature': timeSignature.toString(),
         'notes': notes.map((n) => n.toMap()).toList(),
+        'keySignatureFifths': keySignatureFifths,
       };
 
   factory MeasureEntity.fromMap(Map<String, dynamic> map) {
@@ -174,6 +188,7 @@ class MeasureEntity {
       index: (map['index'] as num?)?.toInt() ?? 0,
       timeSignature: sig,
       notes: rawNotes.map((n) => HierarchicalNote.fromMap(n as Map<String, dynamic>)).toList(),
+      keySignatureFifths: (map['keySignatureFifths'] as num?)?.toInt() ?? 0,
     );
   }
 }

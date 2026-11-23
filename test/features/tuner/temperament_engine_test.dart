@@ -5,10 +5,14 @@ void main() {
   group('TemperamentEngine Mathematical and Domain Tests', () {
     const engine = TemperamentEngine();
 
-    test('All 8 canonical temperaments are registered with 12 offsets each', () {
-      expect(TemperamentEngine.allTemperaments.length, equals(8));
+    test('All 11 canonical temperaments are registered with 12 offsets each', () {
+      expect(TemperamentEngine.allTemperaments.length, equals(11));
       for (final temp in TemperamentEngine.allTemperaments) {
         expect(temp.centsOffsets.length, equals(12));
+        expect(temp.id, isNotEmpty);
+        expect(temp.name, isNotEmpty);
+        expect(temp.historicalEra, isNotEmpty);
+        expect(temp.description, isNotEmpty);
       }
     });
 
@@ -31,48 +35,113 @@ void main() {
 
     test('Just Intonation produces pure major third (5:4 ratio, -13.69 cents offset from equal)', () {
       final justTemp = TemperamentEngine.getById('just_intonation');
-      // En C Justo: Mi (índice 4) debe tener offset de -13.69 cents
       final miOffset = engine.getCentsOffset(noteIndex: 4, temperament: justTemp, rootKey: 0);
       expect(miOffset, closeTo(-13.69, 0.01));
 
-      // Comprobar la frecuencia de E4 (MIDI 64) relativa a C4 (MIDI 60)
-      // C4 en Equal con A4=440 es 261.625 Hz
-      // En Just Intonation, E4 = C4 * (5/4) = 261.625 * 1.25 = 327.031 Hz
-      // Frecuencia E4 en Equal es 440 * 2^(-7/12) = 329.627 Hz
-      // Con -13.69 cents: 329.627 * 2^(-13.69/1200) = 327.031 Hz
       final c4Freq = engine.getTargetFrequency(midiNumber: 60, temperament: justTemp, a4Ref: 440.0, rootKey: 0);
       final e4Freq = engine.getTargetFrequency(midiNumber: 64, temperament: justTemp, a4Ref: 440.0, rootKey: 0);
       expect(e4Freq / c4Freq, closeTo(1.25, 0.001));
     });
 
+    test('Kirnberger I produces acoustically pure 5:4 major third and concentrated syntonic comma', () {
+      final kirnI = TemperamentEngine.kirnbergerI;
+      expect(kirnI.id, 'kirnberger_i');
+
+      // 1. Tercera mayor pura C-E (grado 4): ratio 5:4 con -13.69 cents respecto a 12-TET
+      final eOffset = engine.getCentsOffset(noteIndex: 4, temperament: kirnI, rootKey: 0);
+      expect(eOffset, closeTo(-13.69, 0.01));
+
+      final c4Freq = engine.getTargetFrequency(midiNumber: 60, temperament: kirnI, a4Ref: 440.0, rootKey: 0);
+      final e4Freq = engine.getTargetFrequency(midiNumber: 64, temperament: kirnI, a4Ref: 440.0, rootKey: 0);
+      expect(e4Freq / c4Freq, closeTo(1.25, 0.001));
+
+      // 2. Quinta pura C-G (grado 7): +1.96 cents
+      final gOffset = engine.getCentsOffset(noteIndex: 7, temperament: kirnI, rootKey: 0);
+      expect(gOffset, closeTo(1.96, 0.01));
+
+      // 3. Quinta con coma sintónica concentrada D-A:
+      // Re (grado 2) = +3.91, La (grado 9) = -15.64
+      final dOffset = engine.getCentsOffset(noteIndex: 2, temperament: kirnI, rootKey: 0);
+      final aOffset = engine.getCentsOffset(noteIndex: 9, temperament: kirnI, rootKey: 0);
+      expect(dOffset, closeTo(3.91, 0.01));
+      expect(aOffset, closeTo(-15.64, 0.01));
+      // Intervalo D-A: (900 - 15.64) - (200 + 3.91) = 680.45 cents (701.96 - 21.51)
+      final daCents = (700.0 + (aOffset - dOffset));
+      expect(daCents, closeTo(680.45, 0.05));
+    });
+
+    test('Werckmeister IV (Septenarius) correctly registers compensated fifths and degree offsets', () {
+      final werckIV = TemperamentEngine.werckmeisterIV;
+      expect(werckIV.id, 'werckmeister_iv');
+
+      expect(engine.getCentsOffset(noteIndex: 0, temperament: werckIV), 0.0);
+      expect(engine.getCentsOffset(noteIndex: 1, temperament: werckIV), closeTo(-9.78, 0.02)); // C#
+      expect(engine.getCentsOffset(noteIndex: 2, temperament: werckIV), closeTo(-3.91, 0.02)); // D
+      expect(engine.getCentsOffset(noteIndex: 4, temperament: werckIV), closeTo(-7.82, 0.02)); // E
+      expect(engine.getCentsOffset(noteIndex: 5, temperament: werckIV), closeTo(-1.96, 0.02)); // F
+      expect(engine.getCentsOffset(noteIndex: 6, temperament: werckIV), closeTo(-11.73, 0.02)); // F#
+      expect(engine.getCentsOffset(noteIndex: 7, temperament: werckIV), closeTo(-5.87, 0.02)); // G
+      expect(engine.getCentsOffset(noteIndex: 10, temperament: werckIV), closeTo(3.91, 0.02)); // Bb
+      expect(engine.getCentsOffset(noteIndex: 11, temperament: werckIV), closeTo(-13.69, 0.02)); // B
+    });
+
+    test('Neidhardt 1724 (Grosse Stadt) circulating temperament produces smooth progressive offsets', () {
+      final neidhardt = TemperamentEngine.neidhardt1724;
+      expect(neidhardt.id, 'neidhardt_1724');
+
+      expect(engine.getCentsOffset(noteIndex: 0, temperament: neidhardt), 0.0);
+      expect(engine.getCentsOffset(noteIndex: 1, temperament: neidhardt), closeTo(-7.82, 0.01));
+      expect(engine.getCentsOffset(noteIndex: 2, temperament: neidhardt), closeTo(-3.91, 0.01));
+      expect(engine.getCentsOffset(noteIndex: 4, temperament: neidhardt), closeTo(-7.82, 0.01));
+      expect(engine.getCentsOffset(noteIndex: 5, temperament: neidhardt), closeTo(1.96, 0.01));
+      expect(engine.getCentsOffset(noteIndex: 6, temperament: neidhardt), closeTo(-9.78, 0.01));
+      expect(engine.getCentsOffset(noteIndex: 7, temperament: neidhardt), closeTo(-1.96, 0.01));
+      expect(engine.getCentsOffset(noteIndex: 10, temperament: neidhardt), 0.0);
+    });
+
     test('Circular key modulation shifts intervals relative to chosen root note', () {
       final justTemp = TemperamentEngine.getById('just_intonation');
-      // Con tónica en Re (rootKey = 2):
-      // La tercera mayor es Fa# (índice 6: 6 - 2 = 4 grados)
       final fSharpOffset = engine.getCentsOffset(noteIndex: 6, temperament: justTemp, rootKey: 2);
       expect(fSharpOffset, closeTo(-13.69, 0.01));
 
-      // La tónica Re (índice 2) debe tener 0 offset
       final dOffset = engine.getCentsOffset(noteIndex: 2, temperament: justTemp, rootKey: 2);
       expect(dOffset, equals(0.0));
     });
 
     test('Pythagorean tuning produces pure 3:2 fifth (+1.96 cents offset from 700 cents equal)', () {
       final pythTemp = TemperamentEngine.getById('pythagorean');
-      // Quinta de Do es Sol (índice 7)
       final solOffset = engine.getCentsOffset(noteIndex: 7, temperament: pythTemp, rootKey: 0);
       expect(solOffset, closeTo(1.96, 0.01));
     });
 
     test('calculateCentsDeviation accurately evaluates microtonal pitch error', () {
-      // 440 vs 440 = 0 cents
       expect(engine.calculateCentsDeviation(detectedFrequency: 440.0, targetFrequency: 440.0), closeTo(0.0, 0.001));
-
-      // 442.0 Hz contra 440.0 Hz = +7.85 cents
       expect(engine.calculateCentsDeviation(detectedFrequency: 442.0, targetFrequency: 440.0), closeTo(7.85, 0.01));
-
-      // Cero o negativo retorna 0.0 de forma segura
       expect(engine.calculateCentsDeviation(detectedFrequency: 0.0, targetFrequency: 440.0), equals(0.0));
+    });
+
+    test('getById resolves all 11 canonical IDs and falls back safely to equal', () {
+      const canonicalIds = [
+        'equal',
+        'pythagorean',
+        'just_intonation',
+        'meantone_quarter',
+        'werckmeister_iii',
+        'kirnberger_iii',
+        'vallotti',
+        'young_ii',
+        'werckmeister_iv',
+        'kirnberger_i',
+        'neidhardt_1724',
+      ];
+
+      for (final id in canonicalIds) {
+        final t = TemperamentEngine.getById(id);
+        expect(t.id, id);
+      }
+
+      final fallback = TemperamentEngine.getById('invalid_id_xyz');
+      expect(fallback.id, 'equal');
     });
   });
 }

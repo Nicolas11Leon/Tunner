@@ -40,10 +40,16 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
   @override
   void initState() {
     super.initState();
+    String activeInstrumentName = 'Instrumento Actual';
+    try {
+      activeInstrumentName = context.read<TunerViewModel>().activeInstrument.name;
+    } catch (_) {
+      // Fallback cuando el modal se monta sin Provider<TunerViewModel> en pruebas aisladas.
+    }
     _studentNameController =
         TextEditingController(text: 'Estudiante Conservatorio');
     _instrumentController =
-        TextEditingController(text: 'Flauta Traversa / Voz');
+        TextEditingController(text: activeInstrumentName);
     _institutionController =
         TextEditingController(text: 'Tunner Acoustic Academy');
     _teacherController =
@@ -360,6 +366,12 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
 
       final pdfBytes = vm.exportPedagogicalReportPdf(config);
       final sizeKb = (pdfBytes.length / 1024).toStringAsFixed(1);
+      vm.platformFileGateway
+          .saveExportedBytes(
+            'tunner_pedagogical_report_${DateTime.now().millisecondsSinceEpoch}.pdf',
+            pdfBytes,
+          )
+          .catchError((_) => '');
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

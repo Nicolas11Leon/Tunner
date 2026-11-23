@@ -74,45 +74,50 @@ class HarmonicSeriesAnalyzer {
 
   /// Analiza los primeros [maxHarmonics] armónicos a partir de la frecuencia fundamental
   /// y de las muestras PCM normalizadas [-1.0, 1.0].
+  /// Aplica una ventana de Hann simétrica para prevenir spectral leakage.
+  /// Si no se suministran muestras reales válidas, retorna [TimbreAnalysisResult.empty].
   TimbreAnalysisResult analyze({
     required double fundamentalHz,
     List<double>? samples,
     double sampleRate = 44100.0,
   }) {
-    if (fundamentalHz <= 20.0) {
+    if (fundamentalHz <= 20.0 || samples == null || samples.length < 64) {
       return TimbreAnalysisResult.empty;
     }
 
     final amplitudes = <double>[];
+    final n = samples.length;
 
-    if (samples != null && samples.length >= 64) {
-      // Evaluación exacta de DFT dirigida para cada armónico k * fundamental
-      final n = samples.length;
-      for (int k = 1; k <= maxHarmonics; k++) {
-        final targetFreq = fundamentalHz * k;
-        if (targetFreq >= sampleRate / 2.0) {
-          amplitudes.add(0.0);
-          continue;
-        }
+    // Precalcular ventana de Hann y suma de pesos coherentes
+    final windowWeights = List<double>.filled(n, 0.0);
+    double windowSum = 0.0;
+    for (int i = 0; i < n; i++) {
+      final w = 0.5 * (1.0 - math.cos(2.0 * math.pi * i / (n - 1)));
+      windowWeights[i] = w;
+      windowSum += w;
+    }
+    final normFactor = windowSum > 1e-6 ? (2.0 / windowSum) : (2.0 / n);
 
-        final omega = 2.0 * math.pi * targetFreq / sampleRate;
-        double sumCos = 0.0;
-        double sumSin = 0.0;
-
-        for (int i = 0; i < n; i++) {
-          final sample = samples[i];
-          sumCos += sample * math.cos(omega * i);
-          sumSin += sample * math.sin(omega * i);
-        }
-
-        final mag = (2.0 / n) * math.sqrt(sumCos * sumCos + sumSin * sumSin);
-        amplitudes.add(mag);
+    // Evaluación exacta de DFT dirigida para cada armónico k * fundamental
+    for (int k = 1; k <= maxHarmonics; k++) {
+      final targetFreq = fundamentalHz * k;
+      if (targetFreq >= sampleRate / 2.0) {
+        amplitudes.add(0.0);
+        continue;
       }
-    } else {
-      // Modelo de decaimiento acústico natural cuando no se suministra buffer crudo
-      for (int k = 1; k <= maxHarmonics; k++) {
-        amplitudes.add(1.0 / math.pow(k, 1.2));
+
+      final omega = 2.0 * math.pi * targetFreq / sampleRate;
+      double sumCos = 0.0;
+      double sumSin = 0.0;
+
+      for (int i = 0; i < n; i++) {
+        final sample = samples[i] * windowWeights[i];
+        sumCos += sample * math.cos(omega * i);
+        sumSin += sample * math.sin(omega * i);
       }
+
+      final mag = normFactor * math.sqrt(sumCos * sumCos + sumSin * sumSin);
+      amplitudes.add(mag);
     }
 
     // Normalización de amplitud respecto a la fundamental

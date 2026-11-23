@@ -6,17 +6,33 @@ void main() {
   group('HarmonicSeriesAnalyzer Tests', () {
     const analyzer = HarmonicSeriesAnalyzer(maxHarmonics: 8);
 
-    test('Returns empty result when fundamental is non-positive or sub-acoustic', () {
+    test('Returns empty result when fundamental is non-positive or sub-acoustic or no samples', () {
       final res0 = analyzer.analyze(fundamentalHz: 0.0);
       expect(res0.harmonics, isEmpty);
       expect(res0.spectralCentroidHz, equals(0.0));
 
       final resSub = analyzer.analyze(fundamentalHz: 15.0);
       expect(resSub.harmonics, isEmpty);
+
+      final resNoSamples = analyzer.analyze(fundamentalHz: 440.0);
+      expect(resNoSamples.harmonics, isEmpty);
+      expect(resNoSamples.spectralCentroidHz, equals(0.0));
     });
 
-    test('Generates 8 harmonics with exact integer multiples of fundamental frequency', () {
-      final result = analyzer.analyze(fundamentalHz: 440.0);
+    test('Generates 8 harmonics with exact integer multiples when samples are supplied', () {
+      const sampleRate = 44100.0;
+      const numSamples = 1024;
+      const f0 = 440.0;
+
+      final samples = List.generate(numSamples, (i) {
+        return math.sin(2.0 * math.pi * f0 * i / sampleRate);
+      });
+
+      final result = analyzer.analyze(
+        fundamentalHz: 440.0,
+        samples: samples,
+        sampleRate: sampleRate,
+      );
 
       expect(result.harmonics.length, equals(8));
       expect(result.harmonics[0].harmonicNumber, equals(1));

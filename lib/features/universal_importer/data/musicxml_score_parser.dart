@@ -46,7 +46,10 @@ class MusicXmlScoreParser implements IScoreParserService {
     int totalNotesCount = 0;
     final warnings = <String>[];
 
-    final xmlMeasures = document.findAllElements('measure');
+    final parts = document.findAllElements('part');
+    final xmlMeasures = parts.isNotEmpty
+        ? parts.first.findElements('measure')
+        : document.findAllElements('measure');
     if (xmlMeasures.isEmpty) {
       throw const FormatException('El archivo MusicXML no contiene ningún elemento <measure>.');
     }
@@ -70,31 +73,57 @@ class MusicXmlScoreParser implements IScoreParserService {
         }
       }
 
-      // Procesar notas del compás
+      // Procesar notas del compas preservando acordes polifonicos (<chord/>)
       final notes = <HierarchicalNote>[];
       int currentTick = 0;
-      final maxTicks = currentTimeSignature.totalTicks;
+      int lastBaseNoteStartTick = 0;
+      bool hasBaseNote = false;
+      final maxTicks = currentTimeSignature.totalTicks > 0 ? currentTimeSignature.totalTicks : 16;
 
       for (final noteNode in measureNode.findElements('note')) {
-        // Ignorar notas de gracia o voces secundarias si superan el tiempo
-        if (currentTick >= maxTicks) break;
+        // Ignorar notas de gracia que no consumen tiempo metrico
+        if (noteNode.getElement('grace') != null) {
+          continue;
+        }
 
+        final isChord = noteNode.getElement('chord') != null;
         final isRest = noteNode.getElement('rest') != null;
         final durationNode = noteNode.getElement('duration');
         final durationXml = int.tryParse(durationNode?.innerText.trim() ?? '') ?? divisions;
 
-        // Convertir duración XML a ticks de semicorchea de Tunner (4 ticks por negra)
-        int durationTicks = ((durationXml * 4) / divisions).round();
-        if (durationTicks <= 0) durationTicks = 1;
-        if (currentTick + durationTicks > maxTicks) {
-          durationTicks = maxTicks - currentTick;
+        // Convertir duracion XML a ticks de semicorchea de Tunner (4 ticks por negra)
+        int rawDurationTicks = ((durationXml * 4) / divisions).round();
+        if (rawDurationTicks <= 0) rawDurationTicks = 1;
+
+        if (isChord) {
+          if (!hasBaseNote || isRest || lastBaseNoteStartTick >= maxTicks) {
+            continue;
+          }
+          final chordDuration = rawDurationTicks.clamp(1, maxTicks - lastBaseNoteStartTick);
+          final pitchNode = noteNode.getElement('pitch');
+          final noteName = _parsePitch(pitchNode);
+          notes.add(HierarchicalNote.note(
+            startTick: lastBaseNoteStartTick,
+            durationTicks: chordDuration,
+            noteName: noteName,
+          ));
+          totalNotesCount++;
+          continue;
         }
+
+        if (currentTick >= maxTicks) {
+          hasBaseNote = false;
+          break;
+        }
+
+        final durationTicks = rawDurationTicks.clamp(1, maxTicks - currentTick);
 
         if (isRest) {
           notes.add(HierarchicalNote.rest(
             startTick: currentTick,
             durationTicks: durationTicks,
           ));
+          hasBaseNote = false;
         } else {
           final pitchNode = noteNode.getElement('pitch');
           final noteName = _parsePitch(pitchNode);
@@ -103,6 +132,8 @@ class MusicXmlScoreParser implements IScoreParserService {
             durationTicks: durationTicks,
             noteName: noteName,
           ));
+          lastBaseNoteStartTick = currentTick;
+          hasBaseNote = true;
           totalNotesCount++;
         }
 
@@ -213,50 +244,81 @@ class MusicXmlScoreParser implements IScoreParserService {
   }
 
   TimeSignature _parseTimeSignature(XmlElement timeNode) {
-    final beats = int.tryParse(timeNode.getElement('beats')?.innerText.trim() ?? '4') ?? 4;
-    final beatType = int.tryParse(timeNode.getElement('beat-type')?.innerText.trim() ?? '4') ?? 4;
+    final symbol = timeNode.getAttribute('symbol')?.trim().toLowerCase();
+    final beatsNode = timeNode.getElement('beats');
+    final beatTypeNode = timeNode.getElement('beat-type');
 
+    if (beatsNode == null && beatTypeNode == null) {
+      if (symbol == 'cut') return const TimeSignature(2, 2);
+      if (symbol == 'common') return TimeSignature.commonTime44;
+    }
+
+    final rawBeats = beatsNode?.innerText.trim() ?? '4';
+    final int beats;
+    if (rawBeats.contains('+')) {
+      final sum = rawBeats
+          .split('+')
+          .map((p) => int.tryParse(p.trim()) ?? 0)
+          .fold<int>(0, (acc, v) => acc + v);
+      beats = sum > 0 ? sum : 4;
+    } else {
+      final parsed = int.tryParse(rawBeats) ?? 4;
+      beats = parsed > 0 ? parsed : 4;
+    }
+
+    final rawBeatType = int.tryParse(beatTypeNode?.innerText.trim() ?? '4') ?? 4;
+    // Resolucion de Tunner = 16 semicorcheas por redonda: denominadores validos {1, 2, 4, 8, 16}.
+    final beatType = (rawBeatType > 0 && (16 ~/ rawBeatType) > 0 && (16 % rawBeatType) == 0)
+        ? rawBeatType
+        : 4;
+
+    if (beats == 4 && beatType == 4) return TimeSignature.commonTime44;
     if (beats == 3 && beatType == 4) return TimeSignature.waltzTime34;
     if (beats == 2 && beatType == 4) return TimeSignature.marchTime24;
     if (beats == 6 && beatType == 8) return TimeSignature.compoundTime68;
-    return TimeSignature.commonTime44;
+    if (beats == 9 && beatType == 8) return TimeSignature.compoundTime98;
+    if (beats == 12 && beatType == 8) return TimeSignature.compoundTime128;
+    if (beats == 5 && beatType == 4) return TimeSignature.complexTime54;
+    return TimeSignature(beats, beatType);
   }
 
   String _parsePitch(XmlElement? pitchNode) {
     if (pitchNode == null) return "Do4";
 
     final step = pitchNode.getElement('step')?.innerText.trim().toUpperCase() ?? 'C';
-    final alter = int.tryParse(pitchNode.getElement('alter')?.innerText.trim() ?? '0') ?? 0;
+    final alterRaw = double.tryParse(pitchNode.getElement('alter')?.innerText.trim() ?? '0') ?? 0.0;
+    final alter = alterRaw.round();
     final octave = int.tryParse(pitchNode.getElement('octave')?.innerText.trim() ?? '4') ?? 4;
 
-    // Conversión de Step a nombre de nota silábica Tunner
-    String baseName;
-    switch (step) {
-      case 'C':
-        baseName = alter == 1 ? "Do#" : (alter == -1 ? "Si" : "Do");
-        break;
-      case 'D':
-        baseName = alter == 1 ? "Re#" : (alter == -1 ? "Do#" : "Re");
-        break;
-      case 'E':
-        baseName = alter == 1 ? "Fa" : (alter == -1 ? "Re#" : "Mi");
-        break;
-      case 'F':
-        baseName = alter == 1 ? "Fa#" : (alter == -1 ? "Mi" : "Fa");
-        break;
-      case 'G':
-        baseName = alter == 1 ? "Sol#" : (alter == -1 ? "Fa#" : "Sol");
-        break;
-      case 'A':
-        baseName = alter == 1 ? "La#" : (alter == -1 ? "Sol#" : "La");
-        break;
-      case 'B':
-        baseName = alter == 1 ? "Do" : (alter == -1 ? "La#" : "Si");
-        break;
-      default:
-        baseName = "Do";
-    }
+    const stepToSemitone = <String, int>{
+      'C': 0,
+      'D': 2,
+      'E': 4,
+      'F': 5,
+      'G': 7,
+      'A': 9,
+      'B': 11,
+    };
+    const chromaticNames = <String>[
+      'Do',
+      'Do#',
+      'Re',
+      'Re#',
+      'Mi',
+      'Fa',
+      'Fa#',
+      'Sol',
+      'Sol#',
+      'La',
+      'La#',
+      'Si',
+    ];
 
-    return "$baseName$octave";
+    final baseSemitone = stepToSemitone[step] ?? 0;
+    final midi = (octave + 1) * 12 + baseSemitone + alter;
+    final noteName = chromaticNames[((midi % 12) + 12) % 12];
+    final effectiveOctave = ((midi / 12).floor() - 1).clamp(0, 8);
+
+    return "$noteName$effectiveOctave";
   }
 }

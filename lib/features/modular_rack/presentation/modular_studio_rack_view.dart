@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../app/studio_composition_root.dart';
+import '../../instrument/presentation/visual_interface_profile_ui_ext.dart';
 import '../../../../core/design_system/studio_theme_provider.dart';
 import 'modular_rack_viewmodel.dart';
 import '../domain/rack_module_entity.dart';
@@ -22,7 +24,14 @@ class ModularStudioRackView extends StatelessWidget {
       );
     }
     return ChangeNotifierProvider<ModularRackViewModel>(
-      create: (_) => ModularRackViewModel(),
+      create: (ctx) {
+        try {
+          return ctx.read<StudioCompositionRoot>().createModularRackViewModel();
+        } catch (_) {
+          // Fallback para entornos de prueba aislados sin StudioCompositionRoot.
+          return ModularRackViewModel();
+        }
+      },
       child: const _ModularStudioRackBody(),
     );
   }

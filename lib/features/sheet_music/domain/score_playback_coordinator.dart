@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import '../../audio_synthesizer/domain/polyphonic/polyphonic_voice_pool.dart';
+import '../../tuner/domain/note_entity.dart';
 import 'score_tree.dart';
 
 /// Coordinador de reproducción y audición acústica entre el árbol jerárquico de partitura
@@ -15,12 +16,16 @@ class ScorePlaybackCoordinator {
   final PolyphonicVoicePool voicePool;
 
   Timer? _playbackTimer;
+  final Stopwatch _clockStopwatch = Stopwatch();
+  int _scheduledTickCount = 0;
+  int _tickIntervalUs = 125000;
   bool _isPlaying = false;
   int _currentMeasureIndex = 0;
   int _currentSubTick = 0;
   double _bpm = 120.0;
 
   HierarchicalScore? _activeScore;
+  final Map<int, Timer> _activePreviewTimers = {};
 
   // Callbacks de notificación
   void Function(int measureIndex, int subTick)? onTick;
@@ -49,7 +54,7 @@ class ScorePlaybackCoordinator {
   /// Convierte un nombre de nota musical (en notación silábica o sajona con octava)
   /// a su número de nota MIDI estándar (0 a 127).
   ///
-  /// Ejemplos: "Do4" -> 60, "C4" -> 60, "La4" -> 69, "A4" -> 69, "Fa#5" -> 78, "Mib3" -> 51.
+  /// Ejemplos: "Do4" -> 60, "C4" -> 60, "La4" -> 69, "A4" -> 69, "Fa#5" -> 78, "Mib3" -> 51, "B4" -> 71, "Sib4" -> 70.
   static int noteNameToMidi(String noteName) {
     if (noteName.isEmpty || noteName == '--') return -1;
 
@@ -59,31 +64,11 @@ class ScorePlaybackCoordinator {
     final octave = octaveMatch != null ? int.tryParse(octaveMatch.group(0)!) ?? 4 : 4;
 
     // Extraer nombre de la nota sin octava
-    String name = clean.replaceAll(RegExp(r'[-+]?[0-9]+'), '').toLowerCase();
+    final nameWithoutOctave = clean.replaceAll(RegExp(r'[-+]?[0-9]+'), '').trim();
+    final semitone = NoteEntity.parseNoteIndex(nameWithoutOctave);
+    if (semitone == null) return -1;
 
-    // Determinar alteración
-    int accidental = 0;
-    if (name.contains('#') || name.contains('♯')) {
-      accidental = 1;
-      name = name.replaceAll(RegExp(r'[#♯]'), '');
-    } else if (name.contains('b') || name.contains('♭')) {
-      accidental = -1;
-      name = name.replaceAll(RegExp(r'[b♭]'), '');
-    }
-
-    int semitone = 0;
-    switch (name) {
-      case 'do': case 'c': semitone = 0; break;
-      case 're': case 'd': semitone = 2; break;
-      case 'mi': case 'e': semitone = 4; break;
-      case 'fa': case 'f': semitone = 5; break;
-      case 'sol': case 'g': semitone = 7; break;
-      case 'la': case 'a': semitone = 9; break;
-      case 'si': case 'b': semitone = 11; break;
-      default: return -1;
-    }
-
-    final midi = ((octave + 1) * 12) + semitone + accidental;
+    final midi = ((octave + 1) * 12) + semitone;
     return midi.clamp(0, 127);
   }
 
@@ -94,11 +79,15 @@ class ScorePlaybackCoordinator {
     final midi = noteNameToMidi(note.noteName);
     if (midi < 0) return;
 
+    // Cancelar cualquier timer previo para este mismo pitch
+    _activePreviewTimers[midi]?.cancel();
+
     voicePool.noteOn(midi, velocity);
 
     // Liberar la nota al concluir la duración de pre-escucha
-    Timer(Duration(milliseconds: (durationSeconds * 1000).round()), () {
+    _activePreviewTimers[midi] = Timer(Duration(milliseconds: (durationSeconds * 1000).round()), () {
       voicePool.noteOff(midi);
+      _activePreviewTimers.remove(midi);
     });
   }
 
@@ -122,7 +111,12 @@ class ScorePlaybackCoordinator {
   void pausePlayback() {
     _playbackTimer?.cancel();
     _playbackTimer = null;
+    _clockStopwatch.stop();
     _isPlaying = false;
+    for (final timer in _activePreviewTimers.values) {
+      timer.cancel();
+    }
+    _activePreviewTimers.clear();
     voicePool.allNotesOff();
     onPlaybackStopped?.call();
   }
@@ -131,9 +125,16 @@ class ScorePlaybackCoordinator {
   void stopPlayback() {
     _playbackTimer?.cancel();
     _playbackTimer = null;
+    _clockStopwatch.stop();
+    _clockStopwatch.reset();
+    _scheduledTickCount = 0;
     _isPlaying = false;
     _currentMeasureIndex = 0;
     _currentSubTick = 0;
+    for (final timer in _activePreviewTimers.values) {
+      timer.cancel();
+    }
+    _activePreviewTimers.clear();
     voicePool.panic();
     onTick?.call(0, 0);
     onPlaybackStopped?.call();
@@ -141,15 +142,37 @@ class ScorePlaybackCoordinator {
 
   void _restartTimer() {
     _playbackTimer?.cancel();
+    _playbackTimer = null;
     // 1 sub-tick = 1 semicorchea (resolución base 1/16).
     // Duración de una negra = 60 / BPM segundos.
     // Duración de 1 sub-tick = (60 / BPM) / 4 = 15 / BPM segundos.
-    final tickDurationSeconds = 15.0 / _bpm;
-    final tickDurationMs = math.max(10, (tickDurationSeconds * 1000).round());
+    final tickDurationUs = ((15.0 / _bpm) * 1000000.0).round();
+    _tickIntervalUs = math.max(10000, tickDurationUs);
+    _scheduledTickCount = 0;
+    _clockStopwatch
+      ..reset()
+      ..start();
 
-    _playbackTimer = Timer.periodic(Duration(milliseconds: tickDurationMs), (timer) {
+    _scheduleNextClockPulse();
+  }
+
+  void _scheduleNextClockPulse() {
+    if (!_isPlaying) return;
+    final nextDeadlineUs = (_scheduledTickCount + 1) * _tickIntervalUs;
+    final remainingUs = math.max(1000, nextDeadlineUs - _clockStopwatch.elapsedMicroseconds);
+    _playbackTimer = Timer(Duration(microseconds: remainingUs), _onClockPulse);
+  }
+
+  void _onClockPulse() {
+    if (!_isPlaying) return;
+    final elapsedUs = _clockStopwatch.elapsedMicroseconds;
+    while (_isPlaying && elapsedUs >= (_scheduledTickCount + 1) * _tickIntervalUs) {
+      _scheduledTickCount++;
       _advanceTick();
-    });
+    }
+    if (_isPlaying) {
+      _scheduleNextClockPulse();
+    }
   }
 
   void _advanceTick() {
@@ -162,6 +185,16 @@ class ScorePlaybackCoordinator {
 
     _currentSubTick++;
     if (_currentSubTick >= totalTicks) {
+      // Despachar noteOff para notas que concluyen exactamente al final de este compás
+      for (final note in currentMeasure.notes) {
+        if (!note.isRest && note.endTick >= totalTicks) {
+          final midi = noteNameToMidi(note.noteName);
+          if (midi >= 0) {
+            voicePool.noteOff(midi);
+          }
+        }
+      }
+
       _currentSubTick = 0;
       _currentMeasureIndex++;
       if (_currentMeasureIndex >= _activeScore!.measures.length) {
@@ -205,6 +238,11 @@ class ScorePlaybackCoordinator {
   void dispose() {
     _playbackTimer?.cancel();
     _playbackTimer = null;
+    _clockStopwatch.stop();
+    for (final timer in _activePreviewTimers.values) {
+      timer.cancel();
+    }
+    _activePreviewTimers.clear();
     voicePool.panic();
   }
 }

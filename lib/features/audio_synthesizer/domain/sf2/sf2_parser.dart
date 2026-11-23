@@ -81,6 +81,20 @@ class Sf2Parser {
     return String.fromCharCodes(codeUnits);
   }
 
+  static int _decodeGeneratorAmount(int oper, int rawUint16) {
+    // Unsigned / packed range & index operators in SF2 2.04 spec
+    if (oper == Sf2GeneratorType.keyRange ||
+        oper == Sf2GeneratorType.velRange ||
+        oper == Sf2GeneratorType.instrument ||
+        oper == Sf2GeneratorType.sampleID ||
+        oper == Sf2GeneratorType.sampleModes ||
+        oper == Sf2GeneratorType.overridingRootKey) {
+      return rawUint16;
+    }
+    // Sign-extend 16-bit signed generator values (timecents, cents, atten, etc.)
+    return rawUint16 >= 32768 ? rawUint16 - 65536 : rawUint16;
+  }
+
   static String _readFixedAscii(ByteData data, int offset, int length) {
     final codeUnits = <int>[];
     for (int i = 0; i < length; i++) {
@@ -248,6 +262,7 @@ class Sf2Parser {
       final inst = rawInsts[i];
       final nextInst = rawInsts[i + 1];
       final zones = <Sf2Zone>[];
+      Map<int, int> globalGens = {};
 
       for (int b = inst.bagIndex; b < nextInst.bagIndex && b < rawIbag.length - 1; b++) {
         final genStart = rawIbag[b];
@@ -259,7 +274,7 @@ class Sf2Parser {
 
         for (int g = genStart; g < genEnd && g < rawIgen.length; g++) {
           final gen = rawIgen[g];
-          genMap[gen.oper] = gen.amount;
+          genMap[gen.oper] = _decodeGeneratorAmount(gen.oper, gen.amount);
           if (gen.oper == Sf2GeneratorType.sampleID) {
             sampleId = gen.amount;
           } else if (gen.oper == Sf2GeneratorType.keyRange) {
@@ -269,12 +284,19 @@ class Sf2Parser {
           }
         }
 
-        zones.add(Sf2Zone(
-          keyRange: keyRange,
-          velRange: velRange,
-          generators: genMap,
-          sampleId: sampleId,
-        ));
+        // Según especificación SoundFont 2.04: Si la primera zona no posee sampleID,
+        // es una Zona Global cuyos generadores se heredan como base a las zonas locales.
+        if (sampleId == null && b == inst.bagIndex) {
+          globalGens = genMap;
+        } else {
+          final mergedGens = Map<int, int>.from(globalGens)..addAll(genMap);
+          zones.add(Sf2Zone(
+            keyRange: keyRange,
+            velRange: velRange,
+            generators: mergedGens,
+            sampleId: sampleId,
+          ));
+        }
       }
 
       instruments.add(Sf2Instrument(name: inst.name, zones: zones));
@@ -286,6 +308,7 @@ class Sf2Parser {
       final pr = rawPresets[i];
       final nextPr = rawPresets[i + 1];
       final zones = <Sf2Zone>[];
+      Map<int, int> globalGens = {};
 
       for (int b = pr.bagIndex; b < nextPr.bagIndex && b < rawPbag.length - 1; b++) {
         final genStart = rawPbag[b];
@@ -297,7 +320,7 @@ class Sf2Parser {
 
         for (int g = genStart; g < genEnd && g < rawPgen.length; g++) {
           final gen = rawPgen[g];
-          genMap[gen.oper] = gen.amount;
+          genMap[gen.oper] = _decodeGeneratorAmount(gen.oper, gen.amount);
           if (gen.oper == Sf2GeneratorType.instrument) {
             instId = gen.amount;
           } else if (gen.oper == Sf2GeneratorType.keyRange) {
@@ -307,12 +330,19 @@ class Sf2Parser {
           }
         }
 
-        zones.add(Sf2Zone(
-          keyRange: keyRange,
-          velRange: velRange,
-          generators: genMap,
-          instrumentId: instId,
-        ));
+        // Según especificación SoundFont 2.04: Si la primera zona no posee instrumentId,
+        // es una Zona Global cuyos generadores se heredan como base a las zonas locales del preset.
+        if (instId == null && b == pr.bagIndex) {
+          globalGens = genMap;
+        } else {
+          final mergedGens = Map<int, int>.from(globalGens)..addAll(genMap);
+          zones.add(Sf2Zone(
+            keyRange: keyRange,
+            velRange: velRange,
+            generators: mergedGens,
+            instrumentId: instId,
+          ));
+        }
       }
 
       presets.add(Sf2Preset(

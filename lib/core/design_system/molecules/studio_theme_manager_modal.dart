@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../atoms/studio_text_controller_scope.dart';
 import '../data/studio_theme_catalog_service.dart';
 import '../domain/studio_theme_skin_entity.dart';
 import '../studio_design_tokens.dart';
@@ -314,11 +315,10 @@ class StudioThemeManagerModal extends StatelessWidget {
   }
 
   void _showImportDialog(BuildContext context, StudioDesignTokens tokens) {
-    final controller = TextEditingController();
-
     showDialog<void>(
       context: context,
-      builder: (ctx) => Dialog(
+      builder: (ctx) => StudioTextControllerScope(
+        builder: (ctx, controller) => Dialog(
         backgroundColor: tokens.canvasBackground,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(tokens.radiusMedium),
@@ -393,6 +393,7 @@ class StudioThemeManagerModal extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

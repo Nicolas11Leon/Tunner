@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/design_system/atoms/studio_text_controller_scope.dart';
 import '../../../core/theme/tunner_theme.dart';
 import '../../sheet_music/domain/score_tree.dart';
 import '../../tuner_viewmodel.dart';
@@ -109,10 +110,10 @@ class ThemeCustomizationModal extends StatelessWidget {
   }
 
   void _showImportJsonDialog(BuildContext context, TunnerThemePalette palette) {
-    final textController = TextEditingController();
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => StudioTextControllerScope(
+        builder: (ctx, textController) => AlertDialog(
         backgroundColor: palette.cardBackground,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
@@ -196,6 +197,7 @@ class ThemeCustomizationModal extends StatelessWidget {
             child: const Text("Importar y Aplicar"),
           ),
         ],
+        ),
       ),
     );
   }

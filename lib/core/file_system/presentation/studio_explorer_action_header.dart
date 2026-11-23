@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../design_system/studio_theme_provider.dart';
-import '../data/studio_workspace_file_system_service.dart';
+import '../domain/i_studio_workspace_file_system.dart';
 import 'studio_file_system_modals.dart';
 
 /// Barra de acciones de cabecera estilo VS Code con botones de archivo/carpeta y buscador en vivo.
 class StudioExplorerActionHeader extends StatefulWidget {
-  final StudioWorkspaceFileSystemService service;
+  final IStudioWorkspaceFileSystem service;
 
   const StudioExplorerActionHeader({
     super.key,

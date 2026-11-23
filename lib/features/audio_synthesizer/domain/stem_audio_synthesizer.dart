@@ -4,6 +4,7 @@ import '../../sheet_music/domain/score_tree.dart';
 import '../../mixer/domain/mixer_track_entity.dart';
 import '../../practice_recorder/domain/practice_recording_entity.dart';
 import '../../universal_importer/domain/canonical_midi_exporter.dart';
+import '../../tuner/domain/note_entity.dart';
 import 'pcm_wav_synthesizer.dart';
 import 'stem_export_entity.dart';
 
@@ -224,6 +225,82 @@ class StemAudioSynthesizer {
     return buffer;
   }
 
+  /// Sintetiza un stem de audio adaptado al rol tímbrico e instrumentación de la pista [track].
+  Float64List synthesizeTrackSamples({
+    required AudioTrack track,
+    required HierarchicalScore score,
+    required int bpm,
+    int sampleRate = defaultSampleRate,
+    required int totalSamples,
+  }) {
+    final buffer = Float64List(totalSamples);
+    if (score.measures.isEmpty) return buffer;
+
+    // Multiplicador armónico adaptativo según el icono o id del instrumento
+    double freqMultiplier = 1.0;
+    final icon = track.instrumentIcon.toLowerCase();
+    final id = track.id.toLowerCase();
+
+    if (icon == 'bass' || id.contains('bass') || id.contains('bajo')) {
+      freqMultiplier = 0.5; // Octava grave
+    } else if (icon == 'flute' || id.contains('flute') || id.contains('flauta')) {
+      freqMultiplier = 2.0; // Octava aguda
+    } else if (icon == 'guitar' || id.contains('guitar') || id.contains('guitarra')) {
+      freqMultiplier = 1.5; // Quinta justa armonica (neutral entre mayor y menor)
+    } else {
+      freqMultiplier = 1.0; // Registro unisono seguro sin disonancias modales
+    }
+
+    final safeBpm = bpm.clamp(20, 300);
+    final double secondsPerTick = (60.0 / safeBpm) / ticksPerBeat;
+    int currentMeasureStartTick = 0;
+
+    for (int mIdx = 0; mIdx < score.measures.length; mIdx++) {
+      final measure = score.measures[mIdx];
+      for (final note in measure.notes) {
+        if (note.isRest || note.noteName.isEmpty || note.noteName == "--") continue;
+
+        final double baseFreq = NoteEntity.frequencyForNote(note.noteName);
+        if (baseFreq <= 20.0) continue;
+        final double noteFreq = (baseFreq * freqMultiplier).clamp(30.0, 4200.0);
+
+        final startTickGlobal = currentMeasureStartTick + note.startTick;
+        final startSample = (startTickGlobal * secondsPerTick * sampleRate).round();
+        final noteSamples = (note.durationTicks * secondsPerTick * sampleRate).round();
+        final endSample = math.min(totalSamples, startSample + noteSamples);
+        final activeLength = endSample - startSample;
+
+        final attackSamples = (sampleRate * 0.015).round();
+        final releaseSamples = (sampleRate * 0.030).round();
+        final releaseStartIndex = math.max(0, activeLength - releaseSamples);
+
+        for (int s = 0; s < activeLength; s++) {
+          final targetIndex = startSample + s;
+          if (targetIndex >= totalSamples) break;
+
+          final double t = s / sampleRate;
+
+          double envelope = 0.85;
+          if (s < attackSamples && attackSamples > 0) {
+            envelope = (s / attackSamples) * 0.85;
+          } else if (s >= releaseStartIndex && releaseSamples > 0) {
+            envelope = 0.85 * (1.0 - (s - releaseStartIndex) / releaseSamples);
+          }
+
+          final double sampleValue = (math.sin(2.0 * math.pi * noteFreq * t) +
+                  0.35 * math.sin(4.0 * math.pi * noteFreq * t)) *
+              envelope *
+              22000.0;
+
+          buffer[targetIndex] += sampleValue;
+        }
+      }
+      currentMeasureStartTick += measure.timeSignature.totalTicks;
+    }
+
+    return buffer;
+  }
+
   /// Función de activación tangente hiperbólica analógica para limitar saturación sin clipping.
   static double _tanh(double x) {
     if (x > 20.0) return 1.0;
@@ -260,6 +337,42 @@ class StemAudioSynthesizer {
     return builder.toBytes();
   }
 
+  /// Convierte dos búferes de muestras (Izquierda y Derecha) en punto flotante a un archivo canónico WAV PCM de 16 bits estéreo (2 canales).
+  Uint8List floatStereoBufferToWav({
+    required Float64List leftBuffer,
+    required Float64List rightBuffer,
+    int sampleRate = defaultSampleRate,
+  }) {
+    final length = math.min(leftBuffer.length, rightBuffer.length);
+    // 2 canales * 2 bytes por muestra = 4 bytes por cuadro
+    final pcmBytes = ByteData(length * 4);
+
+    for (int i = 0; i < length; i++) {
+      final double normalizedL = leftBuffer[i] / 32768.0;
+      final double saturatedL = _tanh(normalizedL);
+      final int sampleL = (saturatedL * 32767.0).round().clamp(-32768, 32767);
+
+      final double normalizedR = rightBuffer[i] / 32768.0;
+      final double saturatedR = _tanh(normalizedR);
+      final int sampleR = (saturatedR * 32767.0).round().clamp(-32768, 32767);
+
+      pcmBytes.setInt16((i * 2) * 2, sampleL, Endian.little);
+      pcmBytes.setInt16((i * 2 + 1) * 2, sampleR, Endian.little);
+    }
+
+    final header = PcmWavSynthesizer.buildWavHeader(
+      pcmDataBytes: pcmBytes.lengthInBytes,
+      sampleRate: sampleRate,
+      channels: 2,
+      bitsPerSample: 16,
+    );
+
+    final builder = BytesBuilder(copy: false);
+    builder.add(header);
+    builder.add(pcmBytes.buffer.asUint8List());
+    return builder.toBytes();
+  }
+
   /// Ejecuta la síntesis completa de stems individuales, master mixdown y archivo MIDI.
   ExportBundleResult exportStemsAndMidi({
     required HierarchicalScore score,
@@ -277,7 +390,7 @@ class StemAudioSynthesizer {
     final totalSamples = (durationSeconds * sampleRate).round();
     final duration = Duration(milliseconds: (durationSeconds * 1000).round());
 
-    // 1. Sintetizar las capas individuales de audio en Float64
+    // 1. Sintetizar las capas individuales de audio en Float64 para todos los stems de la consola
     final melodySamples = synthesizeMelodySamples(
       score: score,
       bpm: bpm,
@@ -299,67 +412,110 @@ class StemAudioSynthesizer {
       totalSamples: totalSamples,
     );
 
-    // 2. Obtener ganancias efectivas del mezclador virtual
-    final melodyGain = mixerConsole.getEffectiveGain("voice");
-    final metroGain = mixerConsole.getEffectiveGain("metronome");
-    final accompGain = mixerConsole.getEffectiveGain("piano");
+    // Mapeo dinámico de todas las pistas presentes en la consola del mezclador
+    final Map<String, Float64List> synthesizedStems = {};
 
-    // 3. Generar Master Mixdown si está solicitado
+    for (int i = 0; i < mixerConsole.stems.length; i++) {
+      final track = mixerConsole.stems[i];
+      if (i == 0) {
+        synthesizedStems[track.id] = melodySamples;
+      } else if (i == 1) {
+        synthesizedStems[track.id] = accompanimentSamples;
+      } else {
+        synthesizedStems[track.id] = synthesizeTrackSamples(
+          track: track,
+          score: score,
+          bpm: bpm,
+          sampleRate: sampleRate,
+          totalSamples: totalSamples,
+        );
+      }
+    }
+
+    // 2. Generar Master Mixdown Estéreo (2 canales) si está solicitado
     if (config.includeMasterMixdown) {
-      final masterBuffer = Float64List(totalSamples);
+      final masterLeft = Float64List(totalSamples);
+      final masterRight = Float64List(totalSamples);
 
-      for (int i = 0; i < totalSamples; i++) {
-        double mix = 0.0;
-        if (config.includeMelodyTrack) {
-          mix += melodySamples[i] * melodyGain;
+      for (int i = 0; i < mixerConsole.stems.length; i++) {
+        final track = mixerConsole.stems[i];
+        final stemSamples = synthesizedStems[track.id];
+        if (stemSamples == null) continue;
+
+        // Distribución estereofónica (Panning)
+        double panL = 1.0;
+        double panR = 1.0;
+        if (i == 1) {
+          panL = 1.0;
+          panR = 0.8;
+        } else if (i == 2) {
+          panL = 0.75;
+          panR = 1.0;
+        } else if (i > 2) {
+          if (i % 2 == 1) {
+            panL = 1.0;
+            panR = 0.65;
+          } else {
+            panL = 0.65;
+            panR = 1.0;
+          }
         }
-        if (config.includeAccompanimentTrack) {
-          mix += accompanimentSamples[i] * accompGain;
+
+        final stemGain = mixerConsole.getEffectiveGain(track.id);
+        final effL = stemGain * panL;
+        final effR = stemGain * panR;
+
+        for (int s = 0; s < totalSamples; s++) {
+          masterLeft[s] += stemSamples[s] * effL;
+          masterRight[s] += stemSamples[s] * effR;
         }
-        if (config.includeMetronomeTrack) {
-          mix += metronomeSamples[i] * metroGain;
-        }
-        masterBuffer[i] = mix;
       }
 
-      final masterWavBytes = floatBufferToWav(buffer: masterBuffer, sampleRate: sampleRate);
+      if (config.includeMetronomeTrack) {
+        final double metroGain = mixerConsole.getEffectiveGain("metronome");
+        for (int s = 0; s < totalSamples; s++) {
+          masterLeft[s] += metronomeSamples[s] * metroGain;
+          masterRight[s] += metronomeSamples[s] * metroGain;
+        }
+      }
+
+      final masterWavBytes = floatStereoBufferToWav(
+        leftBuffer: masterLeft,
+        rightBuffer: masterRight,
+        sampleRate: sampleRate,
+      );
       files.add(ExportedStemFile(
         fileName: "${trackTitle.toLowerCase().replaceAll(' ', '_')}_master_mixdown.wav",
         bytes: masterWavBytes,
         mimeType: "audio/wav",
         duration: duration,
-        description: "Master Mixdown WAV 16-bit 44.1 kHz con balance del mezclador",
+        description: "Master Mixdown WAV Estéreo 2 Canales 16-bit 44.1 kHz con balance del mezclador",
       ));
     }
 
-    // 4. Generar Stems individuales si está solicitado
+    // 3. Generar Stems individuales si está solicitado
     if (config.includeIndividualStems) {
-      if (config.includeMelodyTrack) {
-        final melodyWavBytes = floatBufferToWav(buffer: melodySamples, sampleRate: sampleRate);
-        files.add(ExportedStemFile(
-          fileName: "stem_01_melody.wav",
-          bytes: melodyWavBytes,
-          mimeType: "audio/wav",
-          duration: duration,
-          description: "Pista individual de Melodía / Voz solista (WAV)",
-        ));
-      }
-
-      if (config.includeAccompanimentTrack) {
-        final accompWavBytes = floatBufferToWav(buffer: accompanimentSamples, sampleRate: sampleRate);
-        files.add(ExportedStemFile(
-          fileName: "stem_02_accompaniment.wav",
-          bytes: accompWavBytes,
-          mimeType: "audio/wav",
-          duration: duration,
-          description: "Pista individual de Acompañamiento Armónico (WAV)",
-        ));
+      for (int i = 0; i < mixerConsole.stems.length; i++) {
+        final track = mixerConsole.stems[i];
+        final stemSamples = synthesizedStems[track.id];
+        if (stemSamples != null) {
+          final wavBytes = floatBufferToWav(buffer: stemSamples, sampleRate: sampleRate);
+          final numStr = (i + 1).toString().padLeft(2, '0');
+          files.add(ExportedStemFile(
+            fileName: "stem_${numStr}_${track.id.toLowerCase().replaceAll(' ', '_')}.wav",
+            bytes: wavBytes,
+            mimeType: "audio/wav",
+            duration: duration,
+            description: "Pista individual de ${track.title} (WAV)",
+          ));
+        }
       }
 
       if (config.includeMetronomeTrack) {
         final metroWavBytes = floatBufferToWav(buffer: metronomeSamples, sampleRate: sampleRate);
+        final numStr = (mixerConsole.stems.length + 1).toString().padLeft(2, '0');
         files.add(ExportedStemFile(
-          fileName: "stem_03_metronome_click.wav",
+          fileName: "stem_${numStr}_metronome_click.wav",
           bytes: metroWavBytes,
           mimeType: "audio/wav",
           duration: duration,
@@ -379,8 +535,9 @@ class StemAudioSynthesizer {
         takeBuilder.add(recordedPcmBytes);
         final takeWav = takeBuilder.toBytes();
 
+        final numStr = (mixerConsole.stems.length + 2).toString().padLeft(2, '0');
         files.add(ExportedStemFile(
-          fileName: "stem_04_user_recorded_take.wav",
+          fileName: "stem_${numStr}_user_recorded_take.wav",
           bytes: takeWav,
           mimeType: "audio/wav",
           duration: recordedTake?.duration ?? duration,

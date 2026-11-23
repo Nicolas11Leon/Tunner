@@ -42,6 +42,24 @@ class AudioTrack {
       isSolo: isSolo ?? this.isSolo,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'title': title,
+    'instrumentIcon': instrumentIcon,
+    'volume': volume,
+    'isMuted': isMuted,
+    'isSolo': isSolo,
+  };
+
+  factory AudioTrack.fromMap(Map<String, dynamic> map) => AudioTrack(
+    id: map['id'] as String? ?? 'track',
+    title: map['title'] as String? ?? 'Pista',
+    instrumentIcon: map['instrumentIcon'] as String? ?? 'music_note',
+    volume: (map['volume'] as num?)?.toDouble() ?? 0.8,
+    isMuted: map['isMuted'] as bool? ?? false,
+    isSolo: map['isSolo'] as bool? ?? false,
+  );
 }
 
 /// Estado global inmutable de la consola de mezcla multicanal.
@@ -148,5 +166,29 @@ class MixerConsoleEntity {
     final track = stems.where((t) => t.id == trackId).firstOrNull;
     if (track == null) return 0.0;
     return track.getEffectiveGain(hasAnySolo: hasAnySolo);
+  }
+
+  Map<String, dynamic> toMap() => {
+        'metronomeTrack': metronomeTrack.toMap(),
+        'stems': stems.map((t) => t.toMap()).toList(),
+      };
+
+  factory MixerConsoleEntity.fromMap(Map<String, dynamic> map) {
+    final defaultSetup = MixerConsoleEntity.defaultSetup();
+    final rawMetro = map['metronomeTrack'];
+    final metronomeTrack = rawMetro is Map<String, dynamic>
+        ? AudioTrack.fromMap(rawMetro)
+        : defaultSetup.metronomeTrack;
+
+    final rawStems = map['stems'] as List<dynamic>? ?? [];
+    final stems = rawStems
+        .whereType<Map<String, dynamic>>()
+        .map(AudioTrack.fromMap)
+        .toList();
+
+    return MixerConsoleEntity(
+      metronomeTrack: metronomeTrack,
+      stems: stems,
+    );
   }
 }

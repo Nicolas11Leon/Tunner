@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import '../../song_library/data/song_decomposer_service.dart';
-import '../data/dj_audio_processor.dart';
-import '../../../core/channels/data/studio_patchbay_routing_service.dart';
+import '../../song_library/domain/song_decomposer_service.dart';
+import '../domain/dj_audio_processor.dart';
+import '../../../core/channels/domain/studio_patchbay_routing_service.dart';
 import '../../../core/channels/domain/studio_modular_plug.dart';
 import '../../../core/channels/domain/studio_plug_type.dart';
 import '../../../core/channels/presentation/studio_channel_patchbay_bar_widget.dart';
@@ -17,7 +17,7 @@ import '../domain/dj_smart_automix_engine.dart';
 import '../domain/dj_stem_isolation_entity.dart';
 import '../../../core/docking/domain/studio_dock_layout_entity.dart';
 import '../../../core/docking/domain/studio_dock_zone.dart';
-import '../../../core/docking/domain/studio_dockable_panel_entity.dart';
+import '../../../core/docking/presentation/studio_dockable_panel_entity.dart';
 import '../../../core/docking/presentation/studio_workspace_docking_container.dart';
 import 'dj_console_model_builder_modal.dart';
 import 'dj_console_view_model.dart';
@@ -26,6 +26,7 @@ import 'dj_parallel_waveform_painter.dart';
 import 'dj_track_loader_modal.dart';
 import 'dj_vertical_channel_strip.dart';
 import 'dj_visual_mapping_overlay.dart';
+import 'widgets/dj_hot_cue_pad_grid.dart';
 import 'vector_jog_wheel.dart';
 
 /// Espacio de Trabajo Nativo de la Consola DJ Pro (DjStudioWorkstationView).
@@ -237,7 +238,7 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                     _buildMasterHeader(context, vm, tokens),
 
                     // 2. HUD de Atajos Rápidos
-                    _buildShortcutsHud(context, tokens),
+                    _buildShortcutsHud(context, tokens, vm),
 
                     // 3. Barra Modular de Parcheo Troncal (Canal A, B, C, D)
                     StudioChannelPatchbayBarWidget(routingService: _patchbayService),
@@ -280,6 +281,8 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
               onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
               onActionTriggered: (action) => vm.executeAction(action),
               onToggleLearnMode: () => vm.toggleLearnMode(),
+              getControlValue: (zone) => vm.getControlValue(zone),
+              onContinuousControl: (zone, delta) => vm.updateContinuousControl(zone, delta),
               onOpenKeymapVisualizer: () => DjInteractiveKeymapVisualizerModal.show(
                 ctx,
                 vm,
@@ -367,6 +370,8 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
           onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
           onActionTriggered: (action) => vm.executeAction(action),
           onToggleLearnMode: () => vm.toggleLearnMode(),
+          getControlValue: (zone) => vm.getControlValue(zone),
+          onContinuousControl: (zone, delta) => vm.updateContinuousControl(zone, delta),
           onOpenKeymapVisualizer: () => DjInteractiveKeymapVisualizerModal.show(
             context,
             vm,
@@ -418,6 +423,8 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
               onZoneSelected: (zone) => vm.selectZoneForMapping(zone),
               onActionTriggered: (action) => vm.executeAction(action),
               onToggleLearnMode: () => vm.toggleLearnMode(),
+              getControlValue: (zone) => vm.getControlValue(zone),
+              onContinuousControl: (zone, delta) => vm.updateContinuousControl(zone, delta),
               onOpenKeymapVisualizer: () => DjInteractiveKeymapVisualizerModal.show(
                 context,
                 vm,
@@ -479,7 +486,7 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
     );
   }
 
-  Widget _buildShortcutsHud(BuildContext context, dynamic tokens) {
+  Widget _buildShortcutsHud(BuildContext context, dynamic tokens, DjConsoleViewModel vm) {
     if (!_showHudBar) {
       return Container(
         height: 20,
@@ -502,6 +509,20 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
         ),
       );
     }
+
+    final profile = vm.keymapProfile;
+    final playA = profile.findKeyBadgeForAction(DjAction.deckAPlayPause) ?? 'ESPACIO';
+    final playB = profile.findKeyBadgeForAction(DjAction.deckBPlayPause) ?? 'ENTER';
+    final cueA = profile.findKeyBadgeForAction(DjAction.deckACue) ?? 'Q';
+    final cueB = profile.findKeyBadgeForAction(DjAction.deckBCue) ?? 'U';
+    final syncA = profile.findKeyBadgeForAction(DjAction.deckASync) ?? 'E';
+    final syncB = profile.findKeyBadgeForAction(DjAction.deckBSync) ?? 'O';
+    final xfader = profile.findKeyBadgeForAction(DjAction.crossfaderCenter) ?? 'N';
+    final pitchA = profile.findKeyBadgeForAction(DjAction.deckAPitchUp) ?? 'S';
+    final pitchB = profile.findKeyBadgeForAction(DjAction.deckBPitchUp) ?? 'K';
+    final hotCueA = profile.findKeyBadgeForAction(DjAction.deckAHotCue1) ?? '1..4';
+    final hotCueB = profile.findKeyBadgeForAction(DjAction.deckBHotCue1) ?? '5..8';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: const BoxDecoration(
@@ -522,14 +543,16 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildHudBadge('[ESPACIO]', 'Play/Pause A'),
-                  _buildHudBadge('[ENTER]', 'Play/Pause B'),
-                  _buildHudBadge('[1..4]', 'Hot Cues A'),
-                  _buildHudBadge('[5..8]', 'Hot Cues B'),
-                  _buildHudBadge('[C / V]', 'CUE A / B'),
+                  _buildHudBadge('[$playA]', 'Play/Pause A'),
+                  _buildHudBadge('[$playB]', 'Play/Pause B'),
+                  _buildHudBadge('[$cueA / $cueB]', 'CUE A / B'),
+                  _buildHudBadge('[$syncA / $syncB]', 'SYNC A / B'),
+                  _buildHudBadge('[$xfader]', 'X-Fader Centro'),
+                  _buildHudBadge('[$pitchA / $pitchB]', 'Pitch Up A / B'),
+                  _buildHudBadge('[$hotCueA]', 'Hot Cues A'),
+                  _buildHudBadge('[$hotCueB]', 'Hot Cues B'),
                   _buildHudBadge('[PADS 1..8]', 'Sampler Club'),
-                  _buildHudBadge('[FLECHAS IZQ/DER]', 'Scratch / Nudge'),
-                  _buildHudBadge('[FLECHAS ARRIBA/ABAJO]', 'Pitch Fader'),
+                  _buildHudBadge('[JOG / RUEDA]', 'Scratch / Nudge'),
                 ],
               ),
             ),
@@ -691,13 +714,16 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 minimumSize: Size.zero,
               ),
-              onPressed: () {
+              onPressed: () async {
                 if (vm.recorder.isRecording) {
                   final duration = vm.recorder.durationSeconds;
                   final bytes = vm.stopRecording();
+                  final filename = 'dj_mix_${DateTime.now().millisecondsSinceEpoch}.wav';
+                  await vm.saveRecordingToDisk(filename);
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Sesión guardada ($duration seg, ${bytes?.lengthInBytes ?? 0} bytes WAV)'),
+                      content: Text('Sesión guardada como $filename ($duration seg, ${bytes?.lengthInBytes ?? 0} bytes WAV)'),
                       backgroundColor: const Color(0xFF10B981),
                     ),
                   );
@@ -724,6 +750,7 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                 context,
                 vm,
                 TunnerThemePalette.obsidianStudio,
+                storageService: vm.blueprintStorageService,
               ),
             ),
             const SizedBox(width: 8),
@@ -1341,46 +1368,13 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
             style: TextStyle(color: Colors.white38, fontSize: 9.5, fontWeight: FontWeight.bold, letterSpacing: 0.8),
           ),
           const SizedBox(height: 4),
-          Row(
-            children: List.generate(4, (idx) {
-              final isSet = deck.hotCues[idx] != null;
-              final isHotCuePushed = _viewModel.momentaryLitAction ==
-                  (deckId == 'A'
-                      ? [DjAction.deckAHotCue1, DjAction.deckAHotCue2, DjAction.deckAHotCue3, DjAction.deckAHotCue4][idx]
-                      : [DjAction.deckBHotCue1, DjAction.deckBHotCue2, DjAction.deckBHotCue3, DjAction.deckBHotCue4][idx]);
-              return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(right: idx < 3 ? 4 : 0),
-                  child: OutlinedButton(
-                    onPressed: () => _viewModel.triggerHotCue(deckId, idx),
-                    onLongPress: () => _viewModel.clearHotCue(deckId, idx),
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: isHotCuePushed
-                          ? accentColor
-                          : (isSet ? accentColor.withValues(alpha: 0.35) : Colors.transparent),
-                      side: BorderSide(
-                        color: isHotCuePushed
-                            ? Colors.white
-                            : (isSet ? accentColor : Colors.white12),
-                        width: isHotCuePushed ? 2.0 : 1.0,
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      minimumSize: Size.zero,
-                    ),
-                    child: Text(
-                      '${idx + 1}',
-                      style: TextStyle(
-                        color: isHotCuePushed
-                            ? Colors.black
-                            : (isSet ? accentColor : Colors.white54),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
+          DjHotCuePadGrid(
+            deckId: deckId,
+            deck: deck,
+            accentColor: accentColor,
+            momentaryLitAction: _viewModel.momentaryLitAction,
+            onTriggerHotCue: (idx) => _viewModel.triggerHotCue(deckId, idx),
+            onClearHotCue: (idx) => _viewModel.clearHotCue(deckId, idx),
           ),
         ],
       ),

@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../../core/audio/domain/i_studio_audio_input_engine.dart';
 import '../../../core/audio/infrastructure/memory_studio_audio_input_engine.dart';
 import '../../../core/audio/infrastructure/studio_audio_input_engine.dart';
@@ -44,6 +46,12 @@ class PitchDetectorService implements IPitchDetectorService {
   Function(double)? onPitchDetected;
 
   @override
+  Function(double)? onClarityDetected;
+
+  @override
+  Function(List<double>)? onAudioWindowCaptured;
+
+  @override
   Function(double)? onRmsLevelChanged;
 
   MicrophoneCalibrationProfile get activeProfile => _activeProfile;
@@ -74,6 +82,15 @@ class PitchDetectorService implements IPitchDetectorService {
         if (message.containsKey('rms') && onRmsLevelChanged != null) {
           onRmsLevelChanged!(message['rms'] as double);
         }
+        if (message.containsKey('clarity') && onClarityDetected != null) {
+          onClarityDetected!(message['clarity'] as double);
+        }
+        if (message.containsKey('window') && onAudioWindowCaptured != null) {
+          onAudioWindowCaptured!(List<double>.from(message['window'] as List));
+        }
+        if (message.containsKey('pitch') && onPitchDetected != null) {
+          onPitchDetected!(message['pitch'] as double);
+        }
       }
     });
 
@@ -90,17 +107,23 @@ class PitchDetectorService implements IPitchDetectorService {
     McleodPitchMethod mpm = const McleodPitchMethod(minClarity: 0.65);
     double currentGain = 1.0;
     bool enableDc = true;
+    int activeSampleRate = 44100;
 
-    // Ventana deslizante de análisis: 4096 bytes (2048 muestras a 16 bits = 46.4 ms a 44.1 kHz)
-    const windowSizeBytes = 4096;
-    final slidingBuffer = Uint8List(windowSizeBytes);
-    int bufferFilled = 0;
+    // Ventana deslizante de análisis: 4096 muestras a 16 bits (92.8 ms a 44.1 kHz, 85.3 ms a 48 kHz)
+    // Garantiza longitud de correlación NSDF para detectar el registro más grave hasta La0 = 27.5 Hz
+    const windowSizeSamples = 4096;
+    final slidingFloatBuffer = Float64List(windowSizeSamples);
+    int bufferFilledSamples = 0;
     int rmsThrottleCounter = 0;
+    Uint8List? leftoverBytes;
 
     workerReceivePort.listen((message) {
-      if (message is MicrophoneCalibrationProfile) {
+      if (message is int) {
+        activeSampleRate = message;
+      } else if (message is MicrophoneCalibrationProfile) {
         currentGain = message.digitalGain;
         enableDc = message.enableDcBlocker;
+        filter.calibratedDcOffset = message.calibratedDcOffset;
         mpm = McleodPitchMethod(
           silenceThreshold: message.noiseGateThreshold,
           minClarity: filterConfig.enabled ? filterConfig.minClarity : 0.65,
@@ -115,45 +138,56 @@ class PitchDetectorService implements IPitchDetectorService {
         );
         toneLockTracker.reset();
       } else if (message is Uint8List || message is List<int>) {
-        final incoming = message is Uint8List ? message : Uint8List.fromList(message as List<int>);
+        var incoming = message is Uint8List ? message : Uint8List.fromList(message as List<int>);
         if (incoming.isEmpty) return;
 
-        // Acumular en la ventana deslizante
-        if (incoming.length >= windowSizeBytes) {
-          slidingBuffer.setRange(0, windowSizeBytes, incoming, incoming.length - windowSizeBytes);
-          bufferFilled = windowSizeBytes;
+        // Protección contra bytes impares (alineación a 16 bits Little-Endian)
+        if (leftoverBytes != null) {
+          final merged = Uint8List(leftoverBytes!.length + incoming.length);
+          merged.setRange(0, leftoverBytes!.length, leftoverBytes!);
+          merged.setRange(leftoverBytes!.length, merged.length, incoming);
+          incoming = merged;
+          leftoverBytes = null;
+        }
+        if (incoming.length.isOdd) {
+          leftoverBytes = Uint8List.fromList([incoming.last]);
+          incoming = Uint8List.sublistView(incoming, 0, incoming.length - 1);
+        }
+        if (incoming.isEmpty) return;
+
+        // Convertir y acondicionar continuamente (DC-Blocker causal y ganancia) solo las nuevas muestras
+        final rawIncomingFloats = McleodPitchMethod.convertPcm16BytesToFloats(incoming);
+        final conditionedFloats = filter.conditionSamples(
+          rawIncomingFloats,
+          gain: currentGain,
+          enableDcBlocker: enableDc,
+        );
+
+        // Desplazar y acumular en el búfer flotante
+        final newSamples = conditionedFloats.length;
+        if (newSamples >= windowSizeSamples) {
+          slidingFloatBuffer.setRange(0, windowSizeSamples, conditionedFloats, newSamples - windowSizeSamples);
+          bufferFilledSamples = windowSizeSamples;
         } else {
-          final toShift = incoming.length;
-          if (bufferFilled + toShift > windowSizeBytes) {
-            final keep = windowSizeBytes - toShift;
-            slidingBuffer.setRange(0, keep, slidingBuffer, toShift);
-            slidingBuffer.setRange(keep, windowSizeBytes, incoming);
-            bufferFilled = windowSizeBytes;
+          if (bufferFilledSamples + newSamples > windowSizeSamples) {
+            final keep = windowSizeSamples - newSamples;
+            slidingFloatBuffer.setRange(0, keep, slidingFloatBuffer, newSamples);
+            slidingFloatBuffer.setRange(keep, windowSizeSamples, conditionedFloats);
+            bufferFilledSamples = windowSizeSamples;
           } else {
-            slidingBuffer.setRange(bufferFilled, bufferFilled + toShift, incoming);
-            bufferFilled += toShift;
+            slidingFloatBuffer.setRange(bufferFilledSamples, bufferFilledSamples + newSamples, conditionedFloats);
+            bufferFilledSamples += newSamples;
           }
         }
 
-        // Ejecutar estimación si se dispone de al menos media ventana (1024 muestras = 2048 bytes)
-        if (bufferFilled >= 2048) {
-          final activeBytes = Uint8List.sublistView(slidingBuffer, 0, bufferFilled);
-          final rawFloats = McleodPitchMethod.convertPcm16BytesToFloats(activeBytes);
-
-          // Acondicionar señal con DC-Blocker y Ganancia Digital
-          final conditionedFloats = filter.conditionSamples(
-            rawFloats,
-            gain: currentGain,
-            enableDcBlocker: enableDc,
-          );
-
-          final result = mpm.estimatePitch(conditionedFloats, sampleRate: 44100);
+        // Ejecutar estimación si se dispone de al menos 2048 muestras (46.4 ms)
+        if (bufferFilledSamples >= 2048) {
+          final activeFloats = Float64List.sublistView(slidingFloatBuffer, 0, bufferFilledSamples);
+          final result = mpm.estimatePitch(activeFloats, sampleRate: activeSampleRate);
 
           // Notificar nivel RMS para el medidor VU cada ~4 frames (aprox 20-25 Hz)
           rmsThrottleCounter++;
-          if (rmsThrottleCounter % 4 == 0) {
-            toMainPort.send({'rms': result.rms});
-          }
+          final shouldSendRms = (rmsThrottleCounter % 4 == 0);
 
           if (result.pitched) {
             final confirmedPitch = toneLockTracker.processFrame(
@@ -162,10 +196,28 @@ class PitchDetectorService implements IPitchDetectorService {
               config: filterConfig,
             );
             if (confirmedPitch != null) {
-              toMainPort.send(confirmedPitch);
+              final windowSize = math.min(1024, bufferFilledSamples);
+              final windowSlice = List<double>.from(
+                Float64List.sublistView(slidingFloatBuffer, bufferFilledSamples - windowSize, bufferFilledSamples),
+              );
+              final payload = <String, dynamic>{
+                'pitch': confirmedPitch,
+                'clarity': result.clarity,
+                'window': windowSlice,
+              };
+              if (shouldSendRms) {
+                payload['rms'] = result.rms;
+              }
+              toMainPort.send(payload);
             }
           } else {
             toneLockTracker.reset();
+            if (shouldSendRms) {
+              toMainPort.send({
+                'rms': result.rms,
+                'clarity': 0.0,
+              });
+            }
           }
         }
       }
@@ -184,41 +236,71 @@ class PitchDetectorService implements IPitchDetectorService {
     _toWorkerPort?.send(filterConfig);
   }
 
+  final Map<String, String> _deviceLabelToId = {};
+
   @override
   Future<List<String>> listInputDevices() async {
     try {
       final devices = await _inputEngine.listInputDevices();
-      return devices.map((d) => d.label.isNotEmpty ? d.label : d.id).toList();
-    } catch (e) {
-      debugPrint("Error enumerando dispositivos de entrada: $e");
+      _deviceLabelToId.clear();
+      return devices.map((d) {
+        final display = d.label.isNotEmpty ? d.label : d.id;
+        _deviceLabelToId[display] = d.id;
+        return display;
+      }).toList();
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'PitchDetectorService',
+        'Error enumerando dispositivos de entrada',
+        error: e,
+        stackTrace: st,
+      );
       return [];
     }
   }
 
   @override
   Future<void> setInputDevice(String deviceId) async {
-    _selectedDeviceId = deviceId;
-    _activeProfile = _activeProfile.copyWith(deviceId: deviceId);
-    await _inputEngine.setInputDevice(deviceId);
+    final resolvedId = _deviceLabelToId[deviceId] ?? deviceId;
+    _selectedDeviceId = resolvedId;
+    _activeProfile = _activeProfile.copyWith(deviceId: resolvedId);
+    await _inputEngine.setInputDevice(resolvedId);
   }
 
   @override
-  Future<void> startRecording() async {
+  Future<void> startRecording({int sampleRate = 44100}) async {
     if (_isRecording) return;
     try {
       await _startDspWorker();
-      await _inputEngine.startCapture(sampleRate: 44100, bufferSize: 1024);
+      _toWorkerPort?.send(sampleRate);
+      await _inputEngine.startCapture(sampleRate: sampleRate, bufferSize: 1024);
       _isRecording = true;
 
       _audioSubscription = _inputEngine.pcmFrameStream.listen((frame) {
         _toWorkerPort?.send(frame.rawBytes);
-      }, onError: (error) {
-        debugPrint("Error en el flujo de audio de entrada: $error");
+      }, onError: (error, st) {
+        StudioDebugLogger.instance.warning(
+          'PitchDetectorService',
+          'Error en el flujo de audio de entrada',
+          error: error,
+          stackTrace: st is StackTrace ? st : null,
+        );
       });
-    } catch (e) {
-      debugPrint("Error al inicializar micrófono y DSP Isolate: $e");
+    } catch (e, st) {
+      StudioDebugLogger.instance.error(
+        'PitchDetectorService',
+        'Error al inicializar microfono y DSP Isolate',
+        error: e,
+        stackTrace: st,
+      );
       _isRecording = false;
+      await stopRecording();
     }
+  }
+
+  /// Libera los recursos de captura y finaliza el Isolate DSP.
+  Future<void> dispose() async {
+    await stopRecording();
   }
 
   @override

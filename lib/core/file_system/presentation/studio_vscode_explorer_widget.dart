@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../design_system/atoms/studio_listenable_builder.dart';
 import '../../design_system/studio_theme_provider.dart';
-import '../data/studio_workspace_file_system_service.dart';
+import '../domain/i_studio_workspace_file_system.dart';
 import '../domain/studio_file_system_node.dart';
 import 'studio_explorer_action_header.dart';
 import 'studio_file_tree_tile.dart';
@@ -10,7 +11,7 @@ import 'studio_folder_tree_tile.dart';
 /// Soporta navegación recursiva profunda, creación de carpetas/archivos,
 /// búsqueda instantánea y apertura contextual de documentos en herramientas DAW.
 class StudioVsCodeExplorerWidget extends StatelessWidget {
-  final StudioWorkspaceFileSystemService service;
+  final IStudioWorkspaceFileSystem service;
   final VoidCallback? onFileTapped;
 
   const StudioVsCodeExplorerWidget({
@@ -23,7 +24,7 @@ class StudioVsCodeExplorerWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = StudioThemeScope.tokensOf(context);
 
-    return ListenableBuilder(
+    return StudioListenableBuilder(
       listenable: service,
       builder: (context, _) {
         final filteredRoot = service.filteredRootFolder;

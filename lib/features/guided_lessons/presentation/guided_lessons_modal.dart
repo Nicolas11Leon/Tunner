@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/tunner_theme.dart';
+import '../../tuner/domain/note_entity.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/guided_lesson_entity.dart';
 
@@ -138,6 +139,15 @@ class GuidedLessonsModal extends StatelessWidget {
                   ),
                 ),
                 IconButton(
+                  key: const Key('header_toggle_mic_btn'),
+                  tooltip: viewModel.isRecording ? 'Apagar Micrófono' : 'Activar Micrófono',
+                  icon: Icon(
+                    viewModel.isRecording ? Icons.mic : Icons.mic_off,
+                    color: viewModel.isRecording ? palette.primaryAccent : palette.textMutedColor,
+                  ),
+                  onPressed: () => viewModel.toggleRecording(),
+                ),
+                IconButton(
                   key: const Key('close_guided_lessons_btn'),
                   icon: Icon(Icons.close, color: palette.textColor),
                   onPressed: () => Navigator.of(context).pop(),
@@ -148,9 +158,9 @@ class GuidedLessonsModal extends StatelessWidget {
           const SizedBox(height: 8),
           Divider(color: palette.staffLinesColor.withValues(alpha: 0.2), height: 1),
 
-          // Cuerpo dinámico: Vista Activa vs. Catálogo de Lecciones
+          // Cuerpo dinámico: Vista Activa (incluye pantalla de completado) vs. Catálogo de Lecciones
           Expanded(
-            child: hasActive && progress != null
+            child: progress != null
                 ? _ActiveLessonPracticeView(
                     viewModel: viewModel,
                     progress: progress,
@@ -188,15 +198,19 @@ class _ActiveLessonPracticeView extends StatelessWidget {
     final targetHz = step.targetFrequencyHz;
     final tol = step.toleranceCents;
 
+    final detectedFreq = NoteEntity.frequencyForNote(viewModel.noteName);
+    final targetNoteFreq = NoteEntity.frequencyForNote(step.targetNoteName);
+    final bool sameMidiPitch = detectedFreq > 0 &&
+        targetNoteFreq > 0 &&
+        (detectedFreq / targetNoteFreq - 1.0).abs() < 0.01;
     final bool noteMatches = detectedPitch > 20.0 &&
-        (viewModel.noteName.toUpperCase().contains(step.targetNoteName.toUpperCase().substring(0, 1)) ||
-            (detectedPitch / targetHz >= 0.95 && detectedPitch / targetHz <= 1.05));
+        (sameMidiPitch || (detectedPitch / targetHz >= 0.95 && detectedPitch / targetHz <= 1.05));
     final bool inTune = noteMatches && detectedCents.abs() <= tol;
 
     final progressRatio = progress.stepProgressRatio.clamp(0.0, 1.0);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -330,18 +344,49 @@ class _ActiveLessonPracticeView extends StatelessWidget {
                     ),
                   ),
                 ] else ...[
-                  Text(
-                    isListening
-                        ? 'Esperando emisión sonora...'
-                        : 'Micrófono inactivo. Inicia afinación para comenzar.',
-                    style: TextStyle(
-                      color: palette.textMutedColor,
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        isListening
+                            ? 'Esperando emisión sonora...'
+                            : 'Micrófono inactivo.',
+                        style: TextStyle(
+                          color: palette.textMutedColor,
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                      if (!isListening) ...[
+                        const SizedBox(width: 8),
+                        InkWell(
+                          key: const Key('lesson_toggle_mic_btn'),
+                          onTap: () => viewModel.toggleRecording(),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.mic, size: 14, color: palette.primaryAccent),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Activar Micrófono',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: palette.primaryAccent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
 
                 // Barra de Progreso del Tiempo Sostenido
                 ClipRRect(
@@ -385,11 +430,11 @@ class _ActiveLessonPracticeView extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
 
           // Tarjeta de Consejo Biomecánico & Pedagógico
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: palette.cardBackground,
               borderRadius: BorderRadius.circular(16),
@@ -431,7 +476,7 @@ class _ActiveLessonPracticeView extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
 
           // Botonera de Control: Tono Guía & Acciones
           Row(

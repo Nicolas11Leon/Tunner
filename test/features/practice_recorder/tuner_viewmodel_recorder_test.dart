@@ -165,7 +165,7 @@ void main() {
 
       // Activamos modo práctica y emitimos una evaluación
       viewModel.togglePracticeMode();
-      viewModel.startSongWithCountIn();
+      await viewModel.startSongWithCountIn();
 
       // Completamos sesión
       viewModel.completeManualPracticeSession();

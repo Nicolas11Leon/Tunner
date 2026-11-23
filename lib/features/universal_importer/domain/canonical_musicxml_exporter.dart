@@ -50,17 +50,18 @@ class CanonicalMusicXmlExporter {
     // Contenido de la parte musical
     buffer.writeln('  <part id="P1">');
 
+    TimeSignature? previousTimeSignature;
     for (int mIdx = 0; mIdx < score.measures.length; mIdx++) {
       final measure = score.measures[mIdx];
       final measureNum = mIdx + 1;
+      final ts = measure.timeSignature;
 
       buffer.writeln('    <measure number="$measureNum">');
 
-      // Atributos iniciales en el compás 1
+      // Atributos iniciales en el compas 1 o cambios de metrica inter-compas
       if (mIdx == 0) {
-        final ts = measure.timeSignature;
         buffer.writeln('      <attributes>');
-        buffer.writeln('        <divisions>4</divisions>'); // 4 divisiones por negra (16 ticks por compás 4/4)
+        buffer.writeln('        <divisions>4</divisions>'); // 4 divisiones por negra (base semicorchea = 1 tick)
         buffer.writeln('        <key>');
         buffer.writeln('          <fifths>0</fifths>'); // Do Mayor por defecto
         buffer.writeln('        </key>');
@@ -73,11 +74,51 @@ class CanonicalMusicXmlExporter {
         buffer.writeln('          <line>2</line>');
         buffer.writeln('        </clef>');
         buffer.writeln('      </attributes>');
+        buffer.writeln('      <direction placement="above">');
+        buffer.writeln('        <sound tempo="${score.baseBpm}"/>');
+        buffer.writeln('      </direction>');
+      } else if (ts != previousTimeSignature) {
+        buffer.writeln('      <attributes>');
+        buffer.writeln('        <time>');
+        buffer.writeln('          <beats>${ts.numerator}</beats>');
+        buffer.writeln('          <beat-type>${ts.denominator}</beat-type>');
+        buffer.writeln('        </time>');
+        buffer.writeln('      </attributes>');
       }
+      previousTimeSignature = ts;
 
-      // Notas del compás
-      for (final note in measure.notes) {
-        buffer.write(_serializeNoteXml(note));
+      // Notas del compas ordenadas cronologicamente para emitir <chord/> en voces simultaneas
+      if (measure.notes.isEmpty) {
+        buffer.write(_serializeNoteXml(
+          HierarchicalNote.rest(startTick: 0, durationTicks: ts.totalTicks),
+        ));
+      } else {
+        final sortedNotes = List<HierarchicalNote>.from(measure.notes)
+          ..sort((a, b) {
+            final tickCmp = a.startTick.compareTo(b.startTick);
+            if (tickCmp != 0) return tickCmp;
+            final aRest = _isRestNote(a);
+            final bRest = _isRestNote(b);
+            if (aRest != bRest) return aRest ? 1 : -1;
+            return 0;
+          });
+
+        int? activeChordStartTick;
+        for (final note in sortedNotes) {
+          final isRest = _isRestNote(note);
+          if (isRest) {
+            if (activeChordStartTick == note.startTick) {
+              continue;
+            }
+            buffer.write(_serializeNoteXml(note));
+          } else {
+            final isChord = (activeChordStartTick == note.startTick);
+            if (!isChord) {
+              activeChordStartTick = note.startTick;
+            }
+            buffer.write(_serializeNoteXml(note, isChord: isChord));
+          }
+        }
       }
 
       buffer.writeln('    </measure>');
@@ -89,18 +130,27 @@ class CanonicalMusicXmlExporter {
     return buffer.toString();
   }
 
+  static bool _isRestNote(HierarchicalNote note) {
+    return note.isRest ||
+        note.noteName == "--" ||
+        note.noteName.toLowerCase() == "rest" ||
+        note.noteName.isEmpty;
+  }
+
   /// Serializa una [HierarchicalNote] individual al nodo XML `<note>`.
-  String _serializeNoteXml(HierarchicalNote note) {
+  /// Emite `<chord/>` antes de `<pitch>` cuando forma parte de un acorde simultaneo.
+  String _serializeNoteXml(HierarchicalNote note, {bool isChord = false}) {
     final sb = StringBuffer();
     sb.writeln('      <note>');
 
-    final isRest = note.noteName == "--" ||
-        note.noteName.toLowerCase() == "rest" ||
-        note.noteName.isEmpty;
+    final isRest = _isRestNote(note);
 
     if (isRest) {
       sb.writeln('        <rest/>');
     } else {
+      if (isChord) {
+        sb.writeln('        <chord/>');
+      }
       final pitchParts = _parseNoteName(note.noteName);
       sb.writeln('        <pitch>');
       sb.writeln('          <step>${pitchParts.step}</step>');
@@ -110,7 +160,16 @@ class CanonicalMusicXmlExporter {
       sb.writeln('          <octave>${pitchParts.octave}</octave>');
       sb.writeln('        </pitch>');
       if (pitchParts.alter != 0) {
-        final accName = pitchParts.alter > 0 ? "sharp" : "flat";
+        final String accName;
+        if (pitchParts.alter >= 2) {
+          accName = "double-sharp";
+        } else if (pitchParts.alter == 1) {
+          accName = "sharp";
+        } else if (pitchParts.alter <= -2) {
+          accName = "flat-flat";
+        } else {
+          accName = "flat";
+        }
         sb.writeln('        <accidental>$accName</accidental>');
       }
     }
@@ -118,6 +177,12 @@ class CanonicalMusicXmlExporter {
     sb.writeln('        <duration>${note.durationTicks}</duration>');
     sb.writeln('        <voice>1</voice>');
     sb.writeln('        <type>${_ticksToNoteType(note.durationTicks)}</type>');
+    if (note.durationTicks == 24 ||
+        note.durationTicks == 12 ||
+        note.durationTicks == 6 ||
+        note.durationTicks == 3) {
+      sb.writeln('        <dot/>');
+    }
     sb.writeln('      </note>');
 
     return sb.toString();
@@ -132,8 +197,8 @@ class CanonicalMusicXmlExporter {
     return '16th';
   }
 
-  /// Descompone un nombre musical (ej: "Fa#5", "Sib4", "Do4", "A4", "F#5", "Bb3")
-  /// en Step (A-G), alteración (-1, 0, 1) y octava entera.
+  /// Descompone un nombre musical (ej: "Fa#5", "Sib4", "Do0", "Do8", "A4", "F#5", "Bb3")
+  /// en Step (A-G), alteracion (-2..2) y octava entera en rango 0..8.
   static ({String step, int alter, int octave}) _parseNoteName(String rawName) {
     String name = rawName.trim();
     if (name.isEmpty) return (step: 'C', alter: 0, octave: 4);
@@ -169,17 +234,19 @@ class CanonicalMusicXmlExporter {
       name = name.substring(1);
     }
 
-    if (name.contains('#') || name.contains('♯')) {
-      alter = 1;
-      name = name.replaceAll('#', '').replaceAll('♯', '');
-    } else if (name.contains('b') || name.contains('♭')) {
-      alter = -1;
-      name = name.replaceAll('b', '').replaceAll('♭', '');
+    final normalizedAcc = name.replaceAll('♯', '#').replaceAll('♭', 'b');
+    for (int i = 0; i < normalizedAcc.length; i++) {
+      if (normalizedAcc[i] == '#') {
+        alter++;
+      } else if (normalizedAcc[i] == 'b' || normalizedAcc[i] == 'B') {
+        alter--;
+      }
     }
+    final remaining = normalizedAcc.replaceAll(RegExp(r'[#bB]'), '');
 
-    final octMatch = RegExp(r'\d+').firstMatch(name);
+    final octMatch = RegExp(r'-?\d+').firstMatch(remaining);
     if (octMatch != null) {
-      octave = int.tryParse(octMatch.group(0)!) ?? 4;
+      octave = (int.tryParse(octMatch.group(0)!) ?? 4).clamp(0, 8);
     }
 
     return (step: step, alter: alter, octave: octave);

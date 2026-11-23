@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../../../core/audio/domain/i_studio_audio_channel.dart';
 import '../../../core/audio/domain/i_studio_audio_engine.dart';
 import '../../../core/audio/infrastructure/memory_studio_audio_engine.dart';
@@ -17,6 +18,11 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
   final IStudioAudioChannel _diapasonChannel;
   final IStudioAudioChannel _noteChannel;
   final IStudioAudioChannel _droneChannel;
+  final bool _ownsEngine;
+  final bool _ownsClick;
+  final bool _ownsDiapason;
+  final bool _ownsNote;
+  final bool _ownsDrone;
 
   // Buffers PCM pre-calculados en memoria RAM para rendimiento instantáneo
   late final Uint8List _downbeatBytes;
@@ -29,30 +35,58 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
   static bool get _isTestEnvironment =>
       !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
 
-  AudioSynthesizerService({
+  factory AudioSynthesizerService({
     IStudioAudioEngine? audioEngine,
     AudioPlayer? clickPlayer,
     AudioPlayer? diapasonPlayer,
     AudioPlayer? notePlayer,
     AudioPlayer? dronePlayer,
-  })  : _audioEngine = audioEngine ??
-            (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine()),
-        _clickChannel = clickPlayer != null
-            ? StudioAudioChannel(channelId: 'metronome_click', injectedPlayer: clickPlayer)
-            : (audioEngine ?? (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine()))
-                .getChannel('metronome_click'),
-        _diapasonChannel = diapasonPlayer != null
-            ? StudioAudioChannel(channelId: 'tuning_diapason', injectedPlayer: diapasonPlayer)
-            : (audioEngine ?? (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine()))
-                .getChannel('tuning_diapason'),
-        _noteChannel = notePlayer != null
-            ? StudioAudioChannel(channelId: 'instrument_note', injectedPlayer: notePlayer)
-            : (audioEngine ?? (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine()))
-                .getChannel('instrument_note'),
-        _droneChannel = dronePlayer != null
-            ? StudioAudioChannel(channelId: 'harmonic_drone', injectedPlayer: dronePlayer)
-            : (audioEngine ?? (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine()))
-                .getChannel('harmonic_drone') {
+  }) {
+    final resolvedEngine = audioEngine ??
+        (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine());
+    return AudioSynthesizerService._(
+      audioEngine: resolvedEngine,
+      ownsEngine: audioEngine == null,
+      clickChannel: clickPlayer != null
+          ? StudioAudioChannel(channelId: 'metronome_click', injectedPlayer: clickPlayer)
+          : resolvedEngine.getChannel('metronome_click'),
+      ownsClick: clickPlayer != null,
+      diapasonChannel: diapasonPlayer != null
+          ? StudioAudioChannel(channelId: 'tuning_diapason', injectedPlayer: diapasonPlayer)
+          : resolvedEngine.getChannel('tuning_diapason'),
+      ownsDiapason: diapasonPlayer != null,
+      noteChannel: notePlayer != null
+          ? StudioAudioChannel(channelId: 'instrument_note', injectedPlayer: notePlayer)
+          : resolvedEngine.getChannel('instrument_note'),
+      ownsNote: notePlayer != null,
+      droneChannel: dronePlayer != null
+          ? StudioAudioChannel(channelId: 'harmonic_drone', injectedPlayer: dronePlayer)
+          : resolvedEngine.getChannel('harmonic_drone'),
+      ownsDrone: dronePlayer != null,
+    );
+  }
+
+  AudioSynthesizerService._({
+    required IStudioAudioEngine audioEngine,
+    required bool ownsEngine,
+    required IStudioAudioChannel clickChannel,
+    required bool ownsClick,
+    required IStudioAudioChannel diapasonChannel,
+    required bool ownsDiapason,
+    required IStudioAudioChannel noteChannel,
+    required bool ownsNote,
+    required IStudioAudioChannel droneChannel,
+    required bool ownsDrone,
+  })  : _audioEngine = audioEngine,
+        _ownsEngine = ownsEngine,
+        _clickChannel = clickChannel,
+        _ownsClick = ownsClick,
+        _diapasonChannel = diapasonChannel,
+        _ownsDiapason = ownsDiapason,
+        _noteChannel = noteChannel,
+        _ownsNote = ownsNote,
+        _droneChannel = droneChannel,
+        _ownsDrone = ownsDrone {
     _downbeatBytes = PcmWavSynthesizer.generateMetronomeClickWav(isDownbeat: true);
     _offbeatBytes = PcmWavSynthesizer.generateMetronomeClickWav(isDownbeat: false);
   }
@@ -76,8 +110,13 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
       await _clickChannel.setVolume(clampedVolume);
       await _clickChannel.loadSource(bytes: bytes, loop: false, title: 'Click');
       await _clickChannel.play();
-    } catch (e) {
-      debugPrint('Error emitiendo clic de metrónomo: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'AudioSynthesizerService',
+        'Error emitiendo clic de metronomo',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -95,8 +134,13 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
       await _diapasonChannel.setVolume(clampedVolume);
       await _diapasonChannel.loadSource(bytes: toneBytes, loop: true, title: 'Diapason');
       await _diapasonChannel.play();
-    } catch (e) {
-      debugPrint('Error iniciando tono de diapasón: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'AudioSynthesizerService',
+        'Error iniciando tono de diapason',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -107,8 +151,13 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
 
     try {
       await _diapasonChannel.stop();
-    } catch (e) {
-      debugPrint('Error deteniendo diapasón: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'AudioSynthesizerService',
+        'Error deteniendo diapason',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -129,8 +178,13 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
       await _noteChannel.setVolume(clampedVolume);
       await _noteChannel.loadSource(bytes: wavBytes, loop: false, title: 'Note');
       await _noteChannel.play();
-    } catch (e) {
-      debugPrint('Error reproduciendo nota musical: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'AudioSynthesizerService',
+        'Error reproduciendo nota musical',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -143,8 +197,13 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
       await _noteChannel.setVolume(clampedVolume);
       await _noteChannel.loadSource(bytes: wavBytes, loop: false, title: 'PCM WAV');
       await _noteChannel.play();
-    } catch (e) {
-      debugPrint('Error emitiendo audio PCM WAV: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'AudioSynthesizerService',
+        'Error emitiendo audio PCM WAV',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -160,8 +219,13 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
       await _droneChannel.setVolume(clampedVolume);
       await _droneChannel.loadSource(bytes: wavBytes, loop: true, title: 'Drone Loop');
       await _droneChannel.play();
-    } catch (e) {
-      debugPrint('Error iniciando bucle de dron: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'AudioSynthesizerService',
+        'Error iniciando bucle de dron',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -170,16 +234,37 @@ class AudioSynthesizerService implements IAudioSynthesizerService {
     _isDroneLoopPlaying = false;
     try {
       await _droneChannel.stop();
-    } catch (e) {
-      debugPrint('Error deteniendo dron: $e');
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'AudioSynthesizerService',
+        'Error deteniendo dron',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
   @override
   void dispose() {
-    _clickChannel.dispose();
-    _diapasonChannel.dispose();
-    _noteChannel.dispose();
-    _droneChannel.dispose();
+    if (_ownsClick || _ownsEngine) {
+      _clickChannel.dispose();
+    } else {
+      _clickChannel.stop();
+    }
+    if (_ownsDiapason || _ownsEngine) {
+      _diapasonChannel.dispose();
+    } else {
+      _diapasonChannel.stop();
+    }
+    if (_ownsNote || _ownsEngine) {
+      _noteChannel.dispose();
+    } else {
+      _noteChannel.stop();
+    }
+    if (_ownsDrone || _ownsEngine) {
+      _droneChannel.dispose();
+    } else {
+      _droneChannel.stop();
+    }
   }
 }

@@ -1,7 +1,12 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../media_vault/domain/wav_pcm_codec.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/app_tool_item.dart';
+import 'app_tool_item_ui_ext.dart';
 import '../../tuner/presentation/microphone_calibration_modal.dart';
 import '../../tuner/presentation/concert_pitch_selector_modal.dart';
 import '../../tuner/presentation/temperament_selector_modal.dart';
@@ -12,6 +17,14 @@ import '../../dj_console/presentation/dj_console_modal.dart';
 import '../../dj_console/presentation/dj_console_view_model.dart';
 import '../../harmonic_tutor/presentation/harmonic_tutor_modal.dart';
 import '../../harmonic_tutor/presentation/harmonic_tutor_view_model.dart';
+import '../../score_editor/presentation/score_editor_modal.dart';
+import '../../exercise_generator/presentation/exercise_generator_modal.dart';
+import '../../chord_analyzer/presentation/chord_analyzer_modal.dart';
+import '../../vocal_autotune/presentation/vocal_autotune_modal.dart';
+import '../../metronome/presentation/tap_tempo_modal.dart';
+import '../../audio_synthesizer/presentation/instrument_soundfont_selector_modal.dart';
+import '../../practice_recorder/presentation/spectral_comparator_modal.dart';
+import '../../drone/presentation/harmonic_drone_modal.dart';
 
 /// Modal predictivo de búsqueda universal (Spotlight Search) para localizar y lanzar
 /// cualquier herramienta del software en menos de 2 segundos.
@@ -72,6 +85,7 @@ class _ToolSearchModalState extends State<ToolSearchModal> {
   }
 
   void _executeTool(AppToolItem tool) {
+    final parentContext = Navigator.of(context, rootNavigator: true).context;
     Navigator.of(context).pop();
 
     // 1. Si la herramienta redirige a una pestaña del shell
@@ -80,39 +94,98 @@ class _ToolSearchModalState extends State<ToolSearchModal> {
     }
 
     // 2. Si la herramienta tiene una acción modal asociada
-    if (tool.actionId != null) {
-      _handleAction(tool.actionId!);
+    if (tool.actionId != null && parentContext.mounted) {
+      _handleAction(tool.actionId!, parentContext);
     }
   }
 
-  void _handleAction(String actionId) {
+  void _handleAction(String actionId, BuildContext hostContext) {
     switch (actionId) {
       case 'open_mic_calibration':
-        MicrophoneCalibrationModal.show(context, widget.viewModel);
+        MicrophoneCalibrationModal.show(hostContext, widget.viewModel);
         break;
       case 'open_concert_pitch':
-        ConcertPitchSelectorModal.show(context);
+        ConcertPitchSelectorModal.show(hostContext);
         break;
       case 'open_temperament_selector':
-        TemperamentSelectorModal.show(context);
+        TemperamentSelectorModal.show(hostContext);
         break;
       case 'open_pedagogical_report':
-        PedagogicalReportModal.show(context);
+        PedagogicalReportModal.show(hostContext);
         break;
       case 'open_instrument_selector':
-        InstrumentSelectorModal.show(context, widget.viewModel);
+        InstrumentSelectorModal.show(hostContext, widget.viewModel);
         break;
       case 'open_score_importer':
+        SongDecomposerModal.show(hostContext, widget.viewModel);
+        break;
       case 'open_score_editor':
-        SongDecomposerModal.show(context, widget.viewModel);
+        ScoreEditorModal.show(hostContext);
+        break;
+      case 'open_exercise_generator':
+        ExerciseGeneratorModal.show(hostContext, onNavigateToTab: widget.onNavigateToTab);
+        break;
+      case 'open_chord_analyzer':
+        ChordAnalyzerModal.show(hostContext, widget.viewModel);
+        break;
+      case 'open_autotune':
+        VocalAutoTuneModal.show(hostContext, widget.viewModel);
+        break;
+      case 'open_tap_tempo':
+        TapTempoModal.show(hostContext, widget.viewModel);
+        break;
+      case 'open_soundfont_bank':
+        InstrumentSoundFontSelectorModal.show(
+          hostContext,
+          synthService: widget.viewModel.soundFontSynthesizer,
+          onPlayPreviewWav: widget.viewModel.audioSynthesizer.playPcmWav,
+          onInstrumentSelected: (patch, name) => widget.viewModel.selectSoundFontPatch(patch),
+        );
+        break;
+      case 'focus_metronome':
+        widget.onNavigateToTab?.call(1);
+        break;
+      case 'open_spectral_comparator':
+        SpectralComparatorModal.show(hostContext, widget.viewModel);
+        break;
+      case 'open_drone_studio':
+        HarmonicDroneModal.show(hostContext, widget.viewModel);
         break;
       case 'open_dj_console':
         final djVm = DjConsoleViewModel();
-        DjConsoleModal.show(context, djVm, widget.viewModel.currentPalette);
+        DjConsoleModal.show(hostContext, djVm, widget.viewModel.currentPalette).whenComplete(djVm.dispose);
         break;
       case 'open_harmonic_tutor':
-        final tutorVm = HarmonicTutorViewModel();
-        HarmonicTutorModal.show(context, viewModel: tutorVm, palette: widget.viewModel.currentPalette);
+        final tutorVm = HarmonicTutorViewModel(
+          onPlayDroneSamples: (samples, sampleRate) {
+            final wavBytes = const WavPcmCodec().encodeMono16Bit(
+              Float64List.fromList(samples),
+              sampleRate: sampleRate,
+            );
+            unawaited(widget.viewModel.audioSynthesizer.startDroneLoop(wavBytes));
+          },
+          onStopDrone: () {
+            unawaited(widget.viewModel.audioSynthesizer.stopDroneLoop());
+          },
+        );
+        void onTelemetry() {
+          final freq = widget.viewModel.telemetryListenable.value.frequency;
+          if (freq > 0.0) {
+            tutorVm.onPitchDetected(freq);
+          }
+        }
+        widget.viewModel.telemetryListenable.addListener(onTelemetry);
+        HarmonicTutorModal.show(
+          hostContext,
+          viewModel: tutorVm,
+          palette: widget.viewModel.currentPalette,
+          isMicrophoneActive: () => widget.viewModel.isRecording,
+          onToggleMicrophone: widget.viewModel.toggleRecording,
+          microphoneListenable: widget.viewModel,
+        ).whenComplete(() {
+          widget.viewModel.telemetryListenable.removeListener(onTelemetry);
+          tutorVm.dispose();
+        });
         break;
       default:
         break;

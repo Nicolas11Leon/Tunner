@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tunner/features/media_vault/data/universal_media_io_service.dart';
 import 'package:tunner/features/media_vault/domain/media_asset_entity.dart';
 import 'package:tunner/features/media_vault/domain/media_synergy_target.dart';
 import 'package:tunner/features/media_vault/presentation/media_vault_viewmodel.dart';
@@ -17,6 +18,7 @@ void main() {
       MediaAssetEntity? dispatchedAsset;
 
       final vm = MediaVaultViewModel(
+        ioService: const UniversalMediaIoService(),
         onDispatchToTool: (asset, target) {
           dispatchedAsset = asset;
           dispatchedTarget = target;

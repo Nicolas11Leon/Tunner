@@ -4,7 +4,7 @@ import '../../tuner_viewmodel.dart';
 import '../../sheet_music/domain/score_tree.dart';
 import '../../tuner/domain/tuning_preset_entity.dart';
 import '../domain/song_package_entity.dart';
-import '../data/song_decomposer_service.dart';
+import '../domain/song_decomposer_service.dart';
 
 /// Diálogos modales atómicos profesionales para creación e importación de assets musicales.
 class StudioAssetsModals {
@@ -224,28 +224,37 @@ class _StudioNewScoreDialogState extends State<_StudioNewScoreDialog> {
                       ),
                       const SizedBox(height: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: tokens.inputSurface,
                           borderRadius: BorderRadius.circular(tokens.radiusSmall),
                           border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
                         ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<int>(
-                            value: _selectedBpm,
-                            isDense: true,
-                            isExpanded: true,
-                            dropdownColor: tokens.panelBackground,
-                            items: const [
-                              DropdownMenuItem(value: 80, child: Text('80 Andante')),
-                              DropdownMenuItem(value: 100, child: Text('100 Moderato')),
-                              DropdownMenuItem(value: 120, child: Text('120 Allegro')),
-                              DropdownMenuItem(value: 140, child: Text('140 Vivace')),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) setState(() => _selectedBpm = val);
-                            },
-                          ),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove, size: 14),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                              onPressed: () => setState(() => _selectedBpm = (_selectedBpm - 1).clamp(20, 300)),
+                            ),
+                            Expanded(
+                              child: Slider(
+                                value: _selectedBpm.toDouble().clamp(20.0, 300.0),
+                                min: 20.0,
+                                max: 300.0,
+                                divisions: 280,
+                                activeColor: tokens.accentPrimary,
+                                onChanged: (val) => setState(() => _selectedBpm = val.round().clamp(20, 300)),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.add, size: 14),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                              onPressed: () => setState(() => _selectedBpm = (_selectedBpm + 1).clamp(20, 300)),
+                            ),
+                          ],
                         ),
                       ),
                     ],

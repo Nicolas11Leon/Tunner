@@ -85,7 +85,7 @@ void main() {
       viewModel.renameModule(viewModel.activeModules[2].moduleId, 'Partitura Transcripcion');
 
       // Save project
-      await viewModel.saveProjectToFile('/projects/sesion1.tunner', projectName: 'Sesion Magistral');
+      await viewModel.saveProjectToFile(filePath: '/projects/sesion1.tunner', projectName: 'Sesion Magistral');
       final projectBytes = storage.storage['/projects/sesion1.tunner']!;
       expect(projectBytes.length, greaterThan(20));
 

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
+import '../../../core/audio/domain/ffi/i_native_dsp_bridge.dart';
 
 /// Resultado inmutable del análisis acústico de tono mediante McLeod Pitch Method (MPM).
 class PitchDetectionResult {
@@ -57,12 +58,16 @@ class McleodPitchMethod {
   /// Frecuencia máxima detectable en Hz (por defecto 4200 Hz, cubre hasta Do8 = 4186 Hz).
   final double maxPitchHz;
 
+  /// Puente nativo opcional para aceleración FFI C99 de autocorrelación.
+  final INativeDspBridge? bridge;
+
   const McleodPitchMethod({
     this.kThreshold = 0.90,
     this.minClarity = 0.40,
     this.silenceThreshold = 0.005, // Aprox. -46 dBFS
     this.minPitchHz = 25.0,
     this.maxPitchHz = 4200.0,
+    this.bridge,
   });
 
   /// Convierte un buffer de bytes PCM de 16 bits little-endian a un arreglo
@@ -95,7 +100,15 @@ class McleodPitchMethod {
   ///
   /// Fórmula:
   /// r'(tau) = (2 * sum(x[j] * x[j+tau])) / sum(x[j]^2 + x[j+tau]^2)
-  static Float64List computeNsdf(Float64List samples, int maxLag) {
+  ///
+  /// Optimizado algorítmicamente:
+  /// 1. Denominador evaluado en O(1) por retardo tau precalculando sumas de prefijo de energía cuadrática en O(N).
+  /// 2. Numerador evaluado con bucle desenrollado en bloques de 4 para vectorización SIMD / FFI nativo.
+  static Float64List computeNsdf(
+    Float64List samples,
+    int maxLag, {
+    INativeDspBridge? bridge,
+  }) {
     final n = samples.length;
     final clampedMaxLag = math.min(maxLag, n - 2);
     if (clampedMaxLag <= 0) return Float64List(0);
@@ -103,17 +116,48 @@ class McleodPitchMethod {
     final nsdf = Float64List(clampedMaxLag + 1);
     nsdf[0] = 1.0; // r'(0) siempre es exactamente 1.0
 
+    // Precomputar sumas acumuladas de energía de muestras al cuadrado en O(N)
+    // E[k] = sum_{i=0}^{k-1} samples[i]^2, con E[0] = 0.0
+    final energyPrefix = Float64List(n + 1);
+    for (int i = 0; i < n; i++) {
+      final s = samples[i];
+      energyPrefix[i + 1] = energyPrefix[i] + (s * s);
+    }
+    final totalEnergy = energyPrefix[n];
+
+    // Opcional: Aceleración FFI C99 para autocorrelación cruzada si el puente nativo está presente
+    Float32List? ffiCorrelations;
+    if (bridge != null && bridge.isNativeAvailable) {
+      final in32 = Float32List(n);
+      for (int i = 0; i < n; i++) {
+        in32[i] = samples[i];
+      }
+      ffiCorrelations = Float32List(clampedMaxLag + 1);
+      bridge.autoCorrelate(in32, ffiCorrelations);
+    }
+
     for (int tau = 1; tau <= clampedMaxLag; tau++) {
       double crossCorrelation = 0.0;
-      double energySum = 0.0;
-
-      final limit = n - tau;
-      for (int j = 0; j < limit; j++) {
-        final xj = samples[j];
-        final xjTau = samples[j + tau];
-        crossCorrelation += xj * xjTau;
-        energySum += xj * xj + xjTau * xjTau;
+      if (ffiCorrelations != null) {
+        crossCorrelation = ffiCorrelations[tau];
+      } else {
+        final limit = n - tau;
+        int j = 0;
+        // Desenrollado de 4 pasos para vectorización SIMD
+        for (; j + 3 < limit; j += 4) {
+          crossCorrelation += samples[j] * samples[j + tau] +
+              samples[j + 1] * samples[j + 1 + tau] +
+              samples[j + 2] * samples[j + 2 + tau] +
+              samples[j + 3] * samples[j + 3 + tau];
+        }
+        for (; j < limit; j++) {
+          crossCorrelation += samples[j] * samples[j + tau];
+        }
       }
+
+      // Denominador O(1): sum_{j=0}^{n-tau-1} x[j]^2 + sum_{j=0}^{n-tau-1} x[j+tau]^2
+      // = E[n - tau] + (E[n] - E[tau])
+      final energySum = energyPrefix[n - tau] + totalEnergy - energyPrefix[tau];
 
       if (energySum > 1e-12) {
         final val = (2.0 * crossCorrelation) / energySum;
@@ -150,30 +194,31 @@ class McleodPitchMethod {
       return PitchDetectionResult.unpitched(rms: rms);
     }
 
-    final nsdf = computeNsdf(samples, maxLag);
+    final nsdf = computeNsdf(samples, maxLag, bridge: bridge);
     if (nsdf.isEmpty) {
       return PitchDetectionResult.unpitched(rms: rms);
     }
 
-    // Detección de picos en lóbulos positivos
+    // Detección de picos en lóbulos positivos (descartando el lóbulo principal inicial en tau=0)
     final peaks = <int>[];
     bool inPositiveLobe = false;
     int currentPeakIdx = -1;
     double currentPeakVal = -1.0;
+    bool hasPassedZeroCrossing = false;
+
+    // Verificar si ya cruzó por cero antes de minLagForMaxPitch
+    for (int tau = 1; tau < minLagForMaxPitch; tau++) {
+      if (nsdf[tau] <= 0.0) {
+        hasPassedZeroCrossing = true;
+        break;
+      }
+    }
 
     for (int tau = minLagForMaxPitch; tau < nsdf.length - 1; tau++) {
       final val = nsdf[tau];
 
-      if (val > 0) {
-        if (!inPositiveLobe) {
-          inPositiveLobe = true;
-          currentPeakIdx = tau;
-          currentPeakVal = val;
-        } else if (val > currentPeakVal) {
-          currentPeakIdx = tau;
-          currentPeakVal = val;
-        }
-      } else {
+      if (val <= 0.0) {
+        hasPassedZeroCrossing = true;
         if (inPositiveLobe) {
           if (currentPeakIdx > 0 &&
               currentPeakIdx < nsdf.length - 1 &&
@@ -184,6 +229,17 @@ class McleodPitchMethod {
           inPositiveLobe = false;
           currentPeakIdx = -1;
           currentPeakVal = -1.0;
+        }
+      } else {
+        if (hasPassedZeroCrossing) {
+          if (!inPositiveLobe) {
+            inPositiveLobe = true;
+            currentPeakIdx = tau;
+            currentPeakVal = val;
+          } else if (val > currentPeakVal) {
+            currentPeakIdx = tau;
+            currentPeakVal = val;
+          }
         }
       }
     }

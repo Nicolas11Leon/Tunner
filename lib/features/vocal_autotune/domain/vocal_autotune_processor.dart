@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:typed_data';
 import 'autotune_config_entity.dart';
 import 'scale_quantizer.dart';
@@ -115,5 +116,196 @@ class VocalAutoTuneProcessor {
       name: '${take.name} (AutoTuned)',
       pitchTrack: tunedPitchTrack,
     );
+  }
+
+  /// Ejecuta [processPracticeTake] fuera del hilo de UI mediante [Isolate.run].
+  Future<PracticeTakeEntity> processPracticeTakeAsync({
+    required PracticeTakeEntity take,
+    AutoTuneConfigEntity? customConfig,
+  }) {
+    final effectiveConfig = customConfig ?? _config;
+    return Isolate.run(() {
+      final worker = VocalAutoTuneProcessor(config: effectiveConfig);
+      return worker.processPracticeTake(take: take, customConfig: effectiveConfig);
+    });
+  }
+
+  /// Ejecuta [processWavBytes] fuera del hilo de UI mediante [Isolate.run].
+  Future<Uint8List> processWavBytesAsync({
+    required Uint8List wavBytes,
+    required List<TimedPitchSample> pitchTrack,
+    AutoTuneConfigEntity? customConfig,
+  }) {
+    final effectiveConfig = customConfig ?? _config;
+    return Isolate.run(() {
+      final worker = VocalAutoTuneProcessor(config: effectiveConfig);
+      return worker.processWavBytes(
+        wavBytes: wavBytes,
+        pitchTrack: pitchTrack,
+        customConfig: effectiveConfig,
+      );
+    });
+  }
+
+  /// Procesa un archivo WAV PCM de 16 bits aplicando TD-PSOLA por cada ventana sonora
+  /// registrada en [pitchTrack], retornando un nuevo buffer WAV afinado en memoria.
+  Uint8List processWavBytes({
+    required Uint8List wavBytes,
+    required List<TimedPitchSample> pitchTrack,
+    AutoTuneConfigEntity? customConfig,
+  }) {
+    if (wavBytes.length < 44) return wavBytes;
+    final headerData = ByteData.sublistView(wavBytes, 0, 44);
+    final channels = headerData.getUint16(22, Endian.little).clamp(1, 2);
+    final sampleRate = headerData.getUint32(24, Endian.little);
+    final bitsPerSample = headerData.getUint16(34, Endian.little);
+    if (sampleRate < 8000 || bitsPerSample != 16) return wavBytes;
+
+    // Localizar chunk 'data' de forma segura
+    int dataOffset = 44;
+    int dataSize = wavBytes.length - 44;
+    int cursor = 12;
+    while (cursor + 8 <= wavBytes.length) {
+      final chunkId = String.fromCharCodes(wavBytes.sublist(cursor, cursor + 4));
+      final chunkSize = ByteData.sublistView(wavBytes, cursor + 4, cursor + 8)
+          .getUint32(0, Endian.little);
+      if (chunkId == 'data') {
+        dataOffset = cursor + 8;
+        dataSize = chunkSize.clamp(0, wavBytes.length - dataOffset);
+        break;
+      }
+      cursor += 8 + chunkSize + (chunkSize & 1);
+    }
+
+    final int totalFrames = dataSize ~/ (2 * channels);
+    if (totalFrames <= 0) return wavBytes;
+
+    final pcmView = ByteData.sublistView(wavBytes, dataOffset, dataOffset + dataSize);
+    final monoSamples = Float64List(totalFrames);
+    for (int i = 0; i < totalFrames; i++) {
+      double sum = 0.0;
+      for (int ch = 0; ch < channels; ch++) {
+        final s = pcmView.getInt16((i * channels + ch) * 2, Endian.little);
+        sum += s / 32768.0;
+      }
+      monoSamples[i] = sum / channels;
+    }
+
+    final effectiveConfig = customConfig ?? _config;
+    if (!effectiveConfig.isEnabled || pitchTrack.isEmpty) {
+      return wavBytes;
+    }
+
+    final outSamples = Float64List.fromList(monoSamples);
+    final tempQuantizer = ScaleQuantizer();
+
+    // Agrupar muestras sonoras contiguas con afinacion objetivo equivalente
+    // para evitar saltos de fase en fronteras de ventanas de 20-50 ms.
+    int p = 0;
+    while (p < pitchTrack.length) {
+      final firstSample = pitchTrack[p];
+      final int firstNextMs = (p + 1 < pitchTrack.length)
+          ? pitchTrack[p + 1].timeMs
+          : firstSample.timeMs + 50;
+
+      if (firstSample.isSilent || firstSample.frequencyHz <= 20.0) {
+        tempQuantizer.quantize(
+          detectedPitchHz: 0.0,
+          config: effectiveConfig,
+          deltaSeconds: (firstNextMs - firstSample.timeMs).clamp(1, 1000) / 1000.0,
+        );
+        p++;
+        continue;
+      }
+
+      final firstQuant = tempQuantizer.quantize(
+        detectedPitchHz: firstSample.frequencyHz,
+        config: effectiveConfig,
+        deltaSeconds: (firstNextMs - firstSample.timeMs).clamp(1, 1000) / 1000.0,
+      );
+
+      final int groupStartMs = firstSample.timeMs;
+      int groupEndMs = firstNextMs;
+      double weightedFreqSum = firstSample.frequencyHz;
+      double weightedRatioSum = firstQuant.pitchShiftRatio;
+      int groupCount = 1;
+
+      int nextIndex = p + 1;
+      while (nextIndex < pitchTrack.length) {
+        final candidate = pitchTrack[nextIndex];
+        if (candidate.isSilent || candidate.frequencyHz <= 20.0) break;
+        if ((candidate.timeMs - groupEndMs).abs() > 80) break;
+
+        final int candNextMs = (nextIndex + 1 < pitchTrack.length)
+            ? pitchTrack[nextIndex + 1].timeMs
+            : candidate.timeMs + 50;
+        final candQuant = tempQuantizer.quantize(
+          detectedPitchHz: candidate.frequencyHz,
+          config: effectiveConfig,
+          deltaSeconds: (candNextMs - candidate.timeMs).clamp(1, 1000) / 1000.0,
+        );
+
+        final bool sameNote = candQuant.targetNoteName == firstQuant.targetNoteName;
+        final bool closeRatio =
+            (candQuant.pitchShiftRatio - firstQuant.pitchShiftRatio).abs() < 0.01;
+        if (!sameNote || !closeRatio) break;
+
+        groupEndMs = candNextMs;
+        weightedFreqSum += candidate.frequencyHz;
+        weightedRatioSum += candQuant.pitchShiftRatio;
+        groupCount++;
+        nextIndex++;
+      }
+
+      p = nextIndex;
+
+      final double avgDetectedHz = weightedFreqSum / groupCount;
+      final double avgRatio = weightedRatioSum / groupCount;
+      if (!firstQuant.isVoiced || (avgRatio - 1.0).abs() < 0.005) continue;
+
+      final int startSample =
+          ((groupStartMs / 1000.0) * sampleRate).round().clamp(0, totalFrames);
+      final int endSample =
+          ((groupEndMs / 1000.0) * sampleRate).round().clamp(startSample, totalFrames);
+      final int segmentLen = endSample - startSample;
+      if (segmentLen < 48) continue;
+
+      final segment = Float64List.sublistView(monoSamples, startSample, endSample);
+      final shifted = _pitchShifter.shiftPitch(
+        inputSamples: segment,
+        pitchShiftRatio: avgRatio,
+        detectedPitchHz: avgDetectedHz,
+        sampleRate: sampleRate,
+        preserveFormants: effectiveConfig.formantPreservation,
+        leadVocalMix: effectiveConfig.leadVocalMix,
+      );
+      for (int i = 0; i < shifted.length && (startSample + i) < totalFrames; i++) {
+        outSamples[startSample + i] = shifted[i];
+      }
+    }
+
+    // Re-empaquetar WAV PCM 16-bit mono
+    final outDataBytes = totalFrames * 2;
+    final outWav = Uint8List(44 + outDataBytes);
+    final outView = ByteData.sublistView(outWav);
+    outWav.setRange(0, 4, 'RIFF'.codeUnits);
+    outView.setUint32(4, 36 + outDataBytes, Endian.little);
+    outWav.setRange(8, 12, 'WAVE'.codeUnits);
+    outWav.setRange(12, 16, 'fmt '.codeUnits);
+    outView.setUint32(16, 16, Endian.little);
+    outView.setUint16(20, 1, Endian.little);
+    outView.setUint16(22, 1, Endian.little);
+    outView.setUint32(24, sampleRate, Endian.little);
+    outView.setUint32(28, sampleRate * 2, Endian.little);
+    outView.setUint16(32, 2, Endian.little);
+    outView.setUint16(34, 16, Endian.little);
+    outWav.setRange(36, 40, 'data'.codeUnits);
+    outView.setUint32(40, outDataBytes, Endian.little);
+
+    for (int i = 0; i < totalFrames; i++) {
+      final clamped = (outSamples[i] * 32767.0).round().clamp(-32768, 32767);
+      outView.setInt16(44 + i * 2, clamped, Endian.little);
+    }
+    return outWav;
   }
 }

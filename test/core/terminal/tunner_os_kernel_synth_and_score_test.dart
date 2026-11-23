@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tunner/core/terminal/domain/tunner_os_kernel.dart';
+import 'package:tunner/app/terminal_feature_adapters.dart';
+import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
 import 'package:tunner/features/audio_synthesizer/domain/polyphonic/polyphonic_synth_voice.dart';
 import 'package:tunner/features/audio_synthesizer/domain/polyphonic/polyphonic_voice_pool.dart';
 import 'package:tunner/features/sheet_music/domain/score_playback_coordinator.dart';
@@ -29,7 +30,7 @@ void main() {
 
       kernel = TunnerOsKernel(
         synthVoicePool: voicePool,
-        scorePlaybackCoordinator: scoreCoordinator,
+        scorePlaybackCoordinator: ScorePlaybackTerminalAdapter(scoreCoordinator),
       );
     });
 

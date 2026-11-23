@@ -105,6 +105,7 @@ class _ThemeEditorDialogState extends State<ThemeEditorDialog> {
       baseStyle: _selectedBase,
       primaryAccent: _primaryAccent,
       secondaryAccent: _secondaryAccent,
+      customId: widget.initialPalette?.id,
     );
   }
 

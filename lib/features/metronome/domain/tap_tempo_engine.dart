@@ -15,10 +15,10 @@ class TapTempoEngine {
   final List<double> _intervalsMs = [];
 
   TapTempoEngine({
-    this.minBpm = 30,
+    this.minBpm = 20,
     this.maxBpm = 300,
     this.maxHistoryIntervals = 8,
-    this.inactivityTimeoutMs = 2500,
+    this.inactivityTimeoutMs = 3200,
   });
 
   int get tapCount => _timestampsMs.length;
@@ -66,7 +66,7 @@ class TapTempoEngine {
     }
 
     final meanIntervalMs = weightedSum / totalWeight;
-    final exactBpm = 60000.0 / meanIntervalMs;
+    final exactBpm = (60000.0 / meanIntervalMs).clamp(minBpm.toDouble(), maxBpm.toDouble());
     final clampedBpm = exactBpm.round().clamp(minBpm, maxBpm);
 
     // 3. Cálculo de la desviación estándar muestral (Jitter en milisegundos)

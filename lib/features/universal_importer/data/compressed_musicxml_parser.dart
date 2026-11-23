@@ -48,22 +48,40 @@ class CompressedMusicXmlParser implements IScoreParserService {
       throw FormatException('No se pudo descomprimir el archivo .mxl: $e');
     }
 
+    const int maxDecompressedMxlBytes = 64 * 1024 * 1024;
+    int totalDecompressedBytes = 0;
+    for (final file in archive.files) {
+      _validateSafeArchiveEntryPath(file.name);
+      totalDecompressedBytes += file.size;
+      if (totalDecompressedBytes > maxDecompressedMxlBytes) {
+        throw const FormatException('Cuota maxima de descompresion superada en archivo .mxl.');
+      }
+    }
+
     // 1. Intentar localizar el manifiesto META-INF/container.xml
     String? rootFilePath;
     final containerFile = archive.findFile('META-INF/container.xml');
     if (containerFile != null) {
       try {
-        final containerContent = utf8.decode(containerFile.content as List<int>);
+        final containerBytes = containerFile.content as List<int>;
+        if (containerBytes.length > maxDecompressedMxlBytes) {
+          throw const FormatException('Manifiesto .mxl excede el limite de tamaño.');
+        }
+        final containerContent = utf8.decode(containerBytes);
         final doc = XmlDocument.parse(containerContent);
         final rootFiles = doc.findAllElements('rootfile');
         for (final rf in rootFiles) {
           final fullPath = rf.getAttribute('full-path');
           if (fullPath != null && fullPath.isNotEmpty) {
+            _validateSafeArchiveEntryPath(fullPath);
             rootFilePath = fullPath;
             break;
           }
         }
-      } catch (_) {
+      } catch (e) {
+        if (e is FormatException && e.message.contains('Path Traversal')) {
+          rethrow;
+        }
         // Fallback a búsqueda heurística de archivo XML
       }
     }
@@ -92,10 +110,25 @@ class CompressedMusicXmlParser implements IScoreParserService {
       );
     }
 
-    final scoreBytes = Uint8List.fromList(targetScoreFile.content as List<int>);
+    final scoreRawBytes = targetScoreFile.content as List<int>;
+    if (scoreRawBytes.length > maxDecompressedMxlBytes) {
+      throw const FormatException('La partitura .mxl supera la cuota maxima de descompresion.');
+    }
+    final scoreBytes = Uint8List.fromList(scoreRawBytes);
     return _musicXmlParser.parseScoreData(
       bytes: scoreBytes,
       fileName: targetScoreFile.name,
     );
+  }
+
+  void _validateSafeArchiveEntryPath(String entryPath) {
+    final normalized = entryPath.replaceAll('\\', '/');
+    if (normalized.startsWith('/') || RegExp(r'^[A-Za-z]:').hasMatch(normalized)) {
+      throw FormatException('Intento de Path Traversal (Zip Slip) detectado en .mxl: $entryPath');
+    }
+    final segments = normalized.split('/');
+    if (segments.any((s) => s == '..' || s.contains('\x00'))) {
+      throw FormatException('Intento de Path Traversal (Zip Slip) detectado en .mxl: $entryPath');
+    }
   }
 }

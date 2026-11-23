@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/design_system/atoms/studio_text_controller_scope.dart';
+import '../../../core/logging/infrastructure/studio_debug_logger.dart';
 import '../domain/rack_module_entity.dart';
 import '../domain/port_id.dart';
 import 'modular_rack_viewmodel.dart';
 import 'studio_patchbay_modal.dart';
+import '../../instrument/presentation/visual_interface_profile_ui_ext.dart';
 import '../../instrument/presentation/instrument_emulation_surface_widget.dart';
 import '../../navigation/presentation/contextual_help_sheet.dart';
 import '../../../core/theme/tunner_theme.dart';
@@ -247,51 +250,53 @@ class RackUnitCard extends StatelessWidget {
   }
 
   void _showRenameDialog(BuildContext context) {
-    final controller = TextEditingController(text: module.title);
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: const Text(
-          'RENOMBRAR HERRAMIENTA',
-          style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+      builder: (ctx) => StudioTextControllerScope(
+        initialText: module.title,
+        builder: (ctx, controller) => AlertDialog(
+          backgroundColor: const Color(0xFF1E293B),
+          title: const Text(
+            'RENOMBRAR HERRAMIENTA',
+            style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+          ),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+            decoration: InputDecoration(
+              labelText: 'Nombre Personalizado',
+              labelStyle: const TextStyle(color: Colors.white60, fontSize: 12),
+              enabledBorder: OutlineInputBorder(
+                borderSide: const BorderSide(color: Colors.white24),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: const BorderSide(color: Color(0xFF38BDF8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('CANCELAR', style: TextStyle(color: Colors.white54, fontSize: 11)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF38BDF8),
+                foregroundColor: Colors.black,
+              ),
+              onPressed: () {
+                if (controller.text.trim().isNotEmpty) {
+                  viewModel.renameModule(module.moduleId, controller.text.trim());
+                }
+                Navigator.pop(ctx);
+              },
+              child: const Text('GUARDAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+            ),
+          ],
         ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white, fontSize: 13),
-          decoration: InputDecoration(
-            labelText: 'Nombre Personalizado',
-            labelStyle: const TextStyle(color: Colors.white60, fontSize: 12),
-            enabledBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: Colors.white24),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: Color(0xFF38BDF8)),
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('CANCELAR', style: TextStyle(color: Colors.white54, fontSize: 11)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF38BDF8),
-              foregroundColor: Colors.black,
-            ),
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                viewModel.renameModule(module.moduleId, controller.text.trim());
-              }
-              Navigator.pop(ctx);
-            },
-            child: const Text('GUARDAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-        ],
       ),
     );
   }
@@ -299,9 +304,7 @@ class RackUnitCard extends StatelessWidget {
   void _exportToolPreset(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final safeName = module.title.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
-      final path = '/tmp/${safeName}_preset.tnt';
-      await viewModel.exportToolPresetToFile(module.moduleId, path);
+      await viewModel.exportToolPresetToFile(module.moduleId);
       messenger.showSnackBar(
         SnackBar(
           content: Text('Herramienta "${module.title}" exportada como preset (.tnt)'),
@@ -368,7 +371,13 @@ class RackUnitCard extends StatelessWidget {
     try {
       final vm = Provider.of<TunerViewModel>(context, listen: true);
       return vm;
-    } catch (_) {
+    } catch (e, st) {
+      StudioDebugLogger.instance.warning(
+        'RackUnitCard',
+        'TunerViewModel no montado en contexto; usando fallback: $e',
+        error: e,
+        stackTrace: st,
+      );
       return _fallbackViewModel;
     }
   }
@@ -458,7 +467,24 @@ class RackUnitCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        InstrumentEmulationSurfaceWidget(instrument: instrument),
+        InstrumentEmulationSurfaceWidget(
+          instrument: instrument,
+          onFrequencyTriggered: (freq) {
+            if (freq > 20.0) {
+              tuner.audioSynthesizer.playNoteTone(
+                frequency: freq,
+                duration: const Duration(milliseconds: 350),
+                volume: 0.7,
+              );
+            }
+          },
+          onDrumHitTriggered: (padIndex) {
+            tuner.audioSynthesizer.playMetronomeClick(
+              isDownbeat: padIndex == 0,
+              volume: 0.8,
+            );
+          },
+        ),
       ],
     );
   }

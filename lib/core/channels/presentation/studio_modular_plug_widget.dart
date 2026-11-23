@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../design_system/atoms/studio_listenable_builder.dart';
 import '../../design_system/studio_theme_provider.dart';
-import '../data/studio_patchbay_routing_service.dart';
+import '../domain/i_studio_patchbay_routing_service.dart';
 import '../domain/studio_modular_plug.dart';
 import 'studio_channel_modals.dart';
 
@@ -9,7 +10,7 @@ import 'studio_channel_modals.dart';
 /// y sincronizar bidireccionalmente los parámetros de audio y reproducción.
 class StudioModularPlugWidget extends StatelessWidget {
   final StudioModularPlug plug;
-  final StudioPatchbayRoutingService routingService;
+  final IStudioPatchbayRoutingService routingService;
   final double size;
   final bool showLabel;
 
@@ -25,7 +26,7 @@ class StudioModularPlugWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = StudioThemeScope.tokensOf(context);
 
-    return ListenableBuilder(
+    return StudioListenableBuilder(
       listenable: routingService,
       builder: (context, _) {
         final currentPlug = routingService.plugs[plug.id] ?? plug;
@@ -142,7 +143,7 @@ class StudioModularPlugWidget extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(tokens.borderRadiusLarge)),
       ),
       builder: (ctx) {
-        return ListenableBuilder(
+        return StudioListenableBuilder(
           listenable: routingService,
           builder: (ctx, _) {
             final channels = routingService.channels;
