@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/design_system/studio_design_system.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/algorithmic_exercise_generator.dart';
 
@@ -38,14 +39,14 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
   @override
   Widget build(BuildContext context) {
     final vm = context.read<TunerViewModel>();
-    final palette = context.select<TunerViewModel, dynamic>((v) => v.currentPalette);
+    final tokens = StudioThemeScope.of(context);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.78,
       decoration: BoxDecoration(
-        color: palette.cardBackground,
+        color: tokens.panelBackground,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+        border: Border.all(color: tokens.borderHairline),
       ),
       child: Column(
         children: [
@@ -56,7 +57,7 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
               width: 44,
               height: 4,
               decoration: BoxDecoration(
-                color: palette.textMutedColor.withValues(alpha: 0.4),
+                color: tokens.borderHairline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -68,6 +69,21 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: tokens.elevatedSurface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: tokens.borderHairline),
+                  ),
+                  child: StudioIcon(
+                    StudioIconId.moduleScoreEditor,
+                    size: 18,
+                    color: tokens.accentPrimary,
+                    tintCustomAsset: true,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,7 +91,7 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                       Text(
                         "GENERADOR DE EJERCICIOS Y ESCALAS",
                         style: TextStyle(
-                          color: palette.textMutedColor,
+                          color: tokens.textMuted,
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.1,
@@ -87,7 +103,7 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                       Text(
                         "$_currentRootNote - ${_selectedType.displayName}",
                         style: TextStyle(
-                          color: palette.primaryAccent,
+                          color: tokens.accentPrimary,
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
                         ),
@@ -99,14 +115,19 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  icon: Icon(Icons.close, color: palette.textColor),
+                  icon: StudioIcon(
+                    StudioIconId.uiCloseConfirm,
+                    size: 18,
+                    color: tokens.textSecondary,
+                    tintCustomAsset: true,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
           ),
 
-          const Divider(height: 1),
+          Divider(height: 1, color: tokens.borderSubtle),
 
           Expanded(
             child: SingleChildScrollView(
@@ -118,7 +139,7 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                   Text(
                     "1. TONALIDAD RAÍZ",
                     style: TextStyle(
-                      color: palette.textMutedColor,
+                      color: tokens.textMuted,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.0,
@@ -133,9 +154,13 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                       return ChoiceChip(
                         label: Text(note),
                         selected: isSel,
-                        selectedColor: palette.primaryAccent.withValues(alpha: 0.3),
+                        backgroundColor: tokens.elevatedSurface,
+                        selectedColor: tokens.accentPrimary.withValues(alpha: 0.2),
+                        side: BorderSide(
+                          color: isSel ? tokens.accentPrimary : tokens.borderHairline,
+                        ),
                         labelStyle: TextStyle(
-                          color: isSel ? palette.primaryAccent : palette.textColor,
+                          color: isSel ? tokens.accentPrimary : tokens.textPrimary,
                           fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
                         ),
                         onSelected: (_) => setState(() => _selectedBaseNote = note),
@@ -153,9 +178,9 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                         spacing: 6,
                         runSpacing: 6,
                         children: [
-                          _accidentalChip("♮ Natural", "", palette),
-                          _accidentalChip("♯ Sostenido", "#", palette),
-                          _accidentalChip("♭ Bemol", "b", palette),
+                          _accidentalChip("♮ Natural", "", tokens),
+                          _accidentalChip("♯ Sostenido", "#", tokens),
+                          _accidentalChip("♭ Bemol", "b", tokens),
                         ],
                       ),
                       Row(
@@ -163,16 +188,28 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                         children: [
                           IconButton(
                             key: const Key('exercise_generator_octave_down_btn'),
-                            icon: const Icon(Icons.remove_circle_outline, size: 18),
-                            color: palette.textColor,
+                            icon: StudioIcon(
+                              StudioIconId.uiAddRemove,
+                              size: 18,
+                              color: tokens.textPrimary,
+                              tintCustomAsset: true,
+                              fallbackOverride: Icons.remove_circle_outline,
+                            ),
                             onPressed: _selectedOctave > 0 ? () => setState(() => _selectedOctave--) : null,
                           ),
-                          Text("Oct $_selectedOctave",
-                              style: TextStyle(color: palette.primaryAccent, fontWeight: FontWeight.bold)),
+                          Text(
+                            "Oct $_selectedOctave",
+                            style: TextStyle(color: tokens.accentPrimary, fontWeight: FontWeight.bold),
+                          ),
                           IconButton(
                             key: const Key('exercise_generator_octave_up_btn'),
-                            icon: const Icon(Icons.add_circle_outline, size: 18),
-                            color: palette.textColor,
+                            icon: StudioIcon(
+                              StudioIconId.uiAddRemove,
+                              size: 18,
+                              color: tokens.textPrimary,
+                              tintCustomAsset: true,
+                              fallbackOverride: Icons.add_circle_outline,
+                            ),
                             onPressed: _selectedOctave < 8 ? () => setState(() => _selectedOctave++) : null,
                           ),
                         ],
@@ -186,7 +223,7 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                   Text(
                     "2. TIPO DE ESTUDIO / ESCALA",
                     style: TextStyle(
-                      color: palette.textMutedColor,
+                      color: tokens.textMuted,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.0,
@@ -201,9 +238,13 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                       return ChoiceChip(
                         label: Text(type.displayName),
                         selected: isSel,
-                        selectedColor: palette.secondaryAccent.withValues(alpha: 0.3),
+                        backgroundColor: tokens.elevatedSurface,
+                        selectedColor: tokens.accentSecondary.withValues(alpha: 0.2),
+                        side: BorderSide(
+                          color: isSel ? tokens.accentSecondary : tokens.borderHairline,
+                        ),
                         labelStyle: TextStyle(
-                          color: isSel ? palette.secondaryAccent : palette.textColor,
+                          color: isSel ? tokens.accentPrimary : tokens.textPrimary,
                           fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
                           fontSize: 12,
                         ),
@@ -219,7 +260,7 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                     Text(
                       "3. FIGURA RÍTMICA",
                       style: TextStyle(
-                        color: palette.textMutedColor,
+                        color: tokens.textMuted,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.0,
@@ -240,9 +281,13 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                         return ChoiceChip(
                           label: Text(rhythm.displayName),
                           selected: isSel,
-                          selectedColor: palette.primaryAccent.withValues(alpha: 0.3),
+                          backgroundColor: tokens.elevatedSurface,
+                          selectedColor: tokens.accentPrimary.withValues(alpha: 0.2),
+                          side: BorderSide(
+                            color: isSel ? tokens.accentPrimary : tokens.borderHairline,
+                          ),
                           labelStyle: TextStyle(
-                            color: isSel ? palette.primaryAccent : palette.textColor,
+                            color: isSel ? tokens.accentPrimary : tokens.textPrimary,
                             fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
                             fontSize: 12,
                           ),
@@ -260,14 +305,16 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                       Text(
                         "TEMPO DE ESTUDIO",
                         style: TextStyle(
-                          color: palette.textMutedColor,
+                          color: tokens.textMuted,
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.0,
                         ),
                       ),
-                      Text("$_selectedBpm BPM",
-                          style: TextStyle(color: palette.primaryAccent, fontWeight: FontWeight.bold)),
+                      Text(
+                        "$_selectedBpm BPM",
+                        style: TextStyle(color: tokens.accentPrimary, fontWeight: FontWeight.bold),
+                      ),
                     ],
                   ),
                   Slider(
@@ -275,8 +322,8 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                     min: 50,
                     max: 160,
                     divisions: 110,
-                    activeColor: palette.primaryAccent,
-                    inactiveColor: palette.staffLinesColor.withValues(alpha: 0.3),
+                    activeColor: tokens.accentPrimary,
+                    inactiveColor: tokens.borderHairline,
                     onChanged: (val) => setState(() => _selectedBpm = val.round()),
                   ),
 
@@ -287,12 +334,17 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: palette.primaryAccent,
-                        foregroundColor: Colors.black,
+                        backgroundColor: tokens.accentPrimary,
+                        foregroundColor: tokens.textOnAccent,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
-                      icon: const Icon(Icons.auto_awesome, size: 20),
+                      icon: StudioIcon(
+                        StudioIconId.moduleAutotune,
+                        size: 18,
+                        color: tokens.textOnAccent,
+                        tintCustomAsset: true,
+                      ),
                       label: const Text(
                         "Generar y Cargar en Atril",
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
@@ -325,14 +377,18 @@ class _ExerciseGeneratorModalState extends State<ExerciseGeneratorModal> {
     );
   }
 
-  Widget _accidentalChip(String label, String val, dynamic palette) {
+  Widget _accidentalChip(String label, String val, StudioDesignTokens tokens) {
     final isSel = _selectedAccidental == val;
     return ChoiceChip(
       label: Text(label),
       selected: isSel,
-      selectedColor: palette.secondaryAccent.withValues(alpha: 0.3),
+      backgroundColor: tokens.elevatedSurface,
+      selectedColor: tokens.accentSecondary.withValues(alpha: 0.2),
+      side: BorderSide(
+        color: isSel ? tokens.accentSecondary : tokens.borderHairline,
+      ),
       labelStyle: TextStyle(
-        color: isSel ? palette.secondaryAccent : palette.textColor,
+        color: isSel ? tokens.accentPrimary : tokens.textPrimary,
         fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
         fontSize: 11,
       ),

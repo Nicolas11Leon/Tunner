@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/tunner_theme.dart';
+import '../../../core/design_system/studio_design_system.dart';
 import '../../tuner_viewmodel.dart';
 import 'chord_radar_widget.dart';
 import 'multi_tone_voicing_widget.dart';
@@ -28,17 +28,18 @@ class ChordAnalyzerModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = viewModel.currentPalette;
+    final tokens = StudioThemeScope.of(context);
+    final legacyPalette = viewModel.currentPalette;
     final chord = viewModel.recognizedChord;
     final chroma = viewModel.activeChromaVector;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.88,
       decoration: BoxDecoration(
-        color: palette.scaffoldBackground,
+        color: tokens.canvasBackground,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border.all(
-          color: palette.staffLinesColor.withValues(alpha: 0.3),
+          color: tokens.borderHairline,
           width: 1.2,
         ),
       ),
@@ -50,7 +51,7 @@ class ChordAnalyzerModal extends StatelessWidget {
             width: 44,
             height: 4,
             decoration: BoxDecoration(
-              color: palette.staffLinesColor.withValues(alpha: 0.4),
+              color: tokens.borderHairline,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -60,7 +61,12 @@ class ChordAnalyzerModal extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Row(
               children: [
-                Icon(Icons.hub_outlined, color: palette.primaryAccent, size: 24),
+                StudioIcon(
+                  StudioIconId.moduleChordAnalyzer,
+                  color: tokens.accentPrimary,
+                  size: 22,
+                  tintCustomAsset: true,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -69,7 +75,7 @@ class ChordAnalyzerModal extends StatelessWidget {
                       Text(
                         'Reconocimiento Polifónico',
                         style: TextStyle(
-                          color: palette.textColor,
+                          color: tokens.textPrimary,
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                         ),
@@ -77,7 +83,7 @@ class ChordAnalyzerModal extends StatelessWidget {
                       Text(
                         'Chroma Vectors & Pitch Class Profile',
                         style: TextStyle(
-                          color: palette.textMutedColor,
+                          color: tokens.textMuted,
                           fontSize: 12,
                         ),
                       ),
@@ -87,20 +93,25 @@ class ChordAnalyzerModal extends StatelessWidget {
                 // Botón para abrir el visualizador polifónico en vivo con armónicos H1-H8
                 IconButton(
                   key: const Key('btn_open_live_harmonics_modal'),
-                  icon: Icon(Icons.equalizer, color: palette.primaryAccent),
+                  icon: StudioIcon(
+                    StudioIconId.moduleSpectrogram,
+                    size: 18,
+                    color: tokens.accentPrimary,
+                    tintCustomAsset: true,
+                  ),
                   tooltip: 'Visualizador de Armónicos H1-H8',
                   onPressed: () => PolyphonicLiveVoicingModal.show(context, viewModel),
                 ),
                 // Switch de activación
                 IconButton(
                   key: const Key('toggle_chord_recognition_btn'),
-                  icon: Icon(
-                    viewModel.isChordRecognitionActive
-                        ? Icons.power_settings_new
-                        : Icons.power_off_outlined,
+                  icon: StudioIcon(
+                    StudioIconId.uiPower,
+                    size: 18,
                     color: viewModel.isChordRecognitionActive
-                        ? palette.primaryAccent
-                        : palette.textMutedColor,
+                        ? tokens.accentSuccess
+                        : tokens.textMuted,
+                    tintCustomAsset: true,
                   ),
                   tooltip: viewModel.isChordRecognitionActive
                       ? 'Desactivar Reconocimiento'
@@ -109,22 +120,33 @@ class ChordAnalyzerModal extends StatelessWidget {
                 ),
                 IconButton(
                   key: const Key('chord_toggle_mic_btn'),
-                  icon: Icon(
-                    viewModel.isRecording ? Icons.mic : Icons.mic_off,
-                    color: viewModel.isRecording ? palette.primaryAccent : palette.textMutedColor,
+                  icon: StudioIcon(
+                    viewModel.isRecording
+                        ? StudioIconId.audioMicOn
+                        : StudioIconId.audioMicOff,
+                    size: 18,
+                    color: viewModel.isRecording
+                        ? tokens.accentPrimary
+                        : tokens.textMuted,
+                    tintCustomAsset: true,
                   ),
                   tooltip: viewModel.isRecording ? 'Apagar Micrófono' : 'Activar Micrófono',
                   onPressed: () => viewModel.toggleRecording(),
                 ),
                 IconButton(
-                  icon: Icon(Icons.close, color: palette.textMutedColor),
+                  icon: StudioIcon(
+                    StudioIconId.uiCloseConfirm,
+                    size: 18,
+                    color: tokens.textSecondary,
+                    tintCustomAsset: true,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
           ),
 
-          const Divider(height: 1),
+          Divider(height: 1, color: tokens.borderSubtle),
 
           // Contenido principal scrollable
           Expanded(
@@ -132,14 +154,14 @@ class ChordAnalyzerModal extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               children: [
                 // 1. Tarjeta Monumental del Acorde Activo
-                _buildActiveChordCard(context, palette, chord),
+                _buildActiveChordCard(context, tokens),
 
                 const SizedBox(height: 18),
 
                 // 2. Descomposición Multitonal en Vivo (Voces, Octavas y Cents)
                 MultiToneVoicingWidget(
                   analysisResult: viewModel.polyphonicAnalysisResult,
-                  palette: palette,
+                  palette: legacyPalette,
                 ),
 
                 const SizedBox(height: 18),
@@ -148,10 +170,10 @@ class ChordAnalyzerModal extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: palette.cardBackground,
+                    color: tokens.panelBackground,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: palette.staffLinesColor.withValues(alpha: 0.25),
+                      color: tokens.borderHairline,
                     ),
                   ),
                   child: Column(
@@ -162,7 +184,7 @@ class ChordAnalyzerModal extends StatelessWidget {
                           Text(
                             'Radar Cromático (Pitch Classes)',
                             style: TextStyle(
-                              color: palette.textColor,
+                              color: tokens.textPrimary,
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                             ),
@@ -170,13 +192,14 @@ class ChordAnalyzerModal extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: palette.secondaryAccent.withValues(alpha: 0.15),
+                              color: tokens.elevatedSurface,
                               borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: tokens.borderHairline),
                             ),
                             child: Text(
                               '12 Semitonos',
                               style: TextStyle(
-                                color: palette.secondaryAccent,
+                                color: tokens.accentSecondary,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -189,7 +212,7 @@ class ChordAnalyzerModal extends StatelessWidget {
                         child: ChordRadarWidget(
                           chromaVector: chroma,
                           recognizedChord: chord,
-                          palette: palette,
+                          palette: legacyPalette,
                           size: 240,
                         ),
                       ),
@@ -199,8 +222,8 @@ class ChordAnalyzerModal extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
-                // 3. Historial de Progresiones Armónicas Recientes
-                _buildChordHistorySection(context, palette),
+                // 4. Historial de Progresiones Armónicas Recientes
+                _buildChordHistorySection(context, tokens),
               ],
             ),
           ),
@@ -211,20 +234,20 @@ class ChordAnalyzerModal extends StatelessWidget {
 
   Widget _buildActiveChordCard(
     BuildContext context,
-    TunnerThemePalette palette,
-    dynamic chord,
+    StudioDesignTokens tokens,
   ) {
+    final chord = viewModel.recognizedChord;
     final bool isRecognized = chord.isRecognized;
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: palette.cardBackground,
+        color: tokens.panelBackground,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isRecognized
-              ? palette.primaryAccent.withValues(alpha: 0.6)
-              : palette.staffLinesColor.withValues(alpha: 0.25),
+              ? tokens.accentPrimary.withValues(alpha: 0.6)
+              : tokens.borderHairline,
           width: isRecognized ? 1.6 : 1.0,
         ),
       ),
@@ -237,7 +260,7 @@ class ChordAnalyzerModal extends StatelessWidget {
               Text(
                 'Acorde Detectado',
                 style: TextStyle(
-                  color: palette.textMutedColor,
+                  color: tokens.textMuted,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -246,16 +269,16 @@ class ChordAnalyzerModal extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: palette.primaryAccent.withValues(alpha: 0.15),
+                    color: tokens.elevatedSurface,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: palette.primaryAccent.withValues(alpha: 0.5),
+                      color: tokens.accentPrimary.withValues(alpha: 0.5),
                     ),
                   ),
                   child: Text(
                     '${(chord.confidence * 100).toStringAsFixed(0)}% Certeza',
                     style: TextStyle(
-                      color: palette.primaryAccent,
+                      color: tokens.accentPrimary,
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                     ),
@@ -267,7 +290,7 @@ class ChordAnalyzerModal extends StatelessWidget {
                       ? 'Escuchando en vivo...'
                       : 'Reconocimiento en pausa',
                   style: TextStyle(
-                    color: palette.textMutedColor,
+                    color: tokens.textMuted,
                     fontSize: 11,
                     fontStyle: FontStyle.italic,
                   ),
@@ -285,7 +308,7 @@ class ChordAnalyzerModal extends StatelessWidget {
                   chord.symbol,
                   key: const Key('active_chord_symbol_text'),
                   style: TextStyle(
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                     fontSize: 38,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -0.5,
@@ -297,7 +320,7 @@ class ChordAnalyzerModal extends StatelessWidget {
                     chord.displayName,
                     key: const Key('active_chord_name_text'),
                     style: TextStyle(
-                      color: palette.secondaryAccent,
+                      color: tokens.accentSecondary,
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                     ),
@@ -311,7 +334,7 @@ class ChordAnalyzerModal extends StatelessWidget {
                 Text(
                   'Fórmula: ${chord.formula}',
                   style: TextStyle(
-                    color: palette.textMutedColor,
+                    color: tokens.textMuted,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -324,13 +347,14 @@ class ChordAnalyzerModal extends StatelessWidget {
                     (i) => Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
-                        color: palette.staffLinesColor.withValues(alpha: 0.2),
+                        color: tokens.elevatedSurface,
                         borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: tokens.borderHairline),
                       ),
                       child: Text(
                         chord.notes[i],
                         style: TextStyle(
-                          color: palette.textColor,
+                          color: tokens.textPrimary,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
@@ -350,7 +374,7 @@ class ChordAnalyzerModal extends StatelessWidget {
                     '--',
                     key: const Key('active_chord_symbol_placeholder'),
                     style: TextStyle(
-                      color: palette.textMutedColor.withValues(alpha: 0.5),
+                      color: tokens.textMuted.withValues(alpha: 0.5),
                       fontSize: 36,
                       fontWeight: FontWeight.w900,
                     ),
@@ -358,7 +382,7 @@ class ChordAnalyzerModal extends StatelessWidget {
                   Text(
                     'Toca un acorde en tu instrumento (guitarra, piano o ensamble)',
                     style: TextStyle(
-                      color: palette.textMutedColor,
+                      color: tokens.textMuted,
                       fontSize: 12,
                     ),
                   ),
@@ -373,17 +397,17 @@ class ChordAnalyzerModal extends StatelessWidget {
 
   Widget _buildChordHistorySection(
     BuildContext context,
-    TunnerThemePalette palette,
+    StudioDesignTokens tokens,
   ) {
     final history = viewModel.chordHistory;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: palette.cardBackground,
+        color: tokens.panelBackground,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: palette.staffLinesColor.withValues(alpha: 0.25),
+          color: tokens.borderHairline,
         ),
       ),
       child: Column(
@@ -395,7 +419,7 @@ class ChordAnalyzerModal extends StatelessWidget {
               Text(
                 'Progresión Armónica Reciente',
                 style: TextStyle(
-                  color: palette.textColor,
+                  color: tokens.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
@@ -407,7 +431,7 @@ class ChordAnalyzerModal extends StatelessWidget {
                   child: Text(
                     'Limpiar',
                     style: TextStyle(
-                      color: palette.secondaryAccent,
+                      color: tokens.accentSecondary,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -420,7 +444,7 @@ class ChordAnalyzerModal extends StatelessWidget {
             Text(
               'Aún no se han registrado progresiones.',
               style: TextStyle(
-                color: palette.textMutedColor,
+                color: tokens.textMuted,
                 fontSize: 12,
                 fontStyle: FontStyle.italic,
               ),
@@ -431,10 +455,12 @@ class ChordAnalyzerModal extends StatelessWidget {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: history.length,
-                separatorBuilder: (_, _) => Icon(
-                  Icons.arrow_forward_ios,
+                separatorBuilder: (_, _) => StudioIcon(
+                  StudioIconId.transportForward,
                   size: 10,
-                  color: palette.staffLinesColor.withValues(alpha: 0.4),
+                  color: tokens.textMuted,
+                  tintCustomAsset: true,
+                  fallbackOverride: Icons.arrow_forward_ios,
                 ),
                 itemBuilder: (ctx, i) {
                   final item = history[i];
@@ -442,17 +468,17 @@ class ChordAnalyzerModal extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: palette.staffLinesColor.withValues(alpha: 0.2),
+                      color: tokens.elevatedSurface,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: palette.primaryAccent.withValues(alpha: 0.3),
+                        color: tokens.borderHairline,
                       ),
                     ),
                     child: Center(
                       child: Text(
                         item.symbol,
                         style: TextStyle(
-                          color: palette.primaryAccent,
+                          color: tokens.accentPrimary,
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
                         ),
