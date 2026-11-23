@@ -45,6 +45,11 @@ class InMemoryProjectStorageRepository implements ProjectStorageRepository {
     if (bytes == null) throw StateError('File not found: $filePath');
     return loadToolPresetFromBytes(bytes);
   }
+
+  @override
+  Future<List<String>> listProjects({String? directoryPath}) async {
+    return storage.keys.where((k) => k.endsWith('.tunner')).toList();
+  }
 }
 
 void main() {

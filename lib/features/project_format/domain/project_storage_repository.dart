@@ -27,6 +27,9 @@ abstract class ProjectStorageRepository {
 
   /// Deserializa una herramienta individual desde bytes binarios.
   TunnerToolPreset loadToolPresetFromBytes(Uint8List bytes);
+
+  /// Lista las rutas de archivos de proyecto (`.tunner`) disponibles en un directorio.
+  Future<List<String>> listProjects({String? directoryPath});
 }
 
 /// Implementación en memoria / no-op para inicializaciones seguras sin I/O físico.
@@ -84,4 +87,7 @@ class NoOpProjectStorageRepository implements ProjectStorageRepository {
       savedAtMicros: 0,
     );
   }
+
+  @override
+  Future<List<String>> listProjects({String? directoryPath}) async => const [];
 }

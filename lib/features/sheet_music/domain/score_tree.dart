@@ -50,6 +50,8 @@ class HierarchicalNote {
   final String noteName;   // Nombre de la nota con octava (ej: "Do4", "Mi4", "Sol#5"). Vacío si es silencio.
   final bool isRest;       // True si representa un silencio musical
   final bool isTied;       // True si la nota está ligada prolongando su duración acústica
+  final int voice;         // Número de voz polifónica (1 = voz principal, 2+ = voces independientes)
+  final int staff;         // Número de pentagrama (1 = superior/Sol, 2 = inferior/Fa en Grand Staff)
 
   const HierarchicalNote({
     required this.startTick,
@@ -57,6 +59,8 @@ class HierarchicalNote {
     required this.noteName,
     this.isRest = false,
     this.isTied = false,
+    this.voice = 1,
+    this.staff = 1,
   });
 
   /// Crea una nota afinada regular
@@ -65,6 +69,8 @@ class HierarchicalNote {
     required int durationTicks,
     required String noteName,
     bool isTied = false,
+    int voice = 1,
+    int staff = 1,
   }) {
     return HierarchicalNote(
       startTick: startTick,
@@ -72,6 +78,8 @@ class HierarchicalNote {
       noteName: noteName,
       isRest: false,
       isTied: isTied,
+      voice: voice,
+      staff: staff,
     );
   }
 
@@ -79,6 +87,8 @@ class HierarchicalNote {
   factory HierarchicalNote.rest({
     required int startTick,
     required int durationTicks,
+    int voice = 1,
+    int staff = 1,
   }) {
     return HierarchicalNote(
       startTick: startTick,
@@ -86,10 +96,20 @@ class HierarchicalNote {
       noteName: '',
       isRest: true,
       isTied: false,
+      voice: voice,
+      staff: staff,
     );
   }
 
   int get endTick => startTick + durationTicks;
+
+  /// True si la duración corresponde a una figura con puntillo de aumentación
+  /// (redonda con puntillo = 24, blanca = 12, negra = 6, corchea = 3 sub-ticks).
+  bool get isDotted =>
+      durationTicks == 24 ||
+      durationTicks == 12 ||
+      durationTicks == 6 ||
+      durationTicks == 3;
 
   HierarchicalNote copyWith({
     int? startTick,
@@ -97,6 +117,8 @@ class HierarchicalNote {
     String? noteName,
     bool? isRest,
     bool? isTied,
+    int? voice,
+    int? staff,
   }) {
     return HierarchicalNote(
       startTick: startTick ?? this.startTick,
@@ -104,6 +126,8 @@ class HierarchicalNote {
       noteName: noteName ?? this.noteName,
       isRest: isRest ?? this.isRest,
       isTied: isTied ?? this.isTied,
+      voice: voice ?? this.voice,
+      staff: staff ?? this.staff,
     );
   }
 
@@ -113,6 +137,8 @@ class HierarchicalNote {
         'noteName': noteName,
         'isRest': isRest,
         'isTied': isTied,
+        'voice': voice,
+        'staff': staff,
       };
 
   factory HierarchicalNote.fromMap(Map<String, dynamic> map) {
@@ -122,8 +148,34 @@ class HierarchicalNote {
       noteName: map['noteName'] as String? ?? '',
       isRest: map['isRest'] as bool? ?? false,
       isTied: map['isTied'] as bool? ?? false,
+      voice: (map['voice'] as num?)?.toInt() ?? 1,
+      staff: (map['staff'] as num?)?.toInt() ?? 1,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HierarchicalNote &&
+          runtimeType == other.runtimeType &&
+          startTick == other.startTick &&
+          durationTicks == other.durationTicks &&
+          noteName == other.noteName &&
+          isRest == other.isRest &&
+          isTied == other.isTied &&
+          voice == other.voice &&
+          staff == other.staff;
+
+  @override
+  int get hashCode => Object.hash(
+        startTick,
+        durationTicks,
+        noteName,
+        isRest,
+        isTied,
+        voice,
+        staff,
+      );
 }
 
 /// Compás individual dentro de la obra musical.
@@ -198,11 +250,13 @@ class HierarchicalScore {
   final String title;
   final int baseBpm;
   final List<MeasureEntity> measures;
+  final int staffCount; // Número de pentagramas (1 = estándar, 2 = Grand Staff de piano)
 
   const HierarchicalScore({
     required this.title,
     this.baseBpm = 75,
     required this.measures,
+    this.staffCount = 1,
   });
 
   int get totalMeasures => measures.length;
@@ -213,11 +267,13 @@ class HierarchicalScore {
     String? title,
     int? baseBpm,
     List<MeasureEntity>? measures,
+    int? staffCount,
   }) {
     return HierarchicalScore(
       title: title ?? this.title,
       baseBpm: baseBpm ?? this.baseBpm,
       measures: measures ?? this.measures,
+      staffCount: staffCount ?? this.staffCount,
     );
   }
 
@@ -225,14 +281,17 @@ class HierarchicalScore {
         'title': title,
         'baseBpm': baseBpm,
         'measures': measures.map((m) => m.toMap()).toList(),
+        'staffCount': staffCount,
       };
 
   factory HierarchicalScore.fromMap(Map<String, dynamic> map) {
     final rawMeasures = map['measures'] as List<dynamic>? ?? [];
+    final rawStaffCount = (map['staffCount'] as num?)?.toInt() ?? 1;
     return HierarchicalScore(
       title: map['title'] as String? ?? '',
       baseBpm: (map['baseBpm'] as num?)?.toInt() ?? 120,
       measures: rawMeasures.map((m) => MeasureEntity.fromMap(m as Map<String, dynamic>)).toList(),
+      staffCount: rawStaffCount < 1 ? 1 : rawStaffCount,
     );
   }
 

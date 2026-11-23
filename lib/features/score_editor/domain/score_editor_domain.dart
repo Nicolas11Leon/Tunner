@@ -9,13 +9,17 @@ class ScoreEditorOperations {
   const ScoreEditorOperations();
 
   /// Inserta o actualiza una nota en un compás y posición temporal específicos.
-  /// Resuelve automáticamente los solapamientos con notas preexistentes dentro del compás.
+  /// Resuelve automáticamente los solapamientos con notas preexistentes dentro de la misma
+  /// combinación `(staff, voice)` del compás, preservando intactas las demás voces/pentagramas.
   SongPackage insertOrUpdateNote({
     required SongPackage package,
     required int measureIndex,
     required int startTick,
     required int durationTicks,
     required String noteName,
+    int voice = 1,
+    int staff = 1,
+    bool isTied = false,
   }) {
     if (measureIndex < 0 || measureIndex >= package.score.measures.length) {
       return package;
@@ -29,9 +33,17 @@ class ScoreEditorOperations {
     if (clampedDuration <= 0) return package;
 
     final newEndTick = clampedStartTick + clampedDuration;
+    final effectiveStaff = staff < 1 ? 1 : staff;
+    final effectiveVoice = voice < 1 ? 1 : voice;
 
-    // Filtrar y recortar notas preexistentes que se solapen (preservando cabeza y cola)
-    final newNotes = _splitOverlappingNotes(targetMeasure.notes, clampedStartTick, newEndTick);
+    // Filtrar y recortar solo notas preexistentes en la misma (staff, voice)
+    final newNotes = _splitOverlappingNotes(
+      targetMeasure.notes,
+      clampedStartTick,
+      newEndTick,
+      staff: effectiveStaff,
+      voice: effectiveVoice,
+    );
 
     // Insertar la nueva nota
     newNotes.add(HierarchicalNote(
@@ -39,10 +51,19 @@ class ScoreEditorOperations {
       durationTicks: clampedDuration,
       noteName: noteName,
       isRest: noteName == "--",
+      isTied: noteName == "--" ? false : isTied,
+      voice: effectiveVoice,
+      staff: effectiveStaff,
     ));
 
-    // Ordenar cronológicamente por startTick
-    newNotes.sort((a, b) => a.startTick.compareTo(b.startTick));
+    // Ordenar cronológicamente por startTick, luego por staff y voice
+    newNotes.sort((a, b) {
+      final tickComp = a.startTick.compareTo(b.startTick);
+      if (tickComp != 0) return tickComp;
+      final staffComp = a.staff.compareTo(b.staff);
+      if (staffComp != 0) return staffComp;
+      return a.voice.compareTo(b.voice);
+    });
 
     // Crear el compás actualizado
     final updatedMeasure = targetMeasure.copyWith(notes: newNotes);
@@ -50,19 +71,27 @@ class ScoreEditorOperations {
     final updatedMeasures = List<MeasureEntity>.from(package.score.measures);
     updatedMeasures[measureIndex] = updatedMeasure;
 
+    final updatedStaffCount = math.max(package.score.staffCount, effectiveStaff);
+
     return package.copyWith(
-      score: package.score.copyWith(measures: updatedMeasures),
+      score: package.score.copyWith(
+        measures: updatedMeasures,
+        staffCount: updatedStaffCount,
+      ),
     );
   }
 
   /// Inserta un acorde (múltiples notas simultáneas en el mismo startTick y duración)
-  /// en un compás específico, resolviendo solapamientos rítmicos.
+  /// en un compás específico, resolviendo solapamientos rítmicos únicamente en la misma `(staff, voice)`.
   SongPackage insertChordNotes({
     required SongPackage package,
     required int measureIndex,
     required int startTick,
     required int durationTicks,
     required List<String> noteNames,
+    int voice = 1,
+    int staff = 1,
+    bool isTied = false,
   }) {
     if (measureIndex < 0 || measureIndex >= package.score.measures.length) {
       return package;
@@ -76,9 +105,17 @@ class ScoreEditorOperations {
     if (clampedDuration <= 0) return package;
 
     final newEndTick = clampedStartTick + clampedDuration;
+    final effectiveStaff = staff < 1 ? 1 : staff;
+    final effectiveVoice = voice < 1 ? 1 : voice;
 
-    // Filtrar y recortar notas preexistentes que se solapen con el intervalo temporal
-    final newNotes = _splitOverlappingNotes(targetMeasure.notes, clampedStartTick, newEndTick);
+    // Filtrar y recortar solo notas preexistentes en la misma (staff, voice)
+    final newNotes = _splitOverlappingNotes(
+      targetMeasure.notes,
+      clampedStartTick,
+      newEndTick,
+      staff: effectiveStaff,
+      voice: effectiveVoice,
+    );
 
     // Insertar las notas del acorde
     final filteredNoteNames = noteNames.where((n) => n.isNotEmpty && n != '--').toSet().toList();
@@ -88,6 +125,8 @@ class ScoreEditorOperations {
         durationTicks: clampedDuration,
         noteName: "--",
         isRest: true,
+        voice: effectiveVoice,
+        staff: effectiveStaff,
       ));
     } else {
       for (final noteName in filteredNoteNames) {
@@ -96,14 +135,21 @@ class ScoreEditorOperations {
           durationTicks: clampedDuration,
           noteName: noteName,
           isRest: false,
+          isTied: isTied,
+          voice: effectiveVoice,
+          staff: effectiveStaff,
         ));
       }
     }
 
-    // Ordenar cronológicamente por startTick y luego alfabéticamente
+    // Ordenar cronológicamente por startTick, staff, voice y luego alfabéticamente
     newNotes.sort((a, b) {
       final tickComp = a.startTick.compareTo(b.startTick);
       if (tickComp != 0) return tickComp;
+      final staffComp = a.staff.compareTo(b.staff);
+      if (staffComp != 0) return staffComp;
+      final voiceComp = a.voice.compareTo(b.voice);
+      if (voiceComp != 0) return voiceComp;
       return a.noteName.compareTo(b.noteName);
     });
 
@@ -111,16 +157,24 @@ class ScoreEditorOperations {
     final updatedMeasures = List<MeasureEntity>.from(package.score.measures);
     updatedMeasures[measureIndex] = updatedMeasure;
 
+    final updatedStaffCount = math.max(package.score.staffCount, effectiveStaff);
+
     return package.copyWith(
-      score: package.score.copyWith(measures: updatedMeasures),
+      score: package.score.copyWith(
+        measures: updatedMeasures,
+        staffCount: updatedStaffCount,
+      ),
     );
   }
 
   /// Elimina la nota en el tick dado reemplazándola por un silencio ("--").
+  /// Si se especifican [voice] o [staff], únicamente reemplaza notas coincidentes.
   SongPackage deleteNoteAt({
     required SongPackage package,
     required int measureIndex,
     required int startTick,
+    int? voice,
+    int? staff,
   }) {
     if (measureIndex < 0 || measureIndex >= package.score.measures.length) {
       return package;
@@ -128,8 +182,10 @@ class ScoreEditorOperations {
 
     final targetMeasure = package.score.measures[measureIndex];
     final updatedNotes = targetMeasure.notes.map((n) {
-      if (n.startTick == startTick) {
-        return n.copyWith(noteName: "--", isRest: true);
+      final matchesVoice = voice == null || n.voice == voice;
+      final matchesStaff = staff == null || n.staff == staff;
+      if (n.startTick == startTick && matchesVoice && matchesStaff) {
+        return n.copyWith(noteName: "--", isRest: true, isTied: false);
       }
       return n;
     }).toList();
@@ -221,15 +277,23 @@ class ScoreEditorOperations {
     );
   }
 
-  /// Recorta notas existentes al insertar un nuevo rango `[clampedStartTick, newEndTick)`,
+  /// Recorta notas existentes al insertar un nuevo rango `[clampedStartTick, newEndTick)`
+  /// únicamente para notas pertenecientes a la misma combinación `(staff, voice)`,
   /// preservando tanto la cabeza previa como la cola posterior si una nota larga lo envuelve.
   static List<HierarchicalNote> _splitOverlappingNotes(
     List<HierarchicalNote> existingNotes,
     int clampedStartTick,
-    int newEndTick,
-  ) {
+    int newEndTick, {
+    int staff = 1,
+    int voice = 1,
+  }) {
     final newNotes = <HierarchicalNote>[];
     for (final existing in existingNotes) {
+      if (existing.staff != staff || existing.voice != voice) {
+        newNotes.add(existing);
+        continue;
+      }
+
       final existingStart = existing.startTick;
       final existingEnd = existing.startTick + existing.durationTicks;
 
