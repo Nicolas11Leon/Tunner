@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import '../../../core/file_system/data/platform_file_gateway.dart';
 import '../../../core/file_system/domain/i_platform_file_gateway.dart';
 import '../domain/sf2/i_soundfont_synthesizer_service.dart';
 
@@ -105,8 +104,18 @@ class _InstrumentSoundFontSelectorModalState
   }
 
   Future<void> _pickAndLoadSoundFont() async {
+    final gateway = widget.fileGateway;
+    if (gateway == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gateway de archivos no inyectado para cargar .sf2.'),
+          ),
+        );
+      }
+      return;
+    }
     try {
-      final gateway = widget.fileGateway ?? const PlatformFileGateway();
       final picked = await gateway.pickFile(allowedExtensions: const ['sf2']);
       if (picked != null) {
         Uint8List? bytes = picked.bytes;
