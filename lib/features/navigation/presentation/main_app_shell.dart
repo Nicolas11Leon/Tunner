@@ -390,6 +390,10 @@ class _MainAppShellState extends State<MainAppShell> {
     if (_fileSystemService.onOpenFile == _handleOpenFile) {
       _fileSystemService.onOpenFile = null;
     }
+    _masterClockService.onPlayAll = null;
+    _masterClockService.onPauseAll = null;
+    _masterClockService.onStopAll = null;
+    _masterClockService.onBpmChanged = null;
     _terminalKernel.dispose();
     _modularRackViewModel.dispose();
     _djConsoleViewModel.dispose();

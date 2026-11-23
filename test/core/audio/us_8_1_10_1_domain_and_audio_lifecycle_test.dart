@@ -8,13 +8,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tunner/core/audio/infrastructure/studio_audio_channel.dart';
 import 'package:tunner/core/audio/infrastructure/studio_audio_input_engine.dart';
 import 'package:tunner/core/audio/infrastructure/studio_master_capture_service.dart';
+import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
 import 'package:tunner/core/channels/domain/studio_modular_plug.dart';
 import 'package:tunner/core/channels/domain/studio_patchbay_routing_service.dart';
 import 'package:tunner/core/channels/domain/studio_plug_type.dart';
 import 'package:tunner/features/harmonic_tutor/domain/just_intonation_calculator.dart';
 import 'package:tunner/features/harmonic_tutor/presentation/harmonic_beat_gauge.dart';
 import 'package:tunner/features/mixer/domain/mixer_track_entity.dart';
-import 'package:tunner/features/pedagogy/domain/pedagogical_certificate_pdf_generator.dart';
+import 'package:tunner/features/pedagogy/infrastructure/pedagogical_certificate_pdf_generator.dart';
 import 'package:tunner/features/pedagogy/domain/vocal_evaluation_result.dart';
 import 'package:tunner/features/persistence/domain/app_user_settings_entity.dart';
 import 'package:tunner/features/practice_recorder/data/audio_playback_service.dart';
@@ -231,6 +232,11 @@ void main() {
 
       final pitchService = PitchDetectorService();
       await expectLater(pitchService.dispose(), completes);
+
+      final kernel = TunnerOsKernel();
+      final kernelEventDone = kernel.audioKernel!.eventStream.drain<void>();
+      kernel.dispose();
+      await expectLater(kernelEventDone, completes);
     });
 
     test('StudioMasterCaptureService escribe bloques PCM mediante cola asincrona y genera WAV valido al finalizar', () async {

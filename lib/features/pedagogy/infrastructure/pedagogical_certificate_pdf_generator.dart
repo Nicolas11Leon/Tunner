@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'vocal_evaluation_result.dart';
+import '../domain/vocal_evaluation_result.dart';
 
 /// Generador canónico de certificados pedagógicos en formato binario PDF-1.4 (ISO 32000-1)
 /// en Dart puro, sin dependencias de Flutter UI ni librerías de terceros.

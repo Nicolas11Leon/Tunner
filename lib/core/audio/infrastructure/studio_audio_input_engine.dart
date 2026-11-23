@@ -257,10 +257,17 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
           error: e,
           stackTrace: st,
         );
+      } finally {
+        if (!_pcmFrameController.isClosed) {
+          _pcmFrameController.close();
+        }
+        if (!_rmsDbController.isClosed) {
+          _rmsDbController.close();
+        }
+        if (!_peakDbController.isClosed) {
+          _peakDbController.close();
+        }
       }
     });
-    _pcmFrameController.close();
-    _rmsDbController.close();
-    _peakDbController.close();
   }
 }
