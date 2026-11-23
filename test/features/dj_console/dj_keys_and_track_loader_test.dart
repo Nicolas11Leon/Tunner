@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:tunner/core/audio/infrastructure/memory_studio_audio_engine.dart';
 import 'package:tunner/core/design_system/studio_theme_provider.dart';
 import 'package:tunner/features/dj_console/data/dj_deck_audio_service.dart';
 import 'package:tunner/features/dj_console/domain/dj_action.dart';
@@ -41,7 +42,7 @@ void main() {
     });
 
     test('DjDeckAudioService stores and retains loaded wavBytes without reset', () async {
-      final audioService = DjDeckAudioService();
+      final audioService = DjDeckAudioService(audioEngine: MemoryStudioAudioEngine());
       final testBytes = Uint8List.fromList([1, 2, 3, 4, 5, 6, 7, 8]);
 
       await audioService.loadDeckTrack('A', wavBytes: testBytes, title: 'Custom Track');

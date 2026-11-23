@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'i_adaptive_scaffolding_engine.dart';
 import 'learner_profile_entity.dart';
 
 /// Resultado de una evaluación pedagógica adaptativa instantánea.
@@ -24,10 +25,11 @@ class PedagogicalDiagnosticResult {
 
 /// Motor de andamiaje dinámico y diagnóstico adaptativo basado en psicología del aprendizaje.
 /// Opera 100% en memoria en Pure Dart con cero latencia y cero dependencias de UI.
-class AdaptiveScaffoldingEngine {
+class AdaptiveScaffoldingEngine implements IAdaptiveScaffoldingEngine {
   const AdaptiveScaffoldingEngine();
 
   /// Calcula la tolerancia efectiva en cents considerando el andamiaje progresivo (scaffolding fade-out).
+  @override
   double computeEffectiveTolerance({
     required LearnerProfileEntity profile,
     int consecutiveSuccesses = 0,
