@@ -6,6 +6,7 @@ import '../../navigation/presentation/contextual_help_sheet.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/blind_ear_trainer_engine.dart';
 import '../domain/ear_training_exercise.dart';
+import '../domain/musical_interval.dart';
 
 /// Modal interactivo de Conservatorio para el Entrenamiento Auditivo de Intervalos a Ciegas.
 ///
@@ -47,6 +48,8 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
   DateTime? _questionStartTime;
   Timer? _note2Timer;
   Timer? _stopTimer;
+  final List<double> _consecutiveSungSamples = [];
+  double _lastDetectedSungFrequency = 0.0;
 
   @override
   void initState() {
@@ -71,14 +74,37 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
       return;
     }
     final freq = widget.viewModel.telemetryListenable.value.frequency;
-    if (freq > 20.0) {
-      _submitSungTone(freq);
+    if (freq <= 20.0) {
+      _consecutiveSungSamples.clear();
+      return;
+    }
+
+    _lastDetectedSungFrequency = freq;
+
+    if (_consecutiveSungSamples.isNotEmpty) {
+      final prevFreq = _consecutiveSungSamples.last;
+      final deltaCents = MusicalInterval.calculateCentsDeviation(freq, prevFreq).abs();
+      if (deltaCents >= 50.0) {
+        _consecutiveSungSamples.clear();
+      }
+    }
+
+    _consecutiveSungSamples.add(freq);
+    setState(() {});
+
+    if (_consecutiveSungSamples.length >= 3) {
+      final avgFreq = _consecutiveSungSamples.reduce((a, b) => a + b) /
+          _consecutiveSungSamples.length;
+      _consecutiveSungSamples.clear();
+      _submitSungTone(avgFreq);
     }
   }
 
   void _toggleSungResponseMode() {
     setState(() {
       _isSungResponseMode = !_isSungResponseMode;
+      _consecutiveSungSamples.clear();
+      _lastDetectedSungFrequency = 0.0;
     });
     if (_isSungResponseMode && !widget.viewModel.isRecording) {
       widget.viewModel.toggleRecording();
@@ -89,6 +115,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
     if (_lastResult != null) return;
     final q = _question;
     if (q == null || freq <= 20.0) return;
+    _consecutiveSungSamples.clear();
     final elapsedMs = _questionStartTime != null
         ? DateTime.now().difference(_questionStartTime!).inMilliseconds
         : 1800;
@@ -107,6 +134,8 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
       _question = _engine.generateNextQuestion();
       _lastResult = null;
       _questionStartTime = DateTime.now();
+      _consecutiveSungSamples.clear();
+      _lastDetectedSungFrequency = 0.0;
     });
     _playIntervalStimulus();
   }
@@ -498,8 +527,13 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                           const SizedBox(width: 8),
                           ElevatedButton(
                             key: const Key('btn_submit_sung_tone'),
-                            onPressed: widget.viewModel.frequency > 20.0
-                                ? () => _submitSungTone(widget.viewModel.frequency)
+                            onPressed: (widget.viewModel.frequency > 20.0 ||
+                                    _lastDetectedSungFrequency > 20.0)
+                                ? () => _submitSungTone(
+                                      widget.viewModel.frequency > 20.0
+                                          ? widget.viewModel.frequency
+                                          : _lastDetectedSungFrequency,
+                                    )
                                 : null,
                             child: const Text('Evaluar', style: TextStyle(fontSize: 11)),
                           ),

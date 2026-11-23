@@ -28,6 +28,15 @@ class TaskCatalogIndex {
   /// Registra una tarea en el índice maestro y actualiza las estructuras invertidas.
   void register(PedagogicalTaskEntity task) {
     final codeStr = task.code.formatted;
+    final previous = _byCode[codeStr];
+    if (previous != null) {
+      _byDomain[previous.code.domain]?.removeWhere((t) => t.code.formatted == codeStr);
+      _byLevel[previous.code.level]?.removeWhere((t) => t.code.formatted == codeStr);
+      for (final codes in _invertedKeywords.values) {
+        codes.remove(codeStr);
+      }
+    }
+
     _byCode[codeStr] = task;
 
     // Indexar por dominio
@@ -160,12 +169,37 @@ class TaskCatalogIndex {
   }
 
   Set<String> _tokenize(String text) {
-    return text
-        .toLowerCase()
+    final normalized = _normalizeDiacritics(text.toLowerCase());
+    return normalized
         .replaceAll(RegExp(r'[^\w\s]'), ' ')
         .split(RegExp(r'\s+'))
         .where((s) => s.length >= 2)
         .toSet();
+  }
+
+  static String _normalizeDiacritics(String input) {
+    return input
+        .replaceAll('á', 'a')
+        .replaceAll('à', 'a')
+        .replaceAll('ä', 'a')
+        .replaceAll('â', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('è', 'e')
+        .replaceAll('ë', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ì', 'i')
+        .replaceAll('ï', 'i')
+        .replaceAll('î', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ò', 'o')
+        .replaceAll('ö', 'o')
+        .replaceAll('ô', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ù', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll('û', 'u')
+        .replaceAll('ñ', 'n');
   }
 
   /// Catálogo semilla canónico con ejercicios iniciales en los 6 dominios.

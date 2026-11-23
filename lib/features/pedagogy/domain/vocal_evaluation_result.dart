@@ -31,7 +31,7 @@ class VocalEvaluationResult {
     required this.classificationLabel,
     String? payloadHashSha256,
   })  : assert(targetFrequencyHz > 0.0, 'La frecuencia target debe ser positiva'),
-        assert(measuredMeanFrequencyHz > 0.0, 'La frecuencia medida debe ser positiva'),
+        assert(measuredMeanFrequencyHz >= 0.0, 'La frecuencia medida no puede ser negativa'),
         assert(overallScore >= 0.0 && overallScore <= 100.0, 'El puntaje debe estar entre 0 y 100'),
         payloadHashSha256 = payloadHashSha256 ??
             _computeSha256Payload(

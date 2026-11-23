@@ -341,7 +341,7 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
     );
   }
 
-  void _exportPdf(TunerViewModel vm) {
+  Future<void> _exportPdf(TunerViewModel vm) async {
     setState(() => _isExporting = true);
 
     try {
@@ -366,17 +366,19 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
 
       final pdfBytes = vm.exportPedagogicalReportPdf(config);
       final sizeKb = (pdfBytes.length / 1024).toStringAsFixed(1);
-      vm.platformFileGateway
-          .saveExportedBytes(
-            'tunner_pedagogical_report_${DateTime.now().millisecondsSinceEpoch}.pdf',
-            pdfBytes,
-          )
-          .catchError((_) => '');
+      final savedPath = await vm.platformFileGateway.saveExportedBytes(
+        'tunner_pedagogical_report_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        pdfBytes,
+      );
+
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Reporte PDF exportado exitosamente ($sizeKb KB)',
+            savedPath.isNotEmpty
+                ? 'Reporte PDF exportado exitosamente ($sizeKb KB) en $savedPath'
+                : 'Reporte PDF exportado exitosamente ($sizeKb KB)',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           backgroundColor: const Color(0xFF00C853),
@@ -385,6 +387,18 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
       );
 
       Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error al exportar reporte PDF: $e',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: const Color(0xFFD32F2F),
+          duration: const Duration(seconds: 4),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _isExporting = false);
