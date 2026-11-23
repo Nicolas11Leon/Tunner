@@ -24,6 +24,9 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
   final AudioRingBuffer _ringBuffer;
   StreamSubscription<Uint8List>? _audioSubscription;
   bool _isCapturing = false;
+  bool _isDisposed = false;
+  int _activeSampleRate = 44100;
+  int _activeBufferSize = 1024;
 
   AudioDeviceEntity? _currentDevice;
   String _selectedDeviceId = '';
@@ -46,6 +49,15 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
 
   @override
   bool get isCapturing => _isCapturing;
+
+  /// Tamaño de bloque de muestras activo configurado para la captura PCM.
+  int get activeBufferSize => _activeBufferSize;
+
+  /// Frecuencia de muestreo activa configurada para la captura PCM.
+  int get activeSampleRate => _activeSampleRate;
+
+  /// Indica si el motor ha sido liberado definitivamente.
+  bool get isDisposed => _isDisposed;
 
   @override
   Stream<AudioPcmFrame> get pcmFrameStream => _pcmFrameController.stream;
@@ -107,13 +119,19 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
     // Si se encuentra capturando activamente, reinicia la captura en caliente
     if (_isCapturing) {
       await stopCapture();
-      await startCapture();
+      await startCapture(
+        sampleRate: _activeSampleRate,
+        bufferSize: _activeBufferSize,
+      );
     }
   }
 
   @override
   Future<void> startCapture({int sampleRate = 44100, int bufferSize = 1024}) async {
-    if (_isCapturing) return;
+    if (_isCapturing || _isDisposed) return;
+
+    _activeSampleRate = sampleRate;
+    _activeBufferSize = bufferSize > 0 ? bufferSize : 1024;
 
     if (_isTestEnvironment) {
       _isCapturing = true;
@@ -152,9 +170,10 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
 
       final config = RecordConfig(
         encoder: AudioEncoder.pcm16bits,
-        sampleRate: sampleRate,
+        sampleRate: _activeSampleRate,
         numChannels: 1,
         device: targetDevice,
+        streamBufferSize: _activeBufferSize * 2,
       );
 
       final stream = await _recorder.startStream(config);
@@ -224,10 +243,24 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
 
   @override
   void dispose() {
-    stopCapture();
+    if (_isDisposed) return;
+    _isDisposed = true;
+    final recorderToDispose = _recorderInstance;
+    _recorderInstance = null;
+    stopCapture().whenComplete(() {
+      try {
+        recorderToDispose?.dispose();
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'StudioAudioInputEngine',
+          'Error al liberar AudioRecorder en dispose',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    });
     _pcmFrameController.close();
     _rmsDbController.close();
     _peakDbController.close();
-    _recorderInstance?.dispose();
   }
 }

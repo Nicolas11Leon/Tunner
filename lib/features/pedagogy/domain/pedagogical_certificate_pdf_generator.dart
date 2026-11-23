@@ -13,9 +13,9 @@ class PedagogicalCertificatePdfGenerator {
   }) {
     final buffer = BytesBuilder();
 
-    // 1. Cabecera estándar PDF-1.4 con marcador binario de 4 bytes
+    // 1. Cabecera estándar PDF-1.4 con marcador binario de 4 bytes en latin1 1:1
     final header = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
-    buffer.add(utf8.encode(header));
+    buffer.add(latin1.encode(header));
 
     final objectOffsets = <int>[];
 
@@ -32,11 +32,17 @@ class PedagogicalCertificatePdfGenerator {
     // Objeto 2: Árbol de páginas
     writeObject(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
 
-    // Objeto 5: Fuente Helvetica (Regular)
-    writeObject(5, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+    // Objeto 5: Fuente Helvetica (Regular) con codificación WinAnsiEncoding
+    writeObject(
+      5,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+    );
 
-    // Objeto 6: Fuente Helvetica-Bold (Negrita)
-    writeObject(6, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+    // Objeto 6: Fuente Helvetica-Bold (Negrita) con codificación WinAnsiEncoding
+    writeObject(
+      6,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
+    );
 
     // Construcción del contenido vectorial y tipográfico de la página
     final streamContent = _buildPageStreamContent(studentName, evaluation);
@@ -91,8 +97,8 @@ class PedagogicalCertificatePdfGenerator {
   ) {
     final sb = StringBuffer();
 
-    // Escape de cadenas de texto PDF
-    String escape(String text) => text.replaceAll('\\', '\\\\').replaceAll('(', '\\(').replaceAll(')', '\\)');
+    // Escape y sanitización de cadenas de texto PDF compatible con WinAnsiEncoding Type 1
+    String escape(String text) => sanitizePdfText(text);
 
     // 1. Marco exterior decorativo (Borde Azul Oscuro y Gris Técnico)
     sb.writeln('0.10 0.14 0.20 RG 2 w');
@@ -209,5 +215,28 @@ class PedagogicalCertificatePdfGenerator {
     sb.writeln('ET');
 
     return sb.toString();
+  }
+
+  /// Sanitiza cadenas para literales seguros en sintaxis PDF (...)
+  /// y normaliza caracteres acentuados y eñes para compatibilidad con WinAnsiEncoding Type 1.
+  static String sanitizePdfText(String text) {
+    return text
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll('Á', 'A')
+        .replaceAll('É', 'E')
+        .replaceAll('Í', 'I')
+        .replaceAll('Ó', 'O')
+        .replaceAll('Ú', 'U')
+        .replaceAll('Ü', 'U')
+        .replaceAll('ñ', 'n')
+        .replaceAll('Ñ', 'N')
+        .replaceAll('\\', '\\\\')
+        .replaceAll('(', '\\(')
+        .replaceAll(')', '\\)');
   }
 }
