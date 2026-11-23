@@ -67,8 +67,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('home_core_audio_hud')), findsOneWidget);
-      expect(find.textContaining('CORE AUDIO DSP:'), findsOneWidget);
-      expect(find.textContaining('48.0 kHz • 24-bit'), findsOneWidget);
+      expect(find.text('CORE AUDIO DSP'), findsOneWidget);
+      expect(find.textContaining('48.0 kHz · 24-bit'), findsOneWidget);
 
       final terminalBtn = find.byKey(const Key('home_open_terminal_hud_btn'));
       expect(terminalBtn, findsOneWidget);

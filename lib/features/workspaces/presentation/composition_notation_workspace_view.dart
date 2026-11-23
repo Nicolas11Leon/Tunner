@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/tunner_theme.dart';
+import '../../../core/design_system/studio_design_system.dart';
 import '../../tuner_viewmodel.dart';
 import 'polyphonic_synth_modal.dart';
 import '../../sheet_music/presentation/real_sheet_music_painter.dart';
@@ -27,6 +27,8 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.of(context);
+
     return Column(
       children: [
         // Encabezado de la Obra y Navegación de Compases
@@ -38,24 +40,29 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
               Flexible(
                 child: InkWell(
                   onTap: onOpenLibraryModal,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(tokens.radiusMedium),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: palette.cardBackground,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+                      color: tokens.panelBackground,
+                      borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                      border: Border.all(color: tokens.borderHairline),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.library_music, size: 16, color: palette.primaryAccent),
+                        StudioIcon(
+                          StudioIconId.moduleScoreSheet,
+                          size: 15,
+                          color: tokens.accentPrimary,
+                          tintCustomAsset: true,
+                        ),
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
                             viewModel.activePackage.title,
                             style: TextStyle(
-                              color: palette.textColor,
+                              color: tokens.textPrimary,
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                             ),
@@ -63,7 +70,7 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        Icon(Icons.keyboard_arrow_down, size: 16, color: palette.textMutedColor),
+                        Icon(Icons.keyboard_arrow_down, size: 16, color: tokens.textMuted),
                       ],
                     ),
                   ),
@@ -75,10 +82,15 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: Icon(
-                      viewModel.isMetronomePlaying ? Icons.stop_circle : Icons.play_circle_fill,
-                      color: viewModel.isMetronomePlaying ? palette.errorPitchColor : palette.secondaryAccent,
-                      size: 26,
+                    icon: StudioIcon(
+                      viewModel.isMetronomePlaying
+                          ? StudioIconId.transportStop
+                          : StudioIconId.transportPlay,
+                      color: viewModel.isMetronomePlaying
+                          ? tokens.accentDanger
+                          : tokens.accentPrimary,
+                      size: 20,
+                      tintCustomAsset: true,
                     ),
                     onPressed: () {
                       if (viewModel.isMetronomePlaying) {
@@ -92,34 +104,40 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
                   Text(
                     "${viewModel.bpm}",
                     style: TextStyle(
-                      color: palette.primaryAccent,
+                      color: tokens.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      fontFamily: 'monospace',
                     ),
                   ),
                   const SizedBox(width: 2),
                   Text(
                     "BPM",
-                    style: TextStyle(color: palette.textMutedColor, fontSize: 10),
+                    style: TextStyle(
+                      color: tokens.textMuted,
+                      fontSize: 10,
+                      fontFamily: 'monospace',
+                    ),
                   ),
                   const SizedBox(width: 4),
                   InkWell(
                     key: const Key('tap_tempo_comp_btn'),
                     onTap: () => TapTempoModal.show(context, viewModel),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(tokens.radiusSmall),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: palette.primaryAccent.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: palette.primaryAccent.withValues(alpha: 0.4)),
+                        color: tokens.elevatedSurface,
+                        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                        border: Border.all(color: tokens.borderHairline),
                       ),
                       child: Text(
                         'TAP',
                         style: TextStyle(
-                          color: palette.primaryAccent,
+                          color: tokens.accentPrimary,
                           fontSize: 9.5,
                           fontWeight: FontWeight.w800,
+                          fontFamily: 'monospace',
                         ),
                       ),
                     ),
@@ -138,20 +156,31 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  icon: Icon(Icons.skip_previous, color: palette.textMutedColor, size: 18),
+                  icon: StudioIcon(
+                    StudioIconId.transportRewind,
+                    color: tokens.textSecondary,
+                    size: 16,
+                    tintCustomAsset: true,
+                  ),
                   onPressed: () => viewModel.previousMeasure(),
                   tooltip: "Compás Anterior",
                 ),
                 Text(
                   "Compás ${viewModel.currentMeasureIndex + 1} de ${viewModel.totalMeasures}  (${viewModel.currentMeasureTimeSignature})",
                   style: TextStyle(
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
+                    fontFamily: 'monospace',
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.skip_next, color: palette.textMutedColor, size: 18),
+                  icon: StudioIcon(
+                    StudioIconId.transportForward,
+                    color: tokens.textSecondary,
+                    size: 16,
+                    tintCustomAsset: true,
+                  ),
                   onPressed: () => viewModel.nextMeasure(),
                   tooltip: "Siguiente Compás",
                 ),
@@ -161,62 +190,55 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
 
         // Lienzo del Pentagrama Tipográfico SMuFL
         if (viewModel.workspaceConfiguration.showSheetMusicCanvas)
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
-            decoration: BoxDecoration(
-              color: palette.staffBackground,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.3)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final painter = RealSheetMusicPainter(
-                  currentSubTick: viewModel.currentSubTick,
-                  notes: viewModel.currentMeasureNotes,
-                  history: viewModel.measureHistory,
-                  liveNote: viewModel.noteName,
-                  liveCents: viewModel.cents,
-                  isCountingIn: viewModel.isCountingIn,
-                  countInBeat: viewModel.countInBeat,
-                  timeSignature: viewModel.currentMeasureTimeSignature,
-                  measureIndex: viewModel.currentMeasureIndex,
-                  totalMeasures: viewModel.totalMeasures,
-                  palette: palette,
-                  clef: viewModel.activeInstrument.clef,
-                  selectedNoteIndex: viewModel.selectedScoreNoteIndex,
-                );
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+              decoration: BoxDecoration(
+                color: tokens.inputSurface,
+                borderRadius: BorderRadius.circular(tokens.borderRadiusLarge),
+                border: Border.all(color: tokens.borderHairline),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final painter = RealSheetMusicPainter(
+                    currentSubTick: viewModel.currentSubTick,
+                    notes: viewModel.currentMeasureNotes,
+                    history: viewModel.measureHistory,
+                    liveNote: viewModel.noteName,
+                    liveCents: viewModel.cents,
+                    isCountingIn: viewModel.isCountingIn,
+                    countInBeat: viewModel.countInBeat,
+                    timeSignature: viewModel.currentMeasureTimeSignature,
+                    measureIndex: viewModel.currentMeasureIndex,
+                    totalMeasures: viewModel.totalMeasures,
+                    palette: palette,
+                    clef: viewModel.activeInstrument.clef,
+                    selectedNoteIndex: viewModel.selectedScoreNoteIndex,
+                  );
 
-                return GestureDetector(
-                  key: const Key('score_interactive_canvas_gesture'),
-                  onTapDown: (details) {
-                    final tappedIndex = painter.findNoteIndexAtOffset(
-                      details.localPosition,
-                      Size(constraints.maxWidth, constraints.maxHeight),
-                    );
-                    if (tappedIndex != null) {
-                      viewModel.selectAndPreviewScoreNote(tappedIndex);
-                    } else {
-                      viewModel.clearSelectedScoreNote();
-                    }
-                  },
-                  child: CustomPaint(
-                    painter: painter,
-                    size: Size(constraints.maxWidth, constraints.maxHeight),
-                  ),
-                );
-              },
+                  return GestureDetector(
+                    key: const Key('score_interactive_canvas_gesture'),
+                    onTapDown: (details) {
+                      final tappedIndex = painter.findNoteIndexAtOffset(
+                        details.localPosition,
+                        Size(constraints.maxWidth, constraints.maxHeight),
+                      );
+                      if (tappedIndex != null) {
+                        viewModel.selectAndPreviewScoreNote(tappedIndex);
+                      } else {
+                        viewModel.clearSelectedScoreNote();
+                      }
+                    },
+                    child: CustomPaint(
+                      painter: painter,
+                      size: Size(constraints.maxWidth, constraints.maxHeight),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
-        ),
 
         // Barra de Transcripción de Audio en Vivo
         Padding(
@@ -224,19 +246,24 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: palette.cardBackground,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.2)),
+              color: tokens.panelBackground,
+              borderRadius: BorderRadius.circular(tokens.radiusMedium),
+              border: Border.all(color: tokens.borderHairline),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    Icon(
-                      viewModel.isLiveTranscriptionActive ? Icons.mic : Icons.mic_none,
-                      color: viewModel.isLiveTranscriptionActive ? palette.primaryAccent : palette.textMutedColor,
-                      size: 18,
+                    StudioIcon(
+                      viewModel.isLiveTranscriptionActive
+                          ? StudioIconId.audioMicOn
+                          : StudioIconId.audioMicOff,
+                      color: viewModel.isLiveTranscriptionActive
+                          ? tokens.accentSuccess
+                          : tokens.textMuted,
+                      size: 16,
+                      tintCustomAsset: true,
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -244,7 +271,9 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
                           ? "Transcripción en vivo activa"
                           : "Transcripción de Audio en Pentagrama",
                       style: TextStyle(
-                        color: viewModel.isLiveTranscriptionActive ? palette.primaryAccent : palette.textColor,
+                        color: viewModel.isLiveTranscriptionActive
+                            ? tokens.accentPrimary
+                            : tokens.textPrimary,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -253,7 +282,7 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
                 ),
                 Switch.adaptive(
                   value: viewModel.isLiveTranscriptionActive,
-                  activeTrackColor: palette.primaryAccent,
+                  activeTrackColor: tokens.accentPrimary,
                   onChanged: (_) => viewModel.toggleLiveTranscription(),
                 ),
               ],
@@ -270,76 +299,104 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
               children: [
                 ActionChip(
                   key: const Key('poly_synth_settings_btn'),
-                  avatar: Icon(Icons.piano, size: 16, color: palette.secondaryAccent),
+                  avatar: StudioIcon(
+                    StudioIconId.modulePianoRoll,
+                    size: 15,
+                    color: tokens.accentPrimary,
+                    tintCustomAsset: true,
+                  ),
                   label: Text('Sintetizador: ${viewModel.polyphonicVoicePool.waveform.name.toUpperCase()}'),
-                  backgroundColor: palette.cardBackground,
+                  backgroundColor: tokens.panelBackground,
                   labelStyle: TextStyle(
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
-                  side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+                  side: BorderSide(color: tokens.borderHairline),
                   onPressed: () => PolyphonicSynthModal.show(context, viewModel, palette),
                 ),
                 const SizedBox(width: 8),
                 ActionChip(
-                  avatar: Icon(Icons.edit_note, size: 16, color: palette.primaryAccent),
+                  avatar: StudioIcon(
+                    StudioIconId.moduleScoreEditor,
+                    size: 15,
+                    color: tokens.accentPrimary,
+                    tintCustomAsset: true,
+                  ),
                   label: const Text('Editor de Partituras'),
-                  backgroundColor: palette.cardBackground,
+                  backgroundColor: tokens.panelBackground,
                   labelStyle: TextStyle(
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
-                  side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+                  side: BorderSide(color: tokens.borderHairline),
                   onPressed: () => ScoreEditorModal.show(context),
                 ),
                 const SizedBox(width: 8),
                 ActionChip(
-                  avatar: Icon(Icons.audio_file_outlined, size: 16, color: palette.secondaryAccent),
+                  avatar: StudioIcon(
+                    StudioIconId.fileWavAudio,
+                    size: 15,
+                    color: tokens.accentSecondary,
+                    tintCustomAsset: true,
+                  ),
                   label: const Text('Descomponer Audio'),
-                  backgroundColor: palette.cardBackground,
+                  backgroundColor: tokens.panelBackground,
                   labelStyle: TextStyle(
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
-                  side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+                  side: BorderSide(color: tokens.borderHairline),
                   onPressed: () => SongDecomposerModal.show(context, viewModel),
                 ),
                 const SizedBox(width: 8),
                 ActionChip(
-                  avatar: Icon(Icons.equalizer, size: 16, color: palette.textColor),
+                  avatar: StudioIcon(
+                    StudioIconId.moduleSpectrogram,
+                    size: 15,
+                    color: tokens.textPrimary,
+                    tintCustomAsset: true,
+                  ),
                   label: const Text('Mezclador Stems'),
-                  backgroundColor: palette.cardBackground,
+                  backgroundColor: tokens.panelBackground,
                   labelStyle: TextStyle(
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
-                  side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+                  side: BorderSide(color: tokens.borderHairline),
                   onPressed: onOpenMixerModal,
                 ),
                 const SizedBox(width: 8),
                 ActionChip(
                   key: const Key('export_stems_midi_btn'),
-                  avatar: Icon(Icons.album_outlined, size: 16, color: palette.secondaryAccent),
+                  avatar: StudioIcon(
+                    StudioIconId.fileMusicXmlMidi,
+                    size: 15,
+                    color: tokens.accentSecondary,
+                    tintCustomAsset: true,
+                  ),
                   label: const Text('Exportar Stems & MIDI'),
-                  backgroundColor: palette.cardBackground,
+                  backgroundColor: tokens.panelBackground,
                   labelStyle: TextStyle(
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
-                  side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+                  side: BorderSide(color: tokens.borderHairline),
                   onPressed: () => AudioMidiExportModal.show(context, viewModel),
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  icon: Icon(
-                    viewModel.isScorePlaybackEnabled ? Icons.music_note : Icons.music_off,
-                    color: viewModel.isScorePlaybackEnabled ? palette.primaryAccent : palette.textMutedColor,
-                    size: 20,
+                  icon: StudioIcon(
+                    StudioIconId.audioVolumeOn,
+                    color: viewModel.isScorePlaybackEnabled
+                        ? tokens.accentPrimary
+                        : tokens.textMuted,
+                    size: 18,
+                    tintCustomAsset: true,
                   ),
                   tooltip: viewModel.isScorePlaybackEnabled
                       ? "Audio de Partitura Activado"
