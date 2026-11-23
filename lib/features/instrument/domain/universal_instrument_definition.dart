@@ -66,6 +66,27 @@ class UniversalInstrumentDefinition {
   /// Indica si el instrumento es transpositor.
   bool get isTransposing => transpositionSemitones != 0;
 
+  /// Deriva las frecuencias estándar de afinación del instrumento escaladas
+  /// al tono de concierto [referencePitchHz] activo (por defecto A4 = 440.0 Hz).
+  ///
+  /// Fórmula: `f_scaled = f_440 * (referencePitchHz / 440.0)`.
+  List<double> standardTuningFrequenciesFor({double referencePitchHz = 440.0}) {
+    if (referencePitchHz <= 0.0 || !referencePitchHz.isFinite) {
+      throw ArgumentError.value(
+        referencePitchHz,
+        'referencePitchHz',
+        'La frecuencia de referencia A4 debe ser finita y mayor que 0.0 Hz.',
+      );
+    }
+    if (acousticRange.standardTuningFrequencies.isEmpty) {
+      return const [];
+    }
+    final double scale = referencePitchHz / 440.0;
+    return List<double>.unmodifiable(
+      acousticRange.standardTuningFrequencies.map((freq) => freq * scale),
+    );
+  }
+
   // =========================================================================
   // CATÁLOGO UNIVERSAL CANÓNICO DE INSTRUMENTOS
   // =========================================================================
