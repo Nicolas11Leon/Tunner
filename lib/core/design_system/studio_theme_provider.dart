@@ -22,8 +22,11 @@ class StudioThemeController extends ChangeNotifier {
   }
 
   void selectById(String id) {
+    final normalized = id.trim().toLowerCase();
     final match = StudioDesignTokens.presets.firstWhere(
-      (preset) => preset.id == id,
+      (preset) =>
+          preset.id.toLowerCase() == normalized ||
+          preset.displayName.toLowerCase() == normalized,
       orElse: () => StudioDesignTokens.studioOledMonochrome,
     );
     setTokens(match);
