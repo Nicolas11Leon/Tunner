@@ -199,6 +199,11 @@ void main() {
     setUp(() {
       kernel = TunnerOsKernel(
         vocalEvaluator: const VocalPedagogyTerminalAdapter(),
+        onReadCapturedFrequencies: () => List<double>.generate(
+          40,
+          (i) => 440.0 * (1.0 + 0.002 * (i.isEven ? 1 : -1)),
+        ),
+        onReadCapturedAmplitudes: () => List<double>.filled(40, 0.88),
       );
     });
 

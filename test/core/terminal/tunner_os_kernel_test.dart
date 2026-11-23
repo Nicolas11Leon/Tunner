@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tunner/core/audio/infrastructure/studio_master_clock_service.dart';
 import 'package:tunner/core/audio/infrastructure/memory_audio_hardware_persistence_service.dart';
@@ -5,6 +6,7 @@ import 'package:tunner/core/audio/infrastructure/memory_studio_audio_engine.dart
 import 'package:tunner/core/audio/infrastructure/memory_studio_audio_input_engine.dart';
 import 'package:tunner/core/audio/infrastructure/memory_studio_master_capture_service.dart';
 import 'package:tunner/core/audio/infrastructure/studio_audio_device_matrix_service.dart';
+import 'package:tunner/core/file_system/data/memory_studio_file_system_repository.dart';
 import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
 import 'package:tunner/core/terminal/domain/i_terminal_command_handler.dart';
 import 'package:tunner/core/terminal/domain/tunner_os_command_entity.dart';
@@ -14,6 +16,7 @@ void main() {
     late TunnerOsKernel kernel;
     late StudioAudioDeviceMatrixService matrixService;
     late StudioMasterClockService clockService;
+    late MemoryStudioFileSystemRepository fileSystemRepository;
     int? navigatedTab;
     String? loadedTrackDeck;
     String? loadedTrackTitle;
@@ -21,7 +24,7 @@ void main() {
     double? xfaderVal;
     String? chosenTheme;
 
-    setUp(() {
+    setUp(() async {
       navigatedTab = null;
       loadedTrackDeck = null;
       loadedTrackTitle = null;
@@ -36,9 +39,15 @@ void main() {
         captureService: MemoryStudioMasterCaptureService(),
       );
       clockService = StudioMasterClockService(initialBpm: 120.0);
+      fileSystemRepository = MemoryStudioFileSystemRepository();
+      await fileSystemRepository.saveFile(
+        relativePath: 'projects/real_session.tunner',
+        bytes: Uint8List.fromList([1, 2, 3, 4]),
+      );
 
       kernel = TunnerOsKernel(
         onNavigateTab: (tab) => navigatedTab = tab,
+        fileSystemRepository: fileSystemRepository,
         matrixService: matrixService,
         clockService: clockService,
         onDjLoadTrack: (deck, track) {
@@ -101,18 +110,18 @@ void main() {
       expect(xfaderVal, closeTo(-0.45, 1e-4));
     });
 
-    test('dsp status reports full-duplex audio health', () async {
+    test('dsp status reports real full-duplex audio telemetry from matrix', () async {
       final res = await kernel.execute('dsp status');
       expect(res.isSuccess, isTrue);
       expect(res.message, contains('FULL-DUPLEX'));
-      expect(res.message, contains('44.1 kHz / 48.0 kHz'));
+      expect(res.message, contains('44.1 kHz (44100 Hz)'));
+      expect(res.message, contains('512 muestras'));
     });
 
-    test('fs ls reports current project files', () async {
+    test('fs ls reports real project files from fileSystemRepository', () async {
       final res = await kernel.execute('fs ls');
       expect(res.isSuccess, isTrue);
-      expect(res.message, contains('Suite_No1_Bach.tunner'));
-      expect(res.message, contains('Fur_Elise_Club_Mix.tndj'));
+      expect(res.message, contains('real_session.tunner'));
     });
 
     test('theme set dispatches theme change', () async {
