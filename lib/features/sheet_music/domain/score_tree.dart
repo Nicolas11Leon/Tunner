@@ -318,7 +318,4 @@ class HierarchicalScore {
       ),
     ];
   }
-
-  /// Alias canónico para compatibilidad hacia atrás
-  static List<HierarchicalScore> getMockStudies() => getCanonicalStudies();
 }

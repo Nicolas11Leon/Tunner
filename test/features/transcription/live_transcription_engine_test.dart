@@ -14,19 +14,17 @@ void main() {
       expect(RhythmicQuantizer.quantizeDuration(2), equals(2));
     });
 
-    test('Quantizes 3-5 ticks to quarter note (4 ticks)', () {
-      expect(RhythmicQuantizer.quantizeDuration(3), equals(4));
+    test('Quantizes dotted eighth (3), quarter (4-5), dotted quarter (6), half (7-10), dotted half (11-13) and whole (14+)', () {
+      expect(RhythmicQuantizer.quantizeDuration(3), equals(3));
       expect(RhythmicQuantizer.quantizeDuration(4), equals(4));
       expect(RhythmicQuantizer.quantizeDuration(5), equals(4));
-    });
-
-    test('Quantizes 7-10 ticks to half note (8 ticks)', () {
+      expect(RhythmicQuantizer.quantizeDuration(6), equals(6));
       expect(RhythmicQuantizer.quantizeDuration(7), equals(8));
       expect(RhythmicQuantizer.quantizeDuration(8), equals(8));
       expect(RhythmicQuantizer.quantizeDuration(10), equals(8));
-    });
-
-    test('Quantizes 14+ ticks to whole note (16 ticks)', () {
+      expect(RhythmicQuantizer.quantizeDuration(11), equals(12));
+      expect(RhythmicQuantizer.quantizeDuration(12), equals(12));
+      expect(RhythmicQuantizer.quantizeDuration(13), equals(12));
       expect(RhythmicQuantizer.quantizeDuration(14), equals(16));
       expect(RhythmicQuantizer.quantizeDuration(16), equals(16));
       expect(RhythmicQuantizer.quantizeDuration(20), equals(16));
