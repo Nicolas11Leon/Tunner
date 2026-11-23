@@ -19,10 +19,14 @@ class SignalBus {
   final List<ModuleConnection> _connections = [];
   final Map<String, InteroperableModuleNode> _registeredNodes = {};
   final Map<String, List<StreamSubscription>> _nodeSubscriptions = {};
+  bool _isDisposed = false;
 
   SignalBus({
     PortPermissionBroker permissionBroker = const PortPermissionBroker(),
   }) : _permissionBroker = permissionBroker;
+
+  /// Indica si el bus ha sido eliminado definitivamente mediante [dispose].
+  bool get isDisposed => _isDisposed;
 
   /// Lista de todas las conexiones activas registradas en el bus.
   List<ModuleConnection> get activeConnections => List.unmodifiable(_connections);
@@ -33,6 +37,7 @@ class SignalBus {
 
   /// Registra un nodo modular atomico y enlaza sus puertos automaticamente.
   void registerNode(InteroperableModuleNode node) {
+    if (_isDisposed) return;
     _registeredNodes[node.nodeId] = node;
 
     for (final port in node.declaredInputPorts) {
@@ -76,6 +81,7 @@ class SignalBus {
 
   /// Registra un puerto en el bus y crea su stream subyacente.
   void registerPort(PortId port) {
+    if (_isDisposed) return;
     final key = _generatePortKey(port);
     _registeredPorts[key] = port;
     _portControllers.putIfAbsent(
@@ -98,6 +104,7 @@ class SignalBus {
   /// Conecta dos puertos o crea una conexion broadcast verificando politicas de
   /// [PortPermissionBroker] y [SynergyPolicyEngine].
   void addConnection(ModuleConnection connection) {
+    if (_isDisposed) return;
     if (_connections.any((c) => c.connectionId == connection.connectionId)) {
       return;
     }
@@ -144,6 +151,7 @@ class SignalBus {
   /// conectados, validando cada enlace con [PortPermissionBroker.canAuthorizeConnection]
   /// y aplicando el escalado de ganancia [ModuleConnection.gain].
   void emit(PortId sourcePort, dynamic data) {
+    if (_isDisposed) return;
     if (sourcePort.direction != PortDirection.output) {
       throw ArgumentError('Solo los puertos de salida pueden emitir datos.');
     }
@@ -246,6 +254,7 @@ class SignalBus {
 
   /// Transmite una senal global a todos los nodos que acepten este tipo de senal.
   void broadcastGlobalSignal(AtomicSignalEvent event) {
+    if (_isDisposed) return;
     for (final node in _registeredNodes.values) {
       if (node.isProcessingActive && node.acceptedSignalTypes.contains(event.signalType)) {
         node.onReceiveAtomicSignal(event);
@@ -255,13 +264,19 @@ class SignalBus {
 
   /// Se suscribe al flujo de datos que ingresa a un puerto receptor (o que sale de un emisor).
   Stream<T> subscribe<T>(PortId port) {
+    if (_isDisposed) {
+      return Stream<T>.empty();
+    }
     final key = _generatePortKey(port);
     registerPort(port);
     return _portControllers[key]!.stream.where((event) => event is T).cast<T>();
   }
 
-  /// Limpia todas las conexiones y cierra los streams del bus.
-  void dispose() {
+  /// Limpia las rutas, conexiones y nodos registrados sin cerrar los
+  /// [StreamController]s internos, permitiendo reutilizar el bus tras cargar
+  /// un nuevo preset o paquete de proyecto.
+  void clearRoutes() {
+    if (_isDisposed) return;
     for (final subs in _nodeSubscriptions.values) {
       for (final sub in subs) {
         sub.cancel();
@@ -270,6 +285,16 @@ class SignalBus {
     _nodeSubscriptions.clear();
     _registeredNodes.clear();
     _connections.clear();
+  }
+
+  /// Alias de [clearRoutes] para reiniciar las rutas activas del bus.
+  void reset() => clearRoutes();
+
+  /// Limpia todas las conexiones y cierra definitivamente los streams del bus.
+  void dispose() {
+    if (_isDisposed) return;
+    clearRoutes();
+    _isDisposed = true;
     _registeredPorts.clear();
     for (final controller in _portControllers.values) {
       controller.close();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design_system/studio_theme_provider.dart';
 import '../domain/studio_dock_zone.dart';
 import 'studio_dockable_panel_entity.dart';
 
@@ -17,6 +18,8 @@ class StudioDockDropZoneTarget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.of(context);
+
     return DragTarget<StudioDockablePanelEntity>(
       onWillAcceptWithDetails: (details) => details.data.currentZone != zone,
       onAcceptWithDetails: (details) {
@@ -32,19 +35,19 @@ class StudioDockDropZoneTarget extends StatelessWidget {
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
-                    border: Border.all(color: const Color(0xFF00E5FF), width: 2.5),
+                    color: tokens.accentPrimary.withValues(alpha: 0.15),
+                    border: Border.all(color: tokens.accentPrimary, width: 2.5),
                   ),
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0A0F1A),
+                        color: tokens.panelBackground,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF00E5FF)),
+                        border: Border.all(color: tokens.accentPrimary),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF00E5FF).withValues(alpha: 0.4),
+                            color: tokens.accentPrimary.withValues(alpha: 0.4),
                             blurRadius: 12,
                           ),
                         ],
@@ -52,12 +55,12 @@ class StudioDockDropZoneTarget extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.vertical_split, color: Color(0xFF00E5FF), size: 18),
+                          Icon(Icons.vertical_split, color: tokens.accentPrimary, size: 18),
                           const SizedBox(width: 8),
                           Text(
                             'ACOPLAR EN: ${zone.displayName.toUpperCase()}',
-                            style: const TextStyle(
-                              color: Color(0xFF00E5FF),
+                            style: TextStyle(
+                              color: tokens.accentPrimary,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                               letterSpacing: 0.6,
