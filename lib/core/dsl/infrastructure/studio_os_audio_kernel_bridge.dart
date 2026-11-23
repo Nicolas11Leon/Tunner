@@ -4,6 +4,7 @@ import '../../audio/domain/spatial/binaural_panner_engine.dart';
 import '../../audio/infrastructure/studio_master_clock_service.dart';
 import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../domain/i_synth_voice_pool_port.dart';
+import '../domain/studio_os_audio_event.dart';
 import '../domain/studio_os_audio_kernel.dart';
 import '../domain/tunner_dsl_interpreter.dart';
 
@@ -39,11 +40,14 @@ class StudioOsAudioKernelBridge {
     kernel.onChannelDeclared = _handleChannelDeclared;
     kernel.onConnectionChanged = _handleConnectionChanged;
     kernel.onParameterChanged = _handleParameterChanged;
-    kernel.onNoteTriggered = _handleNoteTriggered;
-    kernel.onChordTriggered = _handleChordTriggered;
-    kernel.onRestTriggered = _handleRestTriggered;
+    kernel.onScheduledNoteTriggered = _handleScheduledNoteTriggered;
+    kernel.onScheduledChordTriggered = _handleScheduledChordTriggered;
+    kernel.onScheduledRestTriggered = _handleScheduledRestTriggered;
     kernel.onTransportChanged = _handleTransportChanged;
   }
+
+  /// Cantidad de temporizadores DSL actualmente programados o activos.
+  int get activeScheduledTimerCount => _activeNoteTimers.length;
 
   Future<void> _handleTempoChanged(double bpm) async {
     _currentBpm = bpm;
@@ -184,73 +188,98 @@ class StudioOsAudioKernelBridge {
     }
   }
 
-  Future<void> _handleNoteTriggered(
-    String pitch,
-    double frequencyHz,
-    int midiNote,
-    String durationFraction,
-    double velocity,
-  ) async {
-    if (synthVoicePool == null) return;
-
-    synthVoicePool!.noteOn(
-      midiNote,
-      velocity,
-      frequency: frequencyHz,
-    );
-
-    final durationMs = TunnerDslInterpreter.calculateDurationMs(
-      durationFraction,
-      _currentBpm,
-    );
-
-    // Liberación programada no bloqueante con rastreo determinista
-    late final Timer timer;
-    timer = Timer(Duration(milliseconds: durationMs.round().clamp(10, 10000)), () {
-      _activeNoteTimers.remove(timer);
-      if (!_isDisposed) {
-        synthVoicePool?.noteOff(midiNote);
-      }
-    });
-    _activeNoteTimers.add(timer);
-  }
-
-  Future<void> _handleChordTriggered(
-    List<String> pitches,
-    List<double> frequenciesHz,
-    List<int> midiNotes,
-    String durationFraction,
-    double velocity,
-  ) async {
+  Future<void> _handleScheduledNoteTriggered(StudioOsNoteEvent event) async {
     if (_isDisposed || synthVoicePool == null) return;
 
-    for (var i = 0; i < midiNotes.length; i++) {
+    final effectiveDurationMs = (event.durationMs > 0
+            ? event.durationMs
+            : TunnerDslInterpreter.calculateDurationMs(
+                event.durationFraction,
+                _currentBpm,
+              ).round())
+        .clamp(10, 10000);
+    final offsetMs = event.scheduledOffsetMs > 0 ? event.scheduledOffsetMs : 0;
+
+    void triggerNote() {
+      if (_isDisposed || synthVoicePool == null) return;
       synthVoicePool!.noteOn(
-        midiNotes[i],
-        velocity,
-        frequency: frequenciesHz[i],
+        event.midiNote,
+        event.velocity,
+        frequency: event.frequencyHz,
       );
+
+      // Liberación programada no bloqueante con rastreo determinista
+      late final Timer offTimer;
+      offTimer = Timer(Duration(milliseconds: effectiveDurationMs), () {
+        _activeNoteTimers.remove(offTimer);
+        if (!_isDisposed) {
+          synthVoicePool?.noteOff(event.midiNote);
+        }
+      });
+      _activeNoteTimers.add(offTimer);
     }
 
-    final durationMs = TunnerDslInterpreter.calculateDurationMs(
-      durationFraction,
-      _currentBpm,
-    );
-
-    late final Timer timer;
-    timer = Timer(Duration(milliseconds: durationMs.round().clamp(10, 10000)), () {
-      _activeNoteTimers.remove(timer);
-      if (!_isDisposed) {
-        for (final midi in midiNotes) {
-          synthVoicePool?.noteOff(midi);
-        }
-      }
-    });
-    _activeNoteTimers.add(timer);
+    if (offsetMs <= 0) {
+      triggerNote();
+    } else {
+      late final Timer onTimer;
+      onTimer = Timer(Duration(milliseconds: offsetMs), () {
+        _activeNoteTimers.remove(onTimer);
+        triggerNote();
+      });
+      _activeNoteTimers.add(onTimer);
+    }
   }
 
-  Future<void> _handleRestTriggered(String durationFraction) async {
-    // En ejecución en tiempo real el silencio deja que las envolventes expiren naturalmente
+  Future<void> _handleScheduledChordTriggered(StudioOsChordEvent event) async {
+    if (_isDisposed || synthVoicePool == null) return;
+
+    final effectiveDurationMs = (event.durationMs > 0
+            ? event.durationMs
+            : TunnerDslInterpreter.calculateDurationMs(
+                event.durationFraction,
+                _currentBpm,
+              ).round())
+        .clamp(10, 10000);
+    final offsetMs = event.scheduledOffsetMs > 0 ? event.scheduledOffsetMs : 0;
+
+    void triggerChord() {
+      if (_isDisposed || synthVoicePool == null) return;
+      for (var i = 0; i < event.midiNotes.length; i++) {
+        synthVoicePool!.noteOn(
+          event.midiNotes[i],
+          event.velocity,
+          frequency: event.frequenciesHz[i],
+        );
+      }
+
+      late final Timer offTimer;
+      offTimer = Timer(Duration(milliseconds: effectiveDurationMs), () {
+        _activeNoteTimers.remove(offTimer);
+        if (!_isDisposed) {
+          for (final midi in event.midiNotes) {
+            synthVoicePool?.noteOff(midi);
+          }
+        }
+      });
+      _activeNoteTimers.add(offTimer);
+    }
+
+    if (offsetMs <= 0) {
+      triggerChord();
+    } else {
+      late final Timer onTimer;
+      onTimer = Timer(Duration(milliseconds: offsetMs), () {
+        _activeNoteTimers.remove(onTimer);
+        triggerChord();
+      });
+      _activeNoteTimers.add(onTimer);
+    }
+  }
+
+  Future<void> _handleScheduledRestTriggered(StudioOsRestEvent event) async {
+    // El cursor temporal del intérprete ya avanzó el offset acumulado para
+    // todas las notas y acordes posteriores a este silencio métrico.
   }
 
   void _cancelActiveNoteTimers() {

@@ -134,10 +134,21 @@ class PolyphonicVoicePool implements ISynthVoicePoolPort {
   }
 
   /// Calcula la frecuencia en Hz a partir del número de nota MIDI estándar.
-  /// Fórmula canónica: f = 440.0 * 2^((midi - 69) / 12)
-  static double midiToFrequency(int midiNote) {
-    return 440.0 * math.pow(2.0, (midiNote - 69.0) / 12.0);
+  /// Fórmula canónica: f = referencePitchHz * 2^((midi - 69) / 12)
+  static double midiToFrequency(
+    int midiNote, {
+    double referencePitchHz = 440.0,
+  }) {
+    final safeRef = referencePitchHz > 0.0 ? referencePitchHz : 440.0;
+    return safeRef * math.pow(2.0, (midiNote - 69.0) / 12.0);
   }
+
+  /// Alias compatible con [StemAudioSynthesizer.midiPitchToFrequency].
+  static double midiPitchToFrequency(
+    int midiPitch, {
+    double referencePitchHz = 440.0,
+  }) =>
+      midiToFrequency(midiPitch, referencePitchHz: referencePitchHz);
 
   /// Activa una nota musical polifónica.
   /// Si no se especifica [frequency], se calcula automáticamente a partir de [noteNumber].

@@ -1,4 +1,6 @@
+import 'dart:isolate';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 /// Representa una barra armónica individual dentro del espectrograma.
 class HarmonicBarEntity {
@@ -68,9 +70,55 @@ class TimbreAnalysisResult {
 /// Analizador de la serie armónica y pureza de timbre mediante Transformada Discreta de Fourier dirigida (DFT).
 /// Pure Dart: Cero dependencias de Flutter UI.
 class HarmonicSeriesAnalyzer {
+  static final Map<int, Float64List> _hannCache = <int, Float64List>{};
+  static final Map<int, double> _hannSumCache = <int, double>{};
+
   final int maxHarmonics;
 
   const HarmonicSeriesAnalyzer({this.maxHarmonics = 8});
+
+  /// Retorna la ventana de Hann cacheada para el tamano [n].
+  static Float64List getHannWindow(int n) {
+    final cached = _hannCache[n];
+    if (cached != null) return cached;
+
+    final weights = Float64List(n);
+    double sum = 0.0;
+    if (n == 1) {
+      weights[0] = 1.0;
+      sum = 1.0;
+    } else {
+      for (int i = 0; i < n; i++) {
+        final w = 0.5 * (1.0 - math.cos(2.0 * math.pi * i / (n - 1)));
+        weights[i] = w;
+        sum += w;
+      }
+    }
+    _hannCache[n] = weights;
+    _hannSumCache[n] = sum;
+    return weights;
+  }
+
+  /// Verifica si existe una ventana de Hann en cache para el tamano [n].
+  static bool hasCachedHannWindow(int n) => _hannCache.containsKey(n);
+
+  /// Ejecuta [analyze] fuera del hilo de UI mediante [Isolate.run].
+  Future<TimbreAnalysisResult> analyzeAsync({
+    required double fundamentalHz,
+    List<double>? samples,
+    double sampleRate = 44100.0,
+  }) {
+    final maxH = maxHarmonics;
+    final copiedSamples = samples == null ? null : List<double>.from(samples, growable: false);
+    return Isolate.run(() {
+      final analyzer = HarmonicSeriesAnalyzer(maxHarmonics: maxH);
+      return analyzer.analyze(
+        fundamentalHz: fundamentalHz,
+        samples: copiedSamples,
+        sampleRate: sampleRate,
+      );
+    });
+  }
 
   /// Analiza los primeros [maxHarmonics] armónicos a partir de la frecuencia fundamental
   /// y de las muestras PCM normalizadas [-1.0, 1.0].
@@ -88,14 +136,9 @@ class HarmonicSeriesAnalyzer {
     final amplitudes = <double>[];
     final n = samples.length;
 
-    // Precalcular ventana de Hann y suma de pesos coherentes
-    final windowWeights = List<double>.filled(n, 0.0);
-    double windowSum = 0.0;
-    for (int i = 0; i < n; i++) {
-      final w = 0.5 * (1.0 - math.cos(2.0 * math.pi * i / (n - 1)));
-      windowWeights[i] = w;
-      windowSum += w;
-    }
+    // Obtener ventana de Hann cacheada y suma de pesos coherentes
+    final windowWeights = getHannWindow(n);
+    final windowSum = _hannSumCache[n] ?? 0.0;
     final normFactor = windowSum > 1e-6 ? (2.0 / windowSum) : (2.0 / n);
 
     // Evaluación exacta de DFT dirigida para cada armónico k * fundamental

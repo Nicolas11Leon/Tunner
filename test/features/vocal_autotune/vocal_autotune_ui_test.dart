@@ -149,6 +149,7 @@ void main() {
       expect(afinarBtn, findsOneWidget);
 
       await tester.tap(afinarBtn);
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(viewModel.multiTrackSession.takes.length, equals(initialTakeCount + 1));
