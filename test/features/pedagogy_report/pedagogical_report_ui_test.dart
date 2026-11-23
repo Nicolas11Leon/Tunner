@@ -1,11 +1,32 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:tunner/core/file_system/domain/i_platform_file_gateway.dart';
 import 'package:tunner/features/tuner_viewmodel.dart';
 import 'package:tunner/features/tuner_screen.dart';
 import 'package:tunner/features/pedagogy_report/presentation/pedagogical_report_modal.dart';
 import 'package:tunner/features/tuner/domain/i_pitch_detector_service.dart';
 import 'package:tunner/features/metronome/domain/i_metronome_service.dart';
+
+class _FakeFileGateway implements IPlatformFileGateway {
+  final String savedPathResult;
+
+  const _FakeFileGateway({this.savedPathResult = '/tmp/report.pdf'});
+
+  @override
+  Future<PlatformPickedFile?> pickFile({List<String>? allowedExtensions}) async => null;
+
+  @override
+  Future<String> getDocumentsDirectoryPath() async => '/tmp';
+
+  @override
+  Future<String> getTemporaryDirectoryPath() async => '/tmp';
+
+  @override
+  Future<String> saveExportedBytes(String fileName, Uint8List bytes) async =>
+      savedPathResult;
+}
 
 class _FakePitchService extends IPitchDetectorService {
   @override
@@ -96,12 +117,18 @@ void main() {
     expect(switchWidget.value, false);
   });
 
-  testWidgets('Tapping export button compiles PDF and displays SnackBar with KB size', (tester) async {
+  testWidgets('Tapping export button compiles PDF and displays SnackBar with KB size when savedPath is returned', (tester) async {
     tester.view.physicalSize = const Size(1200, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
 
-    await tester.pumpWidget(createTestApp(viewModel));
+    final vmWithPath = TunerViewModel(
+      pitchService: _FakePitchService(),
+      metronomeService: _FakeMetroService(),
+      platformFileGateway: const _FakeFileGateway(savedPathResult: '/tmp/tunner_report.pdf'),
+    );
+
+    await tester.pumpWidget(createTestApp(vmWithPath));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -111,6 +138,32 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.textContaining('Reporte PDF exportado exitosamente'), findsOneWidget);
+    expect(find.textContaining('/tmp/tunner_report.pdf'), findsOneWidget);
+  });
+
+  testWidgets('Tapping export button with empty savedPath shows error SnackBar and keeps modal open (FA-02)', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    final vmCancelled = TunerViewModel(
+      pitchService: _FakePitchService(),
+      metronomeService: _FakeMetroService(),
+      platformFileGateway: const _FakeFileGateway(savedPathResult: ''),
+    );
+
+    await tester.pumpWidget(createTestApp(vmCancelled));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    final exportBtn = find.byKey(const Key('export_pedagogical_pdf_btn'));
+    await tester.tap(exportBtn);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Exportacion cancelada o fallida.'), findsOneWidget);
+    expect(find.textContaining('Reporte PDF exportado exitosamente'), findsNothing);
+    expect(find.byType(PedagogicalReportModal), findsOneWidget);
   });
 
   testWidgets('TunerScreen displays open_pedagogical_report_chip and opens modal on tap', (tester) async {

@@ -22,27 +22,44 @@ class HarmonicBeatGauge extends StatefulWidget {
 }
 
 class _HarmonicBeatGaugeState extends State<HarmonicBeatGauge> with SingleTickerProviderStateMixin {
-  late AnimationController _wobbleController;
+  late AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
-    _wobbleController = AnimationController(
+    _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
-    )..repeat();
+    );
+    _syncPulseAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant HarmonicBeatGauge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.status != widget.status) {
+      _syncPulseAnimation();
+    }
+  }
+
+  void _syncPulseAnimation() {
+    if (widget.status == HarmonicLockStatus.pureConsonance) {
+      _pulseController.stop();
+    } else if (!_pulseController.isAnimating) {
+      _pulseController.repeat();
+    }
   }
 
   @override
   void dispose() {
-    _wobbleController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _wobbleController,
+      animation: _pulseController,
       builder: (context, child) {
         return CustomPaint(
           size: const Size(double.infinity, 140),
@@ -51,7 +68,7 @@ class _HarmonicBeatGaugeState extends State<HarmonicBeatGauge> with SingleTicker
             beatHz: widget.beatFrequencyHz,
             status: widget.status,
             accentColor: widget.accentColor,
-            animValue: _wobbleController.value,
+            animValue: _pulseController.value,
           ),
         );
       },

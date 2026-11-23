@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../atoms/studio_icon.dart';
+import '../domain/studio_icon_catalog.dart';
+import '../domain/studio_workspace_tab_spec.dart';
 import '../studio_theme_provider.dart';
 
 /// Modelo descriptivo de una pestaña de espacio de trabajo en la estación de trabajo.
@@ -6,76 +9,51 @@ class StudioWorkspaceTabItem {
   final int index;
   final String label;
   final IconData icon;
+  final StudioIconId? iconId;
   final String shortcut;
 
   const StudioWorkspaceTabItem({
     required this.index,
     required this.label,
     required this.icon,
+    this.iconId,
     required this.shortcut,
   });
+
+  factory StudioWorkspaceTabItem.fromSpec(StudioWorkspaceTabSpec spec) {
+    return StudioWorkspaceTabItem(
+      index: spec.index,
+      label: spec.desktopLabel,
+      icon: StudioIcon.fallbackIconFor(spec.iconId),
+      iconId: spec.iconId,
+      shortcut: spec.desktopShortcut,
+    );
+  }
 }
 
 /// Barra de pestañas de espacios de trabajo estilo DAW comercial (StudioWorkspaceTabBar).
-/// Ofrece selección rápida entre los espacios principales de Tunner:
-/// - Aprender & Afinar (F1)
-/// - Rack Modular Pro (F2)
-/// - Notación & Partitura (F3)
-/// - Consola DJ & Mezcla (F4)
+/// Deriva sus 6 pestañas canónicas desde [StudioWorkspaceTabSpec.canonicalTabs].
 class StudioWorkspaceTabBar extends StatelessWidget {
   final int activeIndex;
   final ValueChanged<int> onTabSelected;
-  final List<StudioWorkspaceTabItem> tabs;
+  final List<StudioWorkspaceTabItem>? tabs;
 
   const StudioWorkspaceTabBar({
     super.key,
     required this.activeIndex,
     required this.onTabSelected,
-    this.tabs = defaultTabs,
+    this.tabs,
   });
 
-  static const List<StudioWorkspaceTabItem> defaultTabs = [
-    StudioWorkspaceTabItem(
-      index: 0,
-      label: 'Inicio',
-      icon: Icons.dashboard_rounded,
-      shortcut: 'F1',
-    ),
-    StudioWorkspaceTabItem(
-      index: 1,
-      label: 'Afinador',
-      icon: Icons.tune_rounded,
-      shortcut: 'F2',
-    ),
-    StudioWorkspaceTabItem(
-      index: 2,
-      label: 'Aprender',
-      icon: Icons.school_rounded,
-      shortcut: 'F3',
-    ),
-    StudioWorkspaceTabItem(
-      index: 3,
-      label: 'Rack Modular',
-      icon: Icons.developer_board_rounded,
-      shortcut: 'F4',
-    ),
-    StudioWorkspaceTabItem(
-      index: 4,
-      label: 'Partituras',
-      icon: Icons.music_note_rounded,
-      shortcut: 'F5',
-    ),
-    StudioWorkspaceTabItem(
-      index: 5,
-      label: 'Consola DJ',
-      icon: Icons.album_rounded,
-      shortcut: 'F6',
-    ),
-  ];
+  static List<StudioWorkspaceTabItem> get defaultTabs =>
+      StudioWorkspaceTabSpec.canonicalTabs
+          .map(StudioWorkspaceTabItem.fromSpec)
+          .toList(growable: false);
 
   @override
   Widget build(BuildContext context) {
     final tokens = StudioThemeScope.tokensOf(context);
+    final effectiveTabs = tabs ?? defaultTabs;
 
     return Container(
       height: 28.0,
@@ -89,7 +67,7 @@ class StudioWorkspaceTabBar extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: tabs.map((tab) {
+          children: effectiveTabs.map((tab) {
           final isSelected = activeIndex == tab.index;
 
           return Tooltip(
@@ -122,11 +100,19 @@ class StudioWorkspaceTabBar extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      tab.icon,
-                      size: 13.0,
-                      color: isSelected ? tokens.accentPrimary : tokens.textMuted,
-                    ),
+                    if (tab.iconId != null)
+                      StudioIcon(
+                        tab.iconId!,
+                        size: 13.0,
+                        color: isSelected ? tokens.accentPrimary : tokens.textMuted,
+                        tintCustomAsset: true,
+                      )
+                    else
+                      Icon(
+                        tab.icon,
+                        size: 13.0,
+                        color: isSelected ? tokens.accentPrimary : tokens.textMuted,
+                      ),
                     const SizedBox(width: 4.0),
                     Text(
                       tab.label,

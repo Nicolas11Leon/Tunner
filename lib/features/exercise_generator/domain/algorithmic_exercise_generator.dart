@@ -1,7 +1,6 @@
-import 'dart:math' as math;
 import '../../sheet_music/domain/score_tree.dart';
 import '../../song_library/domain/song_package_entity.dart';
-import '../../tuner/domain/note_entity.dart';
+import '../../universal_importer/domain/canonical_pitch_notation_codec.dart';
 import 'i_exercise_generator.dart';
 
 /// Tipo de estudio técnico o patrón interválico a generar.
@@ -50,15 +49,20 @@ class AlgorithmicExerciseGenerator implements IExerciseGenerator {
     final effectiveRhythm = type == ExerciseType.longTones ? ExerciseRhythm.whole : rhythm;
     final durationTicks = effectiveRhythm.ticks;
 
-    final rootFreq = NoteEntity.frequencyForNote(rootNote);
-    final safeRootFreq = rootFreq > 20.0 ? rootFreq : 261.63; // Do4 por defecto
+    final parsedRoot = CanonicalPitchNotationCodec.parseOrDefault(
+      rootNote,
+      fallbackStep: 'C',
+      fallbackOctave: 4,
+    );
+    final preferFlats = _shouldPreferFlats(parsedRoot, type);
 
-    // Generar nombres de notas a partir del patrón interválico
+    // Generar nombres de notas a partir del patron intervalico con ortografia enarmonica coherente
     final generatedNoteNames = <String>[];
     for (final delta in semitonesPattern) {
-      final freq = safeRootFreq * math.pow(2.0, delta / 12.0);
-      final entity = NoteEntity.fromFrequency(freq);
-      generatedNoteNames.add(entity.name);
+      final midi = (parsedRoot.midiNumber + delta).clamp(0, 127);
+      generatedNoteNames.add(
+        CanonicalPitchNotationCodec.midiToSolfege(midi, preferFlats: preferFlats),
+      );
     }
 
     // Empaquetar en compases de 4/4 (16 ticks)
@@ -130,6 +134,19 @@ class AlgorithmicExerciseGenerator implements IExerciseGenerator {
         measures: measures,
       ),
     );
+  }
+
+  static bool _shouldPreferFlats(ParsedPitchNotation root, ExerciseType type) {
+    if (root.alter < 0) return true;
+    if (root.alter == 0 && root.step == 'F') return true;
+    final isMinorMode = type == ExerciseType.naturalMinorScale ||
+        type == ExerciseType.harmonicMinorScale ||
+        type == ExerciseType.melodicMinorScale ||
+        type == ExerciseType.minorArpeggio;
+    if (isMinorMode && root.alter == 0 && (root.step == 'C' || root.step == 'D' || root.step == 'G')) {
+      return true;
+    }
+    return false;
   }
 
   static List<int> _getSemitonePattern(ExerciseType type) {

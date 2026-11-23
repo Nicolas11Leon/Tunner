@@ -121,9 +121,9 @@ void main() {
       await tester.pumpWidget(createTestWidget());
       await tester.pump();
 
-      // Verificar elementos del Dashboard
-      expect(find.text('TUNNER STUDIO'), findsOneWidget);
-      expect(find.text('¿Qué deseas hacer hoy?'), findsOneWidget);
+      // Verificar elementos del Pro OLED Hub
+      expect(find.text('ACTIVE INSTRUMENT PROFILE'), findsOneWidget);
+      expect(find.text('WORKBENCH MODULES'), findsOneWidget);
       expect(find.byKey(const Key('home_search_trigger_bar')), findsOneWidget);
 
       // Verificar tarjetas de acción principales

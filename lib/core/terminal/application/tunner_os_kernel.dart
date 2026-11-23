@@ -49,6 +49,8 @@ class TunnerOsKernel {
   INativeDspBridge? nativeDspBridge;
   StudioMasterDspChain? masterDspChain;
   StudioOsAudioKernel? audioKernel;
+  final bool _ownsNativeDspBridge;
+  final bool _ownsAudioKernel;
   late final StudioOsAudioKernelBridge kernelBridge;
   late final TunnerDslParser dslParser;
   late final TunnerDslInterpreter dslInterpreter;
@@ -95,12 +97,14 @@ class TunnerOsKernel {
     List<ITerminalCommandHandler>? customHandlers,
   })  : _synthVoicePool = synthVoicePool,
         _projectPort = projectPort,
+        _ownsNativeDspBridge = nativeDspBridge == null && masterDspChain == null,
+        _ownsAudioKernel = audioKernel == null,
         reverbEngine = reverbEngine ?? SchroederReverbEngine(),
         spatialEngine = spatialEngine ?? BinauralPannerEngine(),
         nativeDspBridge = nativeDspBridge ?? (masterDspChain?.bridge ?? NativeDspFfiBridge()),
-        masterDspChain = masterDspChain ?? StudioMasterDspChain(),
         audioKernel = audioKernel ?? StudioOsAudioKernel() {
     // Asegurar que masterDspChain reutilice exactamente la misma instancia cuando fue creada internamente.
+    this.masterDspChain = masterDspChain ?? StudioMasterDspChain(bridge: this.nativeDspBridge);
     kernelBridge = StudioOsAudioKernelBridge(
       kernel: this.audioKernel!,
       matrixService: matrixService,
@@ -126,9 +130,18 @@ class TunnerOsKernel {
     }
   }
 
-  /// Libera los recursos asociados al puente DSL y temporizadores activos.
+  /// Libera los recursos asociados al puente DSL, kernel de audio y puente DSP nativo propios.
   void dispose() {
     kernelBridge.dispose();
+    if (_ownsAudioKernel) {
+      audioKernel?.dispose();
+    }
+    if (_ownsNativeDspBridge) {
+      final bridge = nativeDspBridge;
+      if (bridge is NativeDspFfiBridge) {
+        bridge.dispose();
+      }
+    }
   }
 
   /// Analiza y ejecuta una línea de comando de la terminal Tunner OS.

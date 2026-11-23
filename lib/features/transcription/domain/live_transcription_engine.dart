@@ -6,15 +6,19 @@ import '../../song_library/domain/song_package_entity.dart';
 /// Cuantizador ritmico determinista que mapea duraciones continuas en sub-ticks
 /// a las figuras canonicas de notacion musical en conservatorio.
 class RhythmicQuantizer {
-  /// Coleccion ordenada de duraciones canonicas soportadas en compases de 4/4 (en sub-ticks de semicorchea).
-  static const List<int> canonicalDurations = [1, 2, 4, 8, 16];
+  /// Coleccion ordenada de duraciones canonicas soportadas en compases de 4/4 (en sub-ticks de semicorchea),
+  /// incluyendo figuras con puntillo: corchea con puntillo (3), negra con puntillo (6) y blanca con puntillo (12).
+  static const List<int> canonicalDurations = [1, 2, 3, 4, 6, 8, 12, 16];
 
   /// Cuantiza una duracion acustica observada en sub-ticks a la figura canonica mas apropiada.
   static int quantizeDuration(int observedTicks) {
     if (observedTicks <= 1) return 1;
     if (observedTicks == 2) return 2;
+    if (observedTicks == 3) return 3;
     if (observedTicks <= 5) return 4;
-    if (observedTicks <= 11) return 8;
+    if (observedTicks <= 6) return 6;
+    if (observedTicks <= 10) return 8;
+    if (observedTicks <= 13) return 12;
     return 16;
   }
 }

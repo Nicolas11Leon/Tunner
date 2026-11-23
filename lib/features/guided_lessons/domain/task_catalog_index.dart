@@ -29,6 +29,15 @@ class TaskCatalogIndex implements ITaskCatalogIndex {
   /// Registra una tarea en el índice maestro y actualiza las estructuras invertidas.
   void register(PedagogicalTaskEntity task) {
     final codeStr = task.code.formatted;
+    final previous = _byCode[codeStr];
+    if (previous != null) {
+      _byDomain[previous.code.domain]?.removeWhere((t) => t.code.formatted == codeStr);
+      _byLevel[previous.code.level]?.removeWhere((t) => t.code.formatted == codeStr);
+      for (final codes in _invertedKeywords.values) {
+        codes.remove(codeStr);
+      }
+    }
+
     _byCode[codeStr] = task;
 
     // Indexar por dominio
@@ -161,12 +170,37 @@ class TaskCatalogIndex implements ITaskCatalogIndex {
   }
 
   Set<String> _tokenize(String text) {
-    return text
-        .toLowerCase()
+    final normalized = _normalizeDiacritics(text.toLowerCase());
+    return normalized
         .replaceAll(RegExp(r'[^\w\s]'), ' ')
         .split(RegExp(r'\s+'))
         .where((s) => s.length >= 2)
         .toSet();
+  }
+
+  static String _normalizeDiacritics(String input) {
+    return input
+        .replaceAll('á', 'a')
+        .replaceAll('à', 'a')
+        .replaceAll('ä', 'a')
+        .replaceAll('â', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('è', 'e')
+        .replaceAll('ë', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ì', 'i')
+        .replaceAll('ï', 'i')
+        .replaceAll('î', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ò', 'o')
+        .replaceAll('ö', 'o')
+        .replaceAll('ô', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ù', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll('û', 'u')
+        .replaceAll('ñ', 'n');
   }
 
   /// Catálogo semilla canónico con ejercicios iniciales en los 6 dominios.
@@ -184,8 +218,8 @@ class TaskCatalogIndex implements ITaskCatalogIndex {
         description: 'Reconoce a ciegas la consonancia perfecta entre notas base y quintas.',
         estimatedDurationMinutes: 3,
         searchTags: ['oido', 'intervalos', 'quinta', 'unisono', 'ciegas'],
-        status: TaskCompletionStatus.mastered,
-        bestGrade: TaskGrade.s,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
       StandardPedagogicalTask(
         code: const TaskTaxonomyCode(
@@ -198,8 +232,8 @@ class TaskCatalogIndex implements ITaskCatalogIndex {
         description: 'Entrena el oído interno para distinguir modalidad mayor (alegre) y menor (melancólica).',
         estimatedDurationMinutes: 4,
         searchTags: ['terceras', 'mayor', 'menor', 'modo'],
-        status: TaskCompletionStatus.completed,
-        bestGrade: TaskGrade.a,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
       StandardPedagogicalTask(
         code: const TaskTaxonomyCode(
@@ -228,8 +262,8 @@ class TaskCatalogIndex implements ITaskCatalogIndex {
         description: 'Desarrolla precisión rítmica con el metrónomo determinista en Isolate.',
         estimatedDurationMinutes: 5,
         searchTags: ['metronomo', 'pulso', '4/4', 'tempo', 'rushing'],
-        status: TaskCompletionStatus.completed,
-        bestGrade: TaskGrade.s,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
       StandardPedagogicalTask(
         code: const TaskTaxonomyCode(
@@ -242,8 +276,8 @@ class TaskCatalogIndex implements ITaskCatalogIndex {
         description: 'Ejercicios de acentuación en subdivisión ternaria evitando dragging.',
         estimatedDurationMinutes: 7,
         searchTags: ['sincopa', '6/8', 'subdivision', 'contratiempo'],
-        status: TaskCompletionStatus.inProgress,
-        bestGrade: TaskGrade.b,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
       StandardPedagogicalTask(
         code: const TaskTaxonomyCode(
@@ -272,8 +306,8 @@ class TaskCatalogIndex implements ITaskCatalogIndex {
         description: 'Sostén A4 (440 Hz) durante 8 segundos dentro de la tolerancia de ±3 cents.',
         estimatedDurationMinutes: 5,
         searchTags: ['afinacion', 'notas largas', 'estabilidad', 'mpm', 'cents'],
-        status: TaskCompletionStatus.mastered,
-        bestGrade: TaskGrade.s,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
       StandardPedagogicalTask(
         code: const TaskTaxonomyCode(
@@ -286,8 +320,8 @@ class TaskCatalogIndex implements ITaskCatalogIndex {
         description: 'Alineación de armónicos superiores con el patrón estroboscópico de alta resolución.',
         estimatedDurationMinutes: 8,
         searchTags: ['estroboscopico', 'precision', 'tolerancia', 'nsdf'],
-        status: TaskCompletionStatus.completed,
-        bestGrade: TaskGrade.a,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
 
       // --- DOMINIO: LECTURA A PRIMERA VISTA (SGT) ---
@@ -302,8 +336,8 @@ class TaskCatalogIndex implements ITaskCatalogIndex {
         description: 'Lee e interpreta notas de C4 a G4 siguiendo el playhead del pentagrama SMuFL.',
         estimatedDurationMinutes: 6,
         searchTags: ['partitura', 'clave de sol', 'smufl', 'lectura'],
-        status: TaskCompletionStatus.completed,
-        bestGrade: TaskGrade.s,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
 
       // --- DOMINIO: ARMONÍA & ACORDES (HRM) ---
@@ -318,8 +352,8 @@ class TaskCatalogIndex implements ITaskCatalogIndex {
         description: 'Toca o analiza acordes identificando fundamental, tercera y quinta con el radar cromático.',
         estimatedDurationMinutes: 6,
         searchTags: ['acordes', 'triadas', 'voicing', 'polifonico'],
-        status: TaskCompletionStatus.completed,
-        bestGrade: TaskGrade.a,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
       StandardPedagogicalTask(
         code: const TaskTaxonomyCode(
@@ -348,8 +382,8 @@ class TaskCatalogIndex implements ITaskCatalogIndex {
         description: 'Ejecuta la escala diatónica completa con regularidad temporal y articulación uniforme.',
         estimatedDurationMinutes: 5,
         searchTags: ['escala', 'tecnica', 'diatonica', 'bpm'],
-        status: TaskCompletionStatus.completed,
-        bestGrade: TaskGrade.b,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
       ),
 
       // --- TAREAS CONJUNTAS MULTI-HERRAMIENTA (HIPER-SINERGIA >= 3 HERRAMIENTAS) ---
@@ -374,8 +408,8 @@ class TaskCatalogIndex implements ITaskCatalogIndex {
           'tutor',
           'lectura',
         ],
-        status: TaskCompletionStatus.inProgress,
-        bestGrade: TaskGrade.a,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
         requiredToolIds: const [
           'metronome',
           'score_notation',
@@ -509,8 +543,8 @@ class TaskCatalogIndex implements ITaskCatalogIndex {
           'timbre',
           'armonicos',
         ],
-        status: TaskCompletionStatus.completed,
-        bestGrade: TaskGrade.s,
+        status: TaskCompletionStatus.notStarted,
+        bestGrade: TaskGrade.none,
         requiredToolIds: const [
           'practice_recorder',
           'chord_analyzer',

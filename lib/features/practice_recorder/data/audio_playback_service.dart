@@ -15,6 +15,7 @@ class AudioPlaybackService implements IAudioPlaybackService {
   final IStudioAudioEngine _audioEngine;
   final IStudioAudioChannel _channel;
   final bool _ownsChannel;
+  final bool _ownsAudioEngine;
   StreamSubscription<dynamic>? _stateSub;
 
   final StreamController<Duration> _positionController = StreamController<Duration>.broadcast();
@@ -28,6 +29,7 @@ class AudioPlaybackService implements IAudioPlaybackService {
     IStudioAudioEngine? audioEngine,
     AudioPlayer? player,
   }) {
+    final ownsEngine = audioEngine == null;
     final resolvedEngine = audioEngine ??
         (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine());
     return AudioPlaybackService._(
@@ -35,7 +37,8 @@ class AudioPlaybackService implements IAudioPlaybackService {
       channel: player != null
           ? StudioAudioChannel(channelId: 'practice_take', injectedPlayer: player)
           : resolvedEngine.getChannel('practice_take'),
-      ownsChannel: player != null || audioEngine == null,
+      ownsChannel: player != null || ownsEngine,
+      ownsAudioEngine: ownsEngine,
     );
   }
 
@@ -43,9 +46,11 @@ class AudioPlaybackService implements IAudioPlaybackService {
     required IStudioAudioEngine audioEngine,
     required IStudioAudioChannel channel,
     required bool ownsChannel,
+    required bool ownsAudioEngine,
   })  : _audioEngine = audioEngine,
         _channel = channel,
-        _ownsChannel = ownsChannel {
+        _ownsChannel = ownsChannel,
+        _ownsAudioEngine = ownsAudioEngine {
     _stateSub = _channel.stateStream.listen((state) {
       _positionController.add(Duration(milliseconds: state.currentPositionMs));
       _durationController.add(Duration(milliseconds: state.durationMs));
@@ -106,6 +111,9 @@ class AudioPlaybackService implements IAudioPlaybackService {
       _channel.dispose();
     } else {
       _channel.stop();
+    }
+    if (_ownsAudioEngine) {
+      _audioEngine.dispose();
     }
   }
 }

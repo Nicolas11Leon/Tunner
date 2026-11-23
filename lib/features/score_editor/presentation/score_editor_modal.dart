@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/tunner_theme.dart';
 import '../../tuner/domain/note_entity.dart';
 import '../../tuner_viewmodel.dart';
+import '../../universal_importer/domain/canonical_pitch_notation_codec.dart';
 
 /// Modal de edición interactiva de partituras SMuFL y exportación canónica MusicXML/MIDI.
 class ScoreEditorModal extends StatefulWidget {
@@ -42,7 +43,10 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
       if (!mounted) return;
       final vm = context.read<TunerViewModel>();
       setState(() {
-        _selectedMeasureIndex = vm.currentMeasureIndex.clamp(0, vm.activePackage.totalMeasures - 1);
+        final totalMeasures = vm.activePackage.totalMeasures;
+        _selectedMeasureIndex = totalMeasures > 0
+            ? vm.currentMeasureIndex.clamp(0, totalMeasures - 1)
+            : 0;
         final selectedIndex = vm.selectedScoreNoteIndex;
         if (selectedIndex != null &&
             selectedIndex >= 0 &&
@@ -54,20 +58,14 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
             _isRestMode = true;
           } else {
             _isRestMode = false;
-            final clean = note.noteName.trim();
-            final octaveMatch = RegExp(r'[-+]?[0-9]+').firstMatch(clean);
-            if (octaveMatch != null) {
-              _selectedOctave = (int.tryParse(octaveMatch.group(0)!) ?? 4).clamp(0, 8);
+            final parsed = CanonicalPitchNotationCodec.parse(note.noteName);
+            if (parsed != null) {
+              _selectedBaseNote = parsed.solfegeBase;
+              _selectedAccidental = parsed.alter > 0
+                  ? '#'
+                  : (parsed.alter < 0 ? 'b' : '');
+              _selectedOctave = parsed.octave.clamp(0, 8);
             }
-            if (clean.contains('#')) {
-              _selectedAccidental = '#';
-            } else if (clean.contains('b')) {
-              _selectedAccidental = 'b';
-            } else {
-              _selectedAccidental = '';
-            }
-            final base = clean.replaceAll(RegExp(r'[-+]?[0-9#b]+'), '').trim();
-            if (base.isNotEmpty) _selectedBaseNote = base;
           }
         }
       });
@@ -158,6 +156,56 @@ class _ScoreEditorModalState extends State<ScoreEditorModal> {
     final vm = context.watch<TunerViewModel>();
     final palette = vm.currentPalette;
     final totalMeasures = vm.activePackage.totalMeasures;
+    if (totalMeasures <= 0) {
+      return Container(
+        key: const Key('score_editor_empty_measures_state'),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+        decoration: BoxDecoration(
+          color: palette.scaffoldBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Partitura sin compases',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: palette.textColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Agrega un compas inicial para comenzar a editar notas en esta partitura.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: palette.textMutedColor, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                key: const Key('score_editor_add_first_measure_btn'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: palette.primaryAccent,
+                  foregroundColor: Colors.black,
+                ),
+                onPressed: () {
+                  vm.addScoreMeasure();
+                  setState(() => _selectedMeasureIndex = 0);
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Anadir primer compas'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final safeMeasureIndex = _selectedMeasureIndex.clamp(0, totalMeasures - 1);
     final activeMeasure = vm.activePackage.score.measures[safeMeasureIndex];
     final totalTicks = activeMeasure.timeSignature.totalTicks;

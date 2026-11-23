@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../design_system/studio_design_system.dart';
 import '../domain/tunner_os_command_entity.dart';
 import '../application/tunner_os_kernel.dart';
 
@@ -8,11 +9,13 @@ import '../application/tunner_os_kernel.dart';
 class TunnerOsTerminalDrawer extends StatefulWidget {
   final TunnerOsKernel kernel;
   final VoidCallback onClose;
+  final List<TunnerOsCommandHistoryItem> externalHistory;
 
   const TunnerOsTerminalDrawer({
     super.key,
     required this.kernel,
     required this.onClose,
+    this.externalHistory = const <TunnerOsCommandHistoryItem>[],
   });
 
   @override
@@ -28,6 +31,7 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
   final List<TunnerOsCommandHistoryItem> _history = [];
   final List<String> _sentCommands = [];
   int _historyNavIndex = -1;
+  int _syncedExternalCount = 0;
 
   @override
   void initState() {
@@ -40,9 +44,31 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
         ),
       ),
     );
+    if (widget.externalHistory.isNotEmpty) {
+      _history.addAll(widget.externalHistory);
+      _syncedExternalCount = widget.externalHistory.length;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
+      if (mounted) {
+        _scrollToBottom();
+        _focusNode.requestFocus();
+      }
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant TunnerOsTerminalDrawer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.externalHistory.length > _syncedExternalCount) {
+      final incoming = widget.externalHistory.sublist(_syncedExternalCount);
+      _history.addAll(incoming);
+      _syncedExternalCount = widget.externalHistory.length;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scrollToBottom();
+      });
+    } else if (widget.externalHistory.length < _syncedExternalCount) {
+      _syncedExternalCount = widget.externalHistory.length;
+    }
   }
 
   @override
@@ -52,6 +78,16 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
     _drawerListenerFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   Future<void> _submitCommand(String text) async {
@@ -80,13 +116,7 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-        );
-      }
+      _scrollToBottom();
       _focusNode.requestFocus();
     });
   }
@@ -120,19 +150,24 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
 
   @override
   Widget build(BuildContext context) {
-    return KeyboardListener(
-      focusNode: _drawerListenerFocusNode,
-      onKeyEvent: _onKeyDown,
-      child: Container(
+    final tokens = StudioThemeScope.of(context);
+
+    return Material(
+      color: Colors.transparent,
+      child: KeyboardListener(
+        focusNode: _drawerListenerFocusNode,
+        onKeyEvent: _onKeyDown,
+        child: Container(
+        key: const Key('tunner_os_terminal_drawer'),
         height: 280,
         decoration: BoxDecoration(
-          color: const Color(0xFF090D16).withValues(alpha: 0.96),
-          border: const Border(
-            top: BorderSide(color: Color(0xFF00E5FF), width: 1.5),
+          color: tokens.panelBackground.withValues(alpha: 0.98),
+          border: Border(
+            top: BorderSide(color: tokens.borderFocus, width: tokens.borderWidth),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.6),
+              color: Colors.black.withValues(alpha: 0.55),
               blurRadius: 16,
               offset: const Offset(0, -4),
             ),
@@ -143,34 +178,49 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
             // Barra superior de la terminal
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              color: const Color(0xFF0F172A),
+              decoration: BoxDecoration(
+                color: tokens.panelHeaderBackground,
+                border: Border(
+                  bottom: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
+                ),
+              ),
               child: Row(
                 children: [
-                  const Icon(Icons.terminal, size: 16, color: Color(0xFF00E5FF)),
+                  StudioIcon(
+                    StudioIconId.toolTerminal,
+                    size: 15,
+                    color: tokens.accentPrimary,
+                    tintCustomAsset: true,
+                  ),
                   const SizedBox(width: 8),
-                  const Text(
+                  Text(
                     'TUNNER OS TERMINAL & CLI',
                     style: TextStyle(
-                      color: Color(0xFF00E5FF),
+                      color: tokens.textPrimary,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
+                      letterSpacing: 1.1,
                       fontFamily: 'monospace',
                     ),
                   ),
                   const Spacer(),
                   // Chips de comandos rápidos
-                  _quickChip('dsp status'),
+                  _quickChip('dsp status', tokens),
                   const SizedBox(width: 6),
-                  _quickChip('fs ls'),
+                  _quickChip('fs ls', tokens),
                   const SizedBox(width: 6),
-                  _quickChip('tuner run dj'),
+                  _quickChip('tuner run dj', tokens),
                   const SizedBox(width: 6),
-                  _quickChip('help'),
+                  _quickChip('help', tokens),
                   const SizedBox(width: 12),
                   IconButton(
                     onPressed: widget.onClose,
-                    icon: const Icon(Icons.close, size: 16, color: Colors.white70),
+                    icon: StudioIcon(
+                      StudioIconId.uiCloseConfirm,
+                      size: 15,
+                      color: tokens.textSecondary,
+                      tintCustomAsset: true,
+                    ),
                     tooltip: 'Cerrar Terminal (Esc o Ctrl + ~)',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -195,21 +245,24 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
                       children: [
                         Row(
                           children: [
-                            const Text(
+                            Text(
                               'tunner> ',
                               style: TextStyle(
-                                color: Color(0xFF10B981),
+                                color: tokens.accentSuccess,
                                 fontFamily: 'monospace',
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            Text(
-                              item.commandLine,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontFamily: 'monospace',
-                                fontSize: 12,
+                            Expanded(
+                              child: Text(
+                                item.commandLine,
+                                style: TextStyle(
+                                  color: tokens.textPrimary,
+                                  fontFamily: 'monospace',
+                                  fontSize: 12,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -220,7 +273,7 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
                             child: SelectableText(
                               item.result.message,
                               style: TextStyle(
-                                color: isErr ? const Color(0xFFF87171) : const Color(0xFF94A3B8),
+                                color: isErr ? tokens.accentDanger : tokens.textSecondary,
                                 fontFamily: 'monospace',
                                 fontSize: 11.5,
                                 height: 1.35,
@@ -237,13 +290,18 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
             // Entrada de texto inferior
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              color: const Color(0xFF0F172A),
+              decoration: BoxDecoration(
+                color: tokens.inputSurface,
+                border: Border(
+                  top: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
+                ),
+              ),
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     'tunner> ',
                     style: TextStyle(
-                      color: Color(0xFF00E5FF),
+                      color: tokens.accentPrimary,
                       fontFamily: 'monospace',
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
@@ -251,18 +309,19 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
                   ),
                   Expanded(
                     child: TextField(
+                      key: const Key('tunner_os_terminal_input'),
                       controller: _inputController,
                       focusNode: _focusNode,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: tokens.textPrimary,
                         fontFamily: 'monospace',
                         fontSize: 12.5,
                       ),
-                      cursorColor: const Color(0xFF00E5FF),
-                      decoration: const InputDecoration(
+                      cursorColor: tokens.accentPrimary,
+                      decoration: InputDecoration(
                         isDense: true,
                         hintText: 'Escribe un comando... (e.g. dj load A "Para Elisa", help)',
-                        hintStyle: TextStyle(color: Colors.white30, fontSize: 12),
+                        hintStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.zero,
                       ),
@@ -271,7 +330,11 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
                   ),
                   IconButton(
                     onPressed: () => _submitCommand(_inputController.text),
-                    icon: const Icon(Icons.subdirectory_arrow_left, size: 16, color: Color(0xFF00E5FF)),
+                    icon: Icon(
+                      Icons.subdirectory_arrow_left,
+                      size: 16,
+                      color: tokens.accentPrimary,
+                    ),
                     tooltip: 'Ejecutar (Enter)',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -282,24 +345,25 @@ class _TunnerOsTerminalDrawerState extends State<TunnerOsTerminalDrawer> {
           ],
         ),
       ),
+      ),
     );
   }
 
-  Widget _quickChip(String cmd) {
+  Widget _quickChip(String cmd, StudioDesignTokens tokens) {
     return InkWell(
       onTap: () => _submitCommand(cmd),
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(tokens.radiusSmall),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E293B),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.white12),
+          color: tokens.elevatedSurface,
+          borderRadius: BorderRadius.circular(tokens.radiusSmall),
+          border: Border.all(color: tokens.borderHairline),
         ),
         child: Text(
           cmd,
-          style: const TextStyle(
-            color: Colors.white70,
+          style: TextStyle(
+            color: tokens.textSecondary,
             fontSize: 9.5,
             fontFamily: 'monospace',
           ),

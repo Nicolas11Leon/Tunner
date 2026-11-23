@@ -122,22 +122,50 @@ class BlindEarTrainerEngine implements IEarTrainerEngine {
     // Seleccionar intervalo objetivo al azar
     final targetInterval = intervals[_random.nextInt(intervals.length)];
 
-    // Generar frecuencia base dentro del rango configurado (ej: 220Hz a 440Hz)
-    // Redondeando a una nota temperada estándar para facilitar la afinación
-    final standardPitches = [220.0, 246.94, 261.63, 293.66, 329.63, 349.23, 392.0, 440.0];
-    final basePitch = standardPitches[_random.nextInt(standardPitches.length)];
+    // Generar frecuencia base dentro del rango configurado (ej: 220Hz a 440Hz, o personalizado en A0=27.5Hz..C8=4186.01Hz)
+    // Calculando todas las notas cromáticas 12-EDO dentro de [minBaseFrequencyHz, maxBaseFrequencyHz]
+    final minHz = math.min(config.minBaseFrequencyHz, config.maxBaseFrequencyHz);
+    final maxHz = math.max(config.minBaseFrequencyHz, config.maxBaseFrequencyHz);
+    final candidatePitches = <({double freqHz, String label})>[];
+    const englishNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const solfegeNames = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
 
-    final noteNames = {
-      220.0: 'A3 (La 3)',
-      246.94: 'B3 (Si 3)',
-      261.63: 'C4 (Do 4 Central)',
-      293.66: 'D4 (Re 4)',
-      329.63: 'E4 (Mi 4)',
-      349.23: 'F4 (Fa 4)',
-      392.0: 'G4 (Sol 4)',
-      440.0: 'A4 (La 4 Diapasón)',
-    };
-    final noteName = noteNames[basePitch] ?? 'A4';
+    for (int midi = 21; midi <= 108; midi++) {
+      final rawFreq = 440.0 * math.pow(2.0, (midi - 69) / 12.0);
+      final roundedFreq = (rawFreq * 100.0).roundToDouble() / 100.0;
+      if (rawFreq >= minHz - 1e-6 && rawFreq <= maxHz + 1e-6) {
+        final semitone = midi % 12;
+        final octave = (midi ~/ 12) - 1;
+        final eng = '${englishNames[semitone]}$octave';
+        final sol = '${solfegeNames[semitone]} $octave';
+        String suffix = '';
+        if (midi == 60) suffix = ' Central';
+        if (midi == 69) suffix = ' Diapasón';
+        candidatePitches.add((
+          freqHz: roundedFreq,
+          label: '$eng ($sol$suffix)',
+        ));
+      }
+    }
+
+    if (candidatePitches.isEmpty) {
+      // Si el rango personalizado es más estrecho que un semitono, usar la nota cromática más cercana al punto medio
+      final midHz = (minHz + maxHz) / 2.0;
+      final clampedMid = midHz.clamp(27.5, 4186.01);
+      final midi = (69 + 12.0 * (math.log(clampedMid / 440.0) / math.ln2)).round().clamp(21, 108);
+      final rawFreq = 440.0 * math.pow(2.0, (midi - 69) / 12.0);
+      final roundedFreq = (rawFreq * 100.0).roundToDouble() / 100.0;
+      final semitone = midi % 12;
+      final octave = (midi ~/ 12) - 1;
+      candidatePitches.add((
+        freqHz: roundedFreq.clamp(minHz, maxHz),
+        label: '${englishNames[semitone]}$octave (${solfegeNames[semitone]} $octave)',
+      ));
+    }
+
+    final selectedBase = candidatePitches[_random.nextInt(candidatePitches.length)];
+    final basePitch = selectedBase.freqHz;
+    final noteName = selectedBase.label;
 
     final isAscending = config.onlyAscending ? true : _random.nextBool();
     final targetPitch = targetInterval.calculateTargetFrequency(
@@ -243,7 +271,11 @@ class BlindEarTrainerEngine implements IEarTrainerEngine {
     double minDiff = double.infinity;
 
     for (final interval in MusicalInterval.values) {
-      final target = interval.calculateTargetFrequency(baseHz, ascending: isAscending);
+      final target = interval.calculateTargetFrequency(
+        baseHz,
+        ascending: isAscending,
+        useJustIntonation: config.useJustIntonation,
+      );
       final diffCents = MusicalInterval.calculateCentsDeviation(freqHz, target).abs();
       if (diffCents < minDiff) {
         minDiff = diffCents;

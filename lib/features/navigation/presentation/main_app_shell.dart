@@ -42,6 +42,7 @@ import '../../../core/file_system/domain/studio_file_system_node.dart';
 import '../../../core/file_system/domain/studio_file_type.dart';
 import '../../../core/file_system/presentation/studio_vscode_explorer_widget.dart';
 import '../../../core/terminal/application/tunner_os_kernel.dart';
+import '../../../core/terminal/domain/tunner_os_command_entity.dart';
 import '../../../core/terminal/presentation/tunner_os_terminal_drawer.dart';
 import '../../../core/audio/infrastructure/studio_master_clock_service.dart';
 import '../../../core/audio/infrastructure/studio_audio_device_matrix_service.dart';
@@ -82,6 +83,8 @@ class _MainAppShellState extends State<MainAppShell> {
   late final StudioMasterClockService _masterClockService;
   bool _isTerminalOpen = false;
   late final TunnerOsKernel _terminalKernel;
+  final List<TunnerOsCommandHistoryItem> _terminalExternalHistory =
+      <TunnerOsCommandHistoryItem>[];
   final GlobalKey<StudioDesktopAppShellState> _desktopShellKey = GlobalKey<StudioDesktopAppShellState>();
 
   @override
@@ -243,6 +246,7 @@ class _MainAppShellState extends State<MainAppShell> {
       onSetTheme: (themeId) {
         final vm = context.read<TunerViewModel>();
         vm.setPaletteById(themeId);
+        StudioThemeScope.controllerOf(context)?.selectById(themeId);
       },
     );
   }
@@ -264,6 +268,7 @@ class _MainAppShellState extends State<MainAppShell> {
 
   void _handleOpenFile(StudioFileEntity file) {
     final vm = context.read<TunerViewModel>();
+    final tokens = StudioThemeScope.of(context);
     switch (file.fileType) {
       case StudioFileType.score:
         _navigateToTab(4);
@@ -278,7 +283,7 @@ class _MainAppShellState extends State<MainAppShell> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Partitura cargada en el Editor: ${file.name}'),
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: tokens.accentSuccess,
             duration: const Duration(seconds: 2),
           ),
         );
@@ -295,7 +300,7 @@ class _MainAppShellState extends State<MainAppShell> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Audio cargado en Deck A de la Consola DJ: ${file.name}'),
-            backgroundColor: const Color(0xFF00E5FF),
+            backgroundColor: tokens.elevatedSurface,
             duration: const Duration(seconds: 2),
           ),
         );
@@ -327,7 +332,7 @@ class _MainAppShellState extends State<MainAppShell> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Preset de afinación activado: ${file.name}'),
-            backgroundColor: const Color(0xFFFFAB00),
+            backgroundColor: tokens.accentWarning,
             duration: const Duration(seconds: 2),
           ),
         );
@@ -340,7 +345,7 @@ class _MainAppShellState extends State<MainAppShell> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Módulo de rack cargado: ${file.name}'),
-            backgroundColor: const Color(0xFF8B5CF6),
+            backgroundColor: tokens.elevatedSurface,
             duration: const Duration(seconds: 2),
           ),
         );
@@ -353,7 +358,7 @@ class _MainAppShellState extends State<MainAppShell> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Modelo de consola DJ aplicado: ${file.name}'),
-            backgroundColor: const Color(0xFF3D5AFE),
+            backgroundColor: tokens.elevatedSurface,
             duration: const Duration(seconds: 2),
           ),
         );
@@ -369,7 +374,7 @@ class _MainAppShellState extends State<MainAppShell> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Proyecto Tunner restaurado íntegramente: ${file.name}'),
-            backgroundColor: const Color(0xFF00E5FF),
+            backgroundColor: tokens.accentSuccess,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -390,6 +395,10 @@ class _MainAppShellState extends State<MainAppShell> {
     if (_fileSystemService.onOpenFile == _handleOpenFile) {
       _fileSystemService.onOpenFile = null;
     }
+    _masterClockService.onPlayAll = null;
+    _masterClockService.onPauseAll = null;
+    _masterClockService.onStopAll = null;
+    _masterClockService.onBpmChanged = null;
     _terminalKernel.dispose();
     _modularRackViewModel.dispose();
     _djConsoleViewModel.dispose();
@@ -413,11 +422,31 @@ class _MainAppShellState extends State<MainAppShell> {
   }
 
   void _navigateToTab(int index) {
-    if (index >= 0 && index < 6) {
+    if (index >= 0 && index < StudioWorkspaceTabSpec.canonicalTabs.length) {
       setState(() {
         _currentIndex = index;
       });
     }
+  }
+
+  Future<void> _handlePromptCommandSubmitted(String cmd) async {
+    final trimmed = cmd.trim();
+    if (trimmed.isEmpty) return;
+    setState(() => _isTerminalOpen = true);
+    final result = await _terminalKernel.execute(trimmed);
+    if (!mounted) return;
+    setState(() {
+      if (result.message == 'CLEAR_SCREEN') {
+        _terminalExternalHistory.clear();
+      } else {
+        _terminalExternalHistory.add(
+          TunnerOsCommandHistoryItem(
+            commandLine: trimmed,
+            result: result,
+          ),
+        );
+      }
+    });
   }
 
   bool _isTextInputFocused() {
@@ -502,41 +531,11 @@ class _MainAppShellState extends State<MainAppShell> {
   }
 
   String _buildCurrentBreadcrumb() {
-    switch (_currentIndex) {
-      case 0:
-        return 'tunner / Inicio / Dashboard de Rendimiento';
-      case 1:
-        return 'tunner / Afinación / Afinador Estroboscópico de Precisión';
-      case 2:
-        return 'tunner / Conservatorio / Tutor de Compás & Detección Rushing';
-      case 3:
-        return 'tunner / Estudio & Grabación / Rack Modular de Efectos DSP';
-      case 4:
-        return 'tunner / Biblioteca / Editor & Reproductor MusicXML';
-      case 5:
-        return 'tunner / Consola DJ Studio / Mezclador de Grado Club & 4-Stems';
-      default:
-        return 'tunner / Espacio de Trabajo Activo';
-    }
+    return StudioWorkspaceTabSpec.byIndex(_currentIndex).breadcrumb;
   }
 
   String _buildCurrentActiveItemId() {
-    switch (_currentIndex) {
-      case 0:
-        return 'item_home';
-      case 1:
-        return 'item_tuner';
-      case 2:
-        return 'item_learning';
-      case 3:
-        return 'item_rack';
-      case 4:
-        return 'item_composition';
-      case 5:
-        return 'item_dj';
-      default:
-        return 'item_home';
-    }
+    return StudioWorkspaceTabSpec.byIndex(_currentIndex).activeItemId;
   }
 
   List<StudioTreeSection> _buildNavigationSections(TunerViewModel viewModel) {
@@ -639,7 +638,7 @@ class _MainAppShellState extends State<MainAppShell> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('Toma cargada en Deck A de la Consola DJ: ${rec.songTitle}'),
-                          backgroundColor: const Color(0xFF00E5FF),
+                          backgroundColor: StudioThemeScope.of(context).elevatedSurface,
                           duration: const Duration(seconds: 2),
                         ),
                       );
@@ -1254,8 +1253,7 @@ class _MainAppShellState extends State<MainAppShell> {
                       onOpenSpectrogram: () => HarmonicSpectrogramModal.show(context),
                       promptSuggestions: _buildPromptSuggestions(viewModel),
                       onCommandSubmitted: (cmd) {
-                        _terminalKernel.execute(cmd);
-                        setState(() => _isTerminalOpen = true);
+                        unawaited(_handlePromptCommandSubmitted(cmd));
                       },
                       isRecording: viewModel.isAudioRecording,
                       onToggleRecording: () {
@@ -1376,6 +1374,9 @@ class _MainAppShellState extends State<MainAppShell> {
                         bottom: 0,
                         child: TunnerOsTerminalDrawer(
                           kernel: _terminalKernel,
+                          externalHistory: List<TunnerOsCommandHistoryItem>.unmodifiable(
+                            _terminalExternalHistory,
+                          ),
                           onClose: () => setState(() => _isTerminalOpen = false),
                         ),
                       ),
@@ -1384,10 +1385,11 @@ class _MainAppShellState extends State<MainAppShell> {
               }
 
               // Vista móvil / compacta
+              final tokens = StudioThemeScope.of(context);
               return Stack(
                 children: [
                   Scaffold(
-                    backgroundColor: palette.scaffoldBackground,
+                    backgroundColor: tokens.canvasBackground,
                     body: Stack(
                       children: [
                         viewportContent,
@@ -1402,59 +1404,44 @@ class _MainAppShellState extends State<MainAppShell> {
                     ),
                     bottomNavigationBar: Container(
                       decoration: BoxDecoration(
-                        color: palette.scaffoldBackground,
+                        color: tokens.panelBackground,
                         border: Border(
                           top: BorderSide(
-                            color: palette.staffLinesColor.withValues(alpha: 0.2),
-                            width: 1.0,
+                            color: tokens.borderHairline,
+                            width: tokens.borderWidth,
                           ),
                         ),
                       ),
                       child: NavigationBar(
-                        selectedIndex: _currentIndex.clamp(0, 5),
+                        selectedIndex: _currentIndex.clamp(
+                          0,
+                          StudioWorkspaceTabSpec.canonicalTabs.length - 1,
+                        ),
                         onDestinationSelected: _navigateToTab,
-                        backgroundColor: palette.scaffoldBackground,
-                        indicatorColor: palette.primaryAccent.withValues(alpha: 0.18),
+                        backgroundColor: tokens.panelBackground,
+                        indicatorColor: tokens.elevatedSurface,
                         elevation: 0,
                         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                        destinations: [
-                          NavigationDestination(
-                            key: const Key('nav_tab_home'),
-                            icon: Icon(Icons.home_outlined, color: palette.textMutedColor),
-                            selectedIcon: Icon(Icons.home, color: palette.primaryAccent),
-                            label: 'Inicio',
-                          ),
-                          NavigationDestination(
-                            key: const Key('nav_tab_tuner'),
-                            icon: Icon(Icons.tune_outlined, color: palette.textMutedColor),
-                            selectedIcon: Icon(Icons.tune, color: palette.primaryAccent),
-                            label: 'Afinador',
-                          ),
-                          NavigationDestination(
-                            key: const Key('nav_tab_learning'),
-                            icon: Icon(Icons.school_outlined, color: palette.textMutedColor),
-                            selectedIcon: Icon(Icons.school, color: palette.correctPitchColor),
-                            label: 'Aprender',
-                          ),
-                          NavigationDestination(
-                            key: const Key('nav_tab_studio'),
-                            icon: Icon(Icons.fiber_manual_record_outlined, color: palette.textMutedColor),
-                            selectedIcon: Icon(Icons.fiber_manual_record, color: palette.secondaryAccent),
-                            label: 'Estudio',
-                          ),
-                          NavigationDestination(
-                            key: const Key('nav_tab_library'),
-                            icon: Icon(Icons.menu_book_outlined, color: palette.textMutedColor),
-                            selectedIcon: Icon(Icons.menu_book, color: palette.primaryAccent),
-                            label: 'Partituras',
-                          ),
-                          NavigationDestination(
-                            key: const Key('nav_tab_dj'),
-                            icon: Icon(Icons.album_outlined, color: palette.textMutedColor),
-                            selectedIcon: Icon(Icons.album, color: const Color(0xFF00E5FF)),
-                            label: 'Mesa DJ',
-                          ),
-                        ],
+                        destinations: StudioWorkspaceTabSpec.canonicalTabs
+                            .map(
+                              (spec) => NavigationDestination(
+                                key: Key(spec.navKey),
+                                icon: StudioIcon(
+                                  spec.iconId,
+                                  size: 20,
+                                  color: tokens.textMuted,
+                                  tintCustomAsset: true,
+                                ),
+                                selectedIcon: StudioIcon(
+                                  spec.iconId,
+                                  size: 20,
+                                  color: tokens.accentPrimary,
+                                  tintCustomAsset: true,
+                                ),
+                                label: spec.mobileLabel,
+                              ),
+                            )
+                            .toList(growable: false),
                       ),
                     ),
                   ),
@@ -1465,6 +1452,9 @@ class _MainAppShellState extends State<MainAppShell> {
                       bottom: 0,
                       child: TunnerOsTerminalDrawer(
                         kernel: _terminalKernel,
+                        externalHistory: List<TunnerOsCommandHistoryItem>.unmodifiable(
+                          _terminalExternalHistory,
+                        ),
                         onClose: () => setState(() => _isTerminalOpen = false),
                       ),
                     ),

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import '../studio_theme_provider.dart';
 import '../studio_design_tokens.dart';
 import '../atoms/studio_hairline.dart';
+import '../atoms/studio_icon.dart';
 import '../atoms/studio_status_led.dart';
 import '../atoms/studio_theme_switcher.dart';
 import '../atoms/studio_splitter.dart';
+import '../domain/studio_icon_catalog.dart';
+import '../domain/studio_workspace_tab_spec.dart';
 import '../molecules/studio_tree_view.dart';
 import '../molecules/studio_command_prompt_bar.dart';
 import '../molecules/studio_workspace_tab_bar.dart';
@@ -755,21 +758,23 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
       label: 'Window',
       tokens: tokens,
       onSelected: (val) {
-        if (val == 'home') widget.onNavigateToTabIndex?.call(0);
-        if (val == 'tuner') widget.onNavigateToTabIndex?.call(1);
-        if (val == 'learning') widget.onNavigateToTabIndex?.call(2);
-        if (val == 'studio') widget.onNavigateToTabIndex?.call(3);
-        if (val == 'library') widget.onNavigateToTabIndex?.call(4);
-        if (val == 'dj') widget.onNavigateToTabIndex?.call(5);
+        final spec = StudioWorkspaceTabSpec.findById(val);
+        if (spec != null) {
+          widget.onNavigateToTabIndex?.call(spec.index);
+        }
       },
-      items: [
-        _buildPopupMenuItem('home', '1. Inicio & Dashboard de Rendimiento', Icons.dashboard_rounded, tokens, shortcut: 'Alt+1'),
-        _buildPopupMenuItem('tuner', '2. Afinador Estroboscópico Pro', Icons.tune_rounded, tokens, shortcut: 'Alt+2'),
-        _buildPopupMenuItem('learning', '3. Conservatorio & Pedagogía', Icons.school_outlined, tokens, shortcut: 'Alt+3'),
-        _buildPopupMenuItem('studio', '4. Rack Modular de Estudio', Icons.dashboard_customize_outlined, tokens, shortcut: 'Alt+4'),
-        _buildPopupMenuItem('library', '5. Biblioteca de Canciones', Icons.menu_book_outlined, tokens, shortcut: 'Alt+5'),
-        _buildPopupMenuItem('dj', '6. Consola DJ Studio & Stems', Icons.album_rounded, tokens, shortcut: 'Alt+6'),
-      ],
+      items: StudioWorkspaceTabSpec.canonicalTabs
+          .map(
+            (spec) => _buildPopupMenuItem(
+              spec.id,
+              spec.windowMenuTitle,
+              StudioIcon.fallbackIconFor(spec.iconId),
+              tokens,
+              shortcut: spec.windowShortcut,
+              iconId: spec.iconId,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 
@@ -825,13 +830,22 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
     IconData icon,
     StudioDesignTokens tokens, {
     String? shortcut,
+    StudioIconId? iconId,
   }) {
     return PopupMenuItem<String>(
       value: value,
       height: 32,
       child: Row(
         children: [
-          Icon(icon, size: 14, color: tokens.textSecondary),
+          if (iconId != null)
+            StudioIcon(
+              iconId,
+              size: 14,
+              color: tokens.textSecondary,
+              tintCustomAsset: true,
+            )
+          else
+            Icon(icon, size: 14, color: tokens.textSecondary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

@@ -1,5 +1,6 @@
 import '../../sheet_music/domain/score_tree.dart';
 import '../../song_library/domain/song_package_entity.dart';
+import 'canonical_pitch_notation_codec.dart';
 
 /// Serializador canónico en Pure Dart de partituras a estándar W3C MusicXML 3.1/4.0.
 /// Produce un archivo XML estructurado y compatible con MuseScore, Sibelius, Dorico y Finale.
@@ -200,56 +201,8 @@ class CanonicalMusicXmlExporter {
   /// Descompone un nombre musical (ej: "Fa#5", "Sib4", "Do0", "Do8", "A4", "F#5", "Bb3")
   /// en Step (A-G), alteracion (-2..2) y octava entera en rango 0..8.
   static ({String step, int alter, int octave}) _parseNoteName(String rawName) {
-    String name = rawName.trim();
-    if (name.isEmpty) return (step: 'C', alter: 0, octave: 4);
-
-    // Mapeo silábico (Do, Re, Mi, Fa, Sol, La, Si) a anglosajón (C, D, E, F, G, A, B)
-    final Map<String, String> solfegeMap = {
-      'DO': 'C',
-      'RE': 'D',
-      'MI': 'E',
-      'FA': 'F',
-      'SOL': 'G',
-      'LA': 'A',
-      'SI': 'B',
-    };
-
-    String upper = name.toUpperCase();
-    String step = 'C';
-    int alter = 0;
-    int octave = 4;
-
-    bool matchedSolfege = false;
-    for (final entry in solfegeMap.entries) {
-      if (upper.startsWith(entry.key)) {
-        step = entry.value;
-        name = name.substring(entry.key.length);
-        matchedSolfege = true;
-        break;
-      }
-    }
-
-    if (!matchedSolfege && name.isNotEmpty && "ABCDEFG".contains(name[0].toUpperCase())) {
-      step = name[0].toUpperCase();
-      name = name.substring(1);
-    }
-
-    final normalizedAcc = name.replaceAll('♯', '#').replaceAll('♭', 'b');
-    for (int i = 0; i < normalizedAcc.length; i++) {
-      if (normalizedAcc[i] == '#') {
-        alter++;
-      } else if (normalizedAcc[i] == 'b' || normalizedAcc[i] == 'B') {
-        alter--;
-      }
-    }
-    final remaining = normalizedAcc.replaceAll(RegExp(r'[#bB]'), '');
-
-    final octMatch = RegExp(r'-?\d+').firstMatch(remaining);
-    if (octMatch != null) {
-      octave = (int.tryParse(octMatch.group(0)!) ?? 4).clamp(0, 8);
-    }
-
-    return (step: step, alter: alter, octave: octave);
+    final parsed = CanonicalPitchNotationCodec.parseOrDefault(rawName);
+    return (step: parsed.step, alter: parsed.alter, octave: parsed.octave);
   }
 
   static String _escapeXml(String text) {

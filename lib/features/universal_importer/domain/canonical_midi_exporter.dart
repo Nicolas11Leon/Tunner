@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import '../../sheet_music/domain/score_tree.dart';
 import '../../song_library/domain/song_package_entity.dart';
+import 'canonical_pitch_notation_codec.dart';
 
 /// Evento interno para la secuenciación de bytes MIDI.
 class _MidiEvent {
@@ -191,65 +192,6 @@ class CanonicalMidiExporter {
   /// Convierte un nombre de nota musical (ej: "Do4", "Fa#5", "A4", "Bb3")
   /// a número de nota MIDI estándar [0..127]. Do4 / C4 = 60, La4 / A4 = 69.
   static int noteNameToMidiPitch(String rawName) {
-    String name = rawName.trim();
-    if (name.isEmpty) return 60;
-
-    final Map<String, int> solfegeOffsets = {
-      'DO': 0,
-      'RE': 2,
-      'MI': 4,
-      'FA': 5,
-      'SOL': 7,
-      'LA': 9,
-      'SI': 11,
-    };
-
-    final Map<String, int> letterOffsets = {
-      'C': 0,
-      'D': 2,
-      'E': 4,
-      'F': 5,
-      'G': 7,
-      'A': 9,
-      'B': 11,
-    };
-
-    String upper = name.toUpperCase();
-    int semitone = 0;
-    int octave = 4;
-
-    bool found = false;
-    for (final entry in solfegeOffsets.entries) {
-      if (upper.startsWith(entry.key)) {
-        semitone = entry.value;
-        name = name.substring(entry.key.length);
-        found = true;
-        break;
-      }
-    }
-
-    if (!found && name.isNotEmpty) {
-      final firstChar = name[0].toUpperCase();
-      if (letterOffsets.containsKey(firstChar)) {
-        semitone = letterOffsets[firstChar]!;
-        name = name.substring(1);
-      }
-    }
-
-    if (name.contains('#') || name.contains('♯')) {
-      semitone += 1;
-      name = name.replaceAll('#', '').replaceAll('♯', '');
-    } else if (name.contains('b') || name.contains('♭')) {
-      semitone -= 1;
-      name = name.replaceAll('b', '').replaceAll('♭', '');
-    }
-
-    final octMatch = RegExp(r'\d+').firstMatch(name);
-    if (octMatch != null) {
-      octave = int.tryParse(octMatch.group(0)!) ?? 4;
-    }
-
-    final midiNumber = (octave + 1) * 12 + semitone;
-    return midiNumber.clamp(0, 127);
+    return CanonicalPitchNotationCodec.parseOrDefault(rawName).midiNumber;
   }
 }
