@@ -84,6 +84,7 @@ import '../../../core/audio/domain/i_studio_audio_device_matrix_port.dart';
 import '../../../core/audio/domain/audio_device_matrix_entity.dart';
 import '../domain/tuner_session_ports.dart';
 import 'tuner_acoustic_telemetry.dart';
+import 'controllers/tuner_calibration_and_drone_helper.dart';
 import '../../practice_recorder/presentation/practice_recorder_controller.dart';
 import '../../score_editor/presentation/score_editor_controller.dart';
 import '../../vocal_autotune/presentation/vocal_pedagogy_controller.dart';
@@ -179,6 +180,8 @@ class TunerViewModel extends ChangeNotifier
   int _temperamentRootKey = 0;
   bool _anchorA4 = false;
   final HarmonicDroneSynthesizer _droneSynthesizer = const HarmonicDroneSynthesizer();
+  final TunerCalibrationAndDroneHelper _calibrationAndDroneHelper =
+      const TunerCalibrationAndDroneHelper();
   HarmonicDroneConfig _droneConfig = const HarmonicDroneConfig();
   final PolyphonicChordRecognizer _chordRecognizer = PolyphonicChordRecognizer();
   final ChromaVectorCalculator _chromaCalculator = const ChromaVectorCalculator();
@@ -458,67 +461,40 @@ class TunerViewModel extends ChangeNotifier
     await _triggerAutoSave();
   }
 
-  /// Inicia el proceso de perfilado del piso de ruido ambiental (1.5 segundos).
-  Future<void> calibrateAmbientNoiseFloor() async {
-    if (_isCalibratingNoiseFloor) return;
+  /// Inicia el proceso de perfilado del piso de ruido ambiental (1.6 segundos por defecto)
+  /// midiendo el RMS promedio y el DC offset real de las muestras PCM capturadas.
+  Future<void> calibrateAmbientNoiseFloor({
+    Duration calibrationDuration = const Duration(milliseconds: 1600),
+  }) async {
+    if (_isCalibratingNoiseFloor || _isDisposed) return;
     _isCalibratingNoiseFloor = true;
     notifyListeners();
 
-    final capturedRmsSamples = <double>[];
-    void listener(double rms) {
-      capturedRmsSamples.add(rms);
+    try {
+      final outcome = await _calibrationAndDroneHelper.calibrateAmbientNoiseFloor(
+        pitchService: _pitchService,
+        wasRecording: _isRecording,
+        isDisposed: () => _isDisposed,
+        latestSamplesProvider: () => _latestAudioSamples,
+        calibrationDuration: calibrationDuration,
+      );
+
+      if (_isDisposed || outcome == null) return;
+
+      _lastNoiseReport = outcome.report;
+      _micProfile = _micProfile.copyWith(
+        noiseGateThreshold: outcome.recommendedNoiseGate,
+        measuredNoiseFloorRms: outcome.measuredNoiseFloorRms,
+      );
+      _pitchService.updateCalibrationProfile(_micProfile);
+    } finally {
+      _isCalibratingNoiseFloor = false;
+      if (!_isDisposed) {
+        notifyListeners();
+      }
     }
 
-    final prevRmsCallback = _pitchService.onRmsLevelChanged;
-    _pitchService.onRmsLevelChanged = (rms) {
-      listener(rms);
-      prevRmsCallback?.call(rms);
-    };
-
-    // Asegurar que el micrófono esté capturando
-    final wasRecording = _isRecording;
-    if (!wasRecording) {
-      await _pitchService.startRecording();
-    }
-
-    await Future.delayed(const Duration(milliseconds: 1600));
-
-    // Analizar muestras recolectadas
-    double sumRms = 0.0;
-    double maxRms = 0.0;
-    for (final rms in capturedRmsSamples) {
-      sumRms += rms;
-      if (rms > maxRms) maxRms = rms;
-    }
-
-    final meanRms = capturedRmsSamples.isNotEmpty
-        ? (sumRms / capturedRmsSamples.length)
-        : 0.002;
-
-    final recommendedGate = (meanRms * 1.8).clamp(0.003, 0.080);
-
-    _lastNoiseReport = NoiseProfileReport(
-      meanRms: meanRms,
-      peakRms: maxRms,
-      recommendedNoiseGate: recommendedGate,
-      detectedDcOffset: 0.0,
-      totalFramesAnalyzed: capturedRmsSamples.length,
-    );
-
-    _micProfile = _micProfile.copyWith(
-      noiseGateThreshold: recommendedGate,
-      measuredNoiseFloorRms: meanRms,
-    );
-
-    _pitchService.updateCalibrationProfile(_micProfile);
-
-    if (!wasRecording) {
-      await _pitchService.stopRecording();
-    }
-
-    _pitchService.onRmsLevelChanged = prevRmsCallback;
-    _isCalibratingNoiseFloor = false;
-    notifyListeners();
+    if (_isDisposed) return;
     await _triggerAutoSave();
   }
 
@@ -1467,13 +1443,14 @@ class TunerViewModel extends ChangeNotifier
   }
 
   Future<void> _refreshDronePlayback() async {
-    final buffer = _droneSynthesizer.generateDroneWavBuffer(
+    await _calibrationAndDroneHelper.refreshDronePlayback(
+      droneSynthesizer: _droneSynthesizer,
+      audioSynthesizer: _audioSynthesizer,
       config: _droneConfig,
       a4Ref: _referencePitch,
       temperament: _selectedTemperament,
       temperamentRootKey: _temperamentRootKey,
     );
-    await _audioSynthesizer.startDroneLoop(buffer, volume: _droneConfig.volume);
   }
 
   /// Selecciona el perfil pedagógico de aprendizaje (Infantil, Adulto, Conservatorio).
@@ -2628,7 +2605,7 @@ class TunerViewModel extends ChangeNotifier
     MusicalInterval targetInterval,
     EarTrainingAnswerResult result,
   ) {
-    final itemId = _mapIntervalToEbbinghausId(targetInterval);
+    final itemId = TunerCalibrationAndDroneHelper.mapIntervalToEbbinghausId(targetInterval);
     if (ebbinghausEngine.getItem(itemId) != null) {
       ebbinghausEngine.submitAnswer(
         itemId,
@@ -2638,37 +2615,6 @@ class TunerViewModel extends ChangeNotifier
       );
       _triggerAutoSave();
       notifyListeners();
-    }
-  }
-
-  String _mapIntervalToEbbinghausId(MusicalInterval interval) {
-    switch (interval) {
-      case MusicalInterval.minorSecond:
-        return 'interval_m2';
-      case MusicalInterval.majorSecond:
-        return 'interval_M2';
-      case MusicalInterval.minorThird:
-        return 'interval_m3';
-      case MusicalInterval.majorThird:
-        return 'interval_M3';
-      case MusicalInterval.perfectFourth:
-        return 'interval_P4';
-      case MusicalInterval.tritone:
-        return 'interval_TT';
-      case MusicalInterval.perfectFifth:
-        return 'interval_P5';
-      case MusicalInterval.minorSixth:
-        return 'interval_m6';
-      case MusicalInterval.majorSixth:
-        return 'interval_M6';
-      case MusicalInterval.minorSeventh:
-        return 'interval_m7';
-      case MusicalInterval.majorSeventh:
-        return 'interval_M7';
-      case MusicalInterval.perfectOctave:
-        return 'interval_P8';
-      case MusicalInterval.unison:
-        return 'interval_P1';
     }
   }
 
