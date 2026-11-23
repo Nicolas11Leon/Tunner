@@ -24,6 +24,45 @@ class EarTrainingQuestion {
 
   /// Retorna la opción correcta a partir del índice.
   MusicalInterval get correctInterval => options[correctOptionIndex];
+
+  Map<String, dynamic> toJson({bool hideCorrectOption = false}) {
+    return {
+      'id': id,
+      'baseNoteName': baseNoteName,
+      'baseFrequencyHz': baseFrequencyHz,
+      'targetFrequencyHz': targetFrequencyHz,
+      'targetInterval': targetInterval.name,
+      'isAscending': isAscending,
+      'options': options.map((o) => o.name).toList(),
+      if (!hideCorrectOption) 'correctOptionIndex': correctOptionIndex,
+    };
+  }
+
+  factory EarTrainingQuestion.fromJson(Map<String, dynamic> json) {
+    MusicalInterval parseInterval(Object? value) {
+      final name = value?.toString() ?? '';
+      return MusicalInterval.values.firstWhere(
+        (v) => v.name == name,
+        orElse: () => MusicalInterval.unison,
+      );
+    }
+
+    final parsedOptions = (json['options'] as List<dynamic>?)
+            ?.map(parseInterval)
+            .toList() ??
+        const [MusicalInterval.unison];
+
+    return EarTrainingQuestion(
+      id: json['id'] as String? ?? '',
+      baseNoteName: json['baseNoteName'] as String? ?? '',
+      baseFrequencyHz: (json['baseFrequencyHz'] as num?)?.toDouble() ?? 440.0,
+      targetFrequencyHz: (json['targetFrequencyHz'] as num?)?.toDouble() ?? 440.0,
+      targetInterval: parseInterval(json['targetInterval']),
+      isAscending: json['isAscending'] as bool? ?? true,
+      options: parsedOptions,
+      correctOptionIndex: (json['correctOptionIndex'] as num?)?.toInt() ?? 0,
+    );
+  }
 }
 
 /// Nivel de maestría y calificación acústica de una respuesta.
@@ -134,6 +173,47 @@ class EarTrainingAnswerResult {
       scoreAwarded: totalScore,
       grade: grade,
       feedbackMessage: feedback,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'isCorrect': isCorrect,
+      'selectedInterval': selectedInterval.name,
+      'targetInterval': targetInterval.name,
+      'centsDeviation': centsDeviation,
+      'responseTimeMs': responseTimeMs,
+      'scoreAwarded': scoreAwarded,
+      'grade': grade.name,
+      'gradeLetter': grade.letter,
+      'feedbackMessage': feedbackMessage,
+    };
+  }
+
+  factory EarTrainingAnswerResult.fromJson(Map<String, dynamic> json) {
+    MusicalInterval parseInterval(Object? value) {
+      final name = value?.toString() ?? '';
+      return MusicalInterval.values.firstWhere(
+        (v) => v.name == name,
+        orElse: () => MusicalInterval.unison,
+      );
+    }
+
+    final gradeName = json['grade'] as String? ?? PerformanceGrade.fGrade.name;
+    final parsedGrade = PerformanceGrade.values.firstWhere(
+      (g) => g.name == gradeName,
+      orElse: () => PerformanceGrade.fGrade,
+    );
+
+    return EarTrainingAnswerResult(
+      isCorrect: json['isCorrect'] as bool? ?? false,
+      selectedInterval: parseInterval(json['selectedInterval']),
+      targetInterval: parseInterval(json['targetInterval']),
+      centsDeviation: (json['centsDeviation'] as num?)?.toDouble() ?? 0.0,
+      responseTimeMs: (json['responseTimeMs'] as num?)?.toInt() ?? 0,
+      scoreAwarded: (json['scoreAwarded'] as num?)?.toInt() ?? 0,
+      grade: parsedGrade,
+      feedbackMessage: json['feedbackMessage'] as String? ?? '',
     );
   }
 }

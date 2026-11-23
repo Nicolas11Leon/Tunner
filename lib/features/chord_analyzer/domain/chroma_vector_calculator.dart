@@ -10,8 +10,8 @@ class ChromaVectorCalculator {
   final int maxMidiNote;
 
   const ChromaVectorCalculator({
-    this.minMidiNote = 45, // A2 (~110.00 Hz)
-    this.maxMidiNote = 88, // E6 (~1318.51 Hz)
+    this.minMidiNote = 21, // A0 (27.50 Hz)
+    this.maxMidiNote = 108, // C8 (4186.01 Hz)
   });
 
   /// Calcula el vector de cromagrama de 12 clases a partir de un búfer de muestras PCM normalizadas [-1.0, 1.0].
@@ -61,14 +61,37 @@ class ChromaVectorCalculator {
       rawMags[midi] = (2.0 / analysisLength) * math.sqrt(sumCos * sumCos + sumSin * sumSin);
     }
 
-    // Aplicar Supresión de No-Máximos (NMS) a lo largo del eje cromático
-    // para retener exclusivamente las componentes espectrales reales y descartar lóbulos laterales
+    return calculateFromMidiMagnitudes(
+      rawMags,
+      rms: rms,
+      minMidi: minMidiNote,
+      maxMidi: maxMidiNote,
+    );
+  }
+
+  /// Proyecta un espectro ya calculado sobre la grilla MIDI [0..127] en un vector
+  /// de cromagrama normalizado de 12 clases aplicando Supresion de No-Maximos (NMS).
+  /// Evita recalcular la DFT cuando otro detector ya extrajo las magnitudes MIDI.
+  List<double> calculateFromMidiMagnitudes(
+    List<double> rawMags, {
+    required double rms,
+    int? minMidi,
+    int? maxMidi,
+  }) {
+    if (rawMags.length < 128) {
+      return List.filled(12, 0.0);
+    }
+
+    final startMidi = (minMidi ?? minMidiNote).clamp(0, 127);
+    final endMidi = (maxMidi ?? maxMidiNote).clamp(startMidi, 127);
     final chroma = List<double>.filled(12, 0.0);
     final double peakThreshold = math.max(0.02, rms * 0.15);
 
-    for (int midi = minMidiNote + 1; midi < maxMidiNote; midi++) {
+    for (int midi = startMidi; midi <= endMidi; midi++) {
       final double cur = rawMags[midi];
-      if (cur > rawMags[midi - 1] && cur > rawMags[midi + 1] && cur > peakThreshold) {
+      final double prev = midi > startMidi ? rawMags[midi - 1] : 0.0;
+      final double next = midi < endMidi ? rawMags[midi + 1] : 0.0;
+      if (cur > prev && cur > next && cur > peakThreshold) {
         final int pitchClass = midi % 12;
         chroma[pitchClass] += cur;
       }

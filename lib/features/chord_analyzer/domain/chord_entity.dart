@@ -169,6 +169,46 @@ class ChordEntity {
   /// Fórmula interválica teórica (ej. '1 - 3 - 5').
   String get formula => rootNoteIndex >= 0 ? quality.formulaLabel : '--';
 
+  Map<String, dynamic> toJson() {
+    return {
+      'rootNoteIndex': rootNoteIndex,
+      'quality': quality.name,
+      'confidence': confidence,
+      'chromaVector': List<double>.from(chromaVector),
+      'notes': List<String>.from(notes),
+      'isRecognized': isRecognized,
+      'symbol': symbol,
+      'displayName': displayName,
+      'formula': formula,
+    };
+  }
+
+  factory ChordEntity.fromJson(Map<String, dynamic> json) {
+    final qualityName = json['quality'] as String? ?? ChordQuality.major.name;
+    final parsedQuality = ChordQuality.values.firstWhere(
+      (q) => q.name == qualityName,
+      orElse: () => ChordQuality.major,
+    );
+
+    final rawChroma = (json['chromaVector'] as List<dynamic>?)
+            ?.map((e) => (e as num).toDouble())
+            .toList() ??
+        List<double>.filled(12, 0.0);
+
+    final rawNotes = (json['notes'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        const <String>[];
+
+    return ChordEntity(
+      rootNoteIndex: (json['rootNoteIndex'] as num?)?.toInt() ?? -1,
+      quality: parsedQuality,
+      confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
+      chromaVector: rawChroma.length == 12 ? rawChroma : List<double>.filled(12, 0.0),
+      notes: rawNotes,
+    );
+  }
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
