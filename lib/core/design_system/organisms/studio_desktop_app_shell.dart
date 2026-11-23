@@ -49,6 +49,9 @@ class StudioDesktopAppShell extends StatefulWidget {
   final VoidCallback? onMenuImportFile;
   final VoidCallback? onMenuNewPreset;
   final VoidCallback? onMenuSaveWorkspace;
+  final VoidCallback? onMenuSaveAs;
+  final VoidCallback? onMenuExport;
+  final VoidCallback? onMenuOpenWorkspaceInExplorer;
   final VoidCallback? onMenuResetWorkspace;
   final VoidCallback? onMenuToggleRack;
   final ValueChanged<int>? onNavigateToTabIndex;
@@ -86,6 +89,9 @@ class StudioDesktopAppShell extends StatefulWidget {
     this.onMenuImportFile,
     this.onMenuNewPreset,
     this.onMenuSaveWorkspace,
+    this.onMenuSaveAs,
+    this.onMenuExport,
+    this.onMenuOpenWorkspaceInExplorer,
     this.onMenuResetWorkspace,
     this.onMenuToggleRack,
     this.onNavigateToTabIndex,
@@ -168,6 +174,7 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                     children: [
                       // Menús de Aplicación de Escritorio
                       _buildTunnerMenu(context, tokens),
+                      _buildFileMenu(context, tokens),
                       _buildWorkspaceMenu(context, tokens),
                       _buildViewMenu(context, tokens),
                       _buildWindowMenu(context, tokens),
@@ -697,6 +704,35 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
         _buildPopupMenuItem('settings', 'Preferencias del Estudio...', Icons.tune_rounded, tokens, shortcut: 'Ctrl+,'),
         const PopupMenuDivider(height: 8),
         _buildPopupMenuItem('updates', 'Comprobar Actualizaciones', Icons.system_update_alt_rounded, tokens),
+      ],
+    );
+  }
+
+  Widget _buildFileMenu(BuildContext context, StudioDesignTokens tokens) {
+    return _buildTopPopupMenu(
+      context: context,
+      label: 'Archivos',
+      tokens: tokens,
+      onSelected: (val) {
+        if (val == 'new_file') widget.onMenuNewScore?.call();
+        if (val == 'open_file') widget.onMenuImportFile?.call();
+        if (val == 'save') widget.onMenuSaveWorkspace?.call();
+        if (val == 'save_as') widget.onMenuSaveAs?.call();
+        if (val == 'import_file') widget.onMenuImportFile?.call();
+        if (val == 'export_file') widget.onMenuExport?.call();
+        if (val == 'open_in_explorer') widget.onMenuOpenWorkspaceInExplorer?.call();
+      },
+      items: [
+        _buildPopupMenuItem('new_file', 'Nuevo Archivo / Partitura...', Icons.note_add_outlined, tokens, shortcut: 'Ctrl+N', iconId: StudioIconId.fileNew),
+        _buildPopupMenuItem('open_file', 'Abrir Archivo...', Icons.file_open_outlined, tokens, shortcut: 'Ctrl+O', iconId: StudioIconId.fileOpen),
+        const PopupMenuDivider(height: 8),
+        _buildPopupMenuItem('save', 'Guardar', Icons.save_outlined, tokens, shortcut: 'Ctrl+S', iconId: StudioIconId.fileSave),
+        _buildPopupMenuItem('save_as', 'Guardar como...', Icons.save_as_outlined, tokens, shortcut: 'Ctrl+Shift+S', iconId: StudioIconId.fileSave),
+        const PopupMenuDivider(height: 8),
+        _buildPopupMenuItem('import_file', 'Importar (MusicXML / MIDI / Audio / PDF)...', Icons.drive_folder_upload_outlined, tokens, iconId: StudioIconId.fileMusicXmlMidi),
+        _buildPopupMenuItem('export_file', 'Exportar (PDF / MusicXML / MIDI / Stems)...', Icons.ios_share_outlined, tokens, iconId: StudioIconId.fileExportPdf),
+        const PopupMenuDivider(height: 8),
+        _buildPopupMenuItem('open_in_explorer', 'Abrir carpeta en explorador del sistema', Icons.folder_open_rounded, tokens, iconId: StudioIconId.fileFolder),
       ],
     );
   }

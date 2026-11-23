@@ -73,6 +73,12 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
                   color: _showSearchBar ? tokens.accentPrimary : tokens.textSecondary,
                 ),
                 padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                style: IconButton.styleFrom(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(20, 20),
+                ),
                 constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                 onPressed: () {
                   setState(() {
@@ -91,6 +97,12 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
                 tooltip: 'Nuevo Archivo...',
                 icon: Icon(Icons.note_add_outlined, size: 14, color: tokens.accentPrimary),
                 padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                style: IconButton.styleFrom(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(20, 20),
+                ),
                 constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                 onPressed: () => StudioFileSystemModals.showCreateFileModal(
                   context,
@@ -104,11 +116,33 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
                 tooltip: 'Nueva Carpeta...',
                 icon: Icon(Icons.create_new_folder_outlined, size: 14, color: tokens.accentSecondary),
                 padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                style: IconButton.styleFrom(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(20, 20),
+                ),
                 constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                 onPressed: () => StudioFileSystemModals.showCreateFolderModal(
                   context,
                   service: widget.service,
                 ),
+              ),
+
+              // Botón Abrir en Explorador del Sistema
+              IconButton(
+                key: const Key('btn_open_in_system_explorer'),
+                tooltip: 'Abrir carpeta del proyecto en explorador',
+                icon: Icon(Icons.folder_open_rounded, size: 14, color: tokens.textSecondary),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                style: IconButton.styleFrom(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(20, 20),
+                ),
+                constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                onPressed: () => widget.service.openInSystemExplorer('/'),
               ),
 
               // Botón Refrescar
@@ -117,6 +151,12 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
                 tooltip: 'Refrescar Explorador',
                 icon: Icon(Icons.refresh, size: 14, color: tokens.textSecondary),
                 padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                style: IconButton.styleFrom(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(20, 20),
+                ),
                 constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                 onPressed: () {
                   _searchController.clear();
@@ -131,6 +171,12 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
                 tooltip: 'Colapsar Carpetas',
                 icon: Icon(Icons.unfold_less, size: 14, color: tokens.textSecondary),
                 padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                style: IconButton.styleFrom(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(20, 20),
+                ),
                 constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                 onPressed: () => widget.service.collapseAll(),
               ),

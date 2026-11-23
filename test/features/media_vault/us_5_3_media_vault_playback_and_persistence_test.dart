@@ -84,6 +84,9 @@ class _InMemoryDiskFileSystemRepo implements StudioFileSystemRepository {
   }) async {
     files[relativePath] = bytes;
   }
+
+  @override
+  Future<bool> openInSystemExplorer(String relativePath) async => false;
 }
 
 void main() {

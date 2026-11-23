@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tunner/core/design_system/domain/studio_icon_catalog.dart';
 import 'package:tunner/core/design_system/studio_design_system.dart';
 
 void main() {

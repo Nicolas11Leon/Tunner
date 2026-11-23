@@ -349,4 +349,50 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
       await oldDir.rename(newPath);
     }
   }
+
+  @override
+  Future<bool> openInSystemExplorer(String relativePath) async {
+    try {
+      final rootPath = await getRootPath();
+      final safePath = _resolveSafePath(relativePath, rootPath, allowRoot: true);
+
+      String targetDirPath;
+      final file = File(safePath);
+      if (await file.exists()) {
+        targetDirPath = file.parent.path;
+      } else {
+        final dir = Directory(safePath);
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+        }
+        targetDirPath = dir.path;
+      }
+
+      if (Platform.environment.containsKey('FLUTTER_TEST')) {
+        return true;
+      }
+
+      if (Platform.isLinux) {
+        await Process.start('xdg-open', [targetDirPath], mode: ProcessStartMode.detached);
+        return true;
+      }
+      if (Platform.isMacOS) {
+        await Process.start('open', [targetDirPath], mode: ProcessStartMode.detached);
+        return true;
+      }
+      if (Platform.isWindows) {
+        await Process.start('explorer', [targetDirPath], mode: ProcessStartMode.detached);
+        return true;
+      }
+      return false;
+    } catch (e, st) {
+      _logger.warning(
+        'LocalDiskStudioFileSystemRepository',
+        'No se pudo abrir la ruta en el explorador del sistema ($relativePath): $e',
+        error: e,
+        stackTrace: st,
+      );
+      return false;
+    }
+  }
 }

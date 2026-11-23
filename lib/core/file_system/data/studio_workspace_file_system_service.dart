@@ -113,6 +113,17 @@ class StudioWorkspaceFileSystemService
     }
   }
 
+  /// Abre la ruta relativa en el explorador de archivos nativo del sistema operativo.
+  @override
+  Future<bool> openInSystemExplorer(String relativePath) async {
+    try {
+      return await _fileSystemRepository.openInSystemExplorer(relativePath);
+    } catch (e) {
+      _logger.warning('StudioWorkspaceFileSystemService', 'Error abriendo explorador del sistema: $e');
+      return false;
+    }
+  }
+
   /// Inicializa la jerarquía canónica de directorios del estudio.
   void _initializeDefaultTree() {
     final now = DateTime.now().microsecondsSinceEpoch;

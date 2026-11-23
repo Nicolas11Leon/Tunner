@@ -62,6 +62,9 @@ class _SpyFileSystemRepository implements StudioFileSystemRepository {
   }) async {
     savedFiles[relativePath] = bytes;
   }
+
+  @override
+  Future<bool> openInSystemExplorer(String relativePath) async => false;
 }
 
 void main() {
