@@ -246,6 +246,7 @@ class _MainAppShellState extends State<MainAppShell> {
       onSetTheme: (themeId) {
         final vm = context.read<TunerViewModel>();
         vm.setPaletteById(themeId);
+        vm.setActiveStudioThemeId(themeId);
         StudioThemeScope.controllerOf(context)?.selectById(themeId);
       },
     );

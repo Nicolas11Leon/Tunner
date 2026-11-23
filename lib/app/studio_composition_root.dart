@@ -46,11 +46,14 @@ class StudioCompositionRoot {
   final StudioAudioEngine audioEngine;
   final StudioAudioInputEngine audioInputEngine;
   final StudioAudioDeviceMatrixService audioMatrixService;
+  final AudioSynthesizerService audioSynthesizerService;
   final StudioMasterClockService masterClockService;
   final StudioWorkspaceFileSystemService fileSystemService;
   final StudioPatchbayRoutingService patchbayService;
   final StudioThemeController themeController;
   final StudioThemeCatalogService themeCatalogService;
+  final bool _ownsThemeCatalogService;
+  bool _isDisposed = false;
 
   StudioCompositionRoot._({
     required this.platformFileGateway,
@@ -59,12 +62,14 @@ class StudioCompositionRoot {
     required this.audioEngine,
     required this.audioInputEngine,
     required this.audioMatrixService,
+    required this.audioSynthesizerService,
     required this.masterClockService,
     required this.fileSystemService,
     required this.patchbayService,
     required this.themeController,
     required this.themeCatalogService,
-  });
+    required bool ownsThemeCatalogService,
+  }) : _ownsThemeCatalogService = ownsThemeCatalogService;
 
   /// Construye un grafo completo de dependencias aislado y determinista.
   factory StudioCompositionRoot.create({
@@ -83,6 +88,7 @@ class StudioCompositionRoot {
       inputEngine: inEngine,
       persistenceService: StudioAudioHardwarePersistenceService(),
     );
+    final synthService = AudioSynthesizerService(audioEngine: outEngine);
     final clockService = StudioMasterClockService(initialBpm: 120.0);
     final diskRepo = LocalDiskStudioFileSystemRepository(
       seedProvider: const StudioWorkspaceSeedProvider(),
@@ -105,12 +111,29 @@ class StudioCompositionRoot {
       audioEngine: outEngine,
       audioInputEngine: inEngine,
       audioMatrixService: matrixService,
+      audioSynthesizerService: synthService,
       masterClockService: clockService,
       fileSystemService: fsService,
       patchbayService: patchbay,
       themeController: themeCtrl,
       themeCatalogService: themeCatalog,
+      ownsThemeCatalogService: isolatedServices,
     );
+  }
+
+  void _syncStudioTheme(String themeId) {
+    if (_isDisposed) return;
+    final normalized = themeId.trim().toLowerCase();
+    if (normalized.isEmpty) return;
+
+    final catalogIndex = themeCatalogService.availableSkins.indexWhere(
+      (s) => s.id.toLowerCase() == normalized,
+    );
+    if (catalogIndex >= 0) {
+      themeCatalogService.selectSkin(themeCatalogService.availableSkins[catalogIndex].id);
+    } else {
+      themeController.selectById(themeId);
+    }
   }
 
   /// Crea el ViewModel principal con sus dependencias de infraestructura ya inyectadas.
@@ -120,7 +143,7 @@ class StudioCompositionRoot {
       audioDeviceMatrixService: audioMatrixService,
       platformFileGateway: platformFileGateway,
       documentsDirectoryProvider: platformFileGateway.getDocumentsDirectoryPath,
-      audioSynthesizerService: AudioSynthesizerService(audioEngine: audioEngine),
+      audioSynthesizerService: audioSynthesizerService,
       playbackService: AudioPlaybackService(audioEngine: audioEngine),
       pitchService: PitchDetectorService(inputEngine: audioInputEngine),
       metronomeService: MetronomeService(),
@@ -138,6 +161,7 @@ class StudioCompositionRoot {
         platformFileGateway: platformFileGateway,
         logger: StudioDebugLogger.instance,
       ),
+      onStudioThemeIdChanged: _syncStudioTheme,
       logger: StudioDebugLogger.instance,
     );
   }
@@ -146,10 +170,8 @@ class StudioCompositionRoot {
   DjConsoleViewModel createDjConsoleViewModel() {
     return DjConsoleViewModel(
       deckAudioPlayer: DjDeckAudioService(audioEngine: audioEngine),
-      audioSynthesizer: AudioSynthesizerService(audioEngine: audioEngine),
-      fileSystemRepository: LocalDiskStudioFileSystemRepository(
-        seedProvider: const StudioWorkspaceSeedProvider(),
-      ),
+      audioSynthesizer: audioSynthesizerService,
+      fileSystemRepository: fileSystemService.fileSystemRepository,
       persistenceService: DjKeymapPersistenceService(),
       fileGateway: platformFileGateway,
       blueprintStorageService: DjConsoleBlueprintStorageService(),
@@ -163,7 +185,7 @@ class StudioCompositionRoot {
       fileGateway: platformFileGateway,
       fileSystemRepository: fileSystemService.fileSystemRepository,
       audioEngine: audioEngine,
-      audioSynthesizer: AudioSynthesizerService(audioEngine: audioEngine),
+      audioSynthesizer: audioSynthesizerService,
     );
   }
 
@@ -181,13 +203,20 @@ class StudioCompositionRoot {
   INativeDspBridge get dspBridge => nativeDspBridge;
 
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
     masterClockService.dispose();
     audioMatrixService.dispose();
+    audioSynthesizerService.dispose();
     audioInputEngine.dispose();
     audioEngine.dispose();
     fileSystemService.dispose();
     patchbayService.dispose();
+    if (_ownsThemeCatalogService) {
+      themeCatalogService.dispose();
+    }
     themeController.dispose();
+    masterDspChain.dispose();
     nativeDspBridge.dispose();
   }
 }

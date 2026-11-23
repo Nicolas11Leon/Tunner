@@ -149,6 +149,7 @@ class DjConsoleViewModel extends ChangeNotifier {
 
   IDjDeckAudioPlayer get deckAudioPlayer => _deckAudioPlayer;
   IAudioSynthesizerService get audioSynthesizer => _audioSynthesizer;
+  StudioFileSystemRepository get fileSystemRepository => _fileSystemRepository;
   IPlatformFileGateway get fileGateway => _fileGateway;
 
   void _initAudioEngine() {
