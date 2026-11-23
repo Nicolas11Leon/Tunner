@@ -18,16 +18,16 @@ cmake --build "$BUILD_DIR" --config Release
 echo "[tunner_dsp] Compilacion finalizada exitosamente."
 
 # Localizacion y copia de la biblioteca para resolucion en tiempo de ejecucion
-if [ -f "$BUILD_DIR/libtunner_dsp.so" ]; then
+if [[ -f "$BUILD_DIR/libtunner_dsp.so" ]]; then
     cp "$BUILD_DIR/libtunner_dsp.so" "$ROOT_DIR/libtunner_dsp.so"
     echo "[tunner_dsp] Biblioteca copiada a: $ROOT_DIR/libtunner_dsp.so"
-elif [ -f "$BUILD_DIR/libtunner_dsp.dylib" ]; then
+elif [[ -f "$BUILD_DIR/libtunner_dsp.dylib" ]]; then
     cp "$BUILD_DIR/libtunner_dsp.dylib" "$ROOT_DIR/libtunner_dsp.dylib"
     echo "[tunner_dsp] Biblioteca copiada a: $ROOT_DIR/libtunner_dsp.dylib"
-elif [ -f "$BUILD_DIR/Release/tunner_dsp.dll" ]; then
+elif [[ -f "$BUILD_DIR/Release/tunner_dsp.dll" ]]; then
     cp "$BUILD_DIR/Release/tunner_dsp.dll" "$ROOT_DIR/tunner_dsp.dll"
     echo "[tunner_dsp] Biblioteca copiada a: $ROOT_DIR/tunner_dsp.dll"
-elif [ -f "$BUILD_DIR/tunner_dsp.dll" ]; then
+elif [[ -f "$BUILD_DIR/tunner_dsp.dll" ]]; then
     cp "$BUILD_DIR/tunner_dsp.dll" "$ROOT_DIR/tunner_dsp.dll"
     echo "[tunner_dsp] Biblioteca copiada a: $ROOT_DIR/tunner_dsp.dll"
 fi
