@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -95,26 +94,6 @@ class OfflinePracticeTakeAnalyzer {
       filePath: filePath,
       timestamp: timestamp,
     ).take;
-  }
-
-  /// Lee un archivo WAV desde disco y ejecuta el analisis completo.
-  OfflineTakeAnalysisReport analyzeWavFile(
-    String filePath, {
-    required String takeId,
-    required String takeName,
-    DateTime? timestamp,
-  }) {
-    final file = File(filePath);
-    if (!file.existsSync()) {
-      throw FileSystemException('WAV file not found', filePath);
-    }
-    return analyzeWavBytesDetailed(
-      file.readAsBytesSync(),
-      takeId: takeId,
-      takeName: takeName,
-      filePath: filePath,
-      timestamp: timestamp,
-    );
   }
 
   /// Decodifica [wavBytes] y retorna el informe detallado con RMS global, pico y entidad de toma.

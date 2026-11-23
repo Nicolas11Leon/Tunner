@@ -718,12 +718,17 @@ class VaultRecorderMcpModule implements IMcpFeatureModule {
     final outputPath = _resolveWorkspacePath(rawOutputPath);
     final includeRawBytes = _optionalBool(args, 'include_raw_bytes') ?? false;
 
-    facade.mediaVaultController.saveToFile(
-      outputPath,
-      includeRawBytes: includeRawBytes,
+    final file = File(outputPath);
+    if (!file.parent.existsSync()) {
+      file.parent.createSync(recursive: true);
+    }
+    file.writeAsStringSync(
+      facade.mediaVaultController.toJsonString(
+        includeRawBytes: includeRawBytes,
+      ),
+      flush: true,
     );
 
-    final file = File(outputPath);
     return McpToolResult.json({
       'outputPath': outputPath,
       'bytesWritten': file.lengthSync(),
@@ -738,12 +743,15 @@ class VaultRecorderMcpModule implements IMcpFeatureModule {
     final rawFilePath = _requireNonEmptyString(args, 'file_path');
     final resolvedPath = _resolveWorkspacePath(rawFilePath);
 
-    if (!File(resolvedPath).existsSync()) {
+    final file = File(resolvedPath);
+    if (!file.existsSync()) {
       throw McpException.fileNotFound('Catalog file not found: $rawFilePath');
     }
 
     try {
-      final restored = facade.mediaVaultController.loadFromFile(resolvedPath);
+      final restored = facade.mediaVaultController.loadFromJsonString(
+        file.readAsStringSync(),
+      );
       if (!restored) {
         throw McpException.invalidParams(
           'Failed to parse Media Vault catalog JSON: $rawFilePath',
@@ -779,10 +787,11 @@ class VaultRecorderMcpModule implements IMcpFeatureModule {
     final takeId = customTakeId ?? 'take_$_takeSequenceCounter';
 
     try {
-      final report = facade.offlinePracticeTakeAnalyzer.analyzeWavFile(
-        resolvedPath,
+      final report = facade.offlinePracticeTakeAnalyzer.analyzeWavBytesDetailed(
+        File(resolvedPath).readAsBytesSync(),
         takeId: takeId,
         takeName: takeName,
+        filePath: resolvedPath,
       );
 
       if (addToSession) {

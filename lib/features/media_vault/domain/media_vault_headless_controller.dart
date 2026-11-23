@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'i_media_io_port.dart';
@@ -250,25 +249,9 @@ class MediaVaultHeadlessController {
     }
   }
 
-  /// Persists the catalog and timeline JSON snapshot to [filePath] on disk.
-  void saveToFile(String filePath, {bool includeRawBytes = false}) {
-    final file = File(filePath);
-    if (!file.parent.existsSync()) {
-      file.parent.createSync(recursive: true);
-    }
-    file.writeAsStringSync(
-      toJsonString(includeRawBytes: includeRawBytes),
-      flush: true,
-    );
-  }
-
-  /// Loads catalog and timeline state from a JSON file on disk.
-  /// Returns `true` if the file existed and was restored, `false` otherwise.
-  bool loadFromFile(String filePath) {
-    final file = File(filePath);
-    if (!file.existsSync()) return false;
-    final raw = file.readAsStringSync();
-    final decoded = jsonDecode(raw);
+  /// Restores catalog and timeline state from a raw JSON string.
+  bool loadFromJsonString(String rawJson) {
+    final decoded = jsonDecode(rawJson);
     if (decoded is! Map<String, dynamic>) return false;
     loadFromJson(decoded);
     return true;

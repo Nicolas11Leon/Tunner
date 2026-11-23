@@ -54,11 +54,11 @@ void main() {
       // Persist to temp JSON file and restore into a fresh headless controller
       final tempDir = Directory.systemTemp.createTempSync('tunner_vault_headless_');
       try {
-        final jsonFile = '${tempDir.path}/vault_state.json';
-        controller.saveToFile(jsonFile);
+        final jsonFile = File('${tempDir.path}/vault_state.json');
+        jsonFile.writeAsStringSync(controller.toJsonString(), flush: true);
 
         final restored = MediaVaultHeadlessController();
-        final loaded = restored.loadFromFile(jsonFile);
+        final loaded = restored.loadFromJsonString(jsonFile.readAsStringSync());
         expect(loaded, isTrue);
         expect(restored.findAsset('asset_synth_lead')?.title, equals('Analog Lead 124'));
         final restoredTrack =
