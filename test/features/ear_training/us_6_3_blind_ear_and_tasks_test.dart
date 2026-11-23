@@ -95,6 +95,10 @@ void main() {
     await tester.tap(find.byKey(const Key('btn_sung_response_mode')));
     await tester.pump(const Duration(milliseconds: 100));
     vm.emitTelemetryForTesting(frequency: 440.0);
+    await tester.pump(const Duration(milliseconds: 50));
+    vm.emitTelemetryForTesting(frequency: 440.2);
+    await tester.pump(const Duration(milliseconds: 50));
+    vm.emitTelemetryForTesting(frequency: 440.1);
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.byKey(const Key('ear_trainer_result_banner')), findsOneWidget);

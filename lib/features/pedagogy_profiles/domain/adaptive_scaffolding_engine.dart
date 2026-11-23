@@ -71,6 +71,10 @@ class AdaptiveScaffoldingEngine {
 
     final isInTune = centsDeviation.abs() <= effectiveTolerance;
     final absDeviation = centsDeviation.abs();
+    final effectiveIsSharp = isSharp || centsDeviation > 0;
+    final toleranceLabel = effectiveTolerance == effectiveTolerance.roundToDouble()
+        ? effectiveTolerance.toInt().toString()
+        : effectiveTolerance.toStringAsFixed(1);
 
     String primaryFeedback;
     String? biomechanicalCue;
@@ -85,7 +89,7 @@ class AdaptiveScaffoldingEngine {
               ? 'Racha brillante de notas limpias. Gran concentracion.'
               : 'Excelente sonido. Sigue explorando este tono.';
         } else {
-          primaryFeedback = centsDeviation > 0
+          primaryFeedback = effectiveIsSharp
               ? 'Un poquito alto. Desciende suavemente la voz.'
               : 'Un poquito bajo. Eleva ligeramente la altura sonora.';
           motivationalCue = 'Muy cerca de la meta. Escucha el tono de referencia e intenta otra vez.';
@@ -100,11 +104,11 @@ class AdaptiveScaffoldingEngine {
               'Control motor y apoyo estables. La memoria muscular se esta consolidando.';
           biomechanicalCue = 'Mantener la relajacion laringea y el soporte costodiafragmatico.';
         } else {
-          primaryFeedback = centsDeviation > 0
+          primaryFeedback = effectiveIsSharp
               ? 'Desvio positivo (+${absDeviation.toStringAsFixed(1)} cents): Tendencia a sobrepresion.'
               : 'Desvio negativo (-${absDeviation.toStringAsFixed(1)} cents): Caida de soporte o velocidad del flujo.';
 
-          if (centsDeviation > 0) {
+          if (effectiveIsSharp) {
             biomechanicalCue =
                 'Aliviar la tension en la raiz de la lengua y verificar la apertura faringea.';
           } else {
@@ -125,13 +129,13 @@ class AdaptiveScaffoldingEngine {
       case FeedbackStyle.strictMicrotonal:
         if (isInTune) {
           primaryFeedback =
-              'Precision de conservatorio (${centsDeviation >= 0 ? "+" : ""}${centsDeviation.toStringAsFixed(1)} cents | Tol: +-5c).';
+              'Precision de conservatorio (${centsDeviation >= 0 ? "+" : ""}${centsDeviation.toStringAsFixed(1)} cents | Tol: +-${toleranceLabel}c).';
           motivationalCue = 'Afinacion pura conforme a estandar orquestal.';
         } else {
-          primaryFeedback = centsDeviation > 0
+          primaryFeedback = effectiveIsSharp
               ? 'Desviacion sharp (+${absDeviation.toStringAsFixed(1)} cents).'
               : 'Desviacion flat (-${absDeviation.toStringAsFixed(1)} cents).';
-          motivationalCue = 'Fuera del margen de tolerancia microtonal estricto.';
+          motivationalCue = 'Fuera del margen de tolerancia microtonal estricto (+-${toleranceLabel}c).';
         }
         break;
     }

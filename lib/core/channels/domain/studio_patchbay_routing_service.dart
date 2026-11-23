@@ -8,6 +8,19 @@ import 'i_studio_patchbay_routing_service.dart';
 
 export 'i_studio_patchbay_routing_service.dart';
 
+/// Tokens semanticos de identidad cromatica para buses y conectores de la matriz de parcheo.
+/// Separados de la logica de enrutamiento para preservar fronteras limpias de dominio.
+abstract final class StudioPatchbaySemanticTokens {
+  /// Token semantico por defecto para un bus personalizado o canal activo (Cyan Studio).
+  static const int defaultCustomChannelColorToken = 0xFF00E5FF;
+
+  /// Token semantico para un conector modular desconectado o en reposo (Slate Neutral).
+  static const int disconnectedPlugColorToken = 0xFF3A3F50;
+
+  /// Duracion canónica en milisegundos del pulso de actividad por conector.
+  static const int signalPulseWindowMs = 200;
+}
+
 /// Servicio de orquestación y enrutamiento en memoria de la matriz de parcheo.
 /// Provee soporte full-duplex para sincronización reactiva de parámetros de reproducción
 /// (BPM, tonalidad Camelot, título, transporte y buffers PCM) entre herramientas conectadas.
@@ -27,7 +40,7 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
   late StudioPatchbayMatrixEntity _matrix;
   final Map<String, StudioSignalDeliveryCallback> _sinkListeners = {};
   final Map<String, List<StudioChannelParamCallback>> _channelListeners = {};
-  Timer? _signalPulseTimer;
+  final Map<String, Timer> _plugPulseTimers = {};
   String? _activePulsePlugId;
   bool _isDisposed = false;
 
@@ -40,18 +53,30 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
   @override
   String? get activePulsePlugId => _activePulsePlugId;
 
+  /// Conjunto inmutable de conectores que presentan un pulso de señal activo simultáneamente.
+  Set<String> get activePulsePlugIds => Set<String>.unmodifiable(_plugPulseTimers.keys);
+
+  /// Verifica si un conector específico presenta actividad de pulso en curso.
+  bool isPlugPulsing(String plugId) => _plugPulseTimers.containsKey(plugId);
+
   void _safeNotify() {
     if (!_isDisposed) {
       notifyListeners();
     }
   }
 
+  void _cancelAllPulseTimers() {
+    for (final timer in _plugPulseTimers.values) {
+      timer.cancel();
+    }
+    _plugPulseTimers.clear();
+    _activePulsePlugId = null;
+  }
+
   /// Reinicia la matriz a su estado inicial canónico (para pruebas o reset de sesión).
   @override
   void resetToDefaults() {
-    _signalPulseTimer?.cancel();
-    _signalPulseTimer = null;
-    _activePulsePlugId = null;
+    _cancelAllPulseTimers();
     _matrix = StudioPatchbayMatrixEntity.initial();
     _sinkListeners.clear();
     _channelListeners.clear();
@@ -63,7 +88,7 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
   void registerPlug(StudioModularPlug plug) {
     if (_matrix.plugs.containsKey(plug.id)) return;
     _matrix = _matrix.registerPlug(plug);
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Conecta un plug a un canal troncal o personalizado.
@@ -86,14 +111,14 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
       });
     }
 
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Desconecta un plug de cualquier canal.
   @override
   void disconnectPlug(String plugId) {
     _matrix = _matrix.disconnectPlug(plugId);
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Crea un nuevo canal personalizado con nombre y color definidos por el usuario.
@@ -108,10 +133,10 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
       id: channelId,
       name: name,
       shortCode: shortCode,
-      colorHex: colorHex ?? 0xFF00E5FF,
+      colorHex: colorHex ?? StudioPatchbaySemanticTokens.defaultCustomChannelColorToken,
     );
     _matrix = _matrix.addChannel(newBus);
-    notifyListeners();
+    _safeNotify();
     return newBus;
   }
 
@@ -123,7 +148,7 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
     if (updated != null) {
       _notifyChannelSubscribers(updated);
     }
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Elimina un canal personalizado desconectando automáticamente los plugs vinculados.
@@ -131,7 +156,7 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
   void removeCustomChannel(String channelId) {
     _matrix = _matrix.removeChannel(channelId);
     _channelListeners.remove(channelId);
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Publica y sincroniza reactivamente los parámetros de reproducción de un canal
@@ -180,7 +205,7 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
       });
     }
 
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Registra una función de escucha ante cualquier cambio de estado del canal.
@@ -210,7 +235,7 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
     final ch = _matrix.channels[channelId];
     if (ch == null) return;
     _matrix = _matrix.updateChannel(ch.copyWith(gain: gain.clamp(0.0, 2.0)));
-    notifyListeners();
+    _safeNotify();
   }
 
   @override
@@ -218,7 +243,7 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
     final ch = _matrix.channels[channelId];
     if (ch == null) return;
     _matrix = _matrix.updateChannel(ch.copyWith(isMuted: !ch.isMuted));
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Registra un oyente para recibir señales dirigidas a un plug receptor (Sink).
@@ -302,11 +327,19 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
   void _triggerPlugPulse(String plugId) {
     if (_isDisposed) return;
     _activePulsePlugId = plugId;
-    _signalPulseTimer?.cancel();
-    _signalPulseTimer = Timer(const Duration(milliseconds: 200), () {
-      _activePulsePlugId = null;
-      _safeNotify();
-    });
+    _plugPulseTimers[plugId]?.cancel();
+    _plugPulseTimers[plugId] = Timer(
+      const Duration(milliseconds: StudioPatchbaySemanticTokens.signalPulseWindowMs),
+      () {
+        _plugPulseTimers.remove(plugId);
+        if (_activePulsePlugId == plugId) {
+          _activePulsePlugId = _plugPulseTimers.keys.isNotEmpty
+              ? _plugPulseTimers.keys.last
+              : null;
+        }
+        _safeNotify();
+      },
+    );
     _safeNotify();
   }
 
@@ -314,8 +347,7 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
   void dispose() {
     if (_isDisposed) return;
     _isDisposed = true;
-    _signalPulseTimer?.cancel();
-    _signalPulseTimer = null;
+    _cancelAllPulseTimers();
     _sinkListeners.clear();
     _channelListeners.clear();
     super.dispose();
@@ -330,8 +362,10 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
   /// Retorna el color asignado al canal conectado a un plug, o gris oscuro si está desconectado.
   @override
   int getColorForPlug(StudioModularPlug plug) {
-    if (!plug.isConnected) return 0xFF3A3F50;
+    if (!plug.isConnected) {
+      return StudioPatchbaySemanticTokens.disconnectedPlugColorToken;
+    }
     final ch = _matrix.channels[plug.connectedChannelId];
-    return ch?.colorHex ?? 0xFF00E5FF;
+    return ch?.colorHex ?? StudioPatchbaySemanticTokens.defaultCustomChannelColorToken;
   }
 }

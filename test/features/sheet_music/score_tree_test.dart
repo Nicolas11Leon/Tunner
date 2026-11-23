@@ -37,8 +37,8 @@ void main() {
   });
 
   group('HierarchicalScore and Measure Validation', () {
-    test('Mock studies have valid measures adhering to their time signatures', () {
-      final studies = HierarchicalScore.getMockStudies();
+    test('Canonical studies have valid measures adhering to their time signatures', () {
+      final studies = HierarchicalScore.getCanonicalStudies();
       expect(studies.length, greaterThanOrEqualTo(3));
 
       for (final study in studies) {
@@ -94,7 +94,7 @@ void main() {
     });
 
     test('Multi-measure studies have sequential indices and at least two measures', () {
-      final studies = HierarchicalScore.getMockStudies();
+      final studies = HierarchicalScore.getCanonicalStudies();
       final multiMeasureStudy = studies.firstWhere((s) => s.measures.length > 1);
       
       expect(multiMeasureStudy.measures.length, equals(2));

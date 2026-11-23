@@ -45,20 +45,20 @@ class VocalStabilityEvaluator {
     }
 
     if (validFrequencies.length < 5) {
-      // Si casi no hay muestras válidas, retornar evaluación base
+      // Sin muestras fonatorias suficientes: reportar silencio real sin inflar puntaje ni copiar target
       final now = timestamp ?? DateTime.now();
       return VocalEvaluationResult(
         evaluationId: evaluationId ?? 'VOCAL-${now.millisecondsSinceEpoch}',
         timestamp: now,
         targetFrequencyHz: targetFrequencyHz,
-        measuredMeanFrequencyHz: targetFrequencyHz,
+        measuredMeanFrequencyHz: 0.0,
         centsDeviation: 0.0,
         jitterPercent: 0.0,
         shimmerPercent: 0.0,
         vibratoRateHz: 0.0,
         vibratoDepthCents: 0.0,
-        overallScore: 50.0,
-        classificationLabel: 'En Desarrollo / Nivel Inicial',
+        overallScore: 0.0,
+        classificationLabel: 'Sin Senal Vocal Suficiente',
       );
     }
 

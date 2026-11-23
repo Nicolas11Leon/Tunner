@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import '../../../core/theme/tunner_theme.dart';
+import '../../../core/design_system/studio_design_system.dart';
 import '../../audio_synthesizer/domain/polyphonic/polyphonic_synth_voice.dart';
 import '../../instrument/domain/procedural_instrument_synthesizer.dart';
 import '../../tuner_viewmodel.dart';
@@ -49,13 +49,13 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
   @override
   Widget build(BuildContext context) {
     final pool = widget.viewModel.polyphonicVoicePool;
-    final palette = widget.palette;
+    final tokens = StudioThemeScope.of(context);
 
     return Dialog(
-      backgroundColor: palette.cardBackground,
+      backgroundColor: tokens.panelBackground,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(tokens.borderRadiusLarge),
+        side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
       ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: ConstrainedBox(
@@ -73,14 +73,19 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
                   Expanded(
                     child: Row(
                       children: [
-                        Icon(Icons.piano, color: palette.secondaryAccent, size: 24),
+                        StudioIcon(
+                          StudioIconId.modulePianoRoll,
+                          color: tokens.accentPrimary,
+                          size: 20,
+                          tintCustomAsset: true,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'SINTETIZADOR POLIFÓNICO SMuFL',
                             style: TextStyle(
-                              color: palette.textColor,
-                              fontSize: 15,
+                              color: tokens.textPrimary,
+                              fontSize: 14,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.8,
                             ),
@@ -91,7 +96,12 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, color: palette.textMutedColor),
+                    icon: StudioIcon(
+                      StudioIconId.uiCloseConfirm,
+                      color: tokens.textMuted,
+                      size: 16,
+                      tintCustomAsset: true,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -102,10 +112,10 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
               Text(
                 'FORMA DE ONDA DEL OSCILADOR',
                 style: TextStyle(
-                  color: palette.textMutedColor,
-                  fontSize: 11,
+                  color: tokens.textMuted,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
+                  letterSpacing: 0.6,
                 ),
               ),
               const SizedBox(height: 8),
@@ -134,15 +144,15 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
                     key: Key('synth_waveform_${wf.name}'),
                     label: Text(label),
                     selected: isSelected,
-                    selectedColor: palette.primaryAccent.withValues(alpha: 0.25),
-                    backgroundColor: palette.scaffoldBackground,
+                    selectedColor: tokens.elevatedSurface,
+                    backgroundColor: tokens.inputSurface,
                     labelStyle: TextStyle(
-                      color: isSelected ? palette.primaryAccent : palette.textMutedColor,
+                      color: isSelected ? tokens.textPrimary : tokens.textSecondary,
                       fontSize: 11,
                       fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                     ),
                     side: BorderSide(
-                      color: isSelected ? palette.primaryAccent : palette.staffLinesColor.withValues(alpha: 0.3),
+                      color: isSelected ? tokens.borderFocus : tokens.borderHairline,
                     ),
                     onSelected: (selected) {
                       if (selected) {
@@ -160,10 +170,10 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
               Text(
                 'ENVOLVENTE ACÚSTICA ADSR',
                 style: TextStyle(
-                  color: palette.textMutedColor,
-                  fontSize: 11,
+                  color: tokens.textMuted,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
+                  letterSpacing: 0.6,
                 ),
               ),
               const SizedBox(height: 6),
@@ -172,6 +182,7 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
                   child: Column(
                     children: [
                       _buildSliderRow(
+                        tokens: tokens,
                         keyName: 'adsr_attack_slider',
                         label: 'Ataque (Attack)',
                         valueLabel: '${(pool.attackSeconds * 1000).round()} ms',
@@ -185,6 +196,7 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
                         },
                       ),
                       _buildSliderRow(
+                        tokens: tokens,
                         keyName: 'adsr_decay_slider',
                         label: 'Decaimiento (Decay)',
                         valueLabel: '${(pool.decaySeconds * 1000).round()} ms',
@@ -198,6 +210,7 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
                         },
                       ),
                       _buildSliderRow(
+                        tokens: tokens,
                         keyName: 'adsr_sustain_slider',
                         label: 'Sostenimiento (Sustain)',
                         valueLabel: '${(pool.sustainLevel * 100).round()}%',
@@ -211,6 +224,7 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
                         },
                       ),
                       _buildSliderRow(
+                        tokens: tokens,
                         keyName: 'adsr_release_slider',
                         label: 'Liberación (Release)',
                         valueLabel: '${(pool.releaseSeconds * 1000).round()} ms',
@@ -225,6 +239,7 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
                       ),
                       if (pool.waveform == SynthWaveform.pulse)
                         _buildSliderRow(
+                          tokens: tokens,
                           keyName: 'synth_pulse_width_slider',
                           label: 'Ancho de Pulso (PWM)',
                           valueLabel: '${(pool.pulseWidth * 100).round()}%',
@@ -238,6 +253,7 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
                           },
                         ),
                       _buildSliderRow(
+                        tokens: tokens,
                         keyName: 'synth_master_gain_slider',
                         label: 'Ganancia del Sintetizador',
                         valueLabel: '${(pool.masterGain * 100).round()}%',
@@ -266,9 +282,10 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
                   Text(
                     'Voces activas: ${pool.activeVoiceCount} / ${pool.maxPolyphony}',
                     style: TextStyle(
-                      color: palette.textMutedColor,
+                      color: tokens.textSecondary,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
+                      fontFamily: 'monospace',
                     ),
                   ),
                   Wrap(
@@ -277,11 +294,19 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
                     children: [
                       OutlinedButton.icon(
                         key: const Key('synth_panic_btn'),
-                        icon: const Icon(Icons.volume_off, size: 16),
+                        icon: StudioIcon(
+                          StudioIconId.transportStop,
+                          size: 14,
+                          color: tokens.accentDanger,
+                          tintCustomAsset: true,
+                        ),
                         label: const Text('Silenciar'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: palette.errorPitchColor,
-                          side: BorderSide(color: palette.errorPitchColor.withValues(alpha: 0.4)),
+                          foregroundColor: tokens.accentDanger,
+                          side: BorderSide(color: tokens.accentDanger.withValues(alpha: 0.45)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                          ),
                         ),
                         onPressed: () {
                           setState(() {
@@ -291,11 +316,25 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
                       ),
                       ElevatedButton.icon(
                         key: const Key('synth_test_chord_btn'),
-                        icon: const Icon(Icons.play_arrow, size: 16),
-                        label: const Text('Probar Acorde'),
+                        icon: StudioIcon(
+                          StudioIconId.transportPlay,
+                          size: 14,
+                          color: tokens.textOnAccent,
+                          tintCustomAsset: true,
+                        ),
+                        label: Text(
+                          'Probar Acorde',
+                          style: TextStyle(
+                            color: tokens.textOnAccent,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: palette.secondaryAccent,
-                          foregroundColor: Colors.black,
+                          backgroundColor: tokens.accentPrimary,
+                          foregroundColor: tokens.textOnAccent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                          ),
                         ),
                         onPressed: () {
                           _testChordTimer?.cancel();
@@ -343,6 +382,7 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
   }
 
   Widget _buildSliderRow({
+    required StudioDesignTokens tokens,
     required String keyName,
     required String label,
     required String valueLabel,
@@ -351,8 +391,6 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
     required double max,
     required ValueChanged<double> onChanged,
   }) {
-    final palette = widget.palette;
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -362,7 +400,7 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
             child: Text(
               label,
               style: TextStyle(
-                color: palette.textColor,
+                color: tokens.textPrimary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -371,9 +409,9 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
           Expanded(
             child: SliderTheme(
               data: SliderThemeData(
-                activeTrackColor: palette.secondaryAccent,
-                inactiveTrackColor: palette.scaffoldBackground,
-                thumbColor: palette.secondaryAccent,
+                activeTrackColor: tokens.accentPrimary,
+                inactiveTrackColor: tokens.inputSurface,
+                thumbColor: tokens.accentPrimary,
                 trackHeight: 4,
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
               ),
@@ -392,9 +430,10 @@ class _PolyphonicSynthModalState extends State<PolyphonicSynthModal> {
               valueLabel,
               textAlign: TextAlign.end,
               style: TextStyle(
-                color: palette.secondaryAccent,
-                fontSize: 12,
+                color: tokens.accentPrimary,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w700,
+                fontFamily: 'monospace',
               ),
             ),
           ),

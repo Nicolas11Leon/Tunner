@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/tunner_theme.dart';
+import '../../../core/design_system/studio_design_system.dart';
 import '../../tuner_viewmodel.dart';
 import '../../tuner/presentation/strobe_tuner_widget.dart';
 import '../../pedagogy_profiles/presentation/learner_profile_selector_modal.dart';
@@ -29,6 +29,7 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.of(context);
     final displayNote = viewModel.hasTransposition
         ? (viewModel.writtenNoteName.isEmpty ? "--" : viewModel.writtenNoteName)
         : (viewModel.noteName.isEmpty ? "--" : viewModel.noteName);
@@ -37,8 +38,10 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
     final effectiveTol = viewModel.centsTolerance;
     final isInTune = cents.abs() <= effectiveTol && viewModel.frequency > 0;
     final centsColor = isInTune
-        ? palette.correctPitchColor
-        : (cents.abs() <= effectiveTol * 1.5 ? palette.secondaryAccent : palette.errorPitchColor);
+        ? tokens.accentSuccess
+        : (cents.abs() <= effectiveTol * 1.5
+            ? tokens.accentWarning
+            : tokens.accentDanger);
 
     final diagnostic = viewModel.lastPedagogicalDiagnostic;
 
@@ -51,9 +54,9 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: palette.cardBackground,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.25)),
+              color: tokens.panelBackground,
+              borderRadius: BorderRadius.circular(tokens.borderRadiusLarge),
+              border: Border.all(color: tokens.borderHairline),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -61,7 +64,12 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                 Expanded(
                   child: Row(
                     children: [
-                      Icon(Icons.psychology_outlined, size: 18, color: palette.primaryAccent),
+                      StudioIcon(
+                        StudioIconId.modulePedagogy,
+                        size: 18,
+                        color: tokens.accentPrimary,
+                        tintCustomAsset: true,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
@@ -70,7 +78,7 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                             Text(
                               viewModel.learnerProfile.title,
                               style: TextStyle(
-                                color: palette.textColor,
+                                color: tokens.textPrimary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -79,8 +87,9 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                             Text(
                               "Tolerancia: ±${viewModel.centsTolerance.toStringAsFixed(1)} cents • ${viewModel.learnerProfile.feedbackStyle.name}",
                               style: TextStyle(
-                                color: palette.textMutedColor,
+                                color: tokens.textMuted,
                                 fontSize: 10,
+                                fontFamily: 'monospace',
                               ),
                             ),
                           ],
@@ -94,31 +103,41 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                   children: [
                     ActionChip(
                       key: const Key('instrument_selector_chip'),
-                      avatar: Icon(Icons.piano, size: 14, color: palette.secondaryAccent),
+                      avatar: StudioIcon(
+                        StudioIconId.modulePianoRoll,
+                        size: 14,
+                        color: tokens.accentSecondary,
+                        tintCustomAsset: true,
+                      ),
                       label: Text(
                         '${viewModel.activeInstrument.name} (${viewModel.activeInstrument.key.displayName})',
                       ),
-                      backgroundColor: palette.cardBackground,
+                      backgroundColor: tokens.elevatedSurface,
                       labelStyle: TextStyle(
-                        color: palette.textColor,
+                        color: tokens.textPrimary,
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
                       ),
-                      side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+                      side: BorderSide(color: tokens.borderHairline),
                       onPressed: onOpenInstrumentModal,
                     ),
                     const SizedBox(width: 6),
                     ActionChip(
                       key: const Key('open_learner_profile_chip'),
-                      avatar: Icon(Icons.tune, size: 14, color: palette.primaryAccent),
+                      avatar: StudioIcon(
+                        StudioIconId.moduleTuner,
+                        size: 14,
+                        color: tokens.accentPrimary,
+                        tintCustomAsset: true,
+                      ),
                       label: const Text('Pedagogía'),
-                      backgroundColor: palette.primaryAccent.withValues(alpha: 0.12),
+                      backgroundColor: tokens.elevatedSurface,
                       labelStyle: TextStyle(
-                        color: palette.primaryAccent,
+                        color: tokens.textPrimary,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
-                      side: BorderSide(color: palette.primaryAccent.withValues(alpha: 0.3)),
+                      side: BorderSide(color: tokens.borderFocus.withValues(alpha: 0.45)),
                       onPressed: () => LearnerProfileSelectorModal.show(context),
                     ),
                   ],
@@ -132,23 +151,14 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
             decoration: BoxDecoration(
-              color: palette.cardBackground,
-              borderRadius: BorderRadius.circular(22),
+              color: tokens.panelBackground,
+              borderRadius: BorderRadius.circular(tokens.borderRadiusLarge),
               border: Border.all(
                 color: isInTune
-                    ? palette.correctPitchColor.withValues(alpha: 0.6)
-                    : palette.staffLinesColor.withValues(alpha: 0.2),
-                width: isInTune ? 2.0 : 1.0,
+                    ? tokens.accentSuccess.withValues(alpha: 0.7)
+                    : tokens.borderHairline,
+                width: isInTune ? 1.5 : tokens.borderWidth,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: isInTune
-                      ? palette.correctPitchColor.withValues(alpha: 0.15)
-                      : Colors.black.withValues(alpha: 0.25),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
-                ),
-              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -159,7 +169,7 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 68,
                     fontWeight: FontWeight.w900,
-                    color: isInTune ? palette.correctPitchColor : palette.textColor,
+                    color: isInTune ? tokens.accentSuccess : tokens.textPrimary,
                     letterSpacing: -1,
                     fontFamily: 'monospace',
                   ),
@@ -173,16 +183,16 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                     key: const Key('essential_sounding_badge'),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                     decoration: BoxDecoration(
-                      color: palette.secondaryAccent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: palette.secondaryAccent.withValues(alpha: 0.3)),
+                      color: tokens.elevatedSurface,
+                      borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                      border: Border.all(color: tokens.borderHairline),
                     ),
                     child: Text(
                       "Sonando: ${viewModel.noteName} (Tono Real)",
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.bold,
-                        color: palette.secondaryAccent,
+                        color: tokens.accentSecondary,
                       ),
                     ),
                   ),
@@ -195,7 +205,7 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
-                    color: palette.textMutedColor,
+                    color: tokens.textMuted,
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -203,9 +213,9 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                   decoration: BoxDecoration(
-                    color: centsColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: centsColor.withValues(alpha: 0.4)),
+                    color: centsColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                    border: Border.all(color: centsColor.withValues(alpha: 0.45)),
                   ),
                   child: Text(
                     viewModel.frequency > 0
@@ -218,6 +228,7 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                       fontSize: 12.5,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.5,
+                      fontFamily: 'monospace',
                     ),
                   ),
                 ),
@@ -247,20 +258,20 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: diagnostic.isInTune
-                    ? palette.correctPitchColor.withValues(alpha: 0.1)
-                    : palette.secondaryAccent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
+                    ? tokens.accentSuccess.withValues(alpha: 0.1)
+                    : tokens.accentWarning.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(tokens.radiusMedium),
                 border: Border.all(
                   color: diagnostic.isInTune
-                      ? palette.correctPitchColor.withValues(alpha: 0.3)
-                      : palette.secondaryAccent.withValues(alpha: 0.3),
+                      ? tokens.accentSuccess.withValues(alpha: 0.35)
+                      : tokens.accentWarning.withValues(alpha: 0.35),
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
                     diagnostic.isInTune ? Icons.check_circle_outline : Icons.lightbulb_outline,
-                    color: diagnostic.isInTune ? palette.correctPitchColor : palette.secondaryAccent,
+                    color: diagnostic.isInTune ? tokens.accentSuccess : tokens.accentWarning,
                     size: 20,
                   ),
                   const SizedBox(width: 10),
@@ -272,8 +283,8 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                           diagnostic.primaryFeedback,
                           style: TextStyle(
                             color: diagnostic.isInTune
-                                ? palette.correctPitchColor
-                                : palette.secondaryAccent,
+                                ? tokens.accentSuccess
+                                : tokens.accentWarning,
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
@@ -282,7 +293,7 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                           Text(
                             diagnostic.biomechanicalCue!,
                             style: TextStyle(
-                              color: palette.textColor,
+                              color: tokens.textPrimary,
                               fontSize: 11,
                             ),
                           )
@@ -290,7 +301,7 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                           Text(
                             diagnostic.motivationalCue,
                             style: TextStyle(
-                              color: palette.textColor,
+                              color: tokens.textPrimary,
                               fontSize: 11,
                             ),
                           ),
@@ -306,86 +317,94 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
           if (viewModel.workspaceConfiguration.showMetronome) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: palette.cardBackground,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.25)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        viewModel.isMetronomeActive ? Icons.stop_circle : Icons.play_circle_fill,
-                        color: viewModel.isMetronomeActive ? palette.errorPitchColor : palette.primaryAccent,
-                        size: 28,
+              decoration: BoxDecoration(
+                color: tokens.panelBackground,
+                borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                border: Border.all(color: tokens.borderHairline),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: StudioIcon(
+                          viewModel.isMetronomeActive
+                              ? StudioIconId.transportStop
+                              : StudioIconId.transportPlay,
+                          color: viewModel.isMetronomeActive
+                              ? tokens.accentDanger
+                              : tokens.accentPrimary,
+                          size: 20,
+                          tintCustomAsset: true,
+                        ),
+                        onPressed: viewModel.toggleMetronome,
+                        tooltip: viewModel.isMetronomeActive ? "Detener Metrónomo" : "Iniciar Metrónomo",
                       ),
-                      onPressed: viewModel.toggleMetronome,
-                      tooltip: viewModel.isMetronomeActive ? "Detener Metrónomo" : "Iniciar Metrónomo",
-                    ),
-                    const SizedBox(width: 4),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "${viewModel.bpm} BPM",
-                          style: TextStyle(
-                            color: palette.primaryAccent,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                      const SizedBox(width: 4),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "${viewModel.bpm} BPM",
+                            style: TextStyle(
+                              color: tokens.textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'monospace',
+                            ),
                           ),
-                        ),
-                        Text(
-                          viewModel.currentTempoMark.italianName.toUpperCase(),
-                          style: TextStyle(
-                            color: palette.secondaryAccent,
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w700,
+                          Text(
+                            viewModel.currentTempoMark.italianName.toUpperCase(),
+                            style: TextStyle(
+                              color: tokens.textSecondary,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.remove, color: palette.textMutedColor, size: 18),
-                      onPressed: () => viewModel.decrementBpm(1),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.add, color: palette.textMutedColor, size: 18),
-                      onPressed: () => viewModel.incrementBpm(1),
-                    ),
-                    InkWell(
-                      key: const Key('tap_tempo_modal_btn'),
-                      onTap: () => TapTempoModal.show(context, viewModel),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: palette.primaryAccent.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: palette.primaryAccent.withValues(alpha: 0.4)),
-                        ),
-                        child: Text(
-                          'TAP',
-                          style: TextStyle(
-                            color: palette.primaryAccent,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
+                        ],
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.remove, color: tokens.textSecondary, size: 18),
+                        onPressed: () => viewModel.decrementBpm(1),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.add, color: tokens.textSecondary, size: 18),
+                        onPressed: () => viewModel.incrementBpm(1),
+                      ),
+                      InkWell(
+                        key: const Key('tap_tempo_modal_btn'),
+                        onTap: () => TapTempoModal.show(context, viewModel),
+                        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: tokens.elevatedSurface,
+                            borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                            border: Border.all(color: tokens.borderHairline),
+                          ),
+                          child: Text(
+                            'TAP',
+                            style: TextStyle(
+                              color: tokens.accentPrimary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'monospace',
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
+            const SizedBox(height: 10),
           ],
 
           // Fila de Filtros y Evaluación Pedagógica
@@ -394,10 +413,11 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
             child: Row(
               children: [
                 FilterChip(
-                  avatar: Icon(
-                    viewModel.isPracticeMode ? Icons.school : Icons.school_outlined,
-                    size: 15,
-                    color: viewModel.isPracticeMode ? Colors.black : palette.primaryAccent,
+                  avatar: StudioIcon(
+                    StudioIconId.modulePedagogy,
+                    size: 14,
+                    color: viewModel.isPracticeMode ? tokens.textOnAccent : tokens.accentPrimary,
+                    tintCustomAsset: true,
                   ),
                   label: Text(
                     viewModel.isPracticeMode
@@ -405,152 +425,183 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                         : "Modo Evaluación",
                   ),
                   selected: viewModel.isPracticeMode,
-                  selectedColor: palette.primaryAccent,
-                  backgroundColor: palette.cardBackground,
+                  selectedColor: tokens.accentPrimary,
+                  backgroundColor: tokens.panelBackground,
                   labelStyle: TextStyle(
-                    color: viewModel.isPracticeMode ? Colors.black : palette.textColor,
+                    color: viewModel.isPracticeMode ? tokens.textOnAccent : tokens.textPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
                   side: BorderSide(
                     color: viewModel.isPracticeMode
-                        ? palette.primaryAccent
-                        : palette.staffLinesColor.withValues(alpha: 0.3),
+                        ? tokens.borderFocus
+                        : tokens.borderHairline,
                   ),
                   onSelected: (_) => viewModel.togglePracticeMode(),
                 ),
                 const SizedBox(width: 8),
                 FilterChip(
-                  avatar: Icon(
-                    Icons.hourglass_top_rounded,
-                    size: 15,
-                    color: viewModel.isSmartWaitEnabled ? Colors.black : palette.secondaryAccent,
+                  avatar: StudioIcon(
+                    StudioIconId.moduleMetronome,
+                    size: 14,
+                    color: viewModel.isSmartWaitEnabled ? tokens.textOnAccent : tokens.accentSecondary,
+                    tintCustomAsset: true,
                   ),
                   label: const Text("Smart Wait"),
                   selected: viewModel.isSmartWaitEnabled,
-                  selectedColor: palette.secondaryAccent,
-                  backgroundColor: palette.cardBackground,
+                  selectedColor: tokens.accentPrimary,
+                  backgroundColor: tokens.panelBackground,
                   labelStyle: TextStyle(
-                    color: viewModel.isSmartWaitEnabled ? Colors.black : palette.textColor,
+                    color: viewModel.isSmartWaitEnabled ? tokens.textOnAccent : tokens.textPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
                   side: BorderSide(
                     color: viewModel.isSmartWaitEnabled
-                        ? palette.secondaryAccent
-                        : palette.staffLinesColor.withValues(alpha: 0.3),
+                        ? tokens.borderFocus
+                        : tokens.borderHairline,
                   ),
                   onSelected: (_) => viewModel.toggleSmartWait(),
                 ),
                 const SizedBox(width: 8),
                 ActionChip(
                   key: const Key('open_guided_lessons_chip'),
-                  avatar: Icon(Icons.auto_stories_outlined, size: 15, color: palette.primaryAccent),
+                  avatar: StudioIcon(
+                    StudioIconId.moduleScoreSheet,
+                    size: 14,
+                    color: tokens.accentPrimary,
+                    tintCustomAsset: true,
+                  ),
                   label: Text(
                     viewModel.hasActiveGuidedLesson
                         ? 'Lección: ${viewModel.activeLessonProgress!.lesson.title}'
                         : 'Lecciones Guiadas',
                   ),
                   backgroundColor: viewModel.hasActiveGuidedLesson
-                      ? palette.primaryAccent.withValues(alpha: 0.2)
-                      : palette.cardBackground,
+                      ? tokens.elevatedSurface
+                      : tokens.panelBackground,
                   labelStyle: TextStyle(
-                    color: viewModel.hasActiveGuidedLesson ? palette.primaryAccent : palette.textColor,
+                    color: tokens.textPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
                   side: BorderSide(
                     color: viewModel.hasActiveGuidedLesson
-                        ? palette.primaryAccent
-                        : palette.staffLinesColor.withValues(alpha: 0.3),
+                        ? tokens.borderFocus
+                        : tokens.borderHairline,
                   ),
                   onPressed: () => GuidedLessonsModal.show(context, viewModel),
                 ),
                 const SizedBox(width: 8),
                 ActionChip(
                   key: const Key('open_vocal_autotune_chip'),
-                  avatar: Icon(Icons.graphic_eq, size: 15, color: palette.secondaryAccent),
+                  avatar: StudioIcon(
+                    StudioIconId.moduleAutotune,
+                    size: 14,
+                    color: tokens.accentSecondary,
+                    tintCustomAsset: true,
+                  ),
                   label: Text(
                     viewModel.isAutoTuneActive ? 'AutoTune: ON' : 'Vocal AutoTune',
                   ),
                   backgroundColor: viewModel.isAutoTuneActive
-                      ? palette.secondaryAccent.withValues(alpha: 0.2)
-                      : palette.cardBackground,
+                      ? tokens.elevatedSurface
+                      : tokens.panelBackground,
                   labelStyle: TextStyle(
-                    color: viewModel.isAutoTuneActive ? palette.secondaryAccent : palette.textColor,
+                    color: tokens.textPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
                   side: BorderSide(
                     color: viewModel.isAutoTuneActive
-                        ? palette.secondaryAccent
-                        : palette.staffLinesColor.withValues(alpha: 0.3),
+                        ? tokens.borderFocus
+                        : tokens.borderHairline,
                   ),
                   onPressed: () => VocalAutoTuneModal.show(context, viewModel),
                 ),
                 const SizedBox(width: 8),
                 ActionChip(
                   key: const Key('open_spectral_comparator_chip'),
-                  avatar: Icon(Icons.compare_arrows, size: 15, color: palette.secondaryAccent),
+                  avatar: StudioIcon(
+                    StudioIconId.moduleSpectrogram,
+                    size: 14,
+                    color: tokens.accentSecondary,
+                    tintCustomAsset: true,
+                  ),
                   label: const Text("Comparar Tomas"),
-                  backgroundColor: palette.cardBackground,
+                  backgroundColor: tokens.panelBackground,
                   labelStyle: TextStyle(
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
-                  side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+                  side: BorderSide(color: tokens.borderHairline),
                   onPressed: () => SpectralComparatorModal.show(context, viewModel),
                 ),
                 const SizedBox(width: 8),
                 ActionChip(
                   key: const Key('open_pedagogical_report_chip'),
-                  avatar: Icon(Icons.picture_as_pdf_outlined, size: 15, color: palette.primaryAccent),
+                  avatar: StudioIcon(
+                    StudioIconId.fileExportPdf,
+                    size: 14,
+                    color: tokens.accentPrimary,
+                    tintCustomAsset: true,
+                  ),
                   label: const Text('Informe PDF'),
-                  backgroundColor: palette.cardBackground,
+                  backgroundColor: tokens.panelBackground,
                   labelStyle: TextStyle(
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
-                  side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+                  side: BorderSide(color: tokens.borderHairline),
                   onPressed: () => PedagogicalReportModal.show(context),
                 ),
                 const SizedBox(width: 8),
                 ActionChip(
                   key: const Key('exercise_generator_modal_btn'),
-                  avatar: Icon(Icons.fitness_center_outlined, size: 15, color: palette.secondaryAccent),
+                  avatar: StudioIcon(
+                    StudioIconId.uiAutomations,
+                    size: 14,
+                    color: tokens.accentSecondary,
+                    tintCustomAsset: true,
+                  ),
                   label: const Text('Generar Ejercicios'),
-                  backgroundColor: palette.cardBackground,
+                  backgroundColor: tokens.panelBackground,
                   labelStyle: TextStyle(
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
-                  side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+                  side: BorderSide(color: tokens.borderHairline),
                   onPressed: () => ExerciseGeneratorModal.show(context),
                 ),
                 const SizedBox(width: 8),
                 ActionChip(
                   key: const Key('learning_drone_chip'),
-                  avatar: Icon(Icons.waves, size: 15, color: palette.primaryAccent),
+                  avatar: StudioIcon(
+                    StudioIconId.moduleDrone,
+                    size: 14,
+                    color: tokens.accentPrimary,
+                    tintCustomAsset: true,
+                  ),
                   label: Text(
                     viewModel.isDronePlaying
                         ? 'Dron: ${viewModel.droneConfig.rootDisplayName}'
                         : 'Dron Armónico',
                   ),
                   backgroundColor: viewModel.isDronePlaying
-                      ? palette.primaryAccent.withValues(alpha: 0.2)
-                      : palette.cardBackground,
+                      ? tokens.elevatedSurface
+                      : tokens.panelBackground,
                   labelStyle: TextStyle(
-                    color: viewModel.isDronePlaying ? palette.primaryAccent : palette.textColor,
+                    color: tokens.textPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
                   side: BorderSide(
                     color: viewModel.isDronePlaying
-                        ? palette.primaryAccent
-                        : palette.staffLinesColor.withValues(alpha: 0.3),
+                        ? tokens.borderFocus
+                        : tokens.borderHairline,
                   ),
                   onPressed: () => HarmonicDroneModal.show(context, viewModel),
                 ),
@@ -569,17 +620,25 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
               key: const Key('essential_mic_toggle_btn'),
               onPressed: viewModel.toggleRecording,
               backgroundColor: isListening
-                  ? palette.errorPitchColor.withValues(alpha: 0.2)
-                  : palette.primaryAccent,
-              elevation: 3,
-              icon: Icon(
-                isListening ? Icons.mic_off : Icons.mic,
-                color: isListening ? palette.errorPitchColor : Colors.black,
+                  ? tokens.accentDanger.withValues(alpha: 0.18)
+                  : tokens.accentPrimary,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(tokens.borderRadiusLarge),
+                side: BorderSide(
+                  color: isListening ? tokens.accentDanger : tokens.borderFocus,
+                ),
+              ),
+              icon: StudioIcon(
+                isListening ? StudioIconId.audioMicOff : StudioIconId.audioMicOn,
+                size: 18,
+                color: isListening ? tokens.accentDanger : tokens.textOnAccent,
+                tintCustomAsset: true,
               ),
               label: Text(
                 isListening ? "DETENER ESCUCHA" : "INICIAR AFINACIÓN",
                 style: TextStyle(
-                  color: isListening ? palette.errorPitchColor : Colors.black,
+                  color: isListening ? tokens.accentDanger : tokens.textOnAccent,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
                 ),

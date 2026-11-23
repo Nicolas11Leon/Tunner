@@ -4,6 +4,7 @@ class AudioTrack {
   final String title;
   final String instrumentIcon; // Identificador simbólico (ej: "voice", "piano", "guitar", "flute", "metronome")
   final double volume;         // Ganancia lineal de 0.0 (silencio) a 1.0 (máximo volumen)
+  final double pan;            // Posición estereofónica de -1.0 (izquierda) a 1.0 (derecha), 0.0 centro
   final bool isMuted;          // True si el canal está en silencio
   final bool isSolo;           // True si el canal está en modo Solo exclusivo
 
@@ -12,6 +13,7 @@ class AudioTrack {
     required this.title,
     required this.instrumentIcon,
     this.volume = 0.8,
+    this.pan = 0.0,
     this.isMuted = false,
     this.isSolo = false,
   });
@@ -30,14 +32,18 @@ class AudioTrack {
     String? title,
     String? instrumentIcon,
     double? volume,
+    double? pan,
     bool? isMuted,
     bool? isSolo,
   }) {
+    final targetVol = volume ?? this.volume;
+    final targetPan = pan ?? this.pan;
     return AudioTrack(
       id: id ?? this.id,
       title: title ?? this.title,
       instrumentIcon: instrumentIcon ?? this.instrumentIcon,
-      volume: (volume ?? this.volume).clamp(0.0, 1.0),
+      volume: (targetVol.isFinite ? targetVol : this.volume).clamp(0.0, 1.0),
+      pan: (targetPan.isFinite ? targetPan : this.pan).clamp(-1.0, 1.0),
       isMuted: isMuted ?? this.isMuted,
       isSolo: isSolo ?? this.isSolo,
     );
@@ -48,18 +54,48 @@ class AudioTrack {
     'title': title,
     'instrumentIcon': instrumentIcon,
     'volume': volume,
+    'pan': pan,
     'isMuted': isMuted,
     'isSolo': isSolo,
   };
 
-  factory AudioTrack.fromMap(Map<String, dynamic> map) => AudioTrack(
-    id: map['id'] as String? ?? 'track',
-    title: map['title'] as String? ?? 'Pista',
-    instrumentIcon: map['instrumentIcon'] as String? ?? 'music_note',
-    volume: (map['volume'] as num?)?.toDouble() ?? 0.8,
-    isMuted: map['isMuted'] as bool? ?? false,
-    isSolo: map['isSolo'] as bool? ?? false,
-  );
+  factory AudioTrack.fromMap(Map<String, dynamic> map) {
+    final rawVol = (map['volume'] as num?)?.toDouble() ?? 0.8;
+    final rawPan = (map['pan'] as num?)?.toDouble() ?? 0.0;
+    return AudioTrack(
+      id: map['id'] as String? ?? 'track',
+      title: map['title'] as String? ?? 'Pista',
+      instrumentIcon: map['instrumentIcon'] as String? ?? 'music_note',
+      volume: (rawVol.isFinite ? rawVol : 0.8).clamp(0.0, 1.0),
+      pan: (rawPan.isFinite ? rawPan : 0.0).clamp(-1.0, 1.0),
+      isMuted: map['isMuted'] as bool? ?? false,
+      isSolo: map['isSolo'] as bool? ?? false,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is AudioTrack &&
+        other.id == id &&
+        other.title == title &&
+        other.instrumentIcon == instrumentIcon &&
+        other.volume == volume &&
+        other.pan == pan &&
+        other.isMuted == isMuted &&
+        other.isSolo == isSolo;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        id,
+        title,
+        instrumentIcon,
+        volume,
+        pan,
+        isMuted,
+        isSolo,
+      );
 }
 
 /// Estado global inmutable de la consola de mezcla multicanal.
@@ -191,4 +227,19 @@ class MixerConsoleEntity {
       stems: stems,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! MixerConsoleEntity) return false;
+    if (other.metronomeTrack != metronomeTrack) return false;
+    if (other.stems.length != stems.length) return false;
+    for (int i = 0; i < stems.length; i++) {
+      if (other.stems[i] != stems[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hash(metronomeTrack, Object.hashAll(stems));
 }

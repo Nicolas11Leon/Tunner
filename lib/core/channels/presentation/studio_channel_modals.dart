@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
+import '../../design_system/studio_design_system.dart';
 import '../domain/i_studio_patchbay_routing_service.dart';
 import '../domain/studio_channel_bus.dart';
 
-/// Paleta de colores canónicos neón para canales de estudio.
+/// Paleta de colores identificadores de LED para canales de parcheo de estudio.
 class StudioChannelPalette {
   static const List<int> presetColors = [
-    0xFF00E5FF, // Cian neón
-    0xFFFFAB00, // Ámbar cálido
-    0xFF10B981, // Esmeralda club
-    0xFF8B5CF6, // Púrpura synthwave
-    0xFFFF4081, // Rosa neón
-    0xFF00E676, // Verde lima
-    0xFF3D5AFE, // Azul índigo
-    0xFFFF6D00, // Naranja fuego
+    0xFFE5E9F0, // Plata OLED
+    0xFF22C55E, // Verde señal
+    0xFFF59E0B, // Ámbar cálido
+    0xFFEF4444, // Rojo grabación
+    0xFF38BDF8, // Azul telemetría
+    0xFFA78BFA, // Violeta auxiliar
+    0xFFFB923C, // Naranja bus
+    0xFF94A3B8, // Grafito neutro
   ];
 }
 
@@ -72,11 +73,14 @@ class _StudioCreateChannelModalState extends State<StudioCreateChannelModal> {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.of(context);
+    final selectedChannelColor = Color(_selectedColor);
+
     return Dialog(
-      backgroundColor: const Color(0xFF10131E),
+      backgroundColor: tokens.panelBackground,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Color(0xFF28324A), width: 1.2),
+        borderRadius: BorderRadius.circular(tokens.borderRadiusLarge),
+        side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
@@ -93,64 +97,84 @@ class _StudioCreateChannelModalState extends State<StudioCreateChannelModal> {
                     height: 32,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(_selectedColor).withValues(alpha: 0.2),
-                      border: Border.all(color: Color(_selectedColor), width: 1.5),
+                      color: selectedChannelColor.withValues(alpha: 0.16),
+                      border: Border.all(color: selectedChannelColor, width: 1.5),
                     ),
-                    child: Icon(Icons.add, color: Color(_selectedColor), size: 18),
+                    child: Center(
+                      child: StudioIcon(
+                        StudioIconId.uiAddRemove,
+                        color: selectedChannelColor,
+                        size: 16,
+                        tintCustomAsset: true,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'CREAR NUEVO CANAL',
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
+                        color: tokens.textPrimary,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.8,
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+                    icon: StudioIcon(
+                      StudioIconId.uiCloseConfirm,
+                      color: tokens.textMuted,
+                      size: 16,
+                      tintCustomAsset: true,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Nombre del Canal:',
-                style: TextStyle(color: Color(0xFF8E9BAE), fontSize: 11, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: tokens.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 6),
               TextField(
                 controller: _nameController,
                 autofocus: true,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
+                style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                 decoration: InputDecoration(
                   hintText: 'Ej. Voz Principal, Batería Rock, Violín Solo...',
-                  hintStyle: const TextStyle(color: Color(0xFF556075), fontSize: 12),
+                  hintStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
                   filled: true,
-                  fillColor: const Color(0xFF161B28),
+                  fillColor: tokens.inputSurface,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFF2A344A)),
+                    borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                    borderSide: BorderSide(color: tokens.borderHairline),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFF2A344A)),
+                    borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                    borderSide: BorderSide(color: tokens.borderHairline),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Color(_selectedColor), width: 1.5),
+                    borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                    borderSide: BorderSide(color: tokens.borderFocus, width: 1.2),
                   ),
                 ),
                 onSubmitted: (_) => _submit(),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Color del Canal / LED:',
-                style: TextStyle(color: Color(0xFF8E9BAE), fontSize: 11, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: tokens.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -168,45 +192,50 @@ class _StudioCreateChannelModalState extends State<StudioCreateChannelModal> {
                         shape: BoxShape.circle,
                         color: Color(colorHex),
                         border: Border.all(
-                          color: isSelected ? Colors.white : Colors.transparent,
-                          width: 2.2,
+                          color: isSelected ? tokens.borderFocus : tokens.borderHairline,
+                          width: isSelected ? 2.0 : 1.0,
                         ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: Color(colorHex).withValues(alpha: 0.8),
-                                  blurRadius: 8,
-                                ),
-                              ]
-                            : null,
                       ),
                       child: isSelected
-                          ? const Icon(Icons.check, size: 14, color: Colors.black87)
+                          ? Icon(Icons.check, size: 14, color: tokens.textOnAccent)
                           : null,
                     ),
                   );
                 }).toList(),
               ),
               const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancelar', style: TextStyle(color: Color(0xFF8E9BAE))),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.check, size: 14),
-                    label: const Text('Crear Canal', style: TextStyle(fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(_selectedColor),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text('Cancelar', style: TextStyle(color: tokens.textSecondary)),
                     ),
-                    onPressed: _submit,
-                  ),
-                ],
+                    ElevatedButton.icon(
+                      icon: Icon(Icons.check, size: 14, color: tokens.textOnAccent),
+                      label: Text(
+                        'Crear Canal',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: tokens.textOnAccent,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: tokens.accentPrimary,
+                        foregroundColor: tokens.textOnAccent,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                        ),
+                      ),
+                      onPressed: _submit,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -270,13 +299,14 @@ class _StudioRenameChannelModalState extends State<StudioRenameChannelModal> {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.of(context);
     final chColor = Color(widget.channel.colorHex);
 
     return Dialog(
-      backgroundColor: const Color(0xFF10131E),
+      backgroundColor: tokens.panelBackground,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Color(0xFF28324A), width: 1.2),
+        borderRadius: BorderRadius.circular(tokens.borderRadiusLarge),
+        side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400),
@@ -293,17 +323,24 @@ class _StudioRenameChannelModalState extends State<StudioRenameChannelModal> {
                     height: 28,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: chColor.withValues(alpha: 0.2),
+                      color: chColor.withValues(alpha: 0.18),
                       border: Border.all(color: chColor, width: 1.5),
                     ),
-                    child: Icon(Icons.edit, color: chColor, size: 15),
+                    child: Center(
+                      child: StudioIcon(
+                        StudioIconId.moduleScoreEditor,
+                        color: chColor,
+                        size: 14,
+                        tintCustomAsset: true,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'RENOMBRAR CANAL',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: tokens.textPrimary,
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.8,
@@ -311,7 +348,12 @@ class _StudioRenameChannelModalState extends State<StudioRenameChannelModal> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+                    icon: StudioIcon(
+                      StudioIconId.uiCloseConfirm,
+                      color: tokens.textMuted,
+                      size: 16,
+                      tintCustomAsset: true,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -320,43 +362,60 @@ class _StudioRenameChannelModalState extends State<StudioRenameChannelModal> {
               TextField(
                 controller: _nameController,
                 autofocus: true,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
+                style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                 decoration: InputDecoration(
                   labelText: 'Nuevo nombre del canal',
-                  labelStyle: const TextStyle(color: Color(0xFF8E9BAE), fontSize: 12),
+                  labelStyle: TextStyle(color: tokens.textSecondary, fontSize: 12),
                   filled: true,
-                  fillColor: const Color(0xFF161B28),
+                  fillColor: tokens.inputSurface,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFF2A344A)),
+                    borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                    borderSide: BorderSide(color: tokens.borderHairline),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                    borderSide: BorderSide(color: tokens.borderHairline),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: chColor, width: 1.5),
+                    borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                    borderSide: BorderSide(color: tokens.borderFocus, width: 1.2),
                   ),
                 ),
                 onSubmitted: (_) => _submit(),
               ),
               const SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancelar', style: TextStyle(color: Color(0xFF8E9BAE))),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: chColor,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text('Cancelar', style: TextStyle(color: tokens.textSecondary)),
                     ),
-                    onPressed: _submit,
-                    child: const Text('Guardar Nombre', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ],
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: tokens.accentPrimary,
+                        foregroundColor: tokens.textOnAccent,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                        ),
+                      ),
+                      onPressed: _submit,
+                      child: Text(
+                        'Guardar Nombre',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: tokens.textOnAccent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

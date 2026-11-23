@@ -339,6 +339,15 @@ class ScoreEditorController {
       level = 'Iniciacion';
     }
 
+    final rhythmAccuracy = lastReport?.rhythmAccuracyPercentage;
+    final dynamicRecommendations = _buildDynamicRecommendations(
+      notesCount: notes,
+      pitchAccuracy: accuracy,
+      rhythmAccuracy: rhythmAccuracy,
+      centsError: avgCents,
+      rhythmJitterMs: jitter,
+    );
+
     return PedagogicalSessionData(
       sessionTitle: title,
       sessionDate: lastReport?.timestamp ?? DateTime.now(),
@@ -358,16 +367,71 @@ class ScoreEditorController {
       pedagogicalDiagnostic: notes == 0
           ? 'Aun no se han evaluado notas en esta sesion. Inicia una practica guiada para medir afinacion y pulso.'
           : 'Precision medida: ${accuracy.toStringAsFixed(1)}% sobre $notes notas evaluadas (desviacion media ${avgCents.toStringAsFixed(1)} cents).',
-      recommendations: notes == 0
-          ? const [
-              'Activa el modo practica sobre una partitura o ejercicio para registrar metricas reales.',
-            ]
-          : const [
-              'Mantener el apoyo diafragmatico y regularidad del flujo aereo en registros agudos.',
-              'Ejercitar intervalos de quinta justa y octava con el Dron Armonico de referencia.',
-              'Continuar rutinas de metronomo con acentos alternos para afianzar el pulso.',
-            ],
+      recommendations: dynamicRecommendations,
     );
+  }
+
+  List<String> _buildDynamicRecommendations({
+    required int notesCount,
+    required double pitchAccuracy,
+    required double? rhythmAccuracy,
+    required double centsError,
+    required double rhythmJitterMs,
+  }) {
+    if (notesCount == 0) {
+      return const [
+        'Activa el modo practica sobre una partitura o ejercicio para registrar metricas reales.',
+      ];
+    }
+
+    final recs = <String>[];
+
+    // 1. Pauta de afinacion segun pitchAccuracy
+    if (pitchAccuracy < 70.0) {
+      recs.add(
+        'Afinacion por debajo del 70% (${pitchAccuracy.toStringAsFixed(1)}%): practicar notas largas lentas con Dron Armonico y Smart Wait.',
+      );
+    } else if (pitchAccuracy < 90.0) {
+      recs.add(
+        'Precision tonal intermedia (${pitchAccuracy.toStringAsFixed(1)}%): aislar pasajes con intervalos amplios para estabilizar la embocadura.',
+      );
+    } else {
+      recs.add(
+        'Excelente precision tonal (${pitchAccuracy.toStringAsFixed(1)}%): consolidar memoria muscular incrementando gradualmente el tempo.',
+      );
+    }
+
+    // 2. Pauta de sesgo en cents segun centsError
+    if (centsError > 10.0) {
+      recs.add(
+        'Tendencia aguda (+${centsError.toStringAsFixed(1)} cents): relajar la tension laringea o presion de embocadura para bajar el centro tonal.',
+      );
+    } else if (centsError < -10.0) {
+      recs.add(
+        'Tendencia grave (${centsError.toStringAsFixed(1)} cents): incrementar el soporte costodiafragmatico y la velocidad del flujo aereo.',
+      );
+    } else {
+      recs.add(
+        'Centro tonal equilibrado (${centsError.toStringAsFixed(1)} cents): mantener consistencia de afinacion en cambios de dinamica.',
+      );
+    }
+
+    // 3. Pauta ritmica segun rhythmAccuracy y rhythmJitterMs
+    if ((rhythmAccuracy != null && rhythmAccuracy < 75.0) || rhythmJitterMs > 20.0) {
+      recs.add(
+        'Pulso ritmico inestable (${rhythmJitterMs.toStringAsFixed(1)} ms jitter): trabajar subdivisiones con metronomo a menor BPM.',
+      );
+    } else if ((rhythmAccuracy != null && rhythmAccuracy < 90.0) || rhythmJitterMs > 12.0) {
+      recs.add(
+        'Regularidad de pulso mejorable (${rhythmJitterMs.toStringAsFixed(1)} ms jitter): practicar acentos alternos y ataques sincronizados.',
+      );
+    } else {
+      recs.add(
+        'Pulso solido (${rhythmJitterMs.toStringAsFixed(1)} ms jitter): sostener precision ritmica en articulaciones complejas.',
+      );
+    }
+
+    return List<String>.unmodifiable(recs);
   }
 
   Uint8List exportPedagogicalReportPdf({

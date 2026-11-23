@@ -22,9 +22,7 @@ class HarmonicTutorViewModel extends ChangeNotifier {
     this.onPlayDroneSamples,
     this.onStopDrone,
   })  : _synth = synth ?? HarmonicReferenceSynth(),
-        _session = initialSession ?? const HarmonicTutorSessionEntity() {
-    _updateAnalysis(261.63); // Initial analysis at unison
-  }
+        _session = initialSession ?? const HarmonicTutorSessionEntity();
 
   HarmonicTutorSessionEntity get session => _session;
   HarmonicRole? get forcedRole => _forcedRole;
@@ -82,8 +80,8 @@ class HarmonicTutorViewModel extends ChangeNotifier {
   }
 
   void _regenerateDrone() {
-    // Generate guide voices: Root + Fifth (plus Third if applicable)
-    final voices = _session.chordType.roles.take(2).toList();
+    // Synthesize all chord voices (including triads and sevenths) without truncation
+    final voices = _session.chordType.roles.toList();
     final buffer = _synth.generateChordBuffer(
       rootFrequency: _session.rootFrequency,
       roles: voices,
@@ -109,7 +107,8 @@ class HarmonicTutorViewModel extends ChangeNotifier {
   }
 
   void _recomputeActivePitch() {
-    final currentFreq = _session.activeAnalysis?.userFrequency ?? _session.rootFrequency;
+    final currentFreq = _session.activeAnalysis?.userFrequency;
+    if (currentFreq == null || currentFreq <= 0.0) return;
     _updateAnalysis(currentFreq);
   }
 
