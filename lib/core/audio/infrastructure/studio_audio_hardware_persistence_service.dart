@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import '../../logging/infrastructure/studio_debug_logger.dart';
+import '../../logging/domain/i_studio_logger.dart';
 import '../domain/audio_device_matrix_entity.dart';
 import '../domain/i_studio_audio_hardware_persistence_service.dart';
 
@@ -13,29 +12,50 @@ import '../domain/i_studio_audio_hardware_persistence_service.dart';
 /// previniendo corrupcion de datos ante cierres intempestivos del sistema.
 class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersistenceService {
   final Future<String> Function()? _documentsPathProvider;
+  final Future<Directory> Function()? _rootDirectoryProvider;
+  final IStudioLogger _logger;
   final String _fileName;
 
   Future<void>? _pendingSaveOperation;
 
   StudioAudioHardwarePersistenceService({
     Future<String> Function()? documentsPathProvider,
+    Future<Directory> Function()? rootDirectoryProvider,
+    IStudioLogger logger = const NoOpStudioLogger(),
     String fileName = 'tunner_audio_hardware_matrix.json',
   })  : _documentsPathProvider = documentsPathProvider,
+        _rootDirectoryProvider = rootDirectoryProvider,
+        _logger = logger,
         _fileName = fileName;
 
   Future<File> _getTargetFile() async {
     String directoryPath;
     if (_documentsPathProvider != null) {
       directoryPath = await _documentsPathProvider();
+    } else if (_rootDirectoryProvider != null) {
+      final dir = await _rootDirectoryProvider();
+      directoryPath = dir.path;
     } else {
-      try {
-        final dir = await getApplicationDocumentsDirectory();
-        directoryPath = dir.path;
-      } catch (e) {
-        directoryPath = Directory.systemTemp.path;
-      }
+      directoryPath = _resolveDefaultDirectoryPath();
     }
-    return File('$directoryPath/$_fileName');
+    final dir = Directory(directoryPath);
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    return File('$directoryPath${Platform.pathSeparator}$_fileName');
+  }
+
+  String _resolveDefaultDirectoryPath() {
+    final envConfigDir = Platform.environment['TUNNER_CONFIG_DIR'] ??
+        Platform.environment['TUNNER_WORKSPACE_ROOT'];
+    if (envConfigDir != null && envConfigDir.isNotEmpty) {
+      return envConfigDir;
+    }
+    final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+    if (home != null && home.isNotEmpty) {
+      return '$home${Platform.pathSeparator}Documents';
+    }
+    return Directory.systemTemp.path;
   }
 
   @override
@@ -45,7 +65,7 @@ class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersi
       try {
         await pending;
       } catch (e, st) {
-        StudioDebugLogger.instance.warning(
+        _logger.warning(
           'StudioAudioHardwarePersistenceService',
           'Pending matrix save failed prior to loadMatrix',
           error: e,
@@ -68,7 +88,7 @@ class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersi
       final jsonMap = jsonDecode(content) as Map<String, dynamic>;
       return AudioDeviceMatrixEntity.fromJson(jsonMap);
     } catch (e) {
-      StudioDebugLogger.instance.warning('StudioAudioHardwarePersistenceService', 'Error al cargar la matriz de hardware de audio: $e');
+      _logger.warning('StudioAudioHardwarePersistenceService', 'Error al cargar la matriz de hardware de audio: $e');
       return AudioDeviceMatrixEntity.defaultConfiguration();
     }
   }
@@ -88,7 +108,7 @@ class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersi
       try {
         await tempFile.rename(file.path);
       } catch (e, st) {
-        StudioDebugLogger.instance.warning(
+        _logger.warning(
           'StudioAudioHardwarePersistenceService',
           'Renombrado atomico fallback a escritura directa: $e',
           error: e,
@@ -101,7 +121,7 @@ class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersi
       }
       completer.complete();
     } catch (e) {
-      StudioDebugLogger.instance.warning('StudioAudioHardwarePersistenceService', 'Error al guardar la matriz de hardware de audio: $e');
+      _logger.warning('StudioAudioHardwarePersistenceService', 'Error al guardar la matriz de hardware de audio: $e');
       completer.completeError(e);
     } finally {
       if (_pendingSaveOperation == completer.future) {
@@ -118,7 +138,7 @@ class StudioAudioHardwarePersistenceService implements IStudioAudioHardwarePersi
         await file.delete();
       }
     } catch (e) {
-      StudioDebugLogger.instance.warning('StudioAudioHardwarePersistenceService', 'Error al limpiar la matriz de hardware de audio: $e');
+      _logger.warning('StudioAudioHardwarePersistenceService', 'Error al limpiar la matriz de hardware de audio: $e');
     }
   }
 }

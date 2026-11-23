@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
-import '../../logging/infrastructure/studio_debug_logger.dart';
+import '../../logging/domain/i_studio_logger.dart';
 import '../domain/i_studio_audio_channel.dart';
 import '../domain/studio_audio_track_state.dart';
 import '../domain/studio_transport_status.dart';
@@ -16,6 +16,7 @@ class StudioAudioChannel implements IStudioAudioChannel {
 
   AudioPlayer? _playerInstance;
   final AudioPlayer? _injectedPlayer;
+  final IStudioLogger _logger;
 
   static bool get _isTestEnvironment =>
       !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
@@ -51,7 +52,9 @@ class StudioAudioChannel implements IStudioAudioChannel {
   StudioAudioChannel({
     required this.channelId,
     AudioPlayer? injectedPlayer,
-  }) : _injectedPlayer = injectedPlayer {
+    IStudioLogger logger = const NoOpStudioLogger(),
+  })  : _injectedPlayer = injectedPlayer,
+        _logger = logger {
     _initPlayerListeners();
   }
 
@@ -148,7 +151,7 @@ class StudioAudioChannel implements IStudioAudioChannel {
         await p.setSource(BytesSource(bytes, mimeType: 'audio/wav'));
       }
     } catch (e) {
-      StudioDebugLogger.instance.warning('StudioAudioChannel', '[$channelId] Error cargando fuente: $e');
+      _logger.warning('StudioAudioChannel', '[$channelId] Error cargando fuente: $e');
     }
     _emitState();
   }
@@ -186,7 +189,7 @@ class StudioAudioChannel implements IStudioAudioChannel {
       await p.setVolume(effVol.clamp(0.0, 1.0));
       await p.setPlaybackRate(_playbackRate.clamp(0.5, 2.0));
     } catch (e) {
-      StudioDebugLogger.instance.warning('StudioAudioChannel', '[$channelId] Error en play: $e');
+      _logger.warning('StudioAudioChannel', '[$channelId] Error en play: $e');
       _status = StudioTransportStatus.error;
       _emitState();
     }
@@ -206,7 +209,7 @@ class StudioAudioChannel implements IStudioAudioChannel {
     try {
       await p.pause();
     } catch (e) {
-      StudioDebugLogger.instance.warning('StudioAudioChannel', '[$channelId] Error en pause: $e');
+      _logger.warning('StudioAudioChannel', '[$channelId] Error en pause: $e');
     }
   }
 
@@ -222,7 +225,7 @@ class StudioAudioChannel implements IStudioAudioChannel {
     try {
       await p.stop();
     } catch (e) {
-      StudioDebugLogger.instance.warning('StudioAudioChannel', '[$channelId] Error en stop: $e');
+      _logger.warning('StudioAudioChannel', '[$channelId] Error en stop: $e');
     }
   }
 
@@ -237,7 +240,7 @@ class StudioAudioChannel implements IStudioAudioChannel {
     try {
       await p.seek(position);
     } catch (e) {
-      StudioDebugLogger.instance.warning('StudioAudioChannel', '[$channelId] Error en seek: $e');
+      _logger.warning('StudioAudioChannel', '[$channelId] Error en seek: $e');
     }
   }
 
@@ -277,7 +280,7 @@ class StudioAudioChannel implements IStudioAudioChannel {
             try {
               await p.resume();
             } catch (e, st) {
-              StudioDebugLogger.instance.warning(
+              _logger.warning(
                 'StudioAudioChannel',
                 '[$channelId] resume() fallo, recargando fuente de audio: $e',
                 error: e,
@@ -292,7 +295,7 @@ class StudioAudioChannel implements IStudioAudioChannel {
           }
         }
       } catch (e) {
-        StudioDebugLogger.instance.warning('StudioAudioChannel', '[$channelId] Error en setVolume: $e');
+        _logger.warning('StudioAudioChannel', '[$channelId] Error en setVolume: $e');
       }
     }
 
@@ -310,7 +313,7 @@ class StudioAudioChannel implements IStudioAudioChannel {
     try {
       await p.setPlaybackRate(_playbackRate);
     } catch (e) {
-      StudioDebugLogger.instance.warning('StudioAudioChannel', '[$channelId] Error en setPlaybackRate: $e');
+      _logger.warning('StudioAudioChannel', '[$channelId] Error en setPlaybackRate: $e');
     }
   }
 
@@ -334,7 +337,7 @@ class StudioAudioChannel implements IStudioAudioChannel {
       _status = StudioTransportStatus.stopped;
       await _stateController.close();
     } catch (e) {
-      StudioDebugLogger.instance.warning('StudioAudioChannel', '[$channelId] Error al liberar recursos: $e');
+      _logger.warning('StudioAudioChannel', '[$channelId] Error al liberar recursos: $e');
     }
   }
 }

@@ -2435,7 +2435,9 @@ class TunerViewModel extends ChangeNotifier
 
       if (settings.customPalettes.isNotEmpty) {
         _customPalettes.clear();
-        _customPalettes.addAll(settings.customPalettes);
+        _customPalettes.addAll(
+          settings.customPalettes.map(TunnerThemePalette.fromPaletteData),
+        );
       }
 
       final targetPalette = availablePalettes.firstWhere(

@@ -1,6 +1,5 @@
 import 'dart:async';
-
-import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
 
 import '../../../core/logging/domain/i_studio_logger.dart';
 import '../../acoustic_lab/domain/harmonic_series_analyzer.dart';
@@ -49,7 +48,7 @@ class ScoreEditorController {
   final StemAudioSynthesizer _stemSynthesizer;
   final IStemExportPersistenceService _exportPersistenceService;
   final IStudioLogger _logger;
-  final VoidCallback _onNotify;
+  final void Function() _onNotify;
 
   bool _isLiveTranscriptionActive = false;
   bool _isPolyphonicTranscriptionActive = false;
@@ -62,7 +61,7 @@ class ScoreEditorController {
     required StemAudioSynthesizer stemSynthesizer,
     required IStemExportPersistenceService exportPersistenceService,
     required IStudioLogger logger,
-    required VoidCallback onNotify,
+    required void Function() onNotify,
   })  : _audioSynthesizer = audioSynthesizer,
         _scoreImporterService = scoreImporterService,
         _stemSynthesizer = stemSynthesizer,
@@ -492,7 +491,7 @@ class ScoreEditorController {
     required SongPackage activePackage,
     required int currentMeasureIndex,
     required int currentSubTick,
-    required VoidCallback ensureChordRecognitionActive,
+    required void Function() ensureChordRecognitionActive,
     int? bpm,
   }) {
     _isPolyphonicTranscriptionActive = !_isPolyphonicTranscriptionActive;

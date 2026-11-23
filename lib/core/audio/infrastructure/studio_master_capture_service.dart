@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
-import '../../logging/infrastructure/studio_debug_logger.dart';
+import 'dart:typed_data';
+import '../../logging/domain/i_studio_logger.dart';
 import '../domain/i_studio_master_capture_service.dart';
 
 /// Implementación en infraestructura de [IStudioMasterCaptureService]
 /// que realiza codificación en tiempo real a formato WAV PCM estándar (16-bit little-endian).
 class StudioMasterCaptureService implements IStudioMasterCaptureService {
+  final IStudioLogger _logger;
   String? _currentFilePath;
   RandomAccessFile? _randomAccessFile;
   Future<void> _writeChain = Future<void>.value();
@@ -19,6 +20,10 @@ class StudioMasterCaptureService implements IStudioMasterCaptureService {
   final Stopwatch _stopwatch = Stopwatch();
   Timer? _durationTicker;
   final StreamController<Duration> _durationController = StreamController<Duration>.broadcast();
+
+  StudioMasterCaptureService({
+    IStudioLogger logger = const NoOpStudioLogger(),
+  }) : _logger = logger;
 
   @override
   bool get isCapturing => _isCapturing;
@@ -97,7 +102,7 @@ class StudioMasterCaptureService implements IStudioMasterCaptureService {
         try {
           await raf.writeFrom(bytes);
         } catch (e, st) {
-          StudioDebugLogger.instance.warning(
+          _logger.warning(
             'StudioMasterCaptureService',
             'Error en escritura asincrona de bloque PCM WAV',
             error: e,
@@ -135,7 +140,7 @@ class StudioMasterCaptureService implements IStudioMasterCaptureService {
         _randomAccessFile = null;
       }
     } catch (e, st) {
-      StudioDebugLogger.instance.error(
+      _logger.error(
         'StudioMasterCaptureService',
         'Error al finalizar el archivo WAV maestro',
         error: e,
@@ -221,7 +226,7 @@ class StudioMasterCaptureService implements IStudioMasterCaptureService {
       try {
         _randomAccessFile?.closeSync();
       } catch (e, st) {
-        StudioDebugLogger.instance.warning(
+        _logger.warning(
           'StudioMasterCaptureService',
           'Failed to close RandomAccessFile during dispose',
           error: e,

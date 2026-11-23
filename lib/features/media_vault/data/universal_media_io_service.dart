@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import '../../../core/logging/infrastructure/studio_debug_logger.dart';
+import '../../../core/logging/domain/i_studio_logger.dart';
+import '../../../core/logging/infrastructure/studio_stderr_logger.dart';
 import '../../dj_console/domain/bpm_beat_tracker_engine.dart';
 import '../../dj_console/domain/dj_harmonic_camelot_engine.dart';
 import '../../sheet_music/domain/score_tree.dart';
@@ -27,13 +28,16 @@ class UniversalMediaIoService implements IMediaIoService {
 
   final WavPcmCodec _wavCodec;
   final UniversalScoreImporterService _scoreImporter;
+  final IStudioLogger _logger;
 
   const UniversalMediaIoService({
     WavPcmCodec wavCodec = const WavPcmCodec(),
     UniversalScoreImporterService scoreImporter =
         const UniversalScoreImporterService(),
+    IStudioLogger logger = StudioStderrLogger.instance,
   })  : _wavCodec = wavCodec,
-        _scoreImporter = scoreImporter;
+        _scoreImporter = scoreImporter,
+        _logger = logger;
 
   @override
   Future<MediaImportResult> importBytes({
@@ -134,7 +138,7 @@ class UniversalMediaIoService implements IMediaIoService {
           );
         } catch (e, st) {
           // Fallback to raw asset registration if score parser rejects malformed tags.
-          StudioDebugLogger.instance.warning(
+          _logger.warning(
             'UniversalMediaIoService',
             'Parser de partitura rechazo "$fileName", registrando como activo raw: $e',
             error: e,
@@ -519,7 +523,7 @@ class UniversalMediaIoService implements IMediaIoService {
         message: 'El JSON no contiene una lista de activos "assets".',
       );
     } catch (e, st) {
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'UniversalMediaIoService',
         'Error decodificando JSON "$fileName": $e',
         error: e,
