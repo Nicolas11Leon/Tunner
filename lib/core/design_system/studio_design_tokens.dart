@@ -79,7 +79,32 @@ class StudioDesignTokens {
   double get borderRadiusMedium => radiusMedium;
   double get borderRadiusLarge => radiusMedium * 1.5;
 
-  /// Default: Tunner Studio Dark.
+  /// Default v1.0: True OLED Monochrome Pro-DAW (Black + Silver/White, telemetry-only color).
+  static const StudioDesignTokens studioOledMonochrome = StudioDesignTokens(
+    id: 'studio_oled_monochrome',
+    displayName: 'OLED Monochrome',
+    brightness: Brightness.dark,
+    canvasBackground: Color(0xFF000000),
+    panelBackground: Color(0xFF0B0C0F),
+    panelHeaderBackground: Color(0xFF111318),
+    elevatedSurface: Color(0xFF171A21),
+    inputSurface: Color(0xFF07080A),
+    hoverSurface: Color(0xFF1E222B),
+    borderHairline: Color(0xFF232730),
+    borderSubtle: Color(0xFF171A20),
+    borderFocus: Color(0xFFE5E9F0),
+    accentPrimary: Color(0xFFE5E9F0),
+    accentSecondary: Color(0xFFAEB6C2),
+    accentSuccess: Color(0xFF22C55E),
+    accentWarning: Color(0xFFF59E0B),
+    accentDanger: Color(0xFFEF4444),
+    textPrimary: Color(0xFFF5F7FA),
+    textSecondary: Color(0xFF9CA3AF),
+    textMuted: Color(0xFF636B78),
+    textOnAccent: Color(0xFF07080A),
+  );
+
+  /// Tunner Studio Dark.
   static const StudioDesignTokens studioDark = StudioDesignTokens(
     id: 'studio_dark',
     displayName: 'Studio Dark',
@@ -290,6 +315,7 @@ class StudioDesignTokens {
   );
 
   static const List<StudioDesignTokens> presets = <StudioDesignTokens>[
+    studioOledMonochrome,
     obsidianPro,
     neve88rs,
     cyberpunkSynth,

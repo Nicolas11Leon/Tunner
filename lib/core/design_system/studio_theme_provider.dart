@@ -8,7 +8,7 @@ class StudioThemeController extends ChangeNotifier {
   StudioDesignTokens _tokens;
 
   StudioThemeController({
-    StudioDesignTokens initialTokens = StudioDesignTokens.studioDark,
+    StudioDesignTokens initialTokens = StudioDesignTokens.studioOledMonochrome,
   }) : _tokens = initialTokens;
 
   StudioDesignTokens get tokens => _tokens;
@@ -24,7 +24,7 @@ class StudioThemeController extends ChangeNotifier {
   void selectById(String id) {
     final match = StudioDesignTokens.presets.firstWhere(
       (preset) => preset.id == id,
-      orElse: () => StudioDesignTokens.studioDark,
+      orElse: () => StudioDesignTokens.studioOledMonochrome,
     );
     setTokens(match);
   }
@@ -42,7 +42,7 @@ class StudioThemeScope extends InheritedNotifier<StudioThemeController> {
   static StudioDesignTokens of(BuildContext context) {
     final scope =
         context.dependOnInheritedWidgetOfExactType<StudioThemeScope>();
-    return scope?.notifier?.tokens ?? StudioDesignTokens.studioDark;
+    return scope?.notifier?.tokens ?? StudioDesignTokens.studioOledMonochrome;
   }
 
   static StudioDesignTokens tokensOf(BuildContext context) => of(context);
