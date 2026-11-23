@@ -11,14 +11,16 @@ sharpening, and centers the glyph optically.
 from __future__ import annotations
 
 import argparse
-import glob
-import os
+from pathlib import Path
 import sys
 from PIL import Image, ImageFilter
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CANONICAL_ICONS_DIR = (PROJECT_ROOT / "assets" / "icons" / "png").resolve()
+
 
 def optimize_icon(
-    path: str,
+    path: Path,
     canvas_size: int = 96,
     margin_px: int = 2,
     alpha_threshold: int = 100,
@@ -107,11 +109,6 @@ def main() -> int:
         description="Auto-detect tight icon bounds and maximize canvas fill."
     )
     parser.add_argument(
-        "--dir",
-        default="assets/icons/png",
-        help="Directory containing PNG icons (default: assets/icons/png).",
-    )
-    parser.add_argument(
         "--size",
         type=int,
         default=96,
@@ -125,19 +122,33 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    files = sorted(glob.glob(os.path.join(args.dir, "*.png")))
-    if not files:
-        print(f"No PNG icons found in {args.dir}", file=sys.stderr)
+    if not CANONICAL_ICONS_DIR.is_dir():
+        print(f"Icons directory not found: {CANONICAL_ICONS_DIR}", file=sys.stderr)
         return 1
 
-    print(f"Optimizing {len(files)} icons in {args.dir} ({args.size}x{args.size}, margin={args.margin}px)...")
+    files = sorted(
+        p
+        for p in CANONICAL_ICONS_DIR.iterdir()
+        if p.is_file()
+        and not p.is_symlink()
+        and p.suffix.lower() == ".png"
+        and p.resolve().is_relative_to(CANONICAL_ICONS_DIR)
+    )
+    if not files:
+        print(f"No PNG icons found in {CANONICAL_ICONS_DIR}", file=sys.stderr)
+        return 1
+
+    print(
+        f"Optimizing {len(files)} icons in {CANONICAL_ICONS_DIR} "
+        f"({args.size}x{args.size}, margin={args.margin}px)..."
+    )
     for path in files:
         before, after = optimize_icon(
             path,
             canvas_size=args.size,
             margin_px=args.margin,
         )
-        print(f"  {os.path.basename(path):32s} fill: {before:5.1%} -> {after:5.1%}")
+        print(f"  {path.name:32s} fill: {before:5.1%} -> {after:5.1%}")
 
     print("Done.")
     return 0
