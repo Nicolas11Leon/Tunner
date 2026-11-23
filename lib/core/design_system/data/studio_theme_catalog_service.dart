@@ -19,12 +19,12 @@ class StudioThemeCatalogService extends ChangeNotifier {
   StudioThemeCatalogService.isolated({StudioThemeController? controller})
       : _controller = controller {
     _skins = List<StudioThemeSkinEntity>.from(StudioThemeSkinEntity.defaultCatalog);
-    _activeSkin = StudioThemeSkinEntity.obsidianPro;
+    _activeSkin = StudioThemeSkinEntity.studioOledMonochrome;
   }
 
   StudioThemeCatalogService._internal() {
     _skins = List<StudioThemeSkinEntity>.from(StudioThemeSkinEntity.defaultCatalog);
-    _activeSkin = StudioThemeSkinEntity.obsidianPro;
+    _activeSkin = StudioThemeSkinEntity.studioOledMonochrome;
   }
 
   StudioThemeController? _controller;
@@ -43,7 +43,7 @@ class StudioThemeCatalogService extends ChangeNotifier {
   void selectSkin(String skinId) {
     final match = _skins.firstWhere(
       (s) => s.id == skinId,
-      orElse: () => StudioThemeSkinEntity.obsidianPro,
+      orElse: () => StudioThemeSkinEntity.studioOledMonochrome,
     );
     _activeSkin = match;
     _controller?.setTokens(match.toDesignTokens());
@@ -81,9 +81,9 @@ class StudioThemeCatalogService extends ChangeNotifier {
     }
   }
 
-  /// Reinicia el catálogo a las 5 estéticas canónicas predeterminadas.
+  /// Reinicia el catálogo a las estéticas canónicas predeterminadas.
   void resetToDefaults() {
     _skins = List<StudioThemeSkinEntity>.from(StudioThemeSkinEntity.defaultCatalog);
-    selectSkin(StudioThemeSkinEntity.obsidianPro.id);
+    selectSkin(StudioThemeSkinEntity.studioOledMonochrome.id);
   }
 }

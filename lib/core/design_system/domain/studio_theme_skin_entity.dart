@@ -156,6 +156,36 @@ class StudioThemeSkinEntity {
   // 5 ESTÉTICAS CANÓNICAS DE ESTUDIO DE ALTA GAMA ("SOFTWARE CARO DE LICENCIA")
   // =========================================================================
 
+  /// 0. OLED Monochrome Pro-DAW (Default v1.0: True Black + Silver/White).
+  static const StudioThemeSkinEntity studioOledMonochrome = StudioThemeSkinEntity(
+    id: 'studio_oled_monochrome',
+    name: 'OLED Monochrome',
+    description: 'Estética Pro-DAW en Negro OLED puro con acentos monocromáticos plata.',
+    author: 'Tunner Acoustic Labs',
+    isDark: true,
+    canvasBackgroundHex: 0xFF000000,
+    panelBackgroundHex: 0xFF0B0C0F,
+    panelHeaderBackgroundHex: 0xFF111318,
+    elevatedSurfaceHex: 0xFF171A21,
+    inputSurfaceHex: 0xFF07080A,
+    hoverSurfaceHex: 0xFF1E222B,
+    borderHairlineHex: 0xFF232730,
+    borderSubtleHex: 0xFF171A20,
+    borderFocusHex: 0xFFE5E9F0,
+    accentPrimaryHex: 0xFFE5E9F0,
+    accentSecondaryHex: 0xFFAEB6C2,
+    accentSuccessHex: 0xFF22C55E,
+    accentWarningHex: 0xFFF59E0B,
+    accentDangerHex: 0xFFEF4444,
+    textPrimaryHex: 0xFFF5F7FA,
+    textSecondaryHex: 0xFF9CA3AF,
+    textMutedHex: 0xFF636B78,
+    textOnAccentHex: 0xFF07080A,
+    radiusSmall: 2.0,
+    radiusMedium: 4.0,
+    borderWidth: 1.0,
+  );
+
   /// 1. Obsidian Pro DAW (Matte Black de precisión con acentos de láser cian).
   static const StudioThemeSkinEntity obsidianPro = StudioThemeSkinEntity(
     id: 'skin_obsidian_pro',
@@ -302,10 +332,73 @@ class StudioThemeSkinEntity {
   );
 
   static const List<StudioThemeSkinEntity> defaultCatalog = [
+    studioOledMonochrome,
     obsidianPro,
     neve88rs,
     cyberpunkSynth,
     nordCrimson,
     conservatoryIvory,
   ];
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is StudioThemeSkinEntity &&
+        other.id == id &&
+        other.name == name &&
+        other.description == description &&
+        other.author == author &&
+        other.isDark == isDark &&
+        other.canvasBackgroundHex == canvasBackgroundHex &&
+        other.panelBackgroundHex == panelBackgroundHex &&
+        other.panelHeaderBackgroundHex == panelHeaderBackgroundHex &&
+        other.elevatedSurfaceHex == elevatedSurfaceHex &&
+        other.inputSurfaceHex == inputSurfaceHex &&
+        other.hoverSurfaceHex == hoverSurfaceHex &&
+        other.borderHairlineHex == borderHairlineHex &&
+        other.borderSubtleHex == borderSubtleHex &&
+        other.borderFocusHex == borderFocusHex &&
+        other.accentPrimaryHex == accentPrimaryHex &&
+        other.accentSecondaryHex == accentSecondaryHex &&
+        other.accentSuccessHex == accentSuccessHex &&
+        other.accentWarningHex == accentWarningHex &&
+        other.accentDangerHex == accentDangerHex &&
+        other.textPrimaryHex == textPrimaryHex &&
+        other.textSecondaryHex == textSecondaryHex &&
+        other.textMutedHex == textMutedHex &&
+        other.textOnAccentHex == textOnAccentHex &&
+        other.radiusSmall == radiusSmall &&
+        other.radiusMedium == radiusMedium &&
+        other.borderWidth == borderWidth;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+        id,
+        name,
+        description,
+        author,
+        isDark,
+        canvasBackgroundHex,
+        panelBackgroundHex,
+        panelHeaderBackgroundHex,
+        elevatedSurfaceHex,
+        inputSurfaceHex,
+        hoverSurfaceHex,
+        borderHairlineHex,
+        borderSubtleHex,
+        borderFocusHex,
+        accentPrimaryHex,
+        accentSecondaryHex,
+        accentSuccessHex,
+        accentWarningHex,
+        accentDangerHex,
+        textPrimaryHex,
+        textSecondaryHex,
+        textMutedHex,
+        textOnAccentHex,
+        radiusSmall,
+        radiusMedium,
+        borderWidth,
+      ]);
 }
