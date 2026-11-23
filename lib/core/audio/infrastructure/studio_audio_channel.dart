@@ -40,6 +40,10 @@ class StudioAudioChannel implements IStudioAudioChannel {
   final StreamController<StudioAudioTrackState> _stateController =
       StreamController<StudioAudioTrackState>.broadcast();
 
+  StreamSubscription<Duration>? _positionSub;
+  StreamSubscription<Duration>? _durationSub;
+  StreamSubscription<void>? _completeSub;
+
   double? _queuedVolume;
   bool _isProcessingVolume = false;
   bool _isDisposed = false;
@@ -55,17 +59,17 @@ class StudioAudioChannel implements IStudioAudioChannel {
     final p = _player;
     if (p == null) return;
 
-    p.onPositionChanged.listen((pos) {
+    _positionSub = p.onPositionChanged.listen((pos) {
       _currentPosition = pos;
       _emitState();
     });
 
-    p.onDurationChanged.listen((dur) {
+    _durationSub = p.onDurationChanged.listen((dur) {
       _totalDuration = dur;
       _emitState();
     });
 
-    p.onPlayerComplete.listen((_) {
+    _completeSub = p.onPlayerComplete.listen((_) {
       if (!_isLooping) {
         _status = StudioTransportStatus.stopped;
         _currentPosition = Duration.zero;
@@ -315,6 +319,13 @@ class StudioAudioChannel implements IStudioAudioChannel {
     if (_isDisposed) return;
     _isDisposed = true;
     try {
+      await _positionSub?.cancel();
+      _positionSub = null;
+      await _durationSub?.cancel();
+      _durationSub = null;
+      await _completeSub?.cancel();
+      _completeSub = null;
+
       final p = _playerInstance ?? _injectedPlayer;
       if (p != null) {
         await p.stop();

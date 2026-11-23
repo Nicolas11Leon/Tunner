@@ -19,6 +19,7 @@ import '../domain/signal_conditioning_filter.dart';
 /// ejecutando el algoritmo McLeod Pitch Method (MPM) con NSDF e interpolación parabólica en segundo plano.
 class PitchDetectorService implements IPitchDetectorService {
   final IStudioAudioInputEngine _inputEngine;
+  final bool _ownsInputEngine;
   StreamSubscription? _audioSubscription;
   bool _isRecording = false;
   
@@ -37,7 +38,8 @@ class PitchDetectorService implements IPitchDetectorService {
   PitchDetectorService({
     AudioRecorder? audioRecorder,
     IStudioAudioInputEngine? inputEngine,
-  }) : _inputEngine = inputEngine ??
+  })  : _ownsInputEngine = inputEngine == null,
+        _inputEngine = inputEngine ??
             (_isTestEnvironment
                 ? MemoryStudioAudioInputEngine()
                 : StudioAudioInputEngine(injectedRecorder: audioRecorder));
@@ -301,6 +303,9 @@ class PitchDetectorService implements IPitchDetectorService {
   /// Libera los recursos de captura y finaliza el Isolate DSP.
   Future<void> dispose() async {
     await stopRecording();
+    if (_ownsInputEngine) {
+      _inputEngine.dispose();
+    }
   }
 
   @override

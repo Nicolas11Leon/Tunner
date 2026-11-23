@@ -25,6 +25,7 @@ enum AppDisplayMode {
 class AppUserSettingsEntity {
   final double referencePitch;
   final String selectedThemeId;
+  final String activeStudioThemeId;
   final String selectedInstrumentId;
   final int bpm;
   final bool isSmartWaitEnabled;
@@ -54,6 +55,7 @@ class AppUserSettingsEntity {
   const AppUserSettingsEntity({
     this.referencePitch = 440.0,
     this.selectedThemeId = 'obsidian_studio',
+    this.activeStudioThemeId = 'studio_oled_monochrome',
     this.selectedInstrumentId = 'flute',
     this.bpm = 68,
     this.isSmartWaitEnabled = false,
@@ -96,6 +98,7 @@ class AppUserSettingsEntity {
   AppUserSettingsEntity copyWith({
     double? referencePitch,
     String? selectedThemeId,
+    String? activeStudioThemeId,
     String? selectedInstrumentId,
     int? bpm,
     bool? isSmartWaitEnabled,
@@ -126,6 +129,7 @@ class AppUserSettingsEntity {
     return AppUserSettingsEntity(
       referencePitch: referencePitch ?? this.referencePitch,
       selectedThemeId: selectedThemeId ?? this.selectedThemeId,
+      activeStudioThemeId: activeStudioThemeId ?? this.activeStudioThemeId,
       selectedInstrumentId: selectedInstrumentId ?? this.selectedInstrumentId,
       bpm: bpm ?? this.bpm,
       isSmartWaitEnabled: isSmartWaitEnabled ?? this.isSmartWaitEnabled,
@@ -158,6 +162,7 @@ class AppUserSettingsEntity {
     return {
       'referencePitch': referencePitch,
       'selectedThemeId': selectedThemeId,
+      'activeStudioThemeId': activeStudioThemeId,
       'selectedInstrumentId': selectedInstrumentId,
       'bpm': bpm,
       'isSmartWaitEnabled': isSmartWaitEnabled,
@@ -307,6 +312,8 @@ class AppUserSettingsEntity {
     return AppUserSettingsEntity(
       referencePitch: (map['referencePitch'] as num?)?.toDouble() ?? 440.0,
       selectedThemeId: map['selectedThemeId'] as String? ?? 'obsidian_studio',
+      activeStudioThemeId:
+          map['activeStudioThemeId'] as String? ?? 'studio_oled_monochrome',
       selectedInstrumentId: map['selectedInstrumentId'] as String? ?? 'flute',
       bpm: map['bpm'] as int? ?? 68,
       isSmartWaitEnabled: map['isSmartWaitEnabled'] as bool? ?? false,
