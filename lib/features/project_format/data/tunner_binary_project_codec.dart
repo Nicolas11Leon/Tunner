@@ -69,6 +69,7 @@ class TunnerBinaryProjectCodec implements ITunnerBinaryCodec {
   });
 
   /// Codifica y comprime un proyecto completo a bytes binarios (.tunner).
+  @override
   Uint8List encodeProject(TunnerProjectPackage project) {
     return _encodeFramedJson(
       magicBytes: projectMagicBytes,
@@ -77,6 +78,7 @@ class TunnerBinaryProjectCodec implements ITunnerBinaryCodec {
   }
 
   /// Descomprime y valida un archivo de proyecto (.tunner) desde bytes.
+  @override
   TunnerProjectPackage decodeProject(Uint8List bytes) {
     final jsonMap = _decodeFramedJson(
       bytes: bytes,
@@ -90,6 +92,7 @@ class TunnerBinaryProjectCodec implements ITunnerBinaryCodec {
   }
 
   /// Codifica y comprime una herramienta individual a bytes binarios (.tnt).
+  @override
   Uint8List encodeToolPreset(TunnerToolPreset tool) {
     return _encodeFramedJson(
       magicBytes: toolMagicBytes,
@@ -98,6 +101,7 @@ class TunnerBinaryProjectCodec implements ITunnerBinaryCodec {
   }
 
   /// Descomprime y valida una herramienta (.tnt) desde bytes.
+  @override
   TunnerToolPreset decodeToolPreset(Uint8List bytes) {
     final jsonMap = _decodeFramedJson(
       bytes: bytes,

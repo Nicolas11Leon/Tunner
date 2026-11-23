@@ -1,5 +1,5 @@
 import 'dart:convert';
-import '../../../core/theme/tunner_theme.dart';
+import '../../../core/theme/domain/theme_palette_data.dart';
 import '../../mixer/domain/mixer_track_entity.dart';
 import '../../practice_evaluator/domain/practice_report_entity.dart';
 import '../../practice_recorder/domain/multitrack_session_entity.dart';
@@ -32,7 +32,7 @@ class AppUserSettingsEntity {
   final AppDisplayMode displayMode;
   final String selectedTemperamentId;
   final int temperamentRootKey;
-  final List<TunnerThemePalette> customPalettes;
+  final List<ThemePaletteData> customPalettes;
   final List<PracticeReportEntity> sessionHistory;
   final List<PracticeRecordingEntity> recordingHistory;
   final MultiTrackSessionEntity? multiTrackSession;
@@ -105,7 +105,7 @@ class AppUserSettingsEntity {
     AppDisplayMode? displayMode,
     String? selectedTemperamentId,
     int? temperamentRootKey,
-    List<TunnerThemePalette>? customPalettes,
+    List<ThemePaletteData>? customPalettes,
     List<PracticeReportEntity>? sessionHistory,
     List<PracticeRecordingEntity>? recordingHistory,
     MultiTrackSessionEntity? multiTrackSession,
@@ -203,11 +203,11 @@ class AppUserSettingsEntity {
     void Function(String message)? onCorruptEntry,
   }) {
     final rawCustom = map['customPalettes'] as List<dynamic>? ?? [];
-    final customPalettes = <TunnerThemePalette>[];
+    final customPalettes = <ThemePaletteData>[];
     for (final item in rawCustom) {
       if (item is Map<String, dynamic>) {
         try {
-          customPalettes.add(TunnerThemePalette.fromJson(item));
+          customPalettes.add(ThemePaletteData.fromJson(item));
         } catch (e) {
           onCorruptEntry?.call('Paleta corrupta omitida: $e');
         }

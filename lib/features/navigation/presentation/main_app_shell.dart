@@ -1248,6 +1248,17 @@ class _MainAppShellState extends State<MainAppShell> {
                           ),
                         );
                       },
+                      onMenuSaveAs: () => StudioAssetsModals.showSaveAsDialog(
+                        context: context,
+                        viewModel: viewModel,
+                        fileSystemService: _fileSystemService,
+                      ),
+                      onMenuExport: () => StudioAssetsModals.showExportDialog(
+                        context: context,
+                        viewModel: viewModel,
+                        fileSystemService: _fileSystemService,
+                      ),
+                      onMenuOpenWorkspaceInExplorer: () => _fileSystemService.openInSystemExplorer('/'),
                       onMenuResetWorkspace: () => viewModel.resetSongState(),
                       onMenuToggleRack: () => _navigateToTab(3),
                       onNavigateToTabIndex: (idx) => _navigateToTab(idx),

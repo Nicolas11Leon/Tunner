@@ -173,6 +173,8 @@ class StudioFolderTreeTile extends StatelessWidget {
             service: service,
             targetFolderId: folder.id,
           );
+        } else if (value == 'open_in_explorer') {
+          service.openInSystemExplorer(folder.relativePath);
         } else if (value == 'rename') {
           StudioFileSystemModals.showRenameNodeModal(
             context,
@@ -213,6 +215,17 @@ class StudioFolderTreeTile extends StatelessWidget {
               Icon(Icons.create_new_folder_outlined, size: 13, color: tokens.accentSecondary),
               const SizedBox(width: 8),
               Text('Nueva Subcarpeta...', style: TextStyle(fontSize: 11, color: tokens.textPrimary)),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'open_in_explorer',
+          height: 32,
+          child: Row(
+            children: [
+              Icon(Icons.folder_open_rounded, size: 13, color: tokens.accentPrimary),
+              const SizedBox(width: 8),
+              Text('Abrir en explorador en esta ruta', style: TextStyle(fontSize: 11, color: tokens.textPrimary)),
             ],
           ),
         ),

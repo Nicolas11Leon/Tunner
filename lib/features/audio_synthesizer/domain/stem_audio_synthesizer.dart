@@ -5,13 +5,20 @@ import '../../mixer/domain/mixer_track_entity.dart';
 import '../../practice_recorder/domain/practice_recording_entity.dart';
 import '../../universal_importer/domain/canonical_midi_exporter.dart';
 import '../../tuner/domain/note_entity.dart';
+import 'offline_score_wav_renderer.dart';
 import 'pcm_wav_synthesizer.dart';
+import 'polyphonic/polyphonic_voice_pool.dart';
+import 'sf2/i_soundfont_synthesizer_service.dart';
 import 'stem_export_entity.dart';
 
 /// Motor matemático en Pure Dart para la síntesis de pistas de audio (stems),
 /// mezcla multicanal con limitación analógica suave y exportación MIDI.
 class StemAudioSynthesizer {
-  const StemAudioSynthesizer();
+  final OfflineScoreWavRenderer _scoreRenderer;
+
+  const StemAudioSynthesizer({
+    OfflineScoreWavRenderer scoreRenderer = const OfflineScoreWavRenderer(),
+  }) : _scoreRenderer = scoreRenderer;
 
   /// Frecuencia de muestreo estándar para masterización digital (44100 Hz).
   static const int defaultSampleRate = 44100;
@@ -43,16 +50,35 @@ class StemAudioSynthesizer {
     return safeRef * math.pow(2.0, (midiPitch - 69) / 12.0);
   }
 
-  /// Sintetiza el stem de la melodía de la partitura como arreglo PCM de 16 bits.
+  /// Sintetiza el stem de la melodía de la partitura como arreglo PCM Float64.
+  /// Soporta calibracion [a4Ref] configurable, banco SF2 opcional y pool polifonico
+  /// con fallback aditivo limpio cuando no hay SF2 cargado.
   Float64List synthesizeMelodySamples({
     required HierarchicalScore score,
     required int bpm,
     int sampleRate = defaultSampleRate,
     required int totalSamples,
+    double a4Ref = 440.0,
+    ISoundFontSynthesizerService? soundFontService,
+    int? sf2Patch,
+    PolyphonicVoicePool? polyphonicPool,
   }) {
-    final buffer = Float64List(totalSamples);
-    if (score.measures.isEmpty) return buffer;
+    if (score.measures.isEmpty) return Float64List(totalSamples);
 
+    if (soundFontService != null || polyphonicPool != null) {
+      return _scoreRenderer.renderScoreSamples(
+        score: score,
+        bpm: bpm,
+        sampleRate: sampleRate,
+        totalSamples: totalSamples,
+        a4Ref: a4Ref,
+        soundFontService: soundFontService,
+        sf2Patch: sf2Patch,
+        polyphonicPool: polyphonicPool,
+      );
+    }
+
+    final buffer = Float64List(totalSamples);
     final safeBpm = bpm.clamp(20, 300);
     final double secondsPerTick = (60.0 / safeBpm) / ticksPerBeat;
 
@@ -60,13 +86,14 @@ class StemAudioSynthesizer {
 
     for (final measure in score.measures) {
       for (final note in measure.notes) {
-        final isRest = note.noteName == "--" ||
+        final isRest = note.isRest ||
+            note.noteName == "--" ||
             note.noteName.toLowerCase() == "rest" ||
             note.noteName.isEmpty;
 
         if (!isRest) {
           final midiPitch = CanonicalMidiExporter.noteNameToMidiPitch(note.noteName);
-          final frequency = midiPitchToFrequency(midiPitch);
+          final frequency = midiPitchToFrequency(midiPitch, referencePitchHz: a4Ref);
 
           final noteStartSeconds = (currentMeasureStartTick + note.startTick) * secondsPerTick;
           final noteDurationSeconds = note.durationTicks * secondsPerTick;
@@ -166,6 +193,10 @@ class StemAudioSynthesizer {
     required int bpm,
     int sampleRate = defaultSampleRate,
     required int totalSamples,
+    double a4Ref = 440.0,
+    ISoundFontSynthesizerService? soundFontService,
+    int? sf2Patch,
+    PolyphonicVoicePool? polyphonicPool,
   }) {
     final buffer = Float64List(totalSamples);
     if (score.measures.isEmpty) return buffer;
@@ -173,6 +204,49 @@ class StemAudioSynthesizer {
     final safeBpm = bpm.clamp(20, 300);
     final double secondsPerTick = (60.0 / safeBpm) / ticksPerBeat;
     int currentMeasureStartTick = 0;
+
+    if (soundFontService != null || polyphonicPool != null) {
+      final chordEvents = <OfflineNoteEvent>[];
+      for (int mIdx = 0; mIdx < score.measures.length; mIdx++) {
+        final measure = score.measures[mIdx];
+        final measureStartSec = currentMeasureStartTick * secondsPerTick;
+        final measureDuration = measure.timeSignature.totalTicks * secondsPerTick;
+
+        int rootMidi = 48; // C3
+        if (measure.notes.isNotEmpty) {
+          final firstNote = measure.notes.firstWhere(
+            (n) => !n.isRest && n.noteName != "--" && n.noteName.isNotEmpty,
+            orElse: () => measure.notes.first,
+          );
+          if (!firstNote.isRest && firstNote.noteName != "--" && firstNote.noteName.isNotEmpty) {
+            rootMidi = CanonicalMidiExporter.noteNameToMidiPitch(firstNote.noteName) - 12;
+            if (rootMidi < 36) rootMidi += 12;
+          }
+        }
+
+        for (final interval in const [0, 4, 7]) {
+          chordEvents.add(OfflineNoteEvent(
+            startSeconds: measureStartSec,
+            durationSeconds: measureDuration,
+            midiPitch: (rootMidi + interval).clamp(21, 108),
+            velocity: 72,
+            patch: sf2Patch,
+          ));
+        }
+
+        currentMeasureStartTick += measure.timeSignature.totalTicks;
+      }
+
+      return _scoreRenderer.renderEventsSamples(
+        events: chordEvents,
+        totalSamples: totalSamples,
+        sampleRate: sampleRate,
+        a4Ref: a4Ref,
+        soundFontService: soundFontService,
+        sf2Patch: sf2Patch,
+        polyphonicPool: polyphonicPool,
+      );
+    }
 
     for (int mIdx = 0; mIdx < score.measures.length; mIdx++) {
       final measure = score.measures[mIdx];
@@ -194,9 +268,9 @@ class StemAudioSynthesizer {
         }
       }
 
-      final fRoot = midiPitchToFrequency(rootMidi);
-      final fThird = midiPitchToFrequency(rootMidi + 4); // Tercera mayor
-      final fFifth = midiPitchToFrequency(rootMidi + 7); // Quinta justa
+      final fRoot = midiPitchToFrequency(rootMidi, referencePitchHz: a4Ref);
+      final fThird = midiPitchToFrequency(rootMidi + 4, referencePitchHz: a4Ref); // Tercera mayor
+      final fFifth = midiPitchToFrequency(rootMidi + 7, referencePitchHz: a4Ref); // Quinta justa
 
       final attackSamples = (sampleRate * 0.050).round();
       final releaseSamples = (sampleRate * 0.080).round();
@@ -236,6 +310,7 @@ class StemAudioSynthesizer {
     required int bpm,
     int sampleRate = defaultSampleRate,
     required int totalSamples,
+    double a4Ref = 440.0,
   }) {
     final buffer = Float64List(totalSamples);
     if (score.measures.isEmpty) return buffer;
@@ -264,7 +339,7 @@ class StemAudioSynthesizer {
       for (final note in measure.notes) {
         if (note.isRest || note.noteName.isEmpty || note.noteName == "--") continue;
 
-        final double baseFreq = NoteEntity.frequencyForNote(note.noteName);
+        final double baseFreq = NoteEntity.frequencyForNote(note.noteName, a4Ref: a4Ref);
         if (baseFreq <= 20.0) continue;
         final double noteFreq = (baseFreq * freqMultiplier).clamp(30.0, 4200.0);
 
@@ -386,6 +461,11 @@ class StemAudioSynthesizer {
     StemExportConfig config = const StemExportConfig(),
     PracticeRecordingEntity? recordedTake,
     Uint8List? recordedPcmBytes,
+    double a4Ref = 440.0,
+    ISoundFontSynthesizerService? soundFontService,
+    int? melodyPatch,
+    int? accompanimentPatch,
+    PolyphonicVoicePool? polyphonicPool,
   }) {
     final files = <ExportedStemFile>[];
     final sampleRate = config.sampleRate;
@@ -394,27 +474,41 @@ class StemAudioSynthesizer {
     final totalSamples = (durationSeconds * sampleRate).round();
     final duration = Duration(milliseconds: (durationSeconds * 1000).round());
 
-    // 1. Sintetizar las capas individuales de audio en Float64 para todos los stems de la consola
-    final melodySamples = synthesizeMelodySamples(
-      score: score,
-      bpm: bpm,
-      sampleRate: sampleRate,
-      totalSamples: totalSamples,
-    );
+    // 1. Sintetizar las capas individuales de audio respetando includeMelodyTrack / includeAccompanimentTrack
+    final Float64List? melodySamples = config.includeMelodyTrack
+        ? synthesizeMelodySamples(
+            score: score,
+            bpm: bpm,
+            sampleRate: sampleRate,
+            totalSamples: totalSamples,
+            a4Ref: a4Ref,
+            soundFontService: soundFontService,
+            sf2Patch: melodyPatch,
+            polyphonicPool: polyphonicPool,
+          )
+        : null;
 
-    final metronomeSamples = synthesizeMetronomeSamples(
-      score: score,
-      bpm: bpm,
-      sampleRate: sampleRate,
-      totalSamples: totalSamples,
-    );
+    final Float64List? metronomeSamples = config.includeMetronomeTrack
+        ? synthesizeMetronomeSamples(
+            score: score,
+            bpm: bpm,
+            sampleRate: sampleRate,
+            totalSamples: totalSamples,
+          )
+        : null;
 
-    final accompanimentSamples = synthesizeAccompanimentSamples(
-      score: score,
-      bpm: bpm,
-      sampleRate: sampleRate,
-      totalSamples: totalSamples,
-    );
+    final Float64List? accompanimentSamples = config.includeAccompanimentTrack
+        ? synthesizeAccompanimentSamples(
+            score: score,
+            bpm: bpm,
+            sampleRate: sampleRate,
+            totalSamples: totalSamples,
+            a4Ref: a4Ref,
+            soundFontService: soundFontService,
+            sf2Patch: accompanimentPatch,
+            polyphonicPool: polyphonicPool,
+          )
+        : null;
 
     // Mapeo dinámico de todas las pistas presentes en la consola del mezclador
     final Map<String, Float64List> synthesizedStems = {};
@@ -422,9 +516,13 @@ class StemAudioSynthesizer {
     for (int i = 0; i < mixerConsole.stems.length; i++) {
       final track = mixerConsole.stems[i];
       if (i == 0) {
-        synthesizedStems[track.id] = melodySamples;
+        if (melodySamples != null) {
+          synthesizedStems[track.id] = melodySamples;
+        }
       } else if (i == 1) {
-        synthesizedStems[track.id] = accompanimentSamples;
+        if (accompanimentSamples != null) {
+          synthesizedStems[track.id] = accompanimentSamples;
+        }
       } else {
         synthesizedStems[track.id] = synthesizeTrackSamples(
           track: track,
@@ -432,6 +530,7 @@ class StemAudioSynthesizer {
           bpm: bpm,
           sampleRate: sampleRate,
           totalSamples: totalSamples,
+          a4Ref: a4Ref,
         );
       }
     }
@@ -475,7 +574,7 @@ class StemAudioSynthesizer {
         }
       }
 
-      if (config.includeMetronomeTrack) {
+      if (config.includeMetronomeTrack && metronomeSamples != null) {
         final double metroGain = mixerConsole.getEffectiveGain("metronome");
         for (int s = 0; s < totalSamples; s++) {
           masterLeft[s] += metronomeSamples[s] * metroGain;
@@ -515,7 +614,7 @@ class StemAudioSynthesizer {
         }
       }
 
-      if (config.includeMetronomeTrack) {
+      if (config.includeMetronomeTrack && metronomeSamples != null) {
         final metroWavBytes = floatBufferToWav(buffer: metronomeSamples, sampleRate: sampleRate);
         final numStr = (mixerConsole.stems.length + 1).toString().padLeft(2, '0');
         files.add(ExportedStemFile(

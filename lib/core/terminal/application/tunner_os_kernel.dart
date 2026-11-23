@@ -1,12 +1,12 @@
 import 'dart:async';
 import '../../audio/domain/ffi/i_native_dsp_bridge.dart';
+import '../../audio/domain/i_studio_audio_device_matrix_service.dart';
 import '../../audio/domain/i_studio_audio_engine.dart';
 import '../../audio/domain/i_studio_audio_input_engine.dart';
+import '../../audio/domain/i_studio_master_clock_service.dart';
 import '../../audio/domain/reverb/schroeder_reverb_engine.dart';
 import '../../audio/domain/spatial/binaural_panner_engine.dart';
 import '../../audio/infrastructure/ffi/native_dsp_ffi_bridge.dart';
-import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
-import '../../audio/infrastructure/studio_master_clock_service.dart';
 import '../../audio/infrastructure/studio_master_dsp_chain.dart';
 import '../../dsl/domain/i_synth_voice_pool_port.dart';
 import '../../dsl/domain/studio_os_audio_kernel.dart';
@@ -30,8 +30,8 @@ class TunnerOsKernel {
   final IStudioAudioEngine? outputEngine;
   final IStudioAudioInputEngine? inputEngine;
   final StudioFileSystemRepository? fileSystemRepository;
-  final StudioAudioDeviceMatrixService? matrixService;
-  final StudioMasterClockService? clockService;
+  final IStudioAudioDeviceMatrixService? matrixService;
+  final IStudioMasterClockService? clockService;
   ISynthVoicePoolPort? _synthVoicePool;
   ITerminalScorePort? scorePlaybackCoordinator;
   ITerminalProjectPort? _projectPort;

@@ -1,9 +1,12 @@
+import 'dart:math' as math;
 import '../../sheet_music/domain/score_tree.dart';
 import '../../song_library/domain/song_package_entity.dart';
 import 'canonical_pitch_notation_codec.dart';
 
 /// Serializador canónico en Pure Dart de partituras a estándar W3C MusicXML 3.1/4.0.
 /// Produce un archivo XML estructurado y compatible con MuseScore, Sibelius, Dorico y Finale.
+/// Preserva armaduras (`keySignatureFifths`), ligaduras (`isTied`), múltiples voces (`voice`)
+/// y múltiples pentagramas (`staff` / Grand Staff).
 class CanonicalMusicXmlExporter {
   const CanonicalMusicXmlExporter();
 
@@ -24,6 +27,17 @@ class CanonicalMusicXmlExporter {
   }) {
     final buffer = StringBuffer();
 
+    // Determinar el número efectivo de pentagramas en la partitura (Grand Staff / multi-staff)
+    int maxStaffInNotes = 1;
+    for (final m in score.measures) {
+      for (final n in m.notes) {
+        if (n.staff > maxStaffInNotes) {
+          maxStaffInNotes = n.staff;
+        }
+      }
+    }
+    final effectiveStaffCount = math.max(score.staffCount, maxStaffInNotes);
+
     // Cabecera canónica XML y DOCTYPE MusicXML
     buffer.writeln('<?xml version="1.0" encoding="UTF-8"?>');
     buffer.writeln(
@@ -41,7 +55,7 @@ class CanonicalMusicXmlExporter {
     buffer.writeln('    </encoding>');
     buffer.writeln('  </identification>');
 
-    // Lista de partes (1 instrumento principal)
+    // Lista de partes (1 instrumento principal con 1 o más pentagramas)
     buffer.writeln('  <part-list>');
     buffer.writeln('    <score-part id="P1">');
     buffer.writeln('      <part-name>${_escapeXml(title)}</part-name>');
@@ -52,72 +66,134 @@ class CanonicalMusicXmlExporter {
     buffer.writeln('  <part id="P1">');
 
     TimeSignature? previousTimeSignature;
+    int? previousKeyFifths;
     for (int mIdx = 0; mIdx < score.measures.length; mIdx++) {
       final measure = score.measures[mIdx];
       final measureNum = mIdx + 1;
       final ts = measure.timeSignature;
+      final keyFifths = measure.keySignatureFifths.clamp(-7, 7);
 
       buffer.writeln('    <measure number="$measureNum">');
 
-      // Atributos iniciales en el compas 1 o cambios de metrica inter-compas
+      // Atributos iniciales en el compas 1 o cambios de metrica/armadura inter-compas
       if (mIdx == 0) {
         buffer.writeln('      <attributes>');
         buffer.writeln('        <divisions>4</divisions>'); // 4 divisiones por negra (base semicorchea = 1 tick)
         buffer.writeln('        <key>');
-        buffer.writeln('          <fifths>0</fifths>'); // Do Mayor por defecto
+        buffer.writeln('          <fifths>$keyFifths</fifths>');
         buffer.writeln('        </key>');
         buffer.writeln('        <time>');
         buffer.writeln('          <beats>${ts.numerator}</beats>');
         buffer.writeln('          <beat-type>${ts.denominator}</beat-type>');
         buffer.writeln('        </time>');
-        buffer.writeln('        <clef>');
-        buffer.writeln('          <sign>G</sign>');
-        buffer.writeln('          <line>2</line>');
-        buffer.writeln('        </clef>');
+        if (effectiveStaffCount > 1) {
+          buffer.writeln('        <staves>$effectiveStaffCount</staves>');
+          for (int s = 1; s <= effectiveStaffCount; s++) {
+            final isBass = (s == 2);
+            buffer.writeln('        <clef number="$s">');
+            buffer.writeln('          <sign>${isBass ? 'F' : 'G'}</sign>');
+            buffer.writeln('          <line>${isBass ? '4' : '2'}</line>');
+            buffer.writeln('        </clef>');
+          }
+        } else {
+          buffer.writeln('        <clef>');
+          buffer.writeln('          <sign>G</sign>');
+          buffer.writeln('          <line>2</line>');
+          buffer.writeln('        </clef>');
+        }
         buffer.writeln('      </attributes>');
         buffer.writeln('      <direction placement="above">');
         buffer.writeln('        <sound tempo="${score.baseBpm}"/>');
         buffer.writeln('      </direction>');
-      } else if (ts != previousTimeSignature) {
+      } else if (ts != previousTimeSignature || keyFifths != previousKeyFifths) {
         buffer.writeln('      <attributes>');
-        buffer.writeln('        <time>');
-        buffer.writeln('          <beats>${ts.numerator}</beats>');
-        buffer.writeln('          <beat-type>${ts.denominator}</beat-type>');
-        buffer.writeln('        </time>');
+        if (keyFifths != previousKeyFifths) {
+          buffer.writeln('        <key>');
+          buffer.writeln('          <fifths>$keyFifths</fifths>');
+          buffer.writeln('        </key>');
+        }
+        if (ts != previousTimeSignature) {
+          buffer.writeln('        <time>');
+          buffer.writeln('          <beats>${ts.numerator}</beats>');
+          buffer.writeln('          <beat-type>${ts.denominator}</beat-type>');
+          buffer.writeln('        </time>');
+        }
         buffer.writeln('      </attributes>');
       }
       previousTimeSignature = ts;
+      previousKeyFifths = keyFifths;
 
-      // Notas del compas ordenadas cronologicamente para emitir <chord/> en voces simultaneas
+      // Agrupar notas por flujo independiente (staff, voice) para emitir <backup> en polifonía
       if (measure.notes.isEmpty) {
         buffer.write(_serializeNoteXml(
           HierarchicalNote.rest(startTick: 0, durationTicks: ts.totalTicks),
+          includeStaffElement: effectiveStaffCount > 1,
         ));
       } else {
-        final sortedNotes = List<HierarchicalNote>.from(measure.notes)
+        final streams = <(int, int), List<HierarchicalNote>>{};
+        for (final note in measure.notes) {
+          streams.putIfAbsent((note.staff, note.voice), () => []).add(note);
+        }
+        final sortedStreamKeys = streams.keys.toList()
           ..sort((a, b) {
-            final tickCmp = a.startTick.compareTo(b.startTick);
-            if (tickCmp != 0) return tickCmp;
-            final aRest = _isRestNote(a);
-            final bRest = _isRestNote(b);
-            if (aRest != bRest) return aRest ? 1 : -1;
-            return 0;
+            final staffCmp = a.$1.compareTo(b.$1);
+            if (staffCmp != 0) return staffCmp;
+            return a.$2.compareTo(b.$2);
           });
 
-        int? activeChordStartTick;
-        for (final note in sortedNotes) {
-          final isRest = _isRestNote(note);
-          if (isRest) {
-            if (activeChordStartTick == note.startTick) {
-              continue;
+        int cursorTick = 0;
+        for (int sIdx = 0; sIdx < sortedStreamKeys.length; sIdx++) {
+          final streamKey = sortedStreamKeys[sIdx];
+          final streamNotes = List<HierarchicalNote>.from(streams[streamKey]!)
+            ..sort((a, b) {
+              final tickCmp = a.startTick.compareTo(b.startTick);
+              if (tickCmp != 0) return tickCmp;
+              final aRest = _isRestNote(a);
+              final bRest = _isRestNote(b);
+              if (aRest != bRest) return aRest ? 1 : -1;
+              return 0;
+            });
+
+          if (sIdx > 0 && cursorTick > 0) {
+            buffer.writeln('      <backup>');
+            buffer.writeln('        <duration>$cursorTick</duration>');
+            buffer.writeln('      </backup>');
+            cursorTick = 0;
+          }
+
+          int? activeChordStartTick;
+          for (final note in streamNotes) {
+            final isRest = _isRestNote(note);
+            final isChord = !isRest && (activeChordStartTick == note.startTick);
+
+            if (!isChord && note.startTick > cursorTick) {
+              final gap = note.startTick - cursorTick;
+              buffer.writeln('      <forward>');
+              buffer.writeln('        <duration>$gap</duration>');
+              buffer.writeln('      </forward>');
+              cursorTick = note.startTick;
             }
-            buffer.write(_serializeNoteXml(note));
-          } else {
-            final isChord = (activeChordStartTick == note.startTick);
-            if (!isChord) {
-              activeChordStartTick = note.startTick;
+
+            if (isRest) {
+              if (activeChordStartTick == note.startTick) {
+                continue;
+              }
+              buffer.write(_serializeNoteXml(
+                note,
+                includeStaffElement: effectiveStaffCount > 1 || note.staff != 1,
+              ));
+              cursorTick = note.startTick + note.durationTicks;
+            } else {
+              if (!isChord) {
+                activeChordStartTick = note.startTick;
+                cursorTick = note.startTick + note.durationTicks;
+              }
+              buffer.write(_serializeNoteXml(
+                note,
+                isChord: isChord,
+                includeStaffElement: effectiveStaffCount > 1 || note.staff != 1,
+              ));
             }
-            buffer.write(_serializeNoteXml(note, isChord: isChord));
           }
         }
       }
@@ -139,8 +215,13 @@ class CanonicalMusicXmlExporter {
   }
 
   /// Serializa una [HierarchicalNote] individual al nodo XML `<note>`.
-  /// Emite `<chord/>` antes de `<pitch>` cuando forma parte de un acorde simultaneo.
-  String _serializeNoteXml(HierarchicalNote note, {bool isChord = false}) {
+  /// Emite `<chord/>` antes de `<pitch>` cuando forma parte de un acorde simultaneo,
+  /// y preserva `voice`, `staff` e `isTied`.
+  String _serializeNoteXml(
+    HierarchicalNote note, {
+    bool isChord = false,
+    bool includeStaffElement = false,
+  }) {
     final sb = StringBuffer();
     sb.writeln('      <note>');
 
@@ -176,13 +257,21 @@ class CanonicalMusicXmlExporter {
     }
 
     sb.writeln('        <duration>${note.durationTicks}</duration>');
-    sb.writeln('        <voice>1</voice>');
+    if (!isRest && note.isTied) {
+      sb.writeln('        <tie type="start"/>');
+    }
+    sb.writeln('        <voice>${note.voice}</voice>');
     sb.writeln('        <type>${_ticksToNoteType(note.durationTicks)}</type>');
-    if (note.durationTicks == 24 ||
-        note.durationTicks == 12 ||
-        note.durationTicks == 6 ||
-        note.durationTicks == 3) {
+    if (note.isDotted) {
       sb.writeln('        <dot/>');
+    }
+    if (includeStaffElement) {
+      sb.writeln('        <staff>${note.staff}</staff>');
+    }
+    if (!isRest && note.isTied) {
+      sb.writeln('        <notations>');
+      sb.writeln('          <tied type="start"/>');
+      sb.writeln('        </notations>');
     }
     sb.writeln('      </note>');
 

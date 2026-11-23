@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import '../../song_library/domain/song_package_entity.dart';
 import 'patchbay_routing_connection.dart';
 import 'tunner_tool_preset.dart';
 
@@ -35,6 +36,9 @@ class TunnerProjectPackage {
   /// Grafo de cableado y enrutamiento entre puertos de herramientas.
   final List<PatchbayRoutingConnection> patchConnections;
 
+  /// Partituras y paquetes de canciones embebidos de forma tipada dentro del proyecto.
+  final List<SongPackage> songPackages;
+
   /// Timestamp de creación del proyecto en microsegundos.
   final int createdAtMicros;
 
@@ -52,6 +56,7 @@ class TunnerProjectPackage {
     this.notes = '',
     required this.tools,
     this.patchConnections = const [],
+    this.songPackages = const [],
     required this.createdAtMicros,
     required this.updatedAtMicros,
   });
@@ -65,6 +70,7 @@ class TunnerProjectPackage {
     String? notes,
     List<TunnerToolPreset>? tools,
     List<PatchbayRoutingConnection>? patchConnections,
+    List<SongPackage>? songPackages,
     int? updatedAtMicros,
   }) {
     return TunnerProjectPackage(
@@ -78,6 +84,7 @@ class TunnerProjectPackage {
       notes: notes ?? this.notes,
       tools: tools ?? this.tools,
       patchConnections: patchConnections ?? this.patchConnections,
+      songPackages: songPackages ?? this.songPackages,
       createdAtMicros: createdAtMicros,
       updatedAtMicros: updatedAtMicros ?? DateTime.now().microsecondsSinceEpoch,
     );
@@ -94,6 +101,7 @@ class TunnerProjectPackage {
     'notes': notes,
     'tools': tools.map((t) => t.toJson()).toList(),
     'patchConnections': patchConnections.map((c) => c.toJson()).toList(),
+    'songPackages': songPackages.map((s) => s.toMap()).toList(),
     'createdAtMicros': createdAtMicros,
     'updatedAtMicros': updatedAtMicros,
   };
@@ -101,6 +109,7 @@ class TunnerProjectPackage {
   factory TunnerProjectPackage.fromJson(Map<String, dynamic> json) {
     final rawTools = json['tools'] as List<dynamic>? ?? [];
     final rawConns = json['patchConnections'] as List<dynamic>? ?? [];
+    final rawSongs = (json['songPackages'] ?? json['scores']) as List<dynamic>? ?? [];
 
     return TunnerProjectPackage(
       formatVersion: json['formatVersion'] as int? ?? 1,
@@ -113,6 +122,10 @@ class TunnerProjectPackage {
       notes: json['notes'] as String? ?? '',
       tools: rawTools.map((t) => TunnerToolPreset.fromJson(t as Map<String, dynamic>)).toList(),
       patchConnections: rawConns.map((c) => PatchbayRoutingConnection.fromJson(c as Map<String, dynamic>)).toList(),
+      songPackages: rawSongs
+          .whereType<Map<String, dynamic>>()
+          .map((s) => SongPackage.fromMap(s))
+          .toList(),
       createdAtMicros: json['createdAtMicros'] as int? ?? 0,
       updatedAtMicros: json['updatedAtMicros'] as int? ?? 0,
     );

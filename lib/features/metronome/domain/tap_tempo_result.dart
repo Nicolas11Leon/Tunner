@@ -33,6 +33,29 @@ class TapTempoResult {
 
   bool get isCalibrated => tapCount >= 2;
 
+  Map<String, dynamic> toJson() => {
+        'bpm': bpm,
+        'exactBpm': exactBpm,
+        'tapCount': tapCount,
+        'isCalibrated': isCalibrated,
+        'jitterMs': jitterMs,
+        'jitterPercentage': jitterPercentage,
+        'stabilityDescription': stabilityDescription,
+        'tempoMark': tempoMark.toJson(),
+      };
+
+  factory TapTempoResult.fromJson(Map<String, dynamic> json) => TapTempoResult(
+        bpm: (json['bpm'] as num?)?.toInt() ?? 120,
+        exactBpm: (json['exactBpm'] as num?)?.toDouble() ?? 120.0,
+        tapCount: (json['tapCount'] as num?)?.toInt() ?? 1,
+        jitterMs: (json['jitterMs'] as num?)?.toDouble() ?? 0.0,
+        jitterPercentage: (json['jitterPercentage'] as num?)?.toDouble() ?? 0.0,
+        stabilityDescription: json['stabilityDescription'] as String? ?? '',
+        tempoMark: json['tempoMark'] is Map<String, dynamic>
+            ? TempoMark.fromJson(json['tempoMark'] as Map<String, dynamic>)
+            : TempoMark.fromBpm((json['bpm'] as num?)?.toInt() ?? 120),
+      );
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

@@ -67,6 +67,40 @@ class VocalEvaluationResult {
     return sha256.convert(utf8.encode(raw)).toString();
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'evaluationId': evaluationId,
+      'timestamp': timestamp.toIso8601String(),
+      'targetFrequencyHz': targetFrequencyHz,
+      'measuredMeanFrequencyHz': measuredMeanFrequencyHz,
+      'centsDeviation': centsDeviation,
+      'jitterPercent': jitterPercent,
+      'shimmerPercent': shimmerPercent,
+      'vibratoRateHz': vibratoRateHz,
+      'vibratoDepthCents': vibratoDepthCents,
+      'overallScore': overallScore,
+      'classificationLabel': classificationLabel,
+      'payloadHashSha256': payloadHashSha256,
+    };
+  }
+
+  factory VocalEvaluationResult.fromJson(Map<String, dynamic> json) {
+    return VocalEvaluationResult(
+      evaluationId: json['evaluationId'] as String? ?? 'vocal_eval',
+      timestamp: DateTime.tryParse(json['timestamp'] as String? ?? '') ?? DateTime.now(),
+      targetFrequencyHz: (json['targetFrequencyHz'] as num?)?.toDouble() ?? 440.0,
+      measuredMeanFrequencyHz: (json['measuredMeanFrequencyHz'] as num?)?.toDouble() ?? 0.0,
+      centsDeviation: (json['centsDeviation'] as num?)?.toDouble() ?? 0.0,
+      jitterPercent: (json['jitterPercent'] as num?)?.toDouble() ?? 0.0,
+      shimmerPercent: (json['shimmerPercent'] as num?)?.toDouble() ?? 0.0,
+      vibratoRateHz: (json['vibratoRateHz'] as num?)?.toDouble() ?? 0.0,
+      vibratoDepthCents: (json['vibratoDepthCents'] as num?)?.toDouble() ?? 0.0,
+      overallScore: (json['overallScore'] as num?)?.toDouble() ?? 0.0,
+      classificationLabel: json['classificationLabel'] as String? ?? '',
+      payloadHashSha256: json['payloadHashSha256'] as String?,
+    );
+  }
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

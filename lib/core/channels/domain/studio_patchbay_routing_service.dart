@@ -29,20 +29,24 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
   factory StudioPatchbayRoutingService() => _instance;
 
   /// Crea una instancia aislada sin estado global compartido para DI y pruebas.
-  StudioPatchbayRoutingService.isolated() {
+  StudioPatchbayRoutingService.isolated({bool headless = false}) : _headless = headless {
     _matrix = StudioPatchbayMatrixEntity.initial();
   }
 
-  StudioPatchbayRoutingService._internal() {
+  StudioPatchbayRoutingService._internal({bool headless = false}) : _headless = headless {
     _matrix = StudioPatchbayMatrixEntity.initial();
   }
 
+  final bool _headless;
   late StudioPatchbayMatrixEntity _matrix;
   final Map<String, StudioSignalDeliveryCallback> _sinkListeners = {};
   final Map<String, List<StudioChannelParamCallback>> _channelListeners = {};
   final Map<String, Timer> _plugPulseTimers = {};
   String? _activePulsePlugId;
   bool _isDisposed = false;
+
+  /// Indica si el servicio opera en modo headless sin timers de pulso visual.
+  bool get isHeadless => _headless;
 
   @override
   StudioPatchbayMatrixEntity get matrix => _matrix;
@@ -325,7 +329,7 @@ class StudioPatchbayRoutingService with StudioPureNotifierMixin implements IStud
   }
 
   void _triggerPlugPulse(String plugId) {
-    if (_isDisposed) return;
+    if (_headless || _isDisposed) return;
     _activePulsePlugId = plugId;
     _plugPulseTimers[plugId]?.cancel();
     _plugPulseTimers[plugId] = Timer(

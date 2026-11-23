@@ -13,6 +13,22 @@ class NoteEntity {
     this.midiNumber = 69,
   });
 
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'englishName': toEnglishName(),
+        'solfegeName': toSolfegeName(),
+        'frequency': frequency,
+        'cents': cents,
+        'midiNumber': midiNumber,
+      };
+
+  factory NoteEntity.fromJson(Map<String, dynamic> json) => NoteEntity(
+        name: json['name'] as String? ?? '--',
+        frequency: (json['frequency'] as num?)?.toDouble() ?? 0.0,
+        cents: (json['cents'] as num?)?.toDouble() ?? 0.0,
+        midiNumber: (json['midiNumber'] as num?)?.toInt() ?? 69,
+      );
+
   static NoteEntity fromFrequency(double freq, {double a4Ref = 440.0}) {
     if (freq <= 0 || freq.isNaN || freq.isInfinite) {
       return NoteEntity(name: "--", frequency: 0.0, cents: 0.0, midiNumber: 0);

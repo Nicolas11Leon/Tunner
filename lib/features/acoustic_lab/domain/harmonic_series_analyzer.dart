@@ -2,6 +2,10 @@ import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../../../core/audio/domain/offline_wav_decoder.dart';
+import '../../tuner/domain/mcleod_pitch_method.dart';
+import '../../tuner/domain/offline_pitch_contour_analyzer.dart';
+
 /// Representa una barra armónica individual dentro del espectrograma.
 class HarmonicBarEntity {
   final int harmonicNumber;
@@ -17,6 +21,25 @@ class HarmonicBarEntity {
     required this.dbLevel,
     required this.intervalLabel,
   });
+
+  Map<String, dynamic> toJson() => {
+        'harmonicNumber': harmonicNumber,
+        'frequencyHz': frequencyHz,
+        'relativeAmplitude': relativeAmplitude,
+        'dbLevel': dbLevel,
+        'intervalLabel': intervalLabel,
+      };
+
+  factory HarmonicBarEntity.fromJson(Map<String, dynamic> json) {
+    final k = (json['harmonicNumber'] as num?)?.toInt() ?? 1;
+    return HarmonicBarEntity(
+      harmonicNumber: k,
+      frequencyHz: (json['frequencyHz'] as num?)?.toDouble() ?? 0.0,
+      relativeAmplitude: (json['relativeAmplitude'] as num?)?.toDouble() ?? 0.0,
+      dbLevel: (json['dbLevel'] as num?)?.toDouble() ?? -60.0,
+      intervalLabel: json['intervalLabel'] as String? ?? getLabelForHarmonic(k),
+    );
+  }
 
   static String getLabelForHarmonic(int k) {
     switch (k) {
@@ -65,6 +88,30 @@ class TimbreAnalysisResult {
     totalHarmonicDistortionPercent: 0.0,
     timbreClassification: "Sin señal acústica",
   );
+
+  Map<String, dynamic> toJson() => {
+        'fundamentalHz': fundamentalHz,
+        'harmonics': harmonics.map((h) => h.toJson()).toList(growable: false),
+        'spectralCentroidHz': spectralCentroidHz,
+        'totalHarmonicDistortionPercent': totalHarmonicDistortionPercent,
+        'timbreClassification': timbreClassification,
+      };
+
+  factory TimbreAnalysisResult.fromJson(Map<String, dynamic> json) {
+    final rawHarmonics = json['harmonics'] as List<dynamic>? ?? const [];
+    return TimbreAnalysisResult(
+      fundamentalHz: (json['fundamentalHz'] as num?)?.toDouble() ?? 0.0,
+      harmonics: rawHarmonics
+          .whereType<Map<String, dynamic>>()
+          .map(HarmonicBarEntity.fromJson)
+          .toList(growable: false),
+      spectralCentroidHz: (json['spectralCentroidHz'] as num?)?.toDouble() ?? 0.0,
+      totalHarmonicDistortionPercent:
+          (json['totalHarmonicDistortionPercent'] as num?)?.toDouble() ?? 0.0,
+      timbreClassification:
+          json['timbreClassification'] as String? ?? 'Sin señal acústica',
+    );
+  }
 }
 
 /// Analizador de la serie armónica y pureza de timbre mediante Transformada Discreta de Fourier dirigida (DFT).
@@ -118,6 +165,68 @@ class HarmonicSeriesAnalyzer {
         sampleRate: sampleRate,
       );
     });
+  }
+
+  /// Decodifica un archivo WAV (16/24/32-bit float) mediante [OfflineWavDecoder],
+  /// auto-detecta la frecuencia fundamental mediante [OfflinePitchContourAnalyzer] / [McleodPitchMethod]
+  /// si [fundamentalHz] no se suministra, y calcula la serie armonica y metricas timbrales.
+  TimbreAnalysisResult analyzeWavBytes(
+    Uint8List wavBytes, {
+    double? fundamentalHz,
+    int windowSize = 4096,
+    int startTimeMs = 0,
+    McleodPitchMethod? pitchDetector,
+  }) {
+    final decoded = OfflineWavDecoder.decode(wavBytes);
+    if (decoded.samples.length < 64) {
+      return TimbreAnalysisResult.empty;
+    }
+
+    final int startSample = ((math.max(0, startTimeMs) / 1000.0) * decoded.sampleRate)
+        .round()
+        .clamp(0, math.max(0, decoded.samples.length - 64));
+    final int effectiveWindow = math.min(
+      math.max(64, windowSize),
+      decoded.samples.length - startSample,
+    );
+    final windowSamples = Float64List.sublistView(
+      decoded.samples,
+      startSample,
+      startSample + effectiveWindow,
+    );
+
+    double resolvedFundamental = fundamentalHz ?? 0.0;
+    if (resolvedFundamental <= 20.0) {
+      final detector = pitchDetector ?? const McleodPitchMethod();
+      final directDetection = detector.estimatePitch(
+        windowSamples,
+        sampleRate: decoded.sampleRate,
+      );
+      if (directDetection.pitched && directDetection.pitchHz > 20.0) {
+        resolvedFundamental = directDetection.pitchHz;
+      } else {
+        final contourAnalyzer = OfflinePitchContourAnalyzer(pitchDetector: detector);
+        final contour = contourAnalyzer.analyzeSamples(
+          decoded.samples,
+          sampleRate: decoded.sampleRate,
+          windowSize: effectiveWindow,
+          hopSize: math.max(256, effectiveWindow ~/ 4),
+        );
+        if (contour.hasVoicedFrames && contour.medianPitchHz > 20.0) {
+          resolvedFundamental = contour.medianPitchHz;
+        }
+      }
+    }
+
+    if (resolvedFundamental <= 20.0) {
+      return TimbreAnalysisResult.empty;
+    }
+
+    return analyze(
+      fundamentalHz: resolvedFundamental,
+      samples: windowSamples,
+      sampleRate: decoded.sampleRate.toDouble(),
+    );
   }
 
   /// Analiza los primeros [maxHarmonics] armónicos a partir de la frecuencia fundamental

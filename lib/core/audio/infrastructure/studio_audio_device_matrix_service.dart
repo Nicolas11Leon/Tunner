@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
-import '../../logging/infrastructure/studio_debug_logger.dart';
+import '../../domain/i_studio_listenable.dart';
+import '../../logging/domain/i_studio_logger.dart';
 import '../domain/audio_device_entity.dart';
 import '../domain/audio_device_matrix_entity.dart';
 import '../domain/i_studio_audio_device_matrix_service.dart';
@@ -16,12 +16,15 @@ import 'studio_master_capture_service.dart';
 
 /// Servicio de infraestructura que gestiona la matriz de enrutamiento de dispositivos,
 /// la cadena de masterización DSP y la captura de audio en vivo de Tunner Studio.
-class StudioAudioDeviceMatrixService extends ChangeNotifier
+class StudioAudioDeviceMatrixService
+    with StudioPureNotifierMixin
     implements IStudioAudioDeviceMatrixService {
   final IStudioAudioEngine _outputEngine;
   final IStudioAudioInputEngine _inputEngine;
   final IStudioAudioHardwarePersistenceService? _persistenceService;
   final IStudioMasterCaptureService _captureService;
+  final IStudioLogger _logger;
+  final bool _headless;
 
   AudioDeviceMatrixEntity _matrix;
   StudioStereoLevelMeterData _masterMeterData = StudioStereoLevelMeterData.zero;
@@ -43,29 +46,48 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
     IStudioAudioHardwarePersistenceService? persistenceService,
     IStudioMasterCaptureService? captureService,
     AudioDeviceMatrixEntity? initialMatrix,
+    IStudioLogger logger = const NoOpStudioLogger(),
+    bool headless = false,
   })  : _outputEngine = outputEngine,
         _inputEngine = inputEngine,
         _persistenceService = persistenceService,
-        _captureService = captureService ?? StudioMasterCaptureService(),
+        _captureService = captureService ?? StudioMasterCaptureService(logger: logger),
+        _logger = logger,
+        _headless = headless,
         _matrix = initialMatrix ?? AudioDeviceMatrixEntity.defaultConfiguration() {
     _initDspChain();
     _initHardwareEndpoints();
-    _startMeterLoop();
+    if (!_headless) {
+      _startMeterLoop();
+    }
   }
+
+  /// Indica si el servicio opera en modo headless sin bucles visuales de vúmetro.
+  bool get isHeadless => _headless;
 
   @override
   AudioDeviceMatrixEntity get matrix => _matrix;
+  @override
   StudioStereoLevelMeterData get masterMeterData => _masterMeterData;
+  @override
   Stream<StudioStereoLevelMeterData> get masterMeterStream => _meterController.stream;
 
+  @override
   IStudioAudioEngine get outputEngine => _outputEngine;
+  @override
   IStudioAudioInputEngine get inputEngine => _inputEngine;
+  @override
   IStudioAudioHardwarePersistenceService? get persistenceService => _persistenceService;
+  @override
   IStudioMasterCaptureService get captureService => _captureService;
 
+  @override
   StudioMasterBiquadFilter get filterLow => _filterLow;
+  @override
   StudioMasterBiquadFilter get filterMid => _filterMid;
+  @override
   StudioMasterBiquadFilter get filterHigh => _filterHigh;
+  @override
   StudioMasterDynamicsProcessor get dynamicsProcessor => _dynamicsProcessor;
 
   void _initDspChain() {
@@ -147,7 +169,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
       );
       notifyListeners();
     } catch (e) {
-      StudioDebugLogger.instance.warning('StudioAudioDeviceMatrixService', 'Error inicializando endpoints de audio de hardware: $e');
+      _logger.warning('StudioAudioDeviceMatrixService', 'Error inicializando endpoints de audio de hardware: $e');
     }
   }
 
@@ -170,6 +192,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Conmuta el dispositivo físico de captura de audio (Micrófono / Entrada de línea).
+  @override
   Future<void> selectInputDevice(String deviceId) async {
     final dev = _matrix.availableInputs.firstWhere(
       (d) => d.id == deviceId,
@@ -187,6 +210,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Conmuta el dispositivo físico de salida de audio (Monitores / Auriculares / DAC).
+  @override
   Future<void> selectOutputDevice(String deviceId) async {
     final dev = _matrix.availableOutputs.firstWhere(
       (d) => d.id == deviceId,
@@ -203,6 +227,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Ajusta la ganancia lineal del bus maestro (0.0 a 1.5).
+  @override
   void setMasterGain(double gain) {
     final clamped = gain.clamp(0.0, 1.5);
     _matrix = _matrix.copyWith(masterGain: clamped);
@@ -212,12 +237,14 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Ajusta la ganancia maestra en decibelios (dB).
+  @override
   void setMasterGainDb(double db) {
     final linear = StudioMasterAudioMixer.linearGainFromDb(db);
     setMasterGain(linear);
   }
 
   /// Conmuta el estado de silenciado instantáneo (Mute).
+  @override
   void toggleMute() {
     _matrix = _matrix.copyWith(isMuted: !_matrix.isMuted);
     _applyMasterGainToOutputs();
@@ -226,6 +253,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Conmuta la atenuación de escucha de referencia de -20 dB (DIM).
+  @override
   void toggleDim() {
     _matrix = _matrix.copyWith(isDimmed: !_matrix.isDimmed);
     _applyMasterGainToOutputs();
@@ -234,6 +262,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Conmuta el colapso de fase monoaural (MONO).
+  @override
   void toggleMono() {
     _matrix = _matrix.copyWith(isMono: !_matrix.isMono);
     _persistState();
@@ -241,6 +270,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Configura el tamaño del búfer de audio (128, 256, 512, 1024 muestras).
+  @override
   void setBufferSize(int bufferSize) {
     final validSize = [128, 256, 512, 1024].contains(bufferSize) ? bufferSize : 512;
     _matrix = _matrix.copyWith(bufferSize: validSize);
@@ -259,6 +289,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Asigna un canal virtual a un bus de destino ('master', 'cue' o 'mute').
+  @override
   void setChannelRouting(String channelId, String destinationBus) {
     final currentRoutings = Map<String, String>.from(_matrix.channelRoutings);
     currentRoutings[channelId] = destinationBus;
@@ -269,6 +300,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Ajusta la ganancia de graves del ecualizador maestro en dB (Low Shelf a 100 Hz, -12 a +12 dB).
+  @override
   void setEqLow(double db) {
     final clamped = db.clamp(-12.0, 12.0);
     _matrix = _matrix.copyWith(eqLowDb: clamped);
@@ -282,6 +314,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Ajusta la ganancia de medios del ecualizador maestro en dB (Peaking Bell a 1 kHz, -12 a +12 dB).
+  @override
   void setEqMid(double db) {
     final clamped = db.clamp(-12.0, 12.0);
     _matrix = _matrix.copyWith(eqMidDb: clamped);
@@ -296,6 +329,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Ajusta la ganancia de agudos del ecualizador maestro en dB (High Shelf a 8 kHz, -12 a +12 dB).
+  @override
   void setEqHigh(double db) {
     final clamped = db.clamp(-12.0, 12.0);
     _matrix = _matrix.copyWith(eqHighDb: clamped);
@@ -309,6 +343,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Alterna el bypass del ecualizador maestro.
+  @override
   void toggleEqBypass() {
     _matrix = _matrix.copyWith(isEqBypassed: !_matrix.isEqBypassed);
     _persistState();
@@ -316,6 +351,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Ajusta el umbral del compresor de masterización en dB (-30 a 0 dB).
+  @override
   void setCompThreshold(double db) {
     final clamped = db.clamp(-30.0, 0.0);
     _matrix = _matrix.copyWith(compThresholdDb: clamped);
@@ -329,6 +365,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Ajusta la relación de compresión (Ratio 1:1 a 20:1).
+  @override
   void setCompRatio(double ratio) {
     final clamped = ratio.clamp(1.0, 20.0);
     _matrix = _matrix.copyWith(compRatio: clamped);
@@ -342,6 +379,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Alterna el bypass del compresor maestro.
+  @override
   void toggleCompBypass() {
     _matrix = _matrix.copyWith(isCompBypassed: !_matrix.isCompBypassed);
     _persistState();
@@ -349,6 +387,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Inicia la captura maestra en vivo a un archivo WAV PCM.
+  @override
   Future<void> startMasterRecording(String destinationPath) async {
     await _captureService.startCapture(
       destinationPath: destinationPath,
@@ -360,6 +399,7 @@ class StudioAudioDeviceMatrixService extends ChangeNotifier
   }
 
   /// Detiene la captura maestra en vivo y finaliza el archivo WAV.
+  @override
   Future<String?> stopMasterRecording() async {
     final path = await _captureService.stopCapture();
     _matrix = _matrix.copyWith(isMasterRecording: false);

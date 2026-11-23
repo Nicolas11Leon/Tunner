@@ -17,6 +17,7 @@ class CanonicalAbcExporter {
   }
 
   /// Exporta un [HierarchicalScore] a estándar ABC.
+  /// Preserva armaduras (`keySignatureFifths`), ligaduras (`isTied`) y múltiples voces/pentagramas (`voice`/`staff`).
   String exportScore({
     required HierarchicalScore score,
     String title = 'Composición Tunner',
@@ -28,32 +29,103 @@ class CanonicalAbcExporter {
     final ts = score.measures.isNotEmpty
         ? score.measures.first.timeSignature
         : TimeSignature.commonTime44;
+    final initialKeyFifths = score.measures.isNotEmpty
+        ? score.measures.first.keySignatureFifths.clamp(-7, 7)
+        : 0;
+
     buffer.writeln('X: 1');
     buffer.writeln('T: $title');
     buffer.writeln('C: $composer');
     buffer.writeln('M: ${ts.numerator}/${ts.denominator}');
     buffer.writeln('L: 1/4');
     buffer.writeln('Q: 1/4=${score.baseBpm}');
-    buffer.writeln('K: C');
+    buffer.writeln('K: ${_fifthsToAbcKey(initialKeyFifths)}');
 
-    // 2. Transcripcion de compases, metricas y acordes agrupados por startTick
+    // Detectar flujos únicos (staff, voice) presentes en toda la partitura
+    final streamSet = <(int, int)>{};
+    for (final m in score.measures) {
+      for (final n in m.notes) {
+        streamSet.add((n.staff, n.voice));
+      }
+    }
+    final streams = streamSet.toList()
+      ..sort((a, b) {
+        final staffCmp = a.$1.compareTo(b.$1);
+        if (staffCmp != 0) return staffCmp;
+        return a.$2.compareTo(b.$2);
+      });
+
+    final isMultiVoice = streams.length > 1 || score.staffCount > 1;
+    if (!isMultiVoice) {
+      _writeVoiceMeasures(
+        buffer,
+        measures: score.measures,
+        filterStaff: null,
+        filterVoice: null,
+      );
+    } else {
+      // Declarar cada voz con su clave (clef=treble para staff 1, clef=bass para staff >= 2)
+      for (final stream in streams) {
+        final staff = stream.$1;
+        final voice = stream.$2;
+        final clef = staff >= 2 ? 'bass' : 'treble';
+        final voiceId = 'S${staff}V$voice';
+        buffer.writeln('V:$voiceId clef=$clef name="Staff $staff Voice $voice"');
+      }
+
+      for (final stream in streams) {
+        final staff = stream.$1;
+        final voice = stream.$2;
+        final voiceId = 'S${staff}V$voice';
+        buffer.writeln('[V:$voiceId]');
+        _writeVoiceMeasures(
+          buffer,
+          measures: score.measures,
+          filterStaff: staff,
+          filterVoice: voice,
+        );
+      }
+    }
+
+    return buffer.toString();
+  }
+
+  void _writeVoiceMeasures(
+    StringBuffer buffer, {
+    required List<MeasureEntity> measures,
+    required int? filterStaff,
+    required int? filterVoice,
+  }) {
     final measureTokens = <String>[];
     TimeSignature? previousTimeSignature;
-    for (int mIdx = 0; mIdx < score.measures.length; mIdx++) {
-      final measure = score.measures[mIdx];
+    int? previousKeyFifths;
+
+    for (int mIdx = 0; mIdx < measures.length; mIdx++) {
+      final measure = measures[mIdx];
       final barBuffer = StringBuffer();
+      final keyFifths = measure.keySignatureFifths.clamp(-7, 7);
 
       if (mIdx > 0 && measure.timeSignature != previousTimeSignature) {
         final mts = measure.timeSignature;
         barBuffer.write('[M:${mts.numerator}/${mts.denominator}] ');
       }
+      if (mIdx > 0 && keyFifths != previousKeyFifths) {
+        barBuffer.write('[K:${_fifthsToAbcKey(keyFifths)}] ');
+      }
       previousTimeSignature = measure.timeSignature;
+      previousKeyFifths = keyFifths;
 
-      if (measure.notes.isEmpty) {
+      final voiceNotes = (filterStaff == null && filterVoice == null)
+          ? measure.notes
+          : measure.notes
+              .where((n) => n.staff == filterStaff && n.voice == filterVoice)
+              .toList();
+
+      if (voiceNotes.isEmpty) {
         barBuffer.write('z${_ticksToDuration(measure.timeSignature.totalTicks)}');
       } else {
         final groupedByTick = <int, List<HierarchicalNote>>{};
-        for (final note in measure.notes) {
+        for (final note in voiceNotes) {
           groupedByTick.putIfAbsent(note.startTick, () => []).add(note);
         }
         final sortedTicks = groupedByTick.keys.toList()..sort();
@@ -65,13 +137,20 @@ class CanonicalAbcExporter {
           if (pitchedNotes.length > 1) {
             final firstDur = pitchedNotes.first.durationTicks;
             final sameDuration = pitchedNotes.every((n) => n.durationTicks == firstDur);
+            final allTied = pitchedNotes.every((n) => n.isTied);
             barBuffer.write('[');
             if (sameDuration) {
               for (final pNote in pitchedNotes) {
                 barBuffer.write(_formatAbcPitchOnly(pNote.noteName));
+                if (!allTied && pNote.isTied) {
+                  barBuffer.write('-');
+                }
               }
               barBuffer.write(']');
               barBuffer.write(_ticksToDuration(firstDur));
+              if (allTied) {
+                barBuffer.write('-');
+              }
             } else {
               for (final pNote in pitchedNotes) {
                 barBuffer.write(_formatAbcNote(pNote));
@@ -112,8 +191,27 @@ class CanonicalAbcExporter {
     } else {
       buffer.writeln('z4 |]');
     }
+  }
 
-    return buffer.toString();
+  static String _fifthsToAbcKey(int fifths) {
+    const keyMap = <int, String>{
+      -7: 'Cb',
+      -6: 'Gb',
+      -5: 'Db',
+      -4: 'Ab',
+      -3: 'Eb',
+      -2: 'Bb',
+      -1: 'F',
+      0: 'C',
+      1: 'G',
+      2: 'D',
+      3: 'A',
+      4: 'E',
+      5: 'B',
+      6: 'F#',
+      7: 'C#',
+    };
+    return keyMap[fifths.clamp(-7, 7)] ?? 'C';
   }
 
   static bool _isRestNote(HierarchicalNote note) {
@@ -128,7 +226,8 @@ class CanonicalAbcExporter {
     if (_isRestNote(note)) {
       return 'z$durationStr';
     }
-    return '${_formatAbcPitchOnly(note.noteName)}$durationStr';
+    final tieSuffix = note.isTied ? '-' : '';
+    return '${_formatAbcPitchOnly(note.noteName)}$durationStr$tieSuffix';
   }
 
   String _formatAbcPitchOnly(String noteName) {

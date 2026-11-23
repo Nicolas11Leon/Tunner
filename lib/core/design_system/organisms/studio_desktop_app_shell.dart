@@ -49,6 +49,9 @@ class StudioDesktopAppShell extends StatefulWidget {
   final VoidCallback? onMenuImportFile;
   final VoidCallback? onMenuNewPreset;
   final VoidCallback? onMenuSaveWorkspace;
+  final VoidCallback? onMenuSaveAs;
+  final VoidCallback? onMenuExport;
+  final VoidCallback? onMenuOpenWorkspaceInExplorer;
   final VoidCallback? onMenuResetWorkspace;
   final VoidCallback? onMenuToggleRack;
   final ValueChanged<int>? onNavigateToTabIndex;
@@ -86,6 +89,9 @@ class StudioDesktopAppShell extends StatefulWidget {
     this.onMenuImportFile,
     this.onMenuNewPreset,
     this.onMenuSaveWorkspace,
+    this.onMenuSaveAs,
+    this.onMenuExport,
+    this.onMenuOpenWorkspaceInExplorer,
     this.onMenuResetWorkspace,
     this.onMenuToggleRack,
     this.onNavigateToTabIndex,
@@ -168,6 +174,7 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                     children: [
                       // Menús de Aplicación de Escritorio
                       _buildTunnerMenu(context, tokens),
+                      _buildFileMenu(context, tokens),
                       _buildWorkspaceMenu(context, tokens),
                       _buildViewMenu(context, tokens),
                       _buildWindowMenu(context, tokens),
@@ -213,7 +220,13 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                     tooltip: _isSidebarVisible ? 'Ocultar Barra Lateral (Ctrl+B)' : 'Mostrar Barra Lateral (Ctrl+B)',
                     splashRadius: 14,
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    visualDensity: VisualDensity.compact,
+                    style: IconButton.styleFrom(
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(24, 24),
+                    ),
+                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                     onPressed: _toggleSidebar,
                   ),
                   if (widget.secondaryView != null) ...[
@@ -229,7 +242,13 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                           : 'Activar Vista Dividida Dual (Ctrl+Shift+D)',
                       splashRadius: 14,
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(24, 24),
+                      ),
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                       onPressed: _toggleDualSplit,
                     ),
                   ],
@@ -244,7 +263,13 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                     tooltip: 'Búsqueda Rápida (Ctrl+K)',
                     splashRadius: 14,
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    visualDensity: VisualDensity.compact,
+                    style: IconButton.styleFrom(
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(24, 24),
+                    ),
+                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                     onPressed: widget.onOpenSearch,
                   ),
                   IconButton(
@@ -252,7 +277,13 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                     tooltip: 'Guía de Atajos de Teclado (?)',
                     splashRadius: 14,
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    visualDensity: VisualDensity.compact,
+                    style: IconButton.styleFrom(
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(24, 24),
+                    ),
+                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                     onPressed: widget.onOpenShortcuts,
                   ),
                   IconButton(
@@ -261,16 +292,24 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                     tooltip: 'Consola Maestra de E/S & Reloj (Ctrl+Shift+I)',
                     splashRadius: 14,
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    visualDensity: VisualDensity.compact,
+                    style: IconButton.styleFrom(
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(24, 24),
+                    ),
+                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                     onPressed: widget.onOpenMasterConsole,
                   ),
-                  const SizedBox(width: 4),
-                  const StudioThemeSwitcher(),
+                  if (constraints.maxWidth > 850) ...[
+                    const SizedBox(width: 4),
+                    const StudioThemeSwitcher(),
+                  ],
                   const SizedBox(width: 4),
                   PopupMenuButton<String>(
                     tooltip: 'Opciones de la Estación',
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                     icon: Icon(Icons.more_vert_rounded, size: 16, color: tokens.textMuted),
                     color: tokens.panelBackground,
                     shape: RoundedRectangleBorder(
@@ -697,6 +736,35 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
         _buildPopupMenuItem('settings', 'Preferencias del Estudio...', Icons.tune_rounded, tokens, shortcut: 'Ctrl+,'),
         const PopupMenuDivider(height: 8),
         _buildPopupMenuItem('updates', 'Comprobar Actualizaciones', Icons.system_update_alt_rounded, tokens),
+      ],
+    );
+  }
+
+  Widget _buildFileMenu(BuildContext context, StudioDesignTokens tokens) {
+    return _buildTopPopupMenu(
+      context: context,
+      label: 'Archivos',
+      tokens: tokens,
+      onSelected: (val) {
+        if (val == 'new_file') widget.onMenuNewScore?.call();
+        if (val == 'open_file') widget.onMenuImportFile?.call();
+        if (val == 'save') widget.onMenuSaveWorkspace?.call();
+        if (val == 'save_as') widget.onMenuSaveAs?.call();
+        if (val == 'import_file') widget.onMenuImportFile?.call();
+        if (val == 'export_file') widget.onMenuExport?.call();
+        if (val == 'open_in_explorer') widget.onMenuOpenWorkspaceInExplorer?.call();
+      },
+      items: [
+        _buildPopupMenuItem('new_file', 'Nuevo Archivo / Partitura...', Icons.note_add_outlined, tokens, shortcut: 'Ctrl+N', iconId: StudioIconId.fileNew),
+        _buildPopupMenuItem('open_file', 'Abrir Archivo...', Icons.file_open_outlined, tokens, shortcut: 'Ctrl+O', iconId: StudioIconId.fileOpen),
+        const PopupMenuDivider(height: 8),
+        _buildPopupMenuItem('save', 'Guardar', Icons.save_outlined, tokens, shortcut: 'Ctrl+S', iconId: StudioIconId.fileSave),
+        _buildPopupMenuItem('save_as', 'Guardar como...', Icons.save_as_outlined, tokens, shortcut: 'Ctrl+Shift+S', iconId: StudioIconId.fileSave),
+        const PopupMenuDivider(height: 8),
+        _buildPopupMenuItem('import_file', 'Importar (MusicXML / MIDI / Audio / PDF)...', Icons.drive_folder_upload_outlined, tokens, iconId: StudioIconId.fileMusicXmlMidi),
+        _buildPopupMenuItem('export_file', 'Exportar (PDF / MusicXML / MIDI / Stems)...', Icons.ios_share_outlined, tokens, iconId: StudioIconId.fileExportPdf),
+        const PopupMenuDivider(height: 8),
+        _buildPopupMenuItem('open_in_explorer', 'Abrir carpeta en explorador del sistema', Icons.folder_open_rounded, tokens, iconId: StudioIconId.fileFolder),
       ],
     );
   }

@@ -43,6 +43,7 @@ abstract class IStudioWorkspaceFileSystem implements IStudioListenable {
   void renameNode(String nodeId, String newName);
   void moveNode(String nodeId, String targetFolderId);
   void deleteNode(String nodeId);
+  Future<bool> openInSystemExplorer(String relativePath);
 }
 
 /// Implementación en memoria sin dependencias de I/O para pruebas y UI desacoplada.
@@ -147,4 +148,7 @@ class NoOpStudioWorkspaceFileSystem with StudioPureNotifierMixin implements IStu
 
   @override
   void deleteNode(String nodeId) {}
+
+  @override
+  Future<bool> openInSystemExplorer(String relativePath) async => false;
 }

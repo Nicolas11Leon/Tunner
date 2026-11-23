@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-import '../../../audio/infrastructure/studio_audio_device_matrix_service.dart';
+import '../../../audio/domain/i_studio_audio_device_matrix_service.dart';
 import '../../../dsl/domain/i_synth_voice_pool_port.dart';
 import '../../../dsl/domain/studio_os_audio_kernel.dart';
 import '../../../dsl/domain/tunner_dsl_interpreter.dart';
@@ -15,7 +15,7 @@ import '../../domain/tunner_os_command_entity.dart';
 class FsWorkspaceCommandHandler implements ITerminalCommandHandler {
   final StudioFileSystemRepository? Function() _getFileSystemRepository;
   final ITerminalProjectPort? Function() _getProjectPort;
-  final StudioAudioDeviceMatrixService? Function() _getMatrixService;
+  final IStudioAudioDeviceMatrixService? Function() _getMatrixService;
   final ISynthVoicePoolPort? Function() _getSynthVoicePool;
   final ITerminalEarTrainingPort? Function() _getEarTrainingEngine;
   final ITerminalVocalPedagogyPort? Function() _getVocalEvaluator;
@@ -28,7 +28,7 @@ class FsWorkspaceCommandHandler implements ITerminalCommandHandler {
   const FsWorkspaceCommandHandler({
     required StudioFileSystemRepository? Function() getFileSystemRepository,
     required ITerminalProjectPort? Function() getProjectPort,
-    required StudioAudioDeviceMatrixService? Function() getMatrixService,
+    required IStudioAudioDeviceMatrixService? Function() getMatrixService,
     required ISynthVoicePoolPort? Function() getSynthVoicePool,
     required ITerminalEarTrainingPort? Function() getEarTrainingEngine,
     required ITerminalVocalPedagogyPort? Function() getVocalEvaluator,

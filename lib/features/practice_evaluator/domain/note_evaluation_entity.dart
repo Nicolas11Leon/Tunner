@@ -41,4 +41,71 @@ class NoteEvaluationEntity {
   });
 
   bool get isHit => isPitchAccurate && timingCategory != NoteTimingCategory.missed;
+
+  Map<String, dynamic> toMap() => toJson();
+
+  Map<String, dynamic> toJson() {
+    return {
+      'expectedNote': {
+        'startTick': expectedNote.startTick,
+        'durationTicks': expectedNote.durationTicks,
+        'noteName': expectedNote.noteName,
+        'isRest': expectedNote.isRest,
+        'isTied': expectedNote.isTied,
+        'voice': expectedNote.voice,
+        'staff': expectedNote.staff,
+      },
+      'soundingExpectedNoteName': soundingExpectedNoteName,
+      'detectedNoteName': detectedNoteName,
+      'detectedFrequency': detectedFrequency,
+      'centsDeviation': centsDeviation,
+      'timingCategory': timingCategory.name,
+      'timingDeltaMs': timingDeltaMs,
+      'sustainRatioPercentage': sustainRatioPercentage,
+      'isPitchAccurate': isPitchAccurate,
+      'pitchScore': pitchScore,
+      'rhythmScore': rhythmScore,
+      'sustainScore': sustainScore,
+      'overallScore': overallScore,
+      'isHit': isHit,
+    };
+  }
+
+  factory NoteEvaluationEntity.fromMap(Map<String, dynamic> map) =>
+      NoteEvaluationEntity.fromJson(map);
+
+  factory NoteEvaluationEntity.fromJson(Map<String, dynamic> json) {
+    final noteMap = json['expectedNote'] as Map<String, dynamic>? ?? const {};
+    final expectedNote = HierarchicalNote(
+      startTick: (noteMap['startTick'] as num?)?.toInt() ?? 0,
+      durationTicks: (noteMap['durationTicks'] as num?)?.toInt() ?? 4,
+      noteName: noteMap['noteName'] as String? ?? '',
+      isRest: noteMap['isRest'] as bool? ?? false,
+      isTied: noteMap['isTied'] as bool? ?? false,
+      voice: (noteMap['voice'] as num?)?.toInt() ?? 1,
+      staff: (noteMap['staff'] as num?)?.toInt() ?? 1,
+    );
+
+    final timingName = json['timingCategory'] as String? ?? NoteTimingCategory.missed.name;
+    final timingCategory = NoteTimingCategory.values.firstWhere(
+      (c) => c.name == timingName,
+      orElse: () => NoteTimingCategory.missed,
+    );
+
+    return NoteEvaluationEntity(
+      expectedNote: expectedNote,
+      soundingExpectedNoteName: json['soundingExpectedNoteName'] as String? ?? '',
+      detectedNoteName: json['detectedNoteName'] as String? ?? '',
+      detectedFrequency: (json['detectedFrequency'] as num?)?.toDouble() ?? 0.0,
+      centsDeviation: (json['centsDeviation'] as num?)?.toDouble() ?? 0.0,
+      timingCategory: timingCategory,
+      timingDeltaMs: (json['timingDeltaMs'] as num?)?.toInt() ?? 0,
+      sustainRatioPercentage: (json['sustainRatioPercentage'] as num?)?.toDouble() ?? 0.0,
+      isPitchAccurate: json['isPitchAccurate'] as bool? ?? false,
+      pitchScore: (json['pitchScore'] as num?)?.toDouble() ?? 0.0,
+      rhythmScore: (json['rhythmScore'] as num?)?.toDouble() ?? 0.0,
+      sustainScore: (json['sustainScore'] as num?)?.toDouble() ?? 0.0,
+      overallScore: (json['overallScore'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
 }

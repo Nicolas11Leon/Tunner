@@ -40,6 +40,36 @@ class DetectedPolyphonicVoice {
   /// Nombre internacional completo con octava (ej. "C4", "A2").
   String get fullNoteNameInternational => '$noteNameInternational$octave';
 
+  Map<String, dynamic> toJson() {
+    return {
+      'noteName': noteName,
+      'noteNameInternational': noteNameInternational,
+      'octave': octave,
+      'pitchClassIndex': pitchClassIndex,
+      'frequencyHz': frequencyHz,
+      'midiNumber': midiNumber,
+      'centsDeviation': centsDeviation,
+      'salience': salience,
+      'harmonicRole': harmonicRole,
+      'fullNoteName': fullNoteName,
+      'fullNoteNameInternational': fullNoteNameInternational,
+    };
+  }
+
+  factory DetectedPolyphonicVoice.fromJson(Map<String, dynamic> json) {
+    return DetectedPolyphonicVoice(
+      noteName: json['noteName'] as String? ?? '',
+      noteNameInternational: json['noteNameInternational'] as String? ?? '',
+      octave: (json['octave'] as num?)?.toInt() ?? 4,
+      pitchClassIndex: (json['pitchClassIndex'] as num?)?.toInt() ?? 0,
+      frequencyHz: (json['frequencyHz'] as num?)?.toDouble() ?? 0.0,
+      midiNumber: (json['midiNumber'] as num?)?.toInt() ?? 60,
+      centsDeviation: (json['centsDeviation'] as num?)?.toDouble() ?? 0.0,
+      salience: (json['salience'] as num?)?.toDouble() ?? 0.0,
+      harmonicRole: json['harmonicRole'] as String? ?? 'Voz Polifonica',
+    );
+  }
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -85,4 +115,30 @@ class PolyphonicMultiToneAnalysisResult {
 
   /// Retorna la nota más aguda del acorde (la voz superior).
   DetectedPolyphonicVoice? get sopranoVoice => voices.isNotEmpty ? voices.last : null;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'voices': voices.map((v) => v.toJson()).toList(),
+      'chord': chord.toJson(),
+      'voicingName': voicingName,
+      'isSilence': isSilence,
+      'polyphonyCount': polyphonyCount,
+      'bassVoice': bassVoice?.toJson(),
+      'sopranoVoice': sopranoVoice?.toJson(),
+    };
+  }
+
+  factory PolyphonicMultiToneAnalysisResult.fromJson(Map<String, dynamic> json) {
+    final voicesList = (json['voices'] as List<dynamic>?)
+            ?.map((e) => DetectedPolyphonicVoice.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        const <DetectedPolyphonicVoice>[];
+    final chordMap = json['chord'] as Map<String, dynamic>?;
+    return PolyphonicMultiToneAnalysisResult(
+      voices: voicesList,
+      chord: chordMap != null ? ChordEntity.fromJson(chordMap) : ChordEntity.none,
+      voicingName: json['voicingName'] as String? ?? 'Silencio',
+      isSilence: json['isSilence'] as bool? ?? false,
+    );
+  }
 }

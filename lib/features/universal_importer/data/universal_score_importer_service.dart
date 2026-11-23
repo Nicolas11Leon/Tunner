@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-import '../../../core/logging/infrastructure/studio_debug_logger.dart';
+import '../../../core/logging/domain/i_studio_logger.dart';
 import '../../mixer/domain/mixer_track_entity.dart';
 import '../../sheet_music/domain/score_tree.dart';
 import '../../song_library/domain/song_package_entity.dart';
@@ -27,6 +27,7 @@ class UniversalScoreImporterService implements IScoreParserService {
   final AbcScoreParser _abcParser;
   final PdfScoreParser _pdfParser;
   final AudioToScoreTranscriptionEngine _audioTranscriber;
+  final IStudioLogger _logger;
 
   const UniversalScoreImporterService({
     MusicXmlScoreParser musicXmlParser = const MusicXmlScoreParser(),
@@ -35,12 +36,14 @@ class UniversalScoreImporterService implements IScoreParserService {
     AbcScoreParser abcParser = const AbcScoreParser(),
     PdfScoreParser pdfParser = const PdfScoreParser(),
     AudioToScoreTranscriptionEngine audioTranscriber = const AudioToScoreTranscriptionEngine(),
+    IStudioLogger logger = const NoOpStudioLogger(),
   })  : _musicXmlParser = musicXmlParser,
         _compressedMusicXmlParser = compressedMusicXmlParser ?? const CompressedMusicXmlParser(),
         _midiParser = midiParser,
         _abcParser = abcParser,
         _pdfParser = pdfParser,
-        _audioTranscriber = audioTranscriber;
+        _audioTranscriber = audioTranscriber,
+        _logger = logger;
 
   @override
   bool canParse(String fileName, Uint8List bytes) {
@@ -68,7 +71,7 @@ class UniversalScoreImporterService implements IScoreParserService {
       try {
         return await _compressedMusicXmlParser.parseScoreData(bytes: bytes, fileName: fileName);
       } catch (e, st) {
-        StudioDebugLogger.instance.warning(
+        _logger.warning(
           'UniversalScoreImporterService',
           'Fallo parser .mxl para "$fileName", probando siguientes parsers: $e',
           error: e,
@@ -113,7 +116,7 @@ class UniversalScoreImporterService implements IScoreParserService {
       try {
         return await parser.parseScoreData(bytes: bytes, fileName: fileName);
       } catch (e, st) {
-        StudioDebugLogger.instance.warning(
+        _logger.warning(
           'UniversalScoreImporterService',
           'Intento heuristico ${parser.runtimeType} fallo para "$fileName": $e',
           error: e,

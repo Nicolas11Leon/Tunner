@@ -26,6 +26,10 @@ abstract class StudioFileSystemRepository {
     required String oldRelativePath,
     required String newRelativePath,
   });
+
+  /// Abre la carpeta física (o la carpeta contenedora si [relativePath] es un archivo)
+  /// en el explorador de archivos nativo del sistema operativo.
+  Future<bool> openInSystemExplorer(String relativePath);
 }
 
 /// Implementación no-op para entornos sin acceso físico a disco o pruebas aisladas.
@@ -59,4 +63,7 @@ class NoOpStudioFileSystemRepository implements StudioFileSystemRepository {
     required String oldRelativePath,
     required String newRelativePath,
   }) async {}
+
+  @override
+  Future<bool> openInSystemExplorer(String relativePath) async => false;
 }

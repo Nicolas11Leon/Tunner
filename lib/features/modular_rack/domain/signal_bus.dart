@@ -128,6 +128,15 @@ class SignalBus {
           'Conexion rechazada por SynergyPolicyEngine: ${validation.rejectionReason}',
         );
       }
+
+      if (_wouldCreateCycle(
+        connection.sourcePort.ownerModuleId,
+        connection.destinationPort!.ownerModuleId,
+      )) {
+        throw ArgumentError(
+          'Conexion rechazada: forma un ciclo cerrado en el grafo DAG (${connection.sourcePort.ownerModuleId} -> ${connection.destinationPort!.ownerModuleId}).',
+        );
+      }
     } else if (connection.sourcePort.direction != PortDirection.output) {
       throw ArgumentError(
         'Solo puertos de salida pueden emitir en modo broadcast: ${connection.sourcePort.id}',
@@ -142,9 +151,103 @@ class SignalBus {
     _connections.add(connection);
   }
 
+  /// Verifica mediante busqueda en anchura (BFS) si agregar la arista dirigida
+  /// `sourceModuleId -> destinationModuleId` cierra un ciclo en el grafo de conexiones.
+  bool _wouldCreateCycle(String sourceModuleId, String destinationModuleId) {
+    if (sourceModuleId == destinationModuleId) return true;
+
+    final adjacency = <String, Set<String>>{};
+    for (final conn in _connections) {
+      final dest = conn.destinationPort;
+      if (dest == null) continue;
+      adjacency
+          .putIfAbsent(conn.sourcePort.ownerModuleId, () => <String>{})
+          .add(dest.ownerModuleId);
+    }
+
+    final visited = <String>{destinationModuleId};
+    final queue = <String>[destinationModuleId];
+
+    while (queue.isNotEmpty) {
+      final current = queue.removeAt(0);
+      final neighbors = adjacency[current];
+      if (neighbors == null) continue;
+
+      for (final next in neighbors) {
+        if (next == sourceModuleId) {
+          return true;
+        }
+        if (visited.add(next)) {
+          queue.add(next);
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /// Actualiza la ganancia, estado de silencio o habilitacion de una conexion existente.
+  /// Retorna la conexion actualizada, o `null` si [connectionId] no existe.
+  ModuleConnection? updateConnection(
+    String connectionId, {
+    double? gain,
+    bool? isMuted,
+    bool? isEnabled,
+  }) {
+    if (_isDisposed) return null;
+    final index = _connections.indexWhere((c) => c.connectionId == connectionId);
+    if (index == -1) return null;
+
+    final updated = _connections[index].copyWith(
+      gain: gain,
+      isMuted: isMuted,
+      isEnabled: isEnabled,
+    );
+    _connections[index] = updated;
+    return updated;
+  }
+
+  /// Busca un puerto registrado por ID de modulo propietario e ID de puerto.
+  PortId? findPort(String ownerModuleId, String portId) {
+    for (final port in _registeredPorts.values) {
+      if (port.ownerModuleId == ownerModuleId && port.id == portId) {
+        return port;
+      }
+    }
+    return null;
+  }
+
   /// Elimina una conexion por su identificador.
   void removeConnection(String connectionId) {
     _connections.removeWhere((c) => c.connectionId == connectionId);
+  }
+
+  /// Serializa la topologia de conexiones activas del bus en formato JSON canonico.
+  Map<String, dynamic> toJson() => {
+        'connections': _connections.map((c) => c.toJson()).toList(growable: false),
+      };
+
+  /// Reconstruye un [SignalBus] a partir de una topologia JSON serializada.
+  factory SignalBus.fromJson(
+    Map<String, dynamic> json, {
+    PortPermissionBroker permissionBroker = const PortPermissionBroker(),
+  }) {
+    final bus = SignalBus(permissionBroker: permissionBroker);
+    bus.restoreConnectionsFromJson(json);
+    return bus;
+  }
+
+  /// Reemplaza las conexiones activas actuales restaurandolas desde [json].
+  void restoreConnectionsFromJson(Map<String, dynamic> json) {
+    if (_isDisposed) return;
+    _connections.clear();
+    final rawList = json['connections'] as List<dynamic>? ?? const [];
+    for (final item in rawList) {
+      if (item is Map<String, dynamic>) {
+        final conn = ModuleConnection.fromJson(item);
+        addConnection(conn);
+      }
+    }
   }
 
   /// Despacha un evento de datos desde un puerto de salida hacia los receptores

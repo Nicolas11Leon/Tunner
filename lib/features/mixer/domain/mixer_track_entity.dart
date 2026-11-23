@@ -155,6 +155,65 @@ class MixerConsoleEntity {
     );
   }
 
+  /// Actualiza la posicion estereofonica (pan en [-1.0, 1.0]) de una pista por ID.
+  MixerConsoleEntity copyWithTrackPan(String trackId, double newPan) {
+    if (trackId == metronomeTrack.id) {
+      return MixerConsoleEntity(
+        metronomeTrack: metronomeTrack.copyWith(pan: newPan),
+        stems: stems,
+      );
+    }
+    return MixerConsoleEntity(
+      metronomeTrack: metronomeTrack,
+      stems: stems.map((t) => t.id == trackId ? t.copyWith(pan: newPan) : t).toList(),
+    );
+  }
+
+  MixerConsoleEntity setTrackSolo(String trackId, bool isSolo) {
+    if (trackId == metronomeTrack.id) {
+      return MixerConsoleEntity(
+        metronomeTrack: metronomeTrack.copyWith(isSolo: isSolo),
+        stems: stems,
+      );
+    }
+    return MixerConsoleEntity(
+      metronomeTrack: metronomeTrack,
+      stems: stems.map((t) => t.id == trackId ? t.copyWith(isSolo: isSolo) : t).toList(),
+    );
+  }
+
+  /// Agrega o reemplaza un stem en la consola de mezcla.
+  MixerConsoleEntity addStem(AudioTrack track) {
+    final existingIdx = stems.indexWhere((t) => t.id == track.id);
+    if (existingIdx >= 0) {
+      final updated = List<AudioTrack>.from(stems);
+      updated[existingIdx] = track;
+      return MixerConsoleEntity(metronomeTrack: metronomeTrack, stems: updated);
+    }
+    return MixerConsoleEntity(
+      metronomeTrack: metronomeTrack,
+      stems: [...stems, track],
+    );
+  }
+
+  /// Elimina un stem de la consola por su identificador.
+  MixerConsoleEntity removeStem(String trackId) {
+    return MixerConsoleEntity(
+      metronomeTrack: metronomeTrack,
+      stems: stems.where((t) => t.id != trackId).toList(),
+    );
+  }
+
+  /// Restaura mute, solo y pan a valores neutros en todas las pistas.
+  MixerConsoleEntity resetAll() {
+    return MixerConsoleEntity(
+      metronomeTrack: metronomeTrack.copyWith(pan: 0.0, isMuted: false, isSolo: false),
+      stems: stems
+          .map((t) => t.copyWith(pan: 0.0, isMuted: false, isSolo: false))
+          .toList(),
+    );
+  }
+
   MixerConsoleEntity toggleMute(String trackId) {
     if (trackId == metronomeTrack.id) {
       return MixerConsoleEntity(

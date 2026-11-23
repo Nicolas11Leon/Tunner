@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design_system/atoms/studio_listenable_builder.dart';
 import '../../design_system/studio_design_tokens.dart';
 import '../../design_system/studio_theme_provider.dart';
 import '../../logging/infrastructure/studio_debug_logger.dart';
@@ -33,7 +34,7 @@ class StudioMasterMeterMiniPillWidget extends StatelessWidget {
       tokens = StudioDesignTokens.studioDark;
     }
 
-    return ListenableBuilder(
+    return StudioListenableBuilder(
       listenable: matrixService,
       builder: (context, _) {
         final matrix = matrixService.matrix;

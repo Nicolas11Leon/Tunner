@@ -3,9 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
-import '../../../logging/infrastructure/studio_debug_logger.dart';
+import '../../../logging/domain/i_studio_logger.dart';
 import '../../domain/ffi/i_native_dsp_bridge.dart';
 import '../../domain/ffi/native_dsp_bridge_fallback.dart';
 
@@ -57,6 +56,7 @@ class NativeDspFfiBridge implements INativeDspBridge {
   );
 
   final INativeDspBridge _fallback;
+  final IStudioLogger _logger;
   final _NativeScratchPool _pool = _NativeScratchPool();
   DynamicLibrary? _dylib;
   bool _isNative = false;
@@ -73,22 +73,14 @@ class NativeDspFfiBridge implements INativeDspBridge {
   NativeDspFfiBridge({
     INativeDspBridge? fallback,
     String? customLibraryPath,
-  }) : _fallback = fallback ?? const NativeDspBridgeFallback() {
+    IStudioLogger logger = const NoOpStudioLogger(),
+  })  : _fallback = fallback ?? const NativeDspBridgeFallback(),
+        _logger = logger {
     _finalizer.attach(this, _pool, detach: this);
     _initDynamicLibrary(customLibraryPath);
   }
 
   void _initDynamicLibrary(String? customLibraryPath) {
-    if (kIsWeb) {
-      _dylib = null;
-      _applyGainNative = null;
-      _vectorSumNative = null;
-      _autoCorrelateNative = null;
-      _isNative = false;
-      _activeEngineName = 'Pure Dart SIMD Fallback (Web Environment)';
-      return;
-    }
-
     try {
       if (customLibraryPath != null && customLibraryPath.isNotEmpty) {
         _dylib = DynamicLibrary.open(customLibraryPath);
@@ -131,7 +123,7 @@ class NativeDspFfiBridge implements INativeDspBridge {
         _activeEngineName = 'Native C/Rust SIMD (${customLibraryPath ?? _getPlatformLibraryName()})';
       }
     } catch (e, st) {
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'NativeDspFfiBridge',
         'Libreria nativa DSP no disponible, usando fallback Pure Dart: $e',
         error: e,
@@ -147,7 +139,6 @@ class NativeDspFfiBridge implements INativeDspBridge {
   }
 
   static String? _getPlatformLibraryName() {
-    if (kIsWeb) return null;
     if (Platform.isLinux || Platform.isAndroid) {
       return 'libtunner_dsp.so';
     } else if (Platform.isMacOS || Platform.isIOS) {
@@ -207,7 +198,7 @@ class NativeDspFfiBridge implements INativeDspBridge {
       fn(ptr, length, gain);
       buffer.setAll(0, nativeList);
     } catch (e, st) {
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'NativeDspFfiBridge',
         'Fallback applyGain a Pure Dart: $e',
         error: e,
@@ -236,7 +227,7 @@ class NativeDspFfiBridge implements INativeDspBridge {
       fn(ptrA, ptrB, ptrOut, length);
       out.setRange(0, length, ptrOut.asTypedList(length));
     } catch (e, st) {
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'NativeDspFfiBridge',
         'Fallback vectorSum a Pure Dart: $e',
         error: e,
@@ -263,7 +254,7 @@ class NativeDspFfiBridge implements INativeDspBridge {
       fn(ptrIn, inLen, ptrOut, outLen);
       output.setAll(0, ptrOut.asTypedList(outLen));
     } catch (e, st) {
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'NativeDspFfiBridge',
         'Fallback autoCorrelate a Pure Dart: $e',
         error: e,

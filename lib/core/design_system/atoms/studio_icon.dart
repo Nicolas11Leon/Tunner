@@ -259,7 +259,7 @@ class StudioIcon extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.contain,
-        filterQuality: FilterQuality.medium,
+        filterQuality: FilterQuality.high,
         color: tintCustomAsset ? effectiveColor : null,
         colorBlendMode: tintCustomAsset ? BlendMode.srcIn : null,
         errorBuilder: (context, error, stackTrace) => fallback,

@@ -410,23 +410,102 @@ class SongDecomposerService {
     return NoteEntity.fromFrequency(bassFreq).name;
   }
 
-  static List<MeasureEntity> _buildHarmonyMeasures(List<MeasureEntity> leadMeasures) {
+  /// Calcula los intervalos diatónicos (tercera y quinta en semitonos) de la tríada
+  /// correspondiente a [rootMidi] dentro de la escala definida por [keySignatureFifths] y [isMinorMode].
+  static (int thirdInterval, int fifthInterval) _resolveDiatonicTriadIntervals({
+    required int rootMidi,
+    required int keySignatureFifths,
+    required bool isMinorMode,
+  }) {
+    final clampedFifths = keySignatureFifths.clamp(-7, 7);
+    final majorTonicPc = ((clampedFifths * 7) % 12 + 12) % 12;
+    final tonicPc = isMinorMode ? (majorTonicPc + 9) % 12 : majorTonicPc;
+    const majorIntervals = <int>[0, 2, 4, 5, 7, 9, 11];
+    const minorIntervals = <int>[0, 2, 3, 5, 7, 8, 10];
+    final scaleOffsets = isMinorMode ? minorIntervals : majorIntervals;
+    final scalePcs = scaleOffsets.map((offset) => (tonicPc + offset) % 12).toList();
+
+    final rootPc = ((rootMidi % 12) + 12) % 12;
+    final degreeIdx = scalePcs.indexOf(rootPc);
+    if (degreeIdx == -1) {
+      // Nota cromática fuera de la armadura: respetar el modo general
+      return isMinorMode ? (3, 7) : (4, 7);
+    }
+
+    final thirdPc = scalePcs[(degreeIdx + 2) % 7];
+    final fifthPc = scalePcs[(degreeIdx + 4) % 7];
+    final thirdInterval = ((thirdPc - rootPc) % 12 + 12) % 12;
+    final fifthInterval = ((fifthPc - rootPc) % 12 + 12) % 12;
+    return (thirdInterval, fifthInterval);
+  }
+
+  /// Infiere si la obra está en modo menor a partir de pistas en el título o de la
+  /// coincidencia de la tónica inicial/final con la relativa menor de la armadura.
+  static bool _inferMinorMode(String title, List<MeasureEntity> leadMeasures) {
+    final lowerTitle = title.toLowerCase();
+    if (lowerTitle.contains('menor') ||
+        lowerTitle.contains('minor') ||
+        lowerTitle.contains('greensleeves') ||
+        lowerTitle.contains('elisa') ||
+        lowerTitle.contains('elise') ||
+        lowerTitle.contains('elegía') ||
+        lowerTitle.contains('elegia')) {
+      return true;
+    }
+    if (lowerTitle.contains('mayor') || lowerTitle.contains('major')) {
+      return false;
+    }
+
+    final pitched = leadMeasures
+        .expand((m) => m.notes)
+        .where((n) => !n.isRest && n.noteName.isNotEmpty && n.noteName != '--')
+        .toList();
+    if (pitched.isEmpty || leadMeasures.isEmpty) return false;
+
+    final fifths = leadMeasures.first.keySignatureFifths.clamp(-7, 7);
+    final majorTonicPc = ((fifths * 7) % 12 + 12) % 12;
+    final minorTonicPc = (majorTonicPc + 9) % 12;
+
+    final firstFreq = NoteEntity.frequencyForNote(pitched.first.noteName);
+    final lastFreq = NoteEntity.frequencyForNote(pitched.last.noteName);
+    if (firstFreq <= 20.0 || lastFreq <= 20.0) return false;
+
+    final firstPc = NoteEntity.fromFrequency(firstFreq).midiNumber % 12;
+    final lastPc = NoteEntity.fromFrequency(lastFreq).midiNumber % 12;
+    return (firstPc == minorTonicPc || lastPc == minorTonicPc) &&
+        firstPc != majorTonicPc &&
+        lastPc != majorTonicPc;
+  }
+
+  static List<MeasureEntity> _buildHarmonyMeasures(
+    List<MeasureEntity> leadMeasures, {
+    bool isMinorMode = false,
+  }) {
     return leadMeasures.map((m) {
       final firstPitched = m.notes.where((n) => !n.isRest && n.noteName.isNotEmpty && n.noteName != '--').toList();
       if (firstPitched.isEmpty) {
         return MeasureEntity(
           index: m.index,
           timeSignature: m.timeSignature,
+          keySignatureFifths: m.keySignatureFifths,
           notes: [HierarchicalNote.rest(startTick: 0, durationTicks: m.timeSignature.totalTicks)],
         );
       }
       final rootNote = firstPitched.first.noteName;
-      final thirdNote = _transposeNoteBySemitones(rootNote, 4);
-      final fifthNote = _transposeNoteBySemitones(rootNote, 7);
+      final rootFreq = NoteEntity.frequencyForNote(rootNote);
+      final rootMidi = rootFreq > 20.0 ? NoteEntity.fromFrequency(rootFreq).midiNumber : 60;
+      final (thirdSemitones, fifthSemitones) = _resolveDiatonicTriadIntervals(
+        rootMidi: rootMidi,
+        keySignatureFifths: m.keySignatureFifths,
+        isMinorMode: isMinorMode,
+      );
+      final thirdNote = _transposeNoteBySemitones(rootNote, thirdSemitones);
+      final fifthNote = _transposeNoteBySemitones(rootNote, fifthSemitones);
       final totalTicks = m.timeSignature.totalTicks;
       return MeasureEntity(
         index: m.index,
         timeSignature: m.timeSignature,
+        keySignatureFifths: m.keySignatureFifths,
         notes: [
           HierarchicalNote.note(startTick: 0, durationTicks: totalTicks, noteName: rootNote),
           HierarchicalNote.note(startTick: 0, durationTicks: totalTicks, noteName: thirdNote),
@@ -493,9 +572,11 @@ class SongDecomposerService {
     bool includePiano = true,
     bool includeBass = true,
     bool includeRhythm = true,
+    bool? isMinorMode,
   }) {
     final safeBpm = bpm.clamp(20, 300);
     final safeTitle = title.trim().isEmpty ? "Obra Personalizada" : title.trim();
+    final resolvedMinorMode = isMinorMode ?? _inferMinorMode(safeTitle, measures);
     final stems = <AudioTrack>[];
     final stemScores = <String, HierarchicalScore>{};
 
@@ -522,7 +603,7 @@ class SongDecomposerService {
       stemScores["harmony_stem"] = HierarchicalScore(
         title: "$safeTitle (Armonia)",
         baseBpm: safeBpm,
-        measures: _buildHarmonyMeasures(measures),
+        measures: _buildHarmonyMeasures(measures, isMinorMode: resolvedMinorMode),
       );
     }
     if (includeBass) {
@@ -575,8 +656,8 @@ class SongDecomposerService {
   }
 
   /// Adapta un paquete de canción y su partitura a cualquier instrumento musical,
-  /// reubicando las notas en la tesitura cómoda del instrumento y renombrando
-  /// las pistas melódicas solistas.
+  /// reubicando las notas en la tesitura cómoda del instrumento, renombrando
+  /// las pistas melódicas solistas y preservando `stemScores`.
   static SongPackage adaptSongPackageToInstrument(
     SongPackage package,
     InstrumentProfileEntity instrument,
@@ -594,8 +675,20 @@ class SongDecomposerService {
       return track;
     }).toList();
 
-    // 2. Adaptar la partitura a la tesitura del instrumento
+    // 2. Adaptar la partitura principal a la tesitura del instrumento
     final adaptedScore = adaptScoreToInstrument(package.score, instrument);
+
+    // 3. Preservar stemScores (adaptando los stems melódicos solistas a la tesitura objetivo)
+    final adaptedStemScores = <String, HierarchicalScore>{};
+    package.stemScores.forEach((stemId, stemScore) {
+      final isLeadStem = stemId == 'melody' ||
+          stemId == 'violins' ||
+          stemId == 'lead_vocal' ||
+          stemId == 'lead_stem';
+      adaptedStemScores[stemId] = isLeadStem
+          ? adaptScoreToInstrument(stemScore, instrument)
+          : stemScore;
+    });
 
     return SongPackage(
       id: "${package.id}_${instrument.id}",
@@ -606,6 +699,7 @@ class SongDecomposerService {
       defaultBpm: package.defaultBpm,
       tracks: adaptedTracks,
       score: adaptedScore,
+      stemScores: adaptedStemScores,
     );
   }
 
@@ -628,17 +722,14 @@ class SongDecomposerService {
         final shiftedMidi = adapter.shiftMidiToInstrumentRange(parsedMidi, instrument);
         final shiftedNoteName = adapter.midiToNoteName(shiftedMidi);
 
-        return HierarchicalNote.note(
-          startTick: note.startTick,
-          durationTicks: note.durationTicks,
-          noteName: shiftedNoteName,
-        );
+        return note.copyWith(noteName: shiftedNoteName);
       }).toList();
 
       return MeasureEntity(
         index: measure.index,
         timeSignature: measure.timeSignature,
         notes: adaptedNotes,
+        keySignatureFifths: measure.keySignatureFifths,
       );
     }).toList();
 
@@ -646,6 +737,7 @@ class SongDecomposerService {
       title: "${score.title} (${instrument.name})",
       baseBpm: score.baseBpm,
       measures: adaptedMeasures,
+      staffCount: score.staffCount,
     );
   }
 

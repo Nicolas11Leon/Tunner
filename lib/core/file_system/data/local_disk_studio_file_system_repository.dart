@@ -1,7 +1,6 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
-import '../../logging/infrastructure/studio_debug_logger.dart';
+import 'dart:typed_data';
+import '../../logging/domain/i_studio_logger.dart';
 import '../domain/i_workspace_seed_provider.dart';
 import '../domain/studio_file_system_node.dart';
 import '../domain/studio_file_system_repository.dart';
@@ -12,14 +11,23 @@ import '../domain/studio_file_type.dart';
 /// y carpetas en el almacenamiento local del usuario (`~/Documents/TunnerProjects`).
 class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository {
   final String? _customRootPath;
+  final Future<Directory> Function()? _rootDirectoryProvider;
+  final Future<String> Function()? _rootPathProvider;
   final IWorkspaceSeedProvider? _seedProvider;
+  final IStudioLogger _logger;
   String? _resolvedRootPath;
 
   LocalDiskStudioFileSystemRepository({
     String? customRootPath,
+    Future<Directory> Function()? rootDirectoryProvider,
+    Future<String> Function()? rootPathProvider,
     IWorkspaceSeedProvider? seedProvider,
+    IStudioLogger logger = const NoOpStudioLogger(),
   })  : _customRootPath = customRootPath,
-        _seedProvider = seedProvider;
+        _rootDirectoryProvider = rootDirectoryProvider,
+        _rootPathProvider = rootPathProvider,
+        _seedProvider = seedProvider,
+        _logger = logger;
 
   /// Obtiene la ruta física absoluta de la carpeta raíz del espacio de trabajo.
   Future<String> getRootPath() async {
@@ -29,26 +37,50 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
       return _resolvedRootPath!;
     }
 
-    // Entorno de prueba unitaria sin plugin nativo de path_provider
-    if (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')) {
+    if (_rootPathProvider != null) {
+      final providedPath = await _rootPathProvider();
+      if (providedPath.isNotEmpty) {
+        _resolvedRootPath = providedPath;
+        return _resolvedRootPath!;
+      }
+    }
+
+    if (_rootDirectoryProvider != null) {
+      try {
+        final providedDir = await _rootDirectoryProvider();
+        _resolvedRootPath = providedDir.path;
+        return _resolvedRootPath!;
+      } catch (e, st) {
+        _logger.warning(
+          'LocalDiskStudioFileSystemRepository',
+          'Fallback a directorio por defecto por error en rootDirectoryProvider: $e',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+
+    // Entorno de prueba unitaria
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
       final tempDir = Directory.systemTemp.createTempSync('tunner_workspace_');
       _resolvedRootPath = tempDir.path;
       return _resolvedRootPath!;
     }
 
-    try {
-      final docDir = await getApplicationDocumentsDirectory();
-      _resolvedRootPath = '${docDir.path}/TunnerProjects';
-    } catch (e, st) {
-      StudioDebugLogger.instance.warning(
-        'LocalDiskStudioFileSystemRepository',
-        'Fallback a directorio temporal por error en path_provider: $e',
-        error: e,
-        stackTrace: st,
-      );
-      final fallbackDir = Directory.systemTemp.createTempSync('tunner_projects_fallback_');
-      _resolvedRootPath = fallbackDir.path;
+    final envRoot = Platform.environment['TUNNER_WORKSPACE_ROOT'];
+    if (envRoot != null && envRoot.isNotEmpty) {
+      _resolvedRootPath = envRoot;
+      return _resolvedRootPath!;
     }
+
+    final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+    if (home != null && home.isNotEmpty) {
+      _resolvedRootPath = '$home${Platform.pathSeparator}Documents${Platform.pathSeparator}TunnerProjects';
+      return _resolvedRootPath!;
+    }
+
+    final fallbackDir = Directory.systemTemp.createTempSync('tunner_projects_fallback_');
+    _resolvedRootPath = fallbackDir.path;
     return _resolvedRootPath!;
   }
 
@@ -219,7 +251,7 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
             size = await entity.length();
             modified = (await entity.lastModified()).microsecondsSinceEpoch;
           } catch (e) {
-            StudioDebugLogger.instance.warning('LocalDiskStudioFileSystemRepository', 'Metadatos de archivo inaccesibles: $e');
+            _logger.warning('LocalDiskStudioFileSystemRepository', 'Metadatos de archivo inaccesibles: $e');
           }
 
           children.add(
@@ -236,7 +268,7 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
         }
       }
     } catch (e) {
-      StudioDebugLogger.instance.warning('LocalDiskStudioFileSystemRepository', 'Error escaneando ${dir.path}: $e');
+      _logger.warning('LocalDiskStudioFileSystemRepository', 'Error escaneando ${dir.path}: $e');
     }
 
     return StudioFolderEntity(
@@ -315,6 +347,52 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
       final newDir = Directory(newPath);
       await newDir.parent.create(recursive: true);
       await oldDir.rename(newPath);
+    }
+  }
+
+  @override
+  Future<bool> openInSystemExplorer(String relativePath) async {
+    try {
+      final rootPath = await getRootPath();
+      final safePath = _resolveSafePath(relativePath, rootPath, allowRoot: true);
+
+      String targetDirPath;
+      final file = File(safePath);
+      if (await file.exists()) {
+        targetDirPath = file.parent.path;
+      } else {
+        final dir = Directory(safePath);
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+        }
+        targetDirPath = dir.path;
+      }
+
+      if (Platform.environment.containsKey('FLUTTER_TEST')) {
+        return true;
+      }
+
+      if (Platform.isLinux) {
+        await Process.start('xdg-open', [targetDirPath], mode: ProcessStartMode.detached);
+        return true;
+      }
+      if (Platform.isMacOS) {
+        await Process.start('open', [targetDirPath], mode: ProcessStartMode.detached);
+        return true;
+      }
+      if (Platform.isWindows) {
+        await Process.start('explorer', [targetDirPath], mode: ProcessStartMode.detached);
+        return true;
+      }
+      return false;
+    } catch (e, st) {
+      _logger.warning(
+        'LocalDiskStudioFileSystemRepository',
+        'No se pudo abrir la ruta en el explorador del sistema ($relativePath): $e',
+        error: e,
+        stackTrace: st,
+      );
+      return false;
     }
   }
 }

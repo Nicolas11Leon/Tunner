@@ -20,6 +20,7 @@ class _ChordTemplate {
 /// Pure Dart: Cero dependencias de plugins o UI.
 class PolyphonicChordRecognizer {
   final double confidenceThreshold;
+  final bool stateless;
   final ChromaVectorCalculator _calculator;
   final List<_ChordTemplate> _templates = [];
 
@@ -31,6 +32,7 @@ class PolyphonicChordRecognizer {
 
   PolyphonicChordRecognizer({
     this.confidenceThreshold = 0.58,
+    this.stateless = false,
     ChromaVectorCalculator? calculator,
   }) : _calculator = calculator ?? const ChromaVectorCalculator() {
     _initTemplates();
@@ -72,6 +74,7 @@ class PolyphonicChordRecognizer {
     double sampleRate = 44100.0,
     double a4Ref = 440.0,
     double noiseGateRms = 0.008,
+    bool? stateless,
   }) {
     final chroma = _calculator.calculateFromSamples(
       samples: samples,
@@ -80,11 +83,34 @@ class PolyphonicChordRecognizer {
       noiseGateRms: noiseGateRms,
     );
 
-    return identifyFromChroma(chroma);
+    return identifyFromChroma(chroma, stateless: stateless);
+  }
+
+  /// Identifica el acorde a partir de un espectro de magnitudes MIDI [0..127]
+  /// ya calculado, evitando recalcular la DFT cuando otro detector ya la ejecuto.
+  ChordEntity identifyFromMidiMagnitudes(
+    List<double> rawMidiMagnitudes, {
+    required double rms,
+    int? minMidiNote,
+    int? maxMidiNote,
+    bool? stateless,
+  }) {
+    final chroma = _calculator.calculateFromMidiMagnitudes(
+      rawMidiMagnitudes,
+      rms: rms,
+      minMidi: minMidiNote,
+      maxMidi: maxMidiNote,
+    );
+    return identifyFromChroma(chroma, stateless: stateless);
   }
 
   /// Identifica el acorde a partir de un vector de cromagrama normalizado de 12 clases.
-  ChordEntity identifyFromChroma(List<double> chromaVector) {
+  ChordEntity identifyFromChroma(
+    List<double> chromaVector, {
+    bool? stateless,
+  }) {
+    final bool isStateless = stateless ?? this.stateless;
+
     if (chromaVector.length != 12) {
       return ChordEntity.none;
     }
@@ -98,9 +124,11 @@ class PolyphonicChordRecognizer {
     }
 
     if (maxEnergy < 0.15) {
-      _consecutiveDetections = 0;
-      _provisionalChord = ChordEntity.none;
-      _lastStableChord = ChordEntity.none;
+      if (!isStateless) {
+        _consecutiveDetections = 0;
+        _provisionalChord = ChordEntity.none;
+        _lastStableChord = ChordEntity.none;
+      }
       return ChordEntity.none;
     }
 
@@ -121,7 +149,9 @@ class PolyphonicChordRecognizer {
     }
 
     if (bestTemplate == null || highestSimilarity < confidenceThreshold) {
-      _consecutiveDetections = 0;
+      if (!isStateless) {
+        _consecutiveDetections = 0;
+      }
       return ChordEntity.none;
     }
 
@@ -132,6 +162,10 @@ class PolyphonicChordRecognizer {
       chromaVector: List<double>.from(chromaVector),
       notes: bestTemplate.notes,
     );
+
+    if (isStateless) {
+      return candidate;
+    }
 
     // Aplicar histéresis temporal para evitar fluctuaciones
     if (candidate == _provisionalChord) {

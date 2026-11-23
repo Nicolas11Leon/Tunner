@@ -75,4 +75,18 @@ class TempoMark {
     }
     return standardMarks.last;
   }
+
+  Map<String, dynamic> toJson() => {
+        'italianName': italianName,
+        'description': description,
+        'minBpm': minBpm,
+        'maxBpm': maxBpm,
+      };
+
+  factory TempoMark.fromJson(Map<String, dynamic> json) => TempoMark(
+        italianName: json['italianName'] as String? ?? 'Allegro',
+        description: json['description'] as String? ?? '',
+        minBpm: (json['minBpm'] as num?)?.toInt() ?? 120,
+        maxBpm: (json['maxBpm'] as num?)?.toInt() ?? 155,
+      );
 }

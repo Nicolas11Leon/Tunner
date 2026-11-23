@@ -122,7 +122,9 @@ class StudioFileTreeTile extends StatelessWidget {
         side: BorderSide(color: tokens.borderHairline),
       ),
       onSelected: (value) {
-        if (value == 'rename') {
+        if (value == 'open_in_explorer') {
+          service.openInSystemExplorer(file.relativePath);
+        } else if (value == 'rename') {
           StudioFileSystemModals.showRenameNodeModal(
             context,
             service: service,
@@ -143,6 +145,17 @@ class StudioFileTreeTile extends StatelessWidget {
         }
       },
       itemBuilder: (ctx) => [
+        PopupMenuItem<String>(
+          value: 'open_in_explorer',
+          height: 32,
+          child: Row(
+            children: [
+              Icon(Icons.folder_open_rounded, size: 13, color: tokens.accentPrimary),
+              const SizedBox(width: 8),
+              Text('Abrir ubicación en explorador', style: TextStyle(fontSize: 11, color: tokens.textPrimary)),
+            ],
+          ),
+        ),
         PopupMenuItem<String>(
           value: 'rename',
           height: 32,

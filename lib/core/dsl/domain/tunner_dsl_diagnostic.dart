@@ -50,6 +50,29 @@ class TunnerDslDiagnostic {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'message': message,
+      'line': line,
+      'column': column,
+      'severity': severity.name,
+    };
+  }
+
+  factory TunnerDslDiagnostic.fromJson(Map<String, dynamic> json) {
+    final severityName = json['severity'] as String? ?? TunnerDslDiagnosticSeverity.error.name;
+    final parsedSeverity = TunnerDslDiagnosticSeverity.values.firstWhere(
+      (s) => s.name == severityName,
+      orElse: () => TunnerDslDiagnosticSeverity.error,
+    );
+    return TunnerDslDiagnostic(
+      message: json['message'] as String? ?? '',
+      line: (json['line'] as num?)?.toInt() ?? 1,
+      column: (json['column'] as num?)?.toInt() ?? 1,
+      severity: parsedSeverity,
+    );
+  }
+
   @override
   String toString() => '[$severity] L:$line C:$column: $message';
 }

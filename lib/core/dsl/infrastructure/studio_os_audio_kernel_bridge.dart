@@ -1,8 +1,8 @@
 import 'dart:async';
+import '../../audio/domain/i_studio_audio_device_matrix_service.dart';
+import '../../audio/domain/i_studio_master_clock_service.dart';
 import '../../audio/domain/reverb/schroeder_reverb_engine.dart';
 import '../../audio/domain/spatial/binaural_panner_engine.dart';
-import '../../audio/infrastructure/studio_master_clock_service.dart';
-import '../../audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../domain/i_synth_voice_pool_port.dart';
 import '../domain/studio_os_audio_event.dart';
 import '../domain/studio_os_audio_kernel.dart';
@@ -12,9 +12,9 @@ import '../domain/tunner_dsl_interpreter.dart';
 /// con los servicios de hardware, matriz de masterización, sintetizadores y reloj de Tunner.
 class StudioOsAudioKernelBridge {
   final StudioOsAudioKernel kernel;
-  final StudioAudioDeviceMatrixService? matrixService;
+  final IStudioAudioDeviceMatrixService? matrixService;
   ISynthVoicePoolPort? synthVoicePool;
-  final StudioMasterClockService? clockService;
+  final IStudioMasterClockService? clockService;
   void Function(int bpm)? onBpmUpdate;
   final SchroederReverbEngine? reverbEngine;
   final BinauralPannerEngine? spatialEngine;

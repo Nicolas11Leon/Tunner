@@ -32,6 +32,27 @@ class ScaleQuantizationResult {
       isNoteInScale: false,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'detectedFrequencyHz': detectedFrequencyHz,
+        'targetFrequencyHz': targetFrequencyHz,
+        'targetNoteName': targetNoteName,
+        'pitchShiftRatio': pitchShiftRatio,
+        'centsDeviation': centsDeviation,
+        'isVoiced': isVoiced,
+        'isNoteInScale': isNoteInScale,
+      };
+
+  factory ScaleQuantizationResult.fromJson(Map<String, dynamic> json) =>
+      ScaleQuantizationResult(
+        detectedFrequencyHz: (json['detectedFrequencyHz'] as num?)?.toDouble() ?? 0.0,
+        targetFrequencyHz: (json['targetFrequencyHz'] as num?)?.toDouble() ?? 0.0,
+        targetNoteName: json['targetNoteName'] as String? ?? '--',
+        pitchShiftRatio: (json['pitchShiftRatio'] as num?)?.toDouble() ?? 1.0,
+        centsDeviation: (json['centsDeviation'] as num?)?.toDouble() ?? 0.0,
+        isVoiced: json['isVoiced'] as bool? ?? false,
+        isNoteInScale: json['isNoteInScale'] as bool? ?? false,
+      );
 }
 
 /// Motor de cuantización matemática de tono a escala musical y filtro de inercia temporal.
