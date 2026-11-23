@@ -325,6 +325,123 @@ class StudioDesignTokens {
     studioObsidian,
     studioLight,
   ];
+
+  StudioDesignTokens copyWith({
+    String? id,
+    String? displayName,
+    Brightness? brightness,
+    Color? canvasBackground,
+    Color? panelBackground,
+    Color? panelHeaderBackground,
+    Color? elevatedSurface,
+    Color? inputSurface,
+    Color? hoverSurface,
+    Color? borderHairline,
+    Color? borderSubtle,
+    Color? borderFocus,
+    Color? accentPrimary,
+    Color? accentSecondary,
+    Color? accentSuccess,
+    Color? accentWarning,
+    Color? accentDanger,
+    Color? textPrimary,
+    Color? textSecondary,
+    Color? textMuted,
+    Color? textOnAccent,
+    double? radiusSmall,
+    double? radiusMedium,
+    double? borderWidth,
+    double? toolbarHeight,
+  }) {
+    return StudioDesignTokens(
+      id: id ?? this.id,
+      displayName: displayName ?? this.displayName,
+      brightness: brightness ?? this.brightness,
+      canvasBackground: canvasBackground ?? this.canvasBackground,
+      panelBackground: panelBackground ?? this.panelBackground,
+      panelHeaderBackground:
+          panelHeaderBackground ?? this.panelHeaderBackground,
+      elevatedSurface: elevatedSurface ?? this.elevatedSurface,
+      inputSurface: inputSurface ?? this.inputSurface,
+      hoverSurface: hoverSurface ?? this.hoverSurface,
+      borderHairline: borderHairline ?? this.borderHairline,
+      borderSubtle: borderSubtle ?? this.borderSubtle,
+      borderFocus: borderFocus ?? this.borderFocus,
+      accentPrimary: accentPrimary ?? this.accentPrimary,
+      accentSecondary: accentSecondary ?? this.accentSecondary,
+      accentSuccess: accentSuccess ?? this.accentSuccess,
+      accentWarning: accentWarning ?? this.accentWarning,
+      accentDanger: accentDanger ?? this.accentDanger,
+      textPrimary: textPrimary ?? this.textPrimary,
+      textSecondary: textSecondary ?? this.textSecondary,
+      textMuted: textMuted ?? this.textMuted,
+      textOnAccent: textOnAccent ?? this.textOnAccent,
+      radiusSmall: radiusSmall ?? this.radiusSmall,
+      radiusMedium: radiusMedium ?? this.radiusMedium,
+      borderWidth: borderWidth ?? this.borderWidth,
+      toolbarHeight: toolbarHeight ?? this.toolbarHeight,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is StudioDesignTokens &&
+        other.id == id &&
+        other.displayName == displayName &&
+        other.brightness == brightness &&
+        other.canvasBackground == canvasBackground &&
+        other.panelBackground == panelBackground &&
+        other.panelHeaderBackground == panelHeaderBackground &&
+        other.elevatedSurface == elevatedSurface &&
+        other.inputSurface == inputSurface &&
+        other.hoverSurface == hoverSurface &&
+        other.borderHairline == borderHairline &&
+        other.borderSubtle == borderSubtle &&
+        other.borderFocus == borderFocus &&
+        other.accentPrimary == accentPrimary &&
+        other.accentSecondary == accentSecondary &&
+        other.accentSuccess == accentSuccess &&
+        other.accentWarning == accentWarning &&
+        other.accentDanger == accentDanger &&
+        other.textPrimary == textPrimary &&
+        other.textSecondary == textSecondary &&
+        other.textMuted == textMuted &&
+        other.textOnAccent == textOnAccent &&
+        other.radiusSmall == radiusSmall &&
+        other.radiusMedium == radiusMedium &&
+        other.borderWidth == borderWidth &&
+        other.toolbarHeight == toolbarHeight;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+        id,
+        displayName,
+        brightness,
+        canvasBackground,
+        panelBackground,
+        panelHeaderBackground,
+        elevatedSurface,
+        inputSurface,
+        hoverSurface,
+        borderHairline,
+        borderSubtle,
+        borderFocus,
+        accentPrimary,
+        accentSecondary,
+        accentSuccess,
+        accentWarning,
+        accentDanger,
+        textPrimary,
+        textSecondary,
+        textMuted,
+        textOnAccent,
+        radiusSmall,
+        radiusMedium,
+        borderWidth,
+        toolbarHeight,
+      ]);
 }
 
 /// Extensión de presentación para convertir una entidad pura [StudioThemeSkinEntity]

@@ -281,6 +281,19 @@ class _StrobePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (!size.width.isFinite ||
+        !size.height.isFinite ||
+        size.width <= 0 ||
+        size.height <= 0) {
+      return;
+    }
+
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+
+    final double safePhase = phase.isFinite ? phase : 0.0;
+    final double safeCents = cents.isFinite ? cents : 0.0;
+
     // Fondo de la cámara estroboscópica adaptado al brillo
     final bgPaint = Paint()..color = palette.brightness == Brightness.dark ? const Color(0xFF0A0B10) : const Color(0xFFE2E8F0);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
@@ -291,7 +304,7 @@ class _StrobePainter extends CustomPainter {
     final int count = (size.width / cycle).ceil() + 4;
 
     // Desplazamiento horizontal derivado de la fase
-    final double normalizedOffset = (phase / (2 * pi)) * cycle;
+    final double normalizedOffset = (safePhase / (2 * pi)) * cycle;
 
     final barPaint = Paint()
       ..color = hasSound
@@ -299,22 +312,27 @@ class _StrobePainter extends CustomPainter {
           : palette.textMutedColor.withValues(alpha: 0.2)
       ..style = PaintingStyle.fill;
 
+    final double barTop = size.height >= 8.0 ? 4.0 : 0.0;
+    final double barHeight = max(0.0, size.height - (barTop * 2.0));
+
     // Dibujo de las bandas estroboscópicas que rotan
-    for (int i = -2; i < count; i++) {
-      final double x = (i * cycle) + normalizedOffset;
-      if (x + barWidth >= 0 && x <= size.width) {
-        final rrect = RRect.fromRectAndRadius(
-          Rect.fromLTWH(x, 4, barWidth, size.height - 8),
-          const Radius.circular(3),
-        );
-        canvas.drawRRect(rrect, barPaint);
+    if (barHeight > 0.0) {
+      for (int i = -2; i < count; i++) {
+        final double x = (i * cycle) + normalizedOffset;
+        if (x + barWidth >= 0 && x <= size.width) {
+          final rrect = RRect.fromRectAndRadius(
+            Rect.fromLTWH(x, barTop, barWidth, barHeight),
+            const Radius.circular(3),
+          );
+          canvas.drawRRect(rrect, barPaint);
+        }
       }
     }
 
     // Línea central de referencia fija (Target Centerline)
     final double centerX = size.width / 2;
     final centerLinePaint = Paint()
-      ..color = hasSound && cents.abs() <= 3.0 ? palette.correctPitchColor : palette.textColor
+      ..color = hasSound && safeCents.abs() <= 3.0 ? palette.correctPitchColor : palette.textColor
       ..strokeWidth = 2.5;
 
     canvas.drawLine(
@@ -325,22 +343,25 @@ class _StrobePainter extends CustomPainter {
 
     // Triángulos de guía superior e inferior
     final trianglePaint = Paint()
-      ..color = hasSound && cents.abs() <= 3.0 ? palette.correctPitchColor : palette.textMutedColor
+      ..color = hasSound && safeCents.abs() <= 3.0 ? palette.correctPitchColor : palette.textMutedColor
       ..style = PaintingStyle.fill;
 
+    final double triH = min(5.0, size.height / 2.0);
     final topPath = Path()
       ..moveTo(centerX - 5, 0)
       ..lineTo(centerX + 5, 0)
-      ..lineTo(centerX, 5)
+      ..lineTo(centerX, triH)
       ..close();
     canvas.drawPath(topPath, trianglePaint);
 
     final bottomPath = Path()
       ..moveTo(centerX - 5, size.height)
       ..lineTo(centerX + 5, size.height)
-      ..lineTo(centerX, size.height - 5)
+      ..lineTo(centerX, size.height - triH)
       ..close();
     canvas.drawPath(bottomPath, trianglePaint);
+
+    canvas.restore();
   }
 
   @override

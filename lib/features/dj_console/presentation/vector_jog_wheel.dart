@@ -126,8 +126,21 @@ class _JogWheelPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (!size.width.isFinite ||
+        !size.height.isFinite ||
+        size.width <= 0 ||
+        size.height <= 0) {
+      return;
+    }
+
+    final radius = math.min(size.width, size.height) / 2;
+    if (radius <= 0) return;
+
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
+    final safeAngle = rotationAngle.isFinite ? rotationAngle : 0.0;
 
     // 1. Platter Outer Ring (Dark metallic rim)
     final rimPaint = Paint()
@@ -139,7 +152,7 @@ class _JogWheelPainter extends CustomPainter {
       ..color = isPlaying ? accentColor.withValues(alpha: 0.6) : Colors.white10
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
-    canvas.drawCircle(center, radius - 1, borderPaint);
+    canvas.drawCircle(center, math.max(0.0, radius - 1), borderPaint);
 
     // 2. Vinyl Grooves (Concentric textured circles)
     final groovePaint = Paint()
@@ -176,10 +189,10 @@ class _JogWheelPainter extends CustomPainter {
       ..strokeWidth = 3.5
       ..strokeCap = StrokeCap.round;
 
-    final markerX1 = center.dx + (radius * 0.45) * math.cos(rotationAngle);
-    final markerY1 = center.dy + (radius * 0.45) * math.sin(rotationAngle);
-    final markerX2 = center.dx + (radius * 0.92) * math.cos(rotationAngle);
-    final markerY2 = center.dy + (radius * 0.92) * math.sin(rotationAngle);
+    final markerX1 = center.dx + (radius * 0.45) * math.cos(safeAngle);
+    final markerY1 = center.dy + (radius * 0.45) * math.sin(safeAngle);
+    final markerX2 = center.dx + (radius * 0.92) * math.cos(safeAngle);
+    final markerY2 = center.dy + (radius * 0.92) * math.sin(safeAngle);
     canvas.drawLine(Offset(markerX1, markerY1), Offset(markerX2, markerY2), markerPaint);
 
     // 6. Deck Label Text ('A' or 'B')
@@ -201,6 +214,8 @@ class _JogWheelPainter extends CustomPainter {
       canvas,
       Offset(center.dx - textPainter.width / 2, center.dy - labelRadius * 0.55),
     );
+
+    canvas.restore();
   }
 
   @override

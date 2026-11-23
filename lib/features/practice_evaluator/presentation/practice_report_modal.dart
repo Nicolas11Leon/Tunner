@@ -117,35 +117,47 @@ class PracticeReportModal extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          alignment: WrapAlignment.spaceBetween,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: gradeColor.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: gradeColor.withValues(alpha: 0.4)),
-                              ),
-                              child: Text(
-                                report.grade.title.toUpperCase(),
-                                style: TextStyle(
-                                  color: gradeColor,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.2,
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: gradeColor.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: gradeColor.withValues(alpha: 0.4)),
+                                  ),
+                                  child: Text(
+                                    report.grade.title.toUpperCase(),
+                                    style: TextStyle(
+                                      color: gradeColor,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    report.instrumentName,
+                                    style: TextStyle(
+                                      color: palette.textMutedColor,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              report.instrumentName,
-                              style: TextStyle(
-                                color: palette.textMutedColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const Spacer(),
                             Text(
                               '${report.overallScore.toStringAsFixed(1)}%',
                               style: TextStyle(
@@ -240,36 +252,67 @@ class PracticeReportModal extends StatelessWidget {
               const SizedBox(height: 16),
 
               // Telemetría Cuatridimensional: 4 Cards (Afinación, Tempo, Sostenimiento, Aciertos)
-              Row(
-                children: [
-                  _buildMetricTile(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final tilePitch = _buildMetricTile(
                     title: 'AFINACIÓN',
                     value: '${report.pitchAccuracyPercentage}%',
                     subtitle: '±${report.averageCentsDeviation} cents',
                     color: palette.correctPitchColor,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildMetricTile(
+                  );
+                  final tileTempo = _buildMetricTile(
                     title: 'TEMPO & ATAQUE',
                     value: '${report.rhythmAccuracyPercentage}%',
                     subtitle: '${report.averageTimingDeltaMs >= 0 ? '+' : ''}${report.averageTimingDeltaMs} ms',
                     color: palette.primaryAccent,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildMetricTile(
+                  );
+                  final tileSustain = _buildMetricTile(
                     title: 'SOSTENIMIENTO',
                     value: '${report.sustainAccuracyPercentage}%',
                     subtitle: 'duración nota',
                     color: palette.secondaryAccent,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildMetricTile(
+                  );
+                  final tileHits = _buildMetricTile(
                     title: 'ACIERTOS',
                     value: '${report.hitNotes}/${report.totalNotes}',
                     subtitle: '${((report.hitNotes / (report.totalNotes > 0 ? report.totalNotes : 1)) * 100).round()}% total',
                     color: gradeColor,
-                  ),
-                ],
+                  );
+
+                  if (constraints.maxWidth < 460) {
+                    return Column(
+                      children: [
+                        Row(
+                          children: [
+                            tilePitch,
+                            const SizedBox(width: 8),
+                            tileTempo,
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            tileSustain,
+                            const SizedBox(width: 8),
+                            tileHits,
+                          ],
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      tilePitch,
+                      const SizedBox(width: 8),
+                      tileTempo,
+                      const SizedBox(width: 8),
+                      tileSustain,
+                      const SizedBox(width: 8),
+                      tileHits,
+                    ],
+                  );
+                },
               ),
 
               const SizedBox(height: 14),
@@ -508,6 +551,8 @@ class PracticeReportModal extends StatelessWidget {
                 fontSize: 15,
                 fontWeight: FontWeight.w900,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 2),
             Text(
