@@ -163,4 +163,9 @@ class StudioMasterDspChain {
       throughputMegaSamplesPerSec: throughput,
     );
   }
+
+  /// Libera los buffers temporales scratch asignados por la cadena de masterización.
+  void dispose() {
+    _scratchBuffer = Float32List(0);
+  }
 }

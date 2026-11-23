@@ -161,6 +161,8 @@ class TunerViewModel extends ChangeNotifier
   // Personalización Estética y de Compás Pro
   TunnerThemeMode _themeMode = TunnerThemeMode.obsidianStudio;
   TunnerThemePalette _currentPalette = TunnerThemePalette.obsidianStudio;
+  String _activeStudioThemeId = 'studio_oled_monochrome';
+  final void Function(String themeId)? _onStudioThemeIdChanged;
   final List<TunnerThemePalette> _customPalettes = [];
   TimeSignature? _customTimeSignatureOverride;
   AppDisplayMode _displayMode = AppDisplayMode.conservatoryPro;
@@ -268,11 +270,13 @@ class TunerViewModel extends ChangeNotifier
     ITunnerPackageCodec? packageCodec,
     IStudioAudioDeviceMatrixPort? audioDeviceMatrixService,
     IPlatformFileGateway? platformFileGateway,
+    void Function(String themeId)? onStudioThemeIdChanged,
     IStudioLogger? logger,
     Future<String> Function()? documentsDirectoryProvider,
     Future<String> Function()? recordingPathProvider,
     bool seedDefaults = false,
   })  : _shouldSeedDefaults = seedDefaults,
+        _onStudioThemeIdChanged = onStudioThemeIdChanged,
         _pitchService = pitchService ?? NoOpPitchDetectorService(),
         _metronomeService = metronomeService ?? NoOpMetronomeService(),
         _evaluatorService = evaluatorService ?? const PracticeEvaluatorService(),
@@ -344,6 +348,7 @@ class TunerViewModel extends ChangeNotifier
   bool get isInstrumentIsolationActive => _isInstrumentIsolationActive;
   TunnerThemeMode get themeMode => _themeMode;
   TunnerThemePalette get currentPalette => _currentPalette;
+  String get activeStudioThemeId => _activeStudioThemeId;
   List<TunnerThemePalette> get availablePalettes => [...TunnerThemePalette.allPresets, ..._customPalettes];
   List<TunnerThemePalette> get customPalettes => List.unmodifiable(_customPalettes);
   AppDisplayMode get displayMode => _displayMode;
@@ -377,6 +382,18 @@ class TunerViewModel extends ChangeNotifier
       _audioSynthesizer.playPcmWav(wavBytes);
     }
     return wavBytes;
+  }
+
+  /// Actualiza y persiste el identificador del tema OLED/DAW activo para sincronizarlo
+  /// con [StudioThemeController] al arrancar y al cambiar de skin.
+  void setActiveStudioThemeId(String id) {
+    if (_isDisposed) return;
+    final normalized = id.trim();
+    if (normalized.isEmpty || _activeStudioThemeId == normalized) return;
+    _activeStudioThemeId = normalized;
+    _onStudioThemeIdChanged?.call(normalized);
+    notifyListeners();
+    _triggerAutoSave();
   }
 
   /// Cambia el modo de visualización de interfaz (Esencial vs. Conservatorio Pro).
@@ -2451,6 +2468,12 @@ class TunerViewModel extends ChangeNotifier
       _currentPalette = targetPalette;
       _themeMode = targetPalette.mode;
 
+      final restoredStudioThemeId = settings.activeStudioThemeId.trim();
+      if (restoredStudioThemeId.isNotEmpty) {
+        _activeStudioThemeId = restoredStudioThemeId;
+        _onStudioThemeIdChanged?.call(_activeStudioThemeId);
+      }
+
       final targetInstrument = InstrumentProfileEntity.standardInstruments.firstWhere(
         (inst) => inst.id == settings.selectedInstrumentId,
         orElse: () => InstrumentProfileEntity.flute,
@@ -2567,6 +2590,7 @@ class TunerViewModel extends ChangeNotifier
     final settings = AppUserSettingsEntity(
       referencePitch: _referencePitch,
       selectedThemeId: _currentPalette.id,
+      activeStudioThemeId: _activeStudioThemeId,
       selectedInstrumentId: _activeInstrument.id,
       bpm: _bpm,
       isSmartWaitEnabled: _isSmartWaitEnabled,

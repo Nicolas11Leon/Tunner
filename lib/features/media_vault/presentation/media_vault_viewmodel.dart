@@ -64,6 +64,9 @@ class MediaVaultViewModel extends ChangeNotifier {
     }
   }
 
+  IAudioSynthesizerService? get audioSynthesizer => _audioSynthesizer;
+  StudioFileSystemRepository? get fileSystemRepository => _fileSystemRepository;
+
   /// Abre el selector de archivos nativo de forma desacoplada e importa los bytes a la boveda.
   Future<bool> pickAndImportFile({IPlatformFileGateway? gateway}) async {
     try {
