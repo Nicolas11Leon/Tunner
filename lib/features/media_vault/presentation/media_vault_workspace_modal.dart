@@ -72,8 +72,8 @@ class _MediaVaultWorkspaceModalState extends State<MediaVaultWorkspaceModal> {
         ),
       );
     } else {
-      final result = await widget.viewModel.exportTimeline(format);
-      if (!mounted) return;
+      final result = widget.viewModel.lastExportResult;
+      if (result == null) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.message),
