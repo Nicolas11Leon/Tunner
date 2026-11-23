@@ -104,6 +104,7 @@ class Sf2WavetableOscillator {
     required int outputSampleRate,
     int velocity = 100,
     Sf2EnvelopeParams envelope = const Sf2EnvelopeParams(),
+    double a4Ref = 440.0,
   }) {
     final totalDuration = durationSeconds + envelope.releaseSeconds;
     final totalSamples = (totalDuration * outputSampleRate).round();
@@ -111,8 +112,12 @@ class Sf2WavetableOscillator {
 
     final out = Float64List(totalSamples);
 
+    final safeA4 = (a4Ref > 20.0 && a4Ref.isFinite) ? a4Ref : 440.0;
+    final a4SemitoneOffset =
+        safeA4 == 440.0 ? 0.0 : 12.0 * (math.log(safeA4 / 440.0) / math.ln2);
     final rootPitch = header.originalPitch > 0 ? header.originalPitch : 60;
-    final semitoneDiff = (targetMidiPitch - rootPitch) + (header.pitchCorrection / 100.0);
+    final semitoneDiff =
+        (targetMidiPitch - rootPitch) + (header.pitchCorrection / 100.0) + a4SemitoneOffset;
     final pitchRatio = math.pow(2.0, semitoneDiff / 12.0) * (header.sampleRate / outputSampleRate);
 
     final startIdx = header.start;

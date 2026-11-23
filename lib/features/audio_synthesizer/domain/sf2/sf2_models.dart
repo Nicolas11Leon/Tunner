@@ -108,6 +108,13 @@ class Sf2Preset {
     required this.bank,
     required this.zones,
   });
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'patch': patch,
+        'bank': bank,
+        'zoneCount': zones.length,
+      };
 }
 
 /// Contenedor completo de un banco SoundFont decodificado en memoria.
@@ -127,11 +134,12 @@ class Sf2SoundFont {
   });
 
   /// Busca un preset por número de patch y banco.
-  Sf2Preset? findPreset(int patch, {int bank = 0}) {
+  /// Si [strict] es true, devuelve null cuando no existe coincidencia exacta.
+  Sf2Preset? findPreset(int patch, {int bank = 0, bool strict = false}) {
     for (final p in presets) {
       if (p.patch == patch && p.bank == bank) return p;
     }
-    if (presets.isNotEmpty) return presets.first;
+    if (!strict && presets.isNotEmpty) return presets.first;
     return null;
   }
 }

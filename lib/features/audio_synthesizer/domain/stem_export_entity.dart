@@ -43,6 +43,28 @@ class StemExportConfig {
       includeRecordedTake: includeRecordedTake ?? this.includeRecordedTake,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'sampleRate': sampleRate,
+        'includeMasterMixdown': includeMasterMixdown,
+        'includeIndividualStems': includeIndividualStems,
+        'includeMidiFile': includeMidiFile,
+        'includeMelodyTrack': includeMelodyTrack,
+        'includeMetronomeTrack': includeMetronomeTrack,
+        'includeAccompanimentTrack': includeAccompanimentTrack,
+        'includeRecordedTake': includeRecordedTake,
+      };
+
+  factory StemExportConfig.fromJson(Map<String, dynamic> json) => StemExportConfig(
+        sampleRate: (json['sampleRate'] as num?)?.toInt() ?? 44100,
+        includeMasterMixdown: json['includeMasterMixdown'] as bool? ?? true,
+        includeIndividualStems: json['includeIndividualStems'] as bool? ?? true,
+        includeMidiFile: json['includeMidiFile'] as bool? ?? true,
+        includeMelodyTrack: json['includeMelodyTrack'] as bool? ?? true,
+        includeMetronomeTrack: json['includeMetronomeTrack'] as bool? ?? true,
+        includeAccompanimentTrack: json['includeAccompanimentTrack'] as bool? ?? true,
+        includeRecordedTake: json['includeRecordedTake'] as bool? ?? false,
+      );
 }
 
 /// Representa un archivo individual de audio o MIDI generado en el proceso de exportación.
@@ -75,6 +97,15 @@ class ExportedStemFile {
       return "$mb MB";
     }
   }
+
+  /// Serializa metadatos del archivo exportado (sin bytes binarios).
+  Map<String, dynamic> toJson() => {
+        'fileName': fileName,
+        'mimeType': mimeType,
+        'sizeBytes': sizeBytes,
+        'durationMs': duration.inMilliseconds,
+        'description': description,
+      };
 }
 
 /// Paquete consolidado resultante de una exportación de stems y síntesis de audio/MIDI.

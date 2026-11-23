@@ -1,9 +1,12 @@
 import 'dart:isolate';
+import 'dart:math' as math;
 import 'dart:typed_data';
+import '../../../core/audio/domain/offline_wav_decoder.dart';
+import '../../practice_recorder/domain/multitrack_session_entity.dart';
+import '../../tuner/domain/offline_pitch_contour_analyzer.dart';
 import 'autotune_config_entity.dart';
 import 'scale_quantizer.dart';
 import 'td_psola_pitch_shifter.dart';
-import '../../practice_recorder/domain/multitrack_session_entity.dart';
 
 /// Procesador central unificado de Vocal AutoTune en Pure Dart.
 /// Soporta procesamiento de buffers continuos en tiempo real para monitoreo
@@ -131,10 +134,14 @@ class VocalAutoTuneProcessor {
   }
 
   /// Ejecuta [processWavBytes] fuera del hilo de UI mediante [Isolate.run].
+  /// Si [pitchTrack] se omite, el contorno f0 se extrae automaticamente desde el WAV.
   Future<Uint8List> processWavBytesAsync({
     required Uint8List wavBytes,
-    required List<TimedPitchSample> pitchTrack,
+    List<TimedPitchSample>? pitchTrack,
     AutoTuneConfigEntity? customConfig,
+    int windowSize = OfflinePitchContourAnalyzer.defaultWindowSize,
+    int hopSize = OfflinePitchContourAnalyzer.defaultHopSize,
+    double crossfadeMs = 8.0,
   }) {
     final effectiveConfig = customConfig ?? _config;
     return Isolate.run(() {
@@ -143,70 +150,74 @@ class VocalAutoTuneProcessor {
         wavBytes: wavBytes,
         pitchTrack: pitchTrack,
         customConfig: effectiveConfig,
+        windowSize: windowSize,
+        hopSize: hopSize,
+        crossfadeMs: crossfadeMs,
       );
     });
   }
 
-  /// Procesa un archivo WAV PCM de 16 bits aplicando TD-PSOLA por cada ventana sonora
-  /// registrada en [pitchTrack], retornando un nuevo buffer WAV afinado en memoria.
+  /// Procesa un archivo WAV (PCM 16-bit, PCM 24-bit o IEEE Float 32-bit, mono o estereo)
+  /// aplicando TD-PSOLA con crossfade suave en bordes de segmento.
+  ///
+  /// Si [pitchTrack] es `null`, extrae automaticamente el contorno de afinacion
+  /// mediante [OfflinePitchContourAnalyzer] antes de ejecutar la correccion vocal.
   Uint8List processWavBytes({
     required Uint8List wavBytes,
-    required List<TimedPitchSample> pitchTrack,
+    List<TimedPitchSample>? pitchTrack,
     AutoTuneConfigEntity? customConfig,
+    int windowSize = OfflinePitchContourAnalyzer.defaultWindowSize,
+    int hopSize = OfflinePitchContourAnalyzer.defaultHopSize,
+    double crossfadeMs = 8.0,
   }) {
-    if (wavBytes.length < 44) return wavBytes;
-    final headerData = ByteData.sublistView(wavBytes, 0, 44);
-    final channels = headerData.getUint16(22, Endian.little).clamp(1, 2);
-    final sampleRate = headerData.getUint32(24, Endian.little);
-    final bitsPerSample = headerData.getUint16(34, Endian.little);
-    if (sampleRate < 8000 || bitsPerSample != 16) return wavBytes;
-
-    // Localizar chunk 'data' de forma segura
-    int dataOffset = 44;
-    int dataSize = wavBytes.length - 44;
-    int cursor = 12;
-    while (cursor + 8 <= wavBytes.length) {
-      final chunkId = String.fromCharCodes(wavBytes.sublist(cursor, cursor + 4));
-      final chunkSize = ByteData.sublistView(wavBytes, cursor + 4, cursor + 8)
-          .getUint32(0, Endian.little);
-      if (chunkId == 'data') {
-        dataOffset = cursor + 8;
-        dataSize = chunkSize.clamp(0, wavBytes.length - dataOffset);
-        break;
-      }
-      cursor += 8 + chunkSize + (chunkSize & 1);
-    }
-
-    final int totalFrames = dataSize ~/ (2 * channels);
-    if (totalFrames <= 0) return wavBytes;
-
-    final pcmView = ByteData.sublistView(wavBytes, dataOffset, dataOffset + dataSize);
-    final monoSamples = Float64List(totalFrames);
-    for (int i = 0; i < totalFrames; i++) {
-      double sum = 0.0;
-      for (int ch = 0; ch < channels; ch++) {
-        final s = pcmView.getInt16((i * channels + ch) * 2, Endian.little);
-        sum += s / 32768.0;
-      }
-      monoSamples[i] = sum / channels;
+    final decoded = OfflineWavDecoder.decode(wavBytes);
+    final int sampleRate = decoded.sampleRate;
+    final Float64List monoSamples = decoded.samples;
+    final int totalFrames = monoSamples.length;
+    if (sampleRate < 8000 || totalFrames <= 0) {
+      return wavBytes;
     }
 
     final effectiveConfig = customConfig ?? _config;
-    if (!effectiveConfig.isEnabled || pitchTrack.isEmpty) {
+    if (!effectiveConfig.isEnabled) {
+      return wavBytes;
+    }
+
+    final bool autoExtractedTrack = pitchTrack == null;
+    final List<TimedPitchSample> activePitchTrack = pitchTrack ??
+        const OfflinePitchContourAnalyzer()
+            .analyzeSamples(
+              monoSamples,
+              sampleRate: sampleRate,
+              windowSize: windowSize,
+              hopSize: hopSize,
+              a4Ref: effectiveConfig.a4Reference,
+            )
+            .samples;
+
+    if (activePitchTrack.isEmpty) {
       return wavBytes;
     }
 
     final outSamples = Float64List.fromList(monoSamples);
     final tempQuantizer = ScaleQuantizer();
+    final int tailDurationMs = autoExtractedTrack
+        ? math.max(50, ((windowSize / sampleRate) * 1000.0).round())
+        : 50;
+    final int maxGapMs = autoExtractedTrack
+        ? math.max(80, ((hopSize / sampleRate) * 1000.0 * 2.5).round())
+        : 80;
+    final int requestedFadeSamples =
+        math.max(0, ((crossfadeMs.clamp(0.0, 40.0) / 1000.0) * sampleRate).round());
 
     // Agrupar muestras sonoras contiguas con afinacion objetivo equivalente
     // para evitar saltos de fase en fronteras de ventanas de 20-50 ms.
     int p = 0;
-    while (p < pitchTrack.length) {
-      final firstSample = pitchTrack[p];
-      final int firstNextMs = (p + 1 < pitchTrack.length)
-          ? pitchTrack[p + 1].timeMs
-          : firstSample.timeMs + 50;
+    while (p < activePitchTrack.length) {
+      final firstSample = activePitchTrack[p];
+      final int firstNextMs = (p + 1 < activePitchTrack.length)
+          ? activePitchTrack[p + 1].timeMs
+          : firstSample.timeMs + tailDurationMs;
 
       if (firstSample.isSilent || firstSample.frequencyHz <= 20.0) {
         tempQuantizer.quantize(
@@ -231,14 +242,14 @@ class VocalAutoTuneProcessor {
       int groupCount = 1;
 
       int nextIndex = p + 1;
-      while (nextIndex < pitchTrack.length) {
-        final candidate = pitchTrack[nextIndex];
+      while (nextIndex < activePitchTrack.length) {
+        final candidate = activePitchTrack[nextIndex];
         if (candidate.isSilent || candidate.frequencyHz <= 20.0) break;
-        if ((candidate.timeMs - groupEndMs).abs() > 80) break;
+        if ((candidate.timeMs - groupEndMs).abs() > maxGapMs) break;
 
-        final int candNextMs = (nextIndex + 1 < pitchTrack.length)
-            ? pitchTrack[nextIndex + 1].timeMs
-            : candidate.timeMs + 50;
+        final int candNextMs = (nextIndex + 1 < activePitchTrack.length)
+            ? activePitchTrack[nextIndex + 1].timeMs
+            : candidate.timeMs + tailDurationMs;
         final candQuant = tempQuantizer.quantize(
           detectedPitchHz: candidate.frequencyHz,
           config: effectiveConfig,
@@ -279,8 +290,22 @@ class VocalAutoTuneProcessor {
         preserveFormants: effectiveConfig.formantPreservation,
         leadVocalMix: effectiveConfig.leadVocalMix,
       );
-      for (int i = 0; i < shifted.length && (startSample + i) < totalFrames; i++) {
-        outSamples[startSample + i] = shifted[i];
+
+      final int usableLen = math.min(shifted.length, totalFrames - startSample);
+      final int fadeSamples = math.min(requestedFadeSamples, usableLen ~/ 4);
+
+      for (int i = 0; i < usableLen; i++) {
+        final int targetIdx = startSample + i;
+        double blend = 1.0;
+        if (fadeSamples > 0) {
+          if (i < fadeSamples) {
+            blend = i / fadeSamples;
+          } else if (i >= usableLen - fadeSamples) {
+            blend = (usableLen - 1 - i) / fadeSamples;
+          }
+        }
+        outSamples[targetIdx] =
+            outSamples[targetIdx] * (1.0 - blend) + shifted[i] * blend;
       }
     }
 
