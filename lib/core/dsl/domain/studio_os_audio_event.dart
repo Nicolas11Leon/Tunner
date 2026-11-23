@@ -91,6 +91,8 @@ class StudioOsNoteEvent extends StudioOsAudioEvent {
   final int midiNote;
   final String durationFraction;
   final double velocity;
+  final int scheduledOffsetMs;
+  final int durationMs;
 
   const StudioOsNoteEvent({
     required this.pitch,
@@ -98,6 +100,8 @@ class StudioOsNoteEvent extends StudioOsAudioEvent {
     required this.midiNote,
     required this.durationFraction,
     this.velocity = 0.8,
+    this.scheduledOffsetMs = 0,
+    this.durationMs = 0,
     required super.timestampMicroseconds,
   });
 
@@ -106,7 +110,7 @@ class StudioOsNoteEvent extends StudioOsAudioEvent {
 
   @override
   String toString() =>
-      'StudioOsNoteEvent($pitch, freq: ${frequencyHz.toStringAsFixed(2)} Hz, midi: $midiNote, dur: $durationFraction, vel: $velocity)';
+      'StudioOsNoteEvent($pitch, freq: ${frequencyHz.toStringAsFixed(2)} Hz, midi: $midiNote, dur: $durationFraction, offsetMs: $scheduledOffsetMs, durationMs: $durationMs, vel: $velocity)';
 }
 
 /// Evento de disparo de acorde polifónico simultáneo.
@@ -116,6 +120,8 @@ class StudioOsChordEvent extends StudioOsAudioEvent {
   final List<int> midiNotes;
   final String durationFraction;
   final double velocity;
+  final int scheduledOffsetMs;
+  final int durationMs;
 
   const StudioOsChordEvent({
     required this.pitches,
@@ -123,6 +129,8 @@ class StudioOsChordEvent extends StudioOsAudioEvent {
     required this.midiNotes,
     required this.durationFraction,
     this.velocity = 0.8,
+    this.scheduledOffsetMs = 0,
+    this.durationMs = 0,
     required super.timestampMicroseconds,
   });
 
@@ -131,15 +139,19 @@ class StudioOsChordEvent extends StudioOsAudioEvent {
 
   @override
   String toString() =>
-      'StudioOsChordEvent([${pitches.join(", ")}], dur: $durationFraction, vel: $velocity)';
+      'StudioOsChordEvent([${pitches.join(", ")}], dur: $durationFraction, offsetMs: $scheduledOffsetMs, durationMs: $durationMs, vel: $velocity)';
 }
 
 /// Evento de silencio métrico.
 class StudioOsRestEvent extends StudioOsAudioEvent {
   final String durationFraction;
+  final int scheduledOffsetMs;
+  final int durationMs;
 
   const StudioOsRestEvent({
     required this.durationFraction,
+    this.scheduledOffsetMs = 0,
+    this.durationMs = 0,
     required super.timestampMicroseconds,
   });
 
@@ -147,7 +159,8 @@ class StudioOsRestEvent extends StudioOsAudioEvent {
   String get eventType => 'REST';
 
   @override
-  String toString() => 'StudioOsRestEvent(dur: $durationFraction)';
+  String toString() =>
+      'StudioOsRestEvent(dur: $durationFraction, offsetMs: $scheduledOffsetMs, durationMs: $durationMs)';
 }
 
 /// Evento de transporte ('play', 'pause', 'stop').

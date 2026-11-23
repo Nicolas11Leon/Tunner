@@ -23,10 +23,13 @@ class HarmonicSpectrogramModal extends StatelessWidget {
     const analyzer = HarmonicSeriesAnalyzer(maxHarmonics: 8);
 
     final hasSignal = vm.frequency > 20.0;
+    final activeSampleRate =
+        vm.audioDeviceMatrixService?.matrix.sampleRate.toDouble() ?? 44100.0;
     final analysis = hasSignal
         ? analyzer.analyze(
             fundamentalHz: vm.frequency,
             samples: vm.latestAudioSamples,
+            sampleRate: activeSampleRate,
           )
         : TimbreAnalysisResult.empty;
 
