@@ -405,7 +405,20 @@ class RackUnitCard extends StatelessWidget {
         return _buildGuidedLessonsContent(tunerViewModel, context);
       case RackModuleType.earTrainer:
         return _buildEarTrainerContent(tunerViewModel, context);
+      case RackModuleType.djConsole:
+      case RackModuleType.stemMixer:
+        return _buildStudioAudioModuleSummary(module);
     }
+  }
+
+  Widget _buildStudioAudioModuleSummary(RackModuleEntity mod) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Text(
+        '${mod.title} (${mod.inputPorts.length} IN / ${mod.outputPorts.length} OUT)',
+        style: const TextStyle(color: Colors.white70, fontSize: 12),
+      ),
+    );
   }
 
   // --- SUB-VISTAS INTERACTIVAS POR MÓDULO ---

@@ -502,6 +502,8 @@ class ModularRackViewModel extends ChangeNotifier {
       case RackModuleType.spectrogram:
       case RackModuleType.chordAnalyzer:
       case RackModuleType.guidedLessons:
+      case RackModuleType.djConsole:
+      case RackModuleType.stemMixer:
         break;
     }
   }
@@ -709,6 +711,10 @@ class ModularRackViewModel extends ChangeNotifier {
         return {SignalType.pitchEvents, SignalType.audioPcm, SignalType.tuningCalibration, SignalType.transportControl};
       case RackModuleType.metronome:
         return {SignalType.transportControl};
+      case RackModuleType.djConsole:
+        return {SignalType.audioPcm, SignalType.temporalClock, SignalType.transportControl};
+      case RackModuleType.stemMixer:
+        return {SignalType.audioPcm, SignalType.transportControl};
     }
   }
 
@@ -856,6 +862,9 @@ class ModularRackViewModel extends ChangeNotifier {
           );
         case RackModuleType.spectrogram:
           _stopCaptureIfNoActiveAudioConsumers(excludingModuleId: module.moduleId);
+        case RackModuleType.djConsole:
+        case RackModuleType.stemMixer:
+          break;
       }
       _fireAndLog(
         audioEngine?.getChannel(module.moduleId).stop(),

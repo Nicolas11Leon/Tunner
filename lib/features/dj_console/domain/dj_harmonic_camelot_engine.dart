@@ -44,6 +44,15 @@ class CamelotKey {
   });
 
   String get code => '$number$letter';
+
+  Map<String, dynamic> toJson() => {
+        'number': number,
+        'letter': letter,
+        'code': code,
+        'musicalName': musicalName,
+        'rootPitchClass': rootPitchClass,
+        'isMinor': isMinor,
+      };
 }
 
 /// Pure Dart harmonic mixing engine implementing the Camelot Wheel (1A-12B)
@@ -161,7 +170,13 @@ class DjHarmonicCamelotEngine {
   }
 
   /// Estimates the musical key in Camelot notation from raw PCM samples
-  /// using a 12-bin chromagram via Goertzel resonance across octaves 2..5.
+  /// using a 12-bin chromagram via Goertzel resonance across octaves 2..4.
+  ///
+  /// For buffers longer than 2 seconds, samples multiple 1-second windows
+  /// distributed across the track (20%, 50%, 80% of available span) and
+  /// aggregates pitch-class energy to avoid bias from percussive or silent intros.
+  /// Short buffers (<= 2 seconds) analyze a single leading window for backward
+  /// compatibility.
   static CamelotKey estimateCamelotKeyFromSamples(
     Float32List samples, {
     int sampleRate = 44100,
@@ -170,19 +185,41 @@ class DjHarmonicCamelotEngine {
       return wheel[7]; // 8A fallback
     }
 
-    // Analyze up to 1 second of audio to guarantee deterministic sub-5ms execution
-    final windowLength = math.min(samples.length, sampleRate);
+    // 1-second Goertzel analysis window provides 1 Hz frequency resolution
+    final int windowLength = math.min(samples.length, sampleRate);
+    final List<int> windowOffsets;
+
+    if (samples.length <= sampleRate * 2) {
+      windowOffsets = const [0];
+    } else {
+      // Sample 3 windows distributed at 20%, 50%, and 80% of the valid start span
+      // to skip percussive intros/outros while keeping execution deterministic.
+      final int maxStart = samples.length - windowLength;
+      const List<double> windowPositions = [0.20, 0.50, 0.80];
+      windowOffsets = windowPositions
+          .map((ratio) => (maxStart * ratio).round().clamp(0, maxStart))
+          .toList(growable: false);
+    }
+
     final chroma = List<double>.filled(12, 0.0);
 
-    // Compute energy for each pitch class across octaves 2, 3, and 4 (MIDI 36..71)
+    // Compute aggregated energy for each pitch class across octaves 2, 3, and 4 (MIDI 36..71)
     for (int pitchClass = 0; pitchClass < 12; pitchClass++) {
       double classEnergy = 0.0;
-      for (int octave = 2; octave <= 4; octave++) {
-        final midiNote = (octave + 1) * 12 + pitchClass;
-        final freq = 440.0 * math.pow(2.0, (midiNote - 69) / 12.0);
-        classEnergy += _goertzelMagnitudeSquared(samples, windowLength, freq, sampleRate);
+      for (final startOffset in windowOffsets) {
+        for (int octave = 2; octave <= 4; octave++) {
+          final midiNote = (octave + 1) * 12 + pitchClass;
+          final freq = 440.0 * math.pow(2.0, (midiNote - 69) / 12.0);
+          classEnergy += _goertzelMagnitudeSquared(
+            samples,
+            startOffset,
+            windowLength,
+            freq,
+            sampleRate,
+          );
+        }
       }
-      chroma[pitchClass] = math.sqrt(classEnergy);
+      chroma[pitchClass] = math.sqrt(classEnergy / windowOffsets.length);
     }
 
     double bestCorrelation = -double.infinity;
@@ -202,6 +239,7 @@ class DjHarmonicCamelotEngine {
 
   static double _goertzelMagnitudeSquared(
     Float32List samples,
+    int startOffset,
     int length,
     double targetFreq,
     int sampleRate,
@@ -212,8 +250,9 @@ class DjHarmonicCamelotEngine {
 
     double q1 = 0.0;
     double q2 = 0.0;
+    final int endOffset = startOffset + length;
 
-    for (int i = 0; i < length; i++) {
+    for (int i = startOffset; i < endOffset; i++) {
       final q0 = coeff * q1 - q2 + samples[i];
       q2 = q1;
       q1 = q0;

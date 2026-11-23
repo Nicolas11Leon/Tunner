@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'multitrack_session_entity.dart';
 
@@ -22,6 +23,30 @@ class SpectralComparisonPoint {
     if (centsA == null || centsB == null) return null;
     return (centsB! - centsA!).abs();
   }
+
+  Map<String, dynamic> toMap() => {
+        'timeMs': timeMs,
+        'centsA': centsA,
+        'centsB': centsB,
+        'centroidA': centroidA,
+        'centroidB': centroidB,
+        'centsDelta': centsDelta,
+      };
+
+  Map<String, dynamic> toJson() => toMap();
+
+  factory SpectralComparisonPoint.fromMap(Map<String, dynamic> map) {
+    return SpectralComparisonPoint(
+      timeMs: (map['timeMs'] as num?)?.toInt() ?? 0,
+      centsA: (map['centsA'] as num?)?.toDouble(),
+      centsB: (map['centsB'] as num?)?.toDouble(),
+      centroidA: (map['centroidA'] as num?)?.toDouble(),
+      centroidB: (map['centroidB'] as num?)?.toDouble(),
+    );
+  }
+
+  factory SpectralComparisonPoint.fromJson(Map<String, dynamic> json) =>
+      SpectralComparisonPoint.fromMap(json);
 }
 
 /// Resultado consolidado de la contrastación matemática y acústica entre dos tomas.
@@ -77,6 +102,58 @@ class SpectralComparisonResult {
     comparisonPoints: [],
     pedagogicalSummary: 'Sin datos comparativos suficientes.',
   );
+
+  Map<String, dynamic> toMap({bool includePoints = true}) => {
+        'takeAId': takeAId,
+        'takeAName': takeAName,
+        'takeBId': takeBId,
+        'takeBName': takeBName,
+        'meanPitchDeviationA': meanPitchDeviationA,
+        'meanPitchDeviationB': meanPitchDeviationB,
+        'pitchStabilityDelta': pitchStabilityDelta,
+        'inTunePercentageA': inTunePercentageA,
+        'inTunePercentageB': inTunePercentageB,
+        'meanCentroidA': meanCentroidA,
+        'meanCentroidB': meanCentroidB,
+        'centroidDeltaHz': centroidDeltaHz,
+        'pedagogicalSummary': pedagogicalSummary,
+        'comparisonPointsCount': comparisonPoints.length,
+        if (includePoints)
+          'comparisonPoints':
+              comparisonPoints.map((p) => p.toMap()).toList(growable: false),
+      };
+
+  Map<String, dynamic> toJson({bool includePoints = true}) =>
+      toMap(includePoints: includePoints);
+
+  String toJsonString({bool includePoints = true}) =>
+      jsonEncode(toMap(includePoints: includePoints));
+
+  factory SpectralComparisonResult.fromMap(Map<String, dynamic> map) {
+    final rawPoints = map['comparisonPoints'] as List<dynamic>? ?? const [];
+    return SpectralComparisonResult(
+      takeAId: map['takeAId'] as String? ?? '',
+      takeAName: map['takeAName'] as String? ?? 'Toma A',
+      takeBId: map['takeBId'] as String? ?? '',
+      takeBName: map['takeBName'] as String? ?? 'Toma B',
+      meanPitchDeviationA: (map['meanPitchDeviationA'] as num?)?.toDouble() ?? 0.0,
+      meanPitchDeviationB: (map['meanPitchDeviationB'] as num?)?.toDouble() ?? 0.0,
+      pitchStabilityDelta: (map['pitchStabilityDelta'] as num?)?.toDouble() ?? 0.0,
+      inTunePercentageA: (map['inTunePercentageA'] as num?)?.toDouble() ?? 0.0,
+      inTunePercentageB: (map['inTunePercentageB'] as num?)?.toDouble() ?? 0.0,
+      meanCentroidA: (map['meanCentroidA'] as num?)?.toDouble() ?? 0.0,
+      meanCentroidB: (map['meanCentroidB'] as num?)?.toDouble() ?? 0.0,
+      centroidDeltaHz: (map['centroidDeltaHz'] as num?)?.toDouble() ?? 0.0,
+      comparisonPoints: rawPoints
+          .whereType<Map<String, dynamic>>()
+          .map(SpectralComparisonPoint.fromMap)
+          .toList(growable: false),
+      pedagogicalSummary: map['pedagogicalSummary'] as String? ?? '',
+    );
+  }
+
+  factory SpectralComparisonResult.fromJson(Map<String, dynamic> json) =>
+      SpectralComparisonResult.fromMap(json);
 }
 
 /// Servicio de dominio puro para el análisis y comparación de tomas de práctica instrumental.
