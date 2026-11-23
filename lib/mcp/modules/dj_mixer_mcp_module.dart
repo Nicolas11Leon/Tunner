@@ -652,11 +652,14 @@ class DjMixerMcpModule implements IMcpFeatureModule {
     }
 
     try {
-      final result = facade.djController.loadWavFile(
+      final derivedTitle =
+          title ?? resolvedPath.split(Platform.pathSeparator).last;
+      final result = facade.djController.loadWavBytes(
         deckId,
-        resolvedPath,
-        title: title,
-        artist: artist,
+        file.readAsBytesSync(),
+        title: derivedTitle,
+        artist: artist ?? 'Local File',
+        audioPath: resolvedPath,
         autoAnalyze: autoAnalyze,
       );
       facade.emitIpcEvent('dj.deck.loaded', result.toJson());

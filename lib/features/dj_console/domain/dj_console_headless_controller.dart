@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -150,32 +149,6 @@ class DjConsoleHeadlessController {
       title: title ?? 'Deck ${_normalizeDeckId(deckId)} Track',
       artist: artist ?? 'Unknown',
       audioPath: audioPath,
-      autoAnalyze: autoAnalyze,
-      waveformBuckets: waveformBuckets,
-    );
-  }
-
-  /// Reads a WAV file from disk and loads it into [deckId].
-  DjTrackAnalysisResult loadWavFile(
-    String deckId,
-    String filePath, {
-    String? title,
-    String? artist,
-    bool autoAnalyze = true,
-    int waveformBuckets = 96,
-  }) {
-    final file = File(filePath);
-    if (!file.existsSync()) {
-      throw FileSystemException('WAV file not found', filePath);
-    }
-    final bytes = file.readAsBytesSync();
-    final derivedTitle = title ?? _extractFileBaseName(filePath);
-    return loadWavBytes(
-      deckId,
-      bytes,
-      title: derivedTitle,
-      artist: artist ?? 'Local File',
-      audioPath: filePath,
       autoAnalyze: autoAnalyze,
       waveformBuckets: waveformBuckets,
     );
@@ -682,13 +655,5 @@ class DjConsoleHeadlessController {
     return (sampleRate * beatSeconds * division.factor)
         .round()
         .clamp(1, sampleRate * 2 - 1);
-  }
-
-  static String _extractFileBaseName(String filePath) {
-    final normalized = filePath.replaceAll('\\', '/');
-    final slashIdx = normalized.lastIndexOf('/');
-    final fileName = slashIdx >= 0 ? normalized.substring(slashIdx + 1) : normalized;
-    final dotIdx = fileName.lastIndexOf('.');
-    return dotIdx > 0 ? fileName.substring(0, dotIdx) : fileName;
   }
 }
