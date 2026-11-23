@@ -1,23 +1,19 @@
 import 'package:flutter/material.dart';
 
-/// Modos de tema predefinidos para Tunner (mantiene retrocompatibilidad canónica).
-enum TunnerThemeMode {
-  obsidianStudio,
-  vintageParchment,
-  neonStage,
-  oledPureBlack,
-  royalSymphony,
-  acousticWood,
-  nordicFrost,
-  custom,
-}
+import 'domain/theme_palette_data.dart';
+
+export 'domain/theme_palette_data.dart';
 
 /// Paleta completa de diseño estético para todos los elementos visuales de Tunner.
 /// Modelo abierto y extensible que soporta presets de fábrica y paletas creadas/editadas por el usuario.
-class TunnerThemePalette {
+class TunnerThemePalette implements ThemePaletteData {
+  @override
   final String id;
+  @override
   final TunnerThemeMode mode;
+  @override
   final String displayName;
+  @override
   final bool isCustom;
   final Brightness brightness;
 
@@ -407,6 +403,85 @@ class TunnerThemePalette {
   }
 
   /// Serialización JSON para exportar el tema o compartirlo entre usuarios.
+  @override
+  bool get isDark => brightness == Brightness.dark;
+  @override
+  int get scaffoldBackgroundArgb => scaffoldBackground.toARGB32();
+  @override
+  int get cardBackgroundArgb => cardBackground.toARGB32();
+  @override
+  int get staffBackgroundArgb => staffBackground.toARGB32();
+  @override
+  int get staffLinesColorArgb => staffLinesColor.toARGB32();
+  @override
+  int get musicalSymbolsColorArgb => musicalSymbolsColor.toARGB32();
+  @override
+  int get primaryAccentArgb => primaryAccent.toARGB32();
+  @override
+  int get secondaryAccentArgb => secondaryAccent.toARGB32();
+  @override
+  int get playheadColorArgb => playheadColor.toARGB32();
+  @override
+  int get correctPitchColorArgb => correctPitchColor.toARGB32();
+  @override
+  int get warningPitchColorArgb => warningPitchColor.toARGB32();
+  @override
+  int get errorPitchColorArgb => errorPitchColor.toARGB32();
+  @override
+  int get textColorArgb => textColor.toARGB32();
+  @override
+  int get textMutedColorArgb => textMutedColor.toARGB32();
+
+  /// Convierte esta paleta Flutter en un DTO Pure Dart [ThemePaletteData].
+  ThemePaletteData toPaletteData() {
+    return ThemePaletteData(
+      id: id,
+      mode: mode,
+      displayName: displayName,
+      isCustom: isCustom,
+      isDark: isDark,
+      scaffoldBackgroundArgb: scaffoldBackgroundArgb,
+      cardBackgroundArgb: cardBackgroundArgb,
+      staffBackgroundArgb: staffBackgroundArgb,
+      staffLinesColorArgb: staffLinesColorArgb,
+      musicalSymbolsColorArgb: musicalSymbolsColorArgb,
+      primaryAccentArgb: primaryAccentArgb,
+      secondaryAccentArgb: secondaryAccentArgb,
+      playheadColorArgb: playheadColorArgb,
+      correctPitchColorArgb: correctPitchColorArgb,
+      warningPitchColorArgb: warningPitchColorArgb,
+      errorPitchColorArgb: errorPitchColorArgb,
+      textColorArgb: textColorArgb,
+      textMutedColorArgb: textMutedColorArgb,
+    );
+  }
+
+  /// Reconstruye una paleta Flutter a partir del DTO Pure Dart [ThemePaletteData].
+  factory TunnerThemePalette.fromPaletteData(ThemePaletteData data) {
+    if (data is TunnerThemePalette) return data;
+    return TunnerThemePalette(
+      id: data.id,
+      mode: data.mode,
+      displayName: data.displayName,
+      isCustom: data.isCustom,
+      brightness: data.isDark ? Brightness.dark : Brightness.light,
+      scaffoldBackground: Color(data.scaffoldBackgroundArgb),
+      cardBackground: Color(data.cardBackgroundArgb),
+      staffBackground: Color(data.staffBackgroundArgb),
+      staffLinesColor: Color(data.staffLinesColorArgb),
+      musicalSymbolsColor: Color(data.musicalSymbolsColorArgb),
+      primaryAccent: Color(data.primaryAccentArgb),
+      secondaryAccent: Color(data.secondaryAccentArgb),
+      playheadColor: Color(data.playheadColorArgb),
+      correctPitchColor: Color(data.correctPitchColorArgb),
+      warningPitchColor: Color(data.warningPitchColorArgb),
+      errorPitchColor: Color(data.errorPitchColorArgb),
+      textColor: Color(data.textColorArgb),
+      textMutedColor: Color(data.textMutedColorArgb),
+    );
+  }
+
+  @override
   Map<String, dynamic> toJson() {
     return {
       "id": id,

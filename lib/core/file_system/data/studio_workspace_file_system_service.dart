@@ -1,5 +1,6 @@
-import 'package:flutter/foundation.dart';
-import '../../logging/infrastructure/studio_debug_logger.dart';
+import 'dart:typed_data';
+import '../../domain/i_studio_listenable.dart';
+import '../../logging/domain/i_studio_logger.dart';
 import '../domain/studio_file_system_node.dart';
 import '../domain/studio_file_system_repository.dart';
 import '../domain/studio_file_type.dart';
@@ -11,17 +12,23 @@ export '../domain/i_studio_workspace_file_system.dart';
 /// Servicio reactivo de orquestación del sistema de archivos del espacio de trabajo.
 /// Proporciona operaciones CRUD atómicas, búsqueda/filtrado en tiempo real (<2ms),
 /// gestión de expansión y persistencia física en disco sin bloqueo.
-class StudioWorkspaceFileSystemService extends ChangeNotifier implements IStudioWorkspaceFileSystem {
+class StudioWorkspaceFileSystemService
+    with StudioPureNotifierMixin
+    implements IStudioWorkspaceFileSystem {
   static final StudioWorkspaceFileSystemService _instance = StudioWorkspaceFileSystemService._internal();
   factory StudioWorkspaceFileSystemService({
     Object? repository,
     StudioFileSystemRepository? fileSystemRepository,
+    IStudioLogger? logger,
   }) {
     if (repository != null) {
       _instance._repository = repository;
     }
     if (fileSystemRepository != null) {
       _instance._fileSystemRepository = fileSystemRepository;
+    }
+    if (logger != null) {
+      _instance._logger = logger;
     }
     return _instance;
   }
@@ -30,17 +37,20 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier implements IStudio
   StudioWorkspaceFileSystemService.isolated({
     Object? repository,
     StudioFileSystemRepository? fileSystemRepository,
-  }) : _repository = repository {
-    _fileSystemRepository = fileSystemRepository ?? LocalDiskStudioFileSystemRepository();
+    IStudioLogger logger = const NoOpStudioLogger(),
+  })  : _repository = repository,
+        _logger = logger {
+    _fileSystemRepository = fileSystemRepository ?? LocalDiskStudioFileSystemRepository(logger: logger);
     _initializeDefaultTree();
   }
 
-  StudioWorkspaceFileSystemService._internal() {
-    _fileSystemRepository = LocalDiskStudioFileSystemRepository();
+  StudioWorkspaceFileSystemService._internal() : _logger = const NoOpStudioLogger() {
+    _fileSystemRepository = LocalDiskStudioFileSystemRepository(logger: _logger);
     _initializeDefaultTree();
   }
 
   Object? _repository;
+  IStudioLogger _logger;
   late StudioFileSystemRepository _fileSystemRepository;
   late StudioFolderEntity _rootFolder;
   String? _selectedNodeId;
@@ -87,7 +97,7 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier implements IStudio
       _rootFolder = diskRoot;
       notifyListeners();
     } catch (e) {
-      StudioDebugLogger.instance.warning('StudioWorkspaceFileSystemService', 'Error al inicializar desde disco: $e');
+      _logger.warning('StudioWorkspaceFileSystemService', 'Error al inicializar desde disco: $e');
     }
   }
 
@@ -99,7 +109,7 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier implements IStudio
       _rootFolder = diskRoot;
       notifyListeners();
     } catch (e) {
-      StudioDebugLogger.instance.warning('StudioWorkspaceFileSystemService', 'Error refrescando disco: $e');
+      _logger.warning('StudioWorkspaceFileSystemService', 'Error refrescando disco: $e');
     }
   }
 
@@ -288,7 +298,7 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier implements IStudio
       relativePath: relativePath,
       bytes: bytes,
     ).catchError((e) {
-      StudioDebugLogger.instance.warning('StudioWorkspaceFileSystemService', 'Error guardando archivo en disco: $e');
+      _logger.warning('StudioWorkspaceFileSystemService', 'Error guardando archivo en disco: $e');
     });
 
     return newFile;
@@ -328,7 +338,7 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier implements IStudio
 
     // Persistencia física en disco
     _fileSystemRepository.createFolder(relativePath).catchError((e) {
-      StudioDebugLogger.instance.warning('StudioWorkspaceFileSystemService', 'Error creando carpeta en disco: $e');
+      _logger.warning('StudioWorkspaceFileSystemService', 'Error creando carpeta en disco: $e');
     });
 
     return newFolder;
@@ -389,7 +399,7 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier implements IStudio
         oldRelativePath: oldRelPath,
         newRelativePath: newRelPath,
       ).catchError((e) {
-        StudioDebugLogger.instance.warning('StudioWorkspaceFileSystemService', 'Error renombrando en disco: $e');
+        _logger.warning('StudioWorkspaceFileSystemService', 'Error renombrando en disco: $e');
       });
     }
   }
@@ -414,7 +424,7 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier implements IStudio
       oldRelativePath: oldRelPath,
       newRelativePath: newRelPath,
     ).catchError((e) {
-      StudioDebugLogger.instance.warning('StudioWorkspaceFileSystemService', 'Error moviendo en disco: $e');
+      _logger.warning('StudioWorkspaceFileSystemService', 'Error moviendo en disco: $e');
     });
   }
 
@@ -436,7 +446,7 @@ class StudioWorkspaceFileSystemService extends ChangeNotifier implements IStudio
     notifyListeners();
 
     _fileSystemRepository.deletePath(relPath).catchError((e) {
-      StudioDebugLogger.instance.warning('StudioWorkspaceFileSystemService', 'Error eliminando en disco: $e');
+      _logger.warning('StudioWorkspaceFileSystemService', 'Error eliminando en disco: $e');
     });
   }
 

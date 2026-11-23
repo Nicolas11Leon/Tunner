@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
-
 import '../../../core/file_system/domain/i_platform_file_gateway.dart';
-import '../../../core/logging/infrastructure/studio_debug_logger.dart';
+import '../../../core/logging/domain/i_studio_logger.dart';
 import '../../acoustic_lab/domain/harmonic_series_analyzer.dart';
 import '../../persistence/domain/app_user_settings_entity.dart';
 import '../../persistence/domain/i_local_persistence_service.dart';
@@ -25,8 +23,9 @@ class PracticeRecorderController {
   final ILocalPersistenceService _persistenceService;
   final IPlatformFileGateway _platformFileGateway;
   final Future<String> Function()? _recordingPathProvider;
-  final VoidCallback _onNotify;
-  final VoidCallback _onAutoSave;
+  final void Function() _onNotify;
+  final void Function() _onAutoSave;
+  final IStudioLogger _logger;
 
   bool _isAudioRecording = false;
   Duration _recordingDuration = Duration.zero;
@@ -56,16 +55,18 @@ class PracticeRecorderController {
     required IPlatformFileGateway platformFileGateway,
     required String initialTitle,
     required int initialBpm,
-    required VoidCallback onNotify,
-    required VoidCallback onAutoSave,
+    required void Function() onNotify,
+    required void Function() onAutoSave,
     Future<String> Function()? recordingPathProvider,
+    IStudioLogger logger = const NoOpStudioLogger(),
   })  : _recorderService = recorderService,
         _playbackService = playbackService,
         _persistenceService = persistenceService,
         _platformFileGateway = platformFileGateway,
         _recordingPathProvider = recordingPathProvider,
         _onNotify = onNotify,
-        _onAutoSave = onAutoSave {
+        _onAutoSave = onAutoSave,
+        _logger = logger {
     initDefaultMultiTrackSession(title: initialTitle, bpm: initialBpm);
   }
 
@@ -189,7 +190,7 @@ class PracticeRecorderController {
       final dirPath = await _platformFileGateway.getDocumentsDirectoryPath();
       return '$dirPath/take_${DateTime.now().millisecondsSinceEpoch}.wav';
     } catch (e, st) {
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'PracticeRecorderController',
         'Fallback a directorio temporal para grabacion: $e',
         error: e,
@@ -199,7 +200,7 @@ class PracticeRecorderController {
         final tempDir = await _platformFileGateway.getTemporaryDirectoryPath();
         return '$tempDir/tunner_take_${DateTime.now().millisecondsSinceEpoch}.wav';
       } catch (tempError, tempSt) {
-        StudioDebugLogger.instance.warning(
+        _logger.warning(
           'PracticeRecorderController',
           'Fallback a ruta relativa para grabacion: $tempError',
           error: tempError,
@@ -237,7 +238,7 @@ class PracticeRecorderController {
       });
       _onNotify();
     } catch (e, st) {
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'PracticeRecorderController',
         'Error al iniciar grabacion de practica: $e',
         error: e,
@@ -321,7 +322,7 @@ class PracticeRecorderController {
       }
       _isPlayingAudio = false;
       _playbackPosition = Duration.zero;
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'PracticeRecorderController',
         'No existe archivo valido para reproducir la grabacion ${toPlay.id}.',
       );
@@ -334,7 +335,7 @@ class PracticeRecorderController {
       _isPlayingAudio = true;
     } catch (e, st) {
       _isPlayingAudio = false;
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'PracticeRecorderController',
         'Error reproduciendo la grabacion ${toPlay.id}: $e',
         error: e,
@@ -513,7 +514,7 @@ class PracticeRecorderController {
       }
       _isPlayingAudio = false;
       _playbackPosition = Duration.zero;
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'PracticeRecorderController',
         'No existe archivo valido para reproducir la toma ${take.id}.',
       );
@@ -526,7 +527,7 @@ class PracticeRecorderController {
       _isPlayingAudio = true;
     } catch (e, st) {
       _isPlayingAudio = false;
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'PracticeRecorderController',
         'Error reproduciendo la toma ${take.id}: $e',
         error: e,
@@ -549,7 +550,7 @@ class PracticeRecorderController {
       }
       applySettings(settings);
     } catch (e, st) {
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'PracticeRecorderController',
         'Error cargando configuracion inicial de practica: $e',
         error: e,
@@ -570,7 +571,7 @@ class PracticeRecorderController {
     try {
       await _persistenceService.saveSettings(settings);
     } catch (e, st) {
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'PracticeRecorderController',
         'Error persistiendo configuracion de practica: $e',
         error: e,

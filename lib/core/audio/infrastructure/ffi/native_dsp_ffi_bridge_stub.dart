@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import '../../../logging/domain/i_studio_logger.dart';
 import '../../domain/ffi/i_native_dsp_bridge.dart';
 import '../../domain/ffi/native_dsp_bridge_fallback.dart';
 
@@ -13,6 +14,7 @@ class NativeDspFfiBridge implements INativeDspBridge {
   NativeDspFfiBridge({
     INativeDspBridge? fallback,
     String? customLibraryPath,
+    IStudioLogger? logger,
   }) : _fallback = fallback ?? const NativeDspBridgeFallback();
 
   @override

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../design_system/atoms/studio_hairline.dart';
 import '../../design_system/atoms/studio_icon.dart';
+import '../../design_system/atoms/studio_listenable_builder.dart';
 import '../../design_system/domain/studio_icon_catalog.dart';
 import '../../design_system/studio_design_tokens.dart';
 import '../../design_system/studio_theme_provider.dart';
@@ -52,81 +53,86 @@ class StudioMasterHardwareConsoleWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final StudioDesignTokens tokens = StudioThemeScope.tokensOf(context);
 
-    return ListenableBuilder(
-      listenable: Listenable.merge([matrixService, clockService]),
+    return StudioListenableBuilder(
+      listenable: matrixService,
       builder: (context, _) {
-        final AudioDeviceMatrixEntity matrix = matrixService.matrix;
+        return StudioListenableBuilder(
+          listenable: clockService,
+          builder: (context, _) {
+            final AudioDeviceMatrixEntity matrix = matrixService.matrix;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: tokens.panelBackground,
-            borderRadius: BorderRadius.circular(tokens.radiusMedium),
-            border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
-            boxShadow: [
-              BoxShadow(
-                color: tokens.canvasBackground.withValues(alpha: 0.65),
-                blurRadius: 24,
-                spreadRadius: 4,
+            return Container(
+              decoration: BoxDecoration(
+                color: tokens.panelBackground,
+                borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
+                boxShadow: [
+                  BoxShadow(
+                    color: tokens.canvasBackground.withValues(alpha: 0.65),
+                    blurRadius: 24,
+                    spreadRadius: 4,
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(context, tokens),
-              const StudioHairline(),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHeader(context, tokens),
+                  const StudioHairline(),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
                         children: [
-                          Expanded(
-                            flex: 5,
-                            child: HardwareEndpointsPanel(
-                              tokens: tokens,
-                              matrix: matrix,
-                              matrixService: matrixService,
-                            ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 5,
+                                child: HardwareEndpointsPanel(
+                                  tokens: tokens,
+                                  matrix: matrix,
+                                  matrixService: matrixService,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                flex: 4,
+                                child: MasterClockPanel(
+                                  tokens: tokens,
+                                  clockService: clockService,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            flex: 4,
-                            child: MasterClockPanel(
-                              tokens: tokens,
-                              clockService: clockService,
-                            ),
+                          const SizedBox(height: 16),
+                          MasterStripPanel(
+                            tokens: tokens,
+                            matrix: matrix,
+                            matrixService: matrixService,
+                          ),
+                          const SizedBox(height: 16),
+                          MasteringChainPanel(
+                            tokens: tokens,
+                            matrix: matrix,
+                            matrixService: matrixService,
+                          ),
+                          const SizedBox(height: 16),
+                          MatrixRoutingPanel(
+                            tokens: tokens,
+                            matrix: matrix,
+                            matrixService: matrixService,
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      MasterStripPanel(
-                        tokens: tokens,
-                        matrix: matrix,
-                        matrixService: matrixService,
-                      ),
-                      const SizedBox(height: 16),
-                      MasteringChainPanel(
-                        tokens: tokens,
-                        matrix: matrix,
-                        matrixService: matrixService,
-                      ),
-                      const SizedBox(height: 16),
-                      MatrixRoutingPanel(
-                        tokens: tokens,
-                        matrix: matrix,
-                        matrixService: matrixService,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  const StudioHairline(),
+                  _buildFooter(tokens, matrix),
+                ],
               ),
-              const StudioHairline(),
-              _buildFooter(tokens, matrix),
-            ],
-          ),
+            );
+          },
         );
       },
     );

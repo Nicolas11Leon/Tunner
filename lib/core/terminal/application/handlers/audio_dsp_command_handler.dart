@@ -1,10 +1,10 @@
 import '../../../audio/domain/ffi/i_native_dsp_bridge.dart';
+import '../../../audio/domain/i_studio_audio_device_matrix_service.dart';
 import '../../../audio/domain/i_studio_audio_engine.dart';
 import '../../../audio/domain/i_studio_audio_input_engine.dart';
+import '../../../audio/domain/i_studio_master_clock_service.dart';
 import '../../../audio/domain/reverb/schroeder_reverb_engine.dart';
 import '../../../audio/domain/spatial/binaural_panner_engine.dart';
-import '../../../audio/infrastructure/studio_audio_device_matrix_service.dart';
-import '../../../audio/infrastructure/studio_master_clock_service.dart';
 import '../../../audio/infrastructure/studio_master_dsp_chain.dart';
 import '../../domain/i_terminal_command_handler.dart';
 import '../../domain/tunner_os_command_entity.dart';
@@ -13,8 +13,8 @@ import '../../domain/tunner_os_command_entity.dart';
 class AudioDspCommandHandler implements ITerminalCommandHandler {
   final IStudioAudioEngine? Function() _getOutputEngine;
   final IStudioAudioInputEngine? Function() _getInputEngine;
-  final StudioAudioDeviceMatrixService? Function() _getMatrixService;
-  final StudioMasterClockService? Function() _getClockService;
+  final IStudioAudioDeviceMatrixService? Function() _getMatrixService;
+  final IStudioMasterClockService? Function() _getClockService;
   final SchroederReverbEngine? Function() _getReverbEngine;
   final BinauralPannerEngine? Function() _getSpatialEngine;
   final INativeDspBridge? Function() _getNativeDspBridge;
@@ -23,8 +23,8 @@ class AudioDspCommandHandler implements ITerminalCommandHandler {
   const AudioDspCommandHandler({
     required IStudioAudioEngine? Function() getOutputEngine,
     required IStudioAudioInputEngine? Function() getInputEngine,
-    required StudioAudioDeviceMatrixService? Function() getMatrixService,
-    required StudioMasterClockService? Function() getClockService,
+    required IStudioAudioDeviceMatrixService? Function() getMatrixService,
+    required IStudioMasterClockService? Function() getClockService,
     required SchroederReverbEngine? Function() getReverbEngine,
     required BinauralPannerEngine? Function() getSpatialEngine,
     required INativeDspBridge? Function() getNativeDspBridge,

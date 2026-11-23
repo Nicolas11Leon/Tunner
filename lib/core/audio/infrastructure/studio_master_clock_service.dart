@@ -1,12 +1,14 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import '../../domain/i_studio_listenable.dart';
 import '../domain/i_studio_master_clock_service.dart';
 import '../domain/studio_transport_status.dart';
 
 /// Servicio de infraestructura para el Reloj Maestro de Transporte Unificado de Tunner Studio.
 /// Sincroniza compás, tempo (BPM) y fase rítmica con acumulador de fase anclado
 /// sobre [Stopwatch] para garantizar cero deriva y transiciones fluidas al cambiar BPM en vivo.
-class StudioMasterClockService extends ChangeNotifier implements IStudioMasterClockService {
+class StudioMasterClockService
+    with StudioPureNotifierMixin
+    implements IStudioMasterClockService {
   double _bpm;
   int _meterNumerator;
   int _meterDenominator;
@@ -25,9 +27,13 @@ class StudioMasterClockService extends ChangeNotifier implements IStudioMasterCl
   int _currentMeasure = 1;
 
   /// Callbacks de orquestación global para sincronizar todas las herramientas de Tunner
-  VoidCallback? onPlayAll;
-  VoidCallback? onPauseAll;
-  VoidCallback? onStopAll;
+  @override
+  StudioVoidCallback? onPlayAll;
+  @override
+  StudioVoidCallback? onPauseAll;
+  @override
+  StudioVoidCallback? onStopAll;
+  @override
   void Function(double bpm)? onBpmChanged;
 
   // Registro de pulsaciones para cálculo de Tap Tempo (soporta hasta 20 BPM = 3000ms)

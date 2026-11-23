@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
-import '../../logging/infrastructure/studio_debug_logger.dart';
+import '../../logging/domain/i_studio_logger.dart';
 import '../domain/audio_device_entity.dart';
 import '../domain/audio_pcm_frame.dart';
 import '../domain/audio_ring_buffer.dart';
@@ -14,6 +14,7 @@ import '../domain/i_studio_audio_input_engine.dart';
 class StudioAudioInputEngine implements IStudioAudioInputEngine {
   AudioRecorder? _recorderInstance;
   final AudioRecorder? _injectedRecorder;
+  final IStudioLogger _logger;
 
   static bool get _isTestEnvironment =>
       !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
@@ -41,7 +42,9 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
   StudioAudioInputEngine({
     AudioRecorder? injectedRecorder,
     int ringBufferCapacity = 16384,
+    IStudioLogger logger = const NoOpStudioLogger(),
   })  : _injectedRecorder = injectedRecorder,
+        _logger = logger,
         _ringBuffer = AudioRingBuffer(requestedCapacity: ringBufferCapacity);
 
   @override
@@ -97,7 +100,7 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
         );
       }).toList();
     } catch (e, st) {
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'StudioAudioInputEngine',
         'Error listando dispositivos',
         error: e,
@@ -141,7 +144,7 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
     try {
       final hasPerm = await _recorder.hasPermission();
       if (!hasPerm) {
-        StudioDebugLogger.instance.warning(
+        _logger.warning(
           'StudioAudioInputEngine',
           'Permiso de microfono denegado',
         );
@@ -159,7 +162,7 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
             }
           }
         } catch (e, st) {
-          StudioDebugLogger.instance.warning(
+          _logger.warning(
             'StudioAudioInputEngine',
             'Failed to enumerate audio input devices; falling back to default',
             error: e,
@@ -200,7 +203,7 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
           _peakDbController.add(frame.peakDb);
         }
       }, onError: (e, st) {
-        StudioDebugLogger.instance.warning(
+        _logger.warning(
           'StudioAudioInputEngine',
           'Error en stream de audio',
           error: e,
@@ -208,7 +211,7 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
         );
       });
     } catch (e, st) {
-      StudioDebugLogger.instance.error(
+      _logger.error(
         'StudioAudioInputEngine',
         'Error iniciando captura',
         error: e,
@@ -229,7 +232,7 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
         await _recorder.stop();
       }
     } catch (e, st) {
-      StudioDebugLogger.instance.warning(
+      _logger.warning(
         'StudioAudioInputEngine',
         'Error deteniendo captura',
         error: e,
@@ -251,7 +254,7 @@ class StudioAudioInputEngine implements IStudioAudioInputEngine {
       try {
         recorderToDispose?.dispose();
       } catch (e, st) {
-        StudioDebugLogger.instance.warning(
+        _logger.warning(
           'StudioAudioInputEngine',
           'Error al liberar AudioRecorder en dispose',
           error: e,
