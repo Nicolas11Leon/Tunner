@@ -8,6 +8,7 @@ class MemoryStudioFileSystemRepository implements StudioFileSystemRepository {
   final Map<String, Uint8List> _files = {};
   final Set<String> _directories = {};
   StudioFolderEntity? customRoot;
+  String? lastOpenedExplorerPath;
 
   MemoryStudioFileSystemRepository({StudioFolderEntity? initialRoot}) {
     customRoot = initialRoot;
@@ -135,5 +136,11 @@ class MemoryStudioFileSystemRepository implements StudioFileSystemRepository {
         _files[relocatedPath] = entry.value;
       }
     }
+  }
+
+  @override
+  Future<bool> openInSystemExplorer(String relativePath) async {
+    lastOpenedExplorerPath = relativePath;
+    return true;
   }
 }

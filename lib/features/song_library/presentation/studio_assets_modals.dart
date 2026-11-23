@@ -1,5 +1,8 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../../core/design_system/studio_design_system.dart';
+import '../../../core/file_system/domain/i_studio_workspace_file_system.dart';
 import '../../tuner_viewmodel.dart';
 import '../../sheet_music/domain/score_tree.dart';
 import '../../tuner/domain/tuning_preset_entity.dart';
@@ -56,6 +59,38 @@ class StudioAssetsModals {
       builder: (ctx) => _StudioNewTuningPresetDialog(
         viewModel: viewModel,
         onSavePreset: onSavePreset,
+      ),
+    );
+  }
+
+  /// Despliega el diálogo modal para guardar el proyecto actual con un nuevo nombre.
+  static Future<void> showSaveAsDialog({
+    required BuildContext context,
+    required TunerViewModel viewModel,
+    IStudioWorkspaceFileSystem? fileSystemService,
+  }) {
+    return showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      builder: (ctx) => _StudioSaveAsDialog(
+        viewModel: viewModel,
+        fileSystemService: fileSystemService,
+      ),
+    );
+  }
+
+  /// Despliega el diálogo modal para exportar partitura y audio en múltiples formatos canónicos.
+  static Future<void> showExportDialog({
+    required BuildContext context,
+    required TunerViewModel viewModel,
+    IStudioWorkspaceFileSystem? fileSystemService,
+  }) {
+    return showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      builder: (ctx) => _StudioExportDialog(
+        viewModel: viewModel,
+        fileSystemService: fileSystemService,
       ),
     );
   }
@@ -608,6 +643,407 @@ class _StudioNewTuningPresetDialogState extends State<_StudioNewTuningPresetDial
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _StudioSaveAsDialog extends StatefulWidget {
+  final TunerViewModel viewModel;
+  final IStudioWorkspaceFileSystem? fileSystemService;
+
+  const _StudioSaveAsDialog({
+    required this.viewModel,
+    this.fileSystemService,
+  });
+
+  @override
+  State<_StudioSaveAsDialog> createState() => _StudioSaveAsDialogState();
+}
+
+class _StudioSaveAsDialogState extends State<_StudioSaveAsDialog> {
+  late final TextEditingController _titleCtrl;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final currentTitle = widget.viewModel.activePackage.title;
+    _titleCtrl = TextEditingController(text: '$currentTitle - Copia');
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSaveAs() async {
+    final title = _titleCtrl.text.trim();
+    if (title.isEmpty) return;
+
+    setState(() => _isSaving = true);
+    try {
+      final bytes = widget.viewModel.exportCurrentProjectToTunner(projectTitle: title);
+      if (widget.fileSystemService != null) {
+        final safeName = title.replaceAll(RegExp(r'[^\w\s\-]'), '_');
+        await widget.fileSystemService!.fileSystemRepository.saveFile(
+          relativePath: 'Partituras & Notación/$safeName.tunner',
+          bytes: bytes,
+        );
+        await widget.fileSystemService!.refreshFromDisk();
+      }
+      await widget.viewModel.savePersistedState();
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Proyecto guardado como "$title" exitosamente.'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.tokensOf(context);
+    return Dialog(
+      backgroundColor: tokens.panelBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(tokens.radiusMedium),
+        side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
+      ),
+      child: Container(
+        width: 440,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.save_as_outlined, size: 18, color: tokens.accentPrimary),
+                const SizedBox(width: 8),
+                Text(
+                  'GUARDAR PROYECTO COMO...',
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: Icon(Icons.close, size: 16, color: tokens.textMuted),
+                  splashRadius: 14,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Nombre del Nuevo Archivo / Proyecto',
+              style: TextStyle(color: tokens.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              decoration: BoxDecoration(
+                color: tokens.inputSurface,
+                borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
+              ),
+              child: TextField(
+                controller: _titleCtrl,
+                style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  hintText: 'Introduce el nuevo nombre...',
+                ),
+                onSubmitted: (_) => _handleSaveAs(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton(
+                  onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: tokens.textSecondary,
+                    side: BorderSide(color: tokens.borderHairline),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  child: const Text('Cancelar', style: TextStyle(fontSize: 11)),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _isSaving ? null : _handleSaveAs,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: tokens.accentPrimary,
+                    foregroundColor: tokens.textOnAccent,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  ),
+                  child: Text(
+                    _isSaving ? 'Guardando...' : 'Guardar Copia',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StudioExportDialog extends StatefulWidget {
+  final TunerViewModel viewModel;
+  final IStudioWorkspaceFileSystem? fileSystemService;
+
+  const _StudioExportDialog({
+    required this.viewModel,
+    this.fileSystemService,
+  });
+
+  @override
+  State<_StudioExportDialog> createState() => _StudioExportDialogState();
+}
+
+class _StudioExportDialogState extends State<_StudioExportDialog> {
+  bool _isExporting = false;
+
+  Future<void> _exportAs(String formatId) async {
+    setState(() => _isExporting = true);
+    try {
+      final title = widget.viewModel.activePackage.title;
+      final safeName = title.replaceAll(RegExp(r'[^\w\s\-]'), '_');
+      String targetPath = '';
+      int byteCount = 0;
+
+      switch (formatId) {
+        case 'musicxml':
+          final xml = widget.viewModel.exportActiveScoreToMusicXml();
+          final bytes = Uint8List.fromList(utf8.encode(xml));
+          targetPath = 'Partituras & Notación/$safeName.musicxml';
+          byteCount = bytes.lengthInBytes;
+          if (widget.fileSystemService != null) {
+            await widget.fileSystemService!.fileSystemRepository.saveFile(
+              relativePath: targetPath,
+              bytes: bytes,
+            );
+            await widget.fileSystemService!.refreshFromDisk();
+          }
+          break;
+        case 'midi':
+          final bytes = widget.viewModel.exportActiveScoreToMidi();
+          targetPath = 'Partituras & Notación/$safeName.mid';
+          byteCount = bytes.lengthInBytes;
+          if (widget.fileSystemService != null) {
+            await widget.fileSystemService!.fileSystemRepository.saveFile(
+              relativePath: targetPath,
+              bytes: bytes,
+            );
+            await widget.fileSystemService!.refreshFromDisk();
+          }
+          break;
+        case 'pdf':
+          final bytes = widget.viewModel.exportActiveScoreToPdf();
+          targetPath = 'Partituras & Notación/$safeName.pdf';
+          byteCount = bytes.lengthInBytes;
+          if (widget.fileSystemService != null) {
+            await widget.fileSystemService!.fileSystemRepository.saveFile(
+              relativePath: targetPath,
+              bytes: bytes,
+            );
+            await widget.fileSystemService!.refreshFromDisk();
+          }
+          break;
+        case 'tunner':
+          final bytes = widget.viewModel.exportCurrentProjectToTunner();
+          targetPath = 'Partituras & Notación/$safeName.tunner';
+          byteCount = bytes.lengthInBytes;
+          if (widget.fileSystemService != null) {
+            await widget.fileSystemService!.fileSystemRepository.saveFile(
+              relativePath: targetPath,
+              bytes: bytes,
+            );
+            await widget.fileSystemService!.refreshFromDisk();
+          }
+          break;
+        case 'stems':
+          final result = await widget.viewModel.exportStemsAndMidi();
+          targetPath = 'Tomas de Audio & WAV/';
+          for (final f in result.files) {
+            byteCount += f.sizeBytes;
+            if (widget.fileSystemService != null) {
+              await widget.fileSystemService!.fileSystemRepository.saveFile(
+                relativePath: '$targetPath${f.fileName}',
+                bytes: f.bytes,
+              );
+            }
+          }
+          if (widget.fileSystemService != null) {
+            await widget.fileSystemService!.refreshFromDisk();
+          }
+          break;
+      }
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Exportación completada exitosamente ($targetPath • $byteCount bytes).'),
+            duration: const Duration(seconds: 4),
+            action: widget.fileSystemService != null
+                ? SnackBarAction(
+                    label: 'Abrir Carpeta',
+                    onPressed: () => widget.fileSystemService!.openInSystemExplorer(targetPath),
+                  )
+                : null,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isExporting = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.tokensOf(context);
+    return Dialog(
+      backgroundColor: tokens.panelBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(tokens.radiusMedium),
+        side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
+      ),
+      child: Container(
+        width: 480,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.ios_share_outlined, size: 18, color: tokens.accentPrimary),
+                const SizedBox(width: 8),
+                Text(
+                  'EXPORTAR PROYECTO Y NOTACIÓN',
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: Icon(Icons.close, size: 16, color: tokens.textMuted),
+                  splashRadius: 14,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Selecciona el formato canónico deseado para guardar en el explorador de archivos:',
+              style: TextStyle(color: tokens.textSecondary, fontSize: 11),
+            ),
+            const SizedBox(height: 16),
+            _buildExportOption(
+              tokens: tokens,
+              title: 'MusicXML (.musicxml)',
+              subtitle: 'Notación digital estándar abierta W3C compatible con Dorico, Sibelius y MuseScore',
+              icon: Icons.description_outlined,
+              formatId: 'musicxml',
+            ),
+            _buildExportOption(
+              tokens: tokens,
+              title: 'MIDI Estándar (.mid)',
+              subtitle: 'Secuencia canónica de notas, eventos de tempo y cambios de métrica',
+              icon: Icons.piano_outlined,
+              formatId: 'midi',
+            ),
+            _buildExportOption(
+              tokens: tokens,
+              title: 'Documento PDF (.pdf)',
+              subtitle: 'Partitura vectorial maquetada con tipografía SMuFL lista para impresión',
+              icon: Icons.picture_as_pdf_outlined,
+              formatId: 'pdf',
+            ),
+            _buildExportOption(
+              tokens: tokens,
+              title: 'Paquete de Proyecto (.tunner)',
+              subtitle: 'Archivo binario comprimido con estado íntegro, pistas y metadatos del estudio',
+              icon: Icons.inventory_2_outlined,
+              formatId: 'tunner',
+            ),
+            _buildExportOption(
+              tokens: tokens,
+              title: 'Pistas Separadas & Stems (.wav / .mid)',
+              subtitle: 'Exportación multi-pista con mezcla maestro, minus-one y pistas de práctica',
+              icon: Icons.multitrack_audio_outlined,
+              formatId: 'stems',
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton(
+                  onPressed: _isExporting ? null : () => Navigator.of(context).pop(),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: tokens.textSecondary,
+                    side: BorderSide(color: tokens.borderHairline),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  child: const Text('Cerrar', style: TextStyle(fontSize: 11)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExportOption({
+    required StudioDesignTokens tokens,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required String formatId,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: tokens.inputSurface,
+        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+        border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Icon(icon, size: 20, color: tokens.accentPrimary),
+        title: Text(title, style: TextStyle(color: tokens.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+        subtitle: Text(subtitle, style: TextStyle(color: tokens.textSecondary, fontSize: 10)),
+        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 12, color: tokens.textMuted),
+        onTap: _isExporting ? null : () => _exportAs(formatId),
       ),
     );
   }
