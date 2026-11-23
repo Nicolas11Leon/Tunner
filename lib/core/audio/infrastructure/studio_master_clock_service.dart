@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import '../domain/i_studio_master_clock.dart';
+import '../domain/i_studio_master_clock_service.dart';
 import '../domain/studio_transport_status.dart';
 
 /// Servicio de infraestructura para el Reloj Maestro de Transporte Unificado de Tunner Studio.
 /// Sincroniza compás, tempo (BPM) y fase rítmica con acumulador de fase anclado
 /// sobre [Stopwatch] para garantizar cero deriva y transiciones fluidas al cambiar BPM en vivo.
-class StudioMasterClockService extends ChangeNotifier implements IStudioMasterClock {
+class StudioMasterClockService extends ChangeNotifier implements IStudioMasterClockService {
   double _bpm;
   int _meterNumerator;
   int _meterDenominator;

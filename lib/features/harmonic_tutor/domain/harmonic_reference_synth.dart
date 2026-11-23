@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'harmonic_role_entity.dart';
+import 'i_harmonic_reference_synth.dart';
 
 /// Deterministic, real-time procedural synthesizer for pure Just Intonation reference chords and drones.
 ///
@@ -8,7 +9,8 @@ import 'harmonic_role_entity.dart';
 /// - Sum of pure sine wave oscillators corresponding to exact integer ratios (1/1, 5/4, 3/2, etc.).
 /// - Linear envelope ramps (Attack & Release) to eliminate edge transient clicks.
 /// - Deterministic stereo/mono buffer rendering with soft saturation limiter.
-class HarmonicReferenceSynth {
+class HarmonicReferenceSynth implements IHarmonicReferenceSynth {
+  @override
   final int sampleRate;
 
   HarmonicReferenceSynth({this.sampleRate = 44100});
@@ -19,6 +21,7 @@ class HarmonicReferenceSynth {
   /// - [roles]: List of harmonic roles to voice (e.g. root + fifth).
   /// - [durationMs]: Desired buffer length in milliseconds.
   /// - [volume]: Normalized volume in range [0.0, 1.0].
+  @override
   Float32List generateChordBuffer({
     required double rootFrequency,
     required List<HarmonicRole> roles,

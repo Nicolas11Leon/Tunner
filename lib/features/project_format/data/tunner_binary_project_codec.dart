@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import '../domain/i_tunner_binary_codec.dart';
 import '../domain/tunner_project_package.dart';
 import '../domain/tunner_tool_preset.dart';
 
@@ -48,7 +49,7 @@ class _BoundedByteAccumulatorSink extends ByteConversionSinkBase {
 /// Códec binario de ultra alta compresión para proyectos (.tunner) y herramientas (.tnt).
 /// Emplea compresión Deflate/ZLib de nivel máximo con firma mágica de integridad
 /// y descompresión streaming por chunks contra ataques Zip-Bomb.
-class TunnerBinaryProjectCodec {
+class TunnerBinaryProjectCodec implements ITunnerBinaryCodec {
   /// Magic bytes para archivos de proyecto (.tunner): ASCII 'TUNP' (0x54, 0x55, 0x4E, 0x50).
   static const List<int> projectMagicBytes = [0x54, 0x55, 0x4E, 0x50];
 
@@ -59,6 +60,7 @@ class TunnerBinaryProjectCodec {
   static const int maxDecompressedPayloadBytes = 64 * 1024 * 1024;
   static const int _inputChunkSize = 4096;
 
+  @override
   final int maxAllowedDecompressedBytes;
   final ZLibCodec _zlib = ZLibCodec(level: ZLibOption.maxLevel);
 

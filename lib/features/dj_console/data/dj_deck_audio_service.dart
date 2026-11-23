@@ -1,10 +1,8 @@
-import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
 import '../../../core/audio/domain/i_studio_audio_channel.dart';
 import '../../../core/audio/domain/i_studio_audio_engine.dart';
-import '../../../core/audio/infrastructure/memory_studio_audio_engine.dart';
 import '../../../core/audio/infrastructure/studio_audio_channel.dart';
 import '../../../core/audio/infrastructure/studio_audio_engine.dart';
 import '../../audio_synthesizer/domain/pcm_wav_synthesizer.dart';
@@ -24,16 +22,12 @@ class DjDeckAudioService implements IDjDeckAudioPlayer {
   Uint8List? _demoGrooveABytes;
   Uint8List? _demoGrooveBBytes;
 
-  static bool get _isTestEnvironment =>
-      !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
-
   factory DjDeckAudioService({
     IStudioAudioEngine? audioEngine,
     AudioPlayer? playerA,
     AudioPlayer? playerB,
   }) {
-    final resolvedEngine = audioEngine ??
-        (_isTestEnvironment ? MemoryStudioAudioEngine() : StudioAudioEngine());
+    final resolvedEngine = audioEngine ?? StudioAudioEngine();
     return DjDeckAudioService._(
       audioEngine: resolvedEngine,
       channelA: playerA != null

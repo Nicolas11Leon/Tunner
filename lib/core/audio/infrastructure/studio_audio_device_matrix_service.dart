@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../../logging/infrastructure/studio_debug_logger.dart';
 import '../domain/audio_device_entity.dart';
 import '../domain/audio_device_matrix_entity.dart';
-import '../domain/i_studio_audio_device_matrix_port.dart';
+import '../domain/i_studio_audio_device_matrix_service.dart';
 import '../domain/i_studio_audio_engine.dart';
 import '../domain/i_studio_audio_hardware_persistence_service.dart';
 import '../domain/i_studio_audio_input_engine.dart';
@@ -16,7 +16,8 @@ import 'studio_master_capture_service.dart';
 
 /// Servicio de infraestructura que gestiona la matriz de enrutamiento de dispositivos,
 /// la cadena de masterización DSP y la captura de audio en vivo de Tunner Studio.
-class StudioAudioDeviceMatrixService extends ChangeNotifier implements IStudioAudioDeviceMatrixPort {
+class StudioAudioDeviceMatrixService extends ChangeNotifier
+    implements IStudioAudioDeviceMatrixService {
   final IStudioAudioEngine _outputEngine;
   final IStudioAudioInputEngine _inputEngine;
   final IStudioAudioHardwarePersistenceService? _persistenceService;

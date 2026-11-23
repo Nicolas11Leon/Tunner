@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import '../../sheet_music/domain/score_tree.dart';
 import '../../song_library/domain/song_package_entity.dart';
 import '../../tuner/domain/note_entity.dart';
+import 'i_exercise_generator.dart';
 
 /// Tipo de estudio técnico o patrón interválico a generar.
 enum ExerciseType {
@@ -34,10 +35,11 @@ enum ExerciseRhythm {
 
 /// Generador procedural determinista de material de estudio y escalas de conservatorio.
 /// Pure Dart: Cero dependencias de Flutter UI.
-class AlgorithmicExerciseGenerator {
+class AlgorithmicExerciseGenerator implements IExerciseGenerator {
   const AlgorithmicExerciseGenerator();
 
   /// Genera un paquete de estudio pedagógico [SongPackage] en función de la tónica, tipo y rítmica.
+  @override
   SongPackage generate({
     required String rootNote, // e.g., "Do4", "Re4", "Mi4", "Fa4", "Sol4", "La4", "Si4"
     required ExerciseType type,

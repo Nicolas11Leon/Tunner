@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tunner/core/audio/infrastructure/memory_studio_audio_engine.dart';
 import 'package:tunner/features/dj_console/data/dj_deck_audio_service.dart';
 import 'package:tunner/features/dj_console/domain/dj_performance_orchestrator.dart';
 import 'package:tunner/features/dj_console/presentation/dj_console_view_model.dart';
@@ -131,7 +132,7 @@ void main() {
     });
 
     test('DjDeckAudioService setDeckVolume handles rapid mute and unmute stably', () async {
-      final audioService = DjDeckAudioService();
+      final audioService = DjDeckAudioService(audioEngine: MemoryStudioAudioEngine());
 
       await audioService.playDeck('A');
       expect(audioService.isDeckPlaying('A'), isTrue);

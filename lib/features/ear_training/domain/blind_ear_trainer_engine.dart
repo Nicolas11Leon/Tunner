@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'ear_training_exercise.dart';
+import 'i_ear_trainer_engine.dart';
 import 'musical_interval.dart';
 
 /// Configuración de la sesión de entrenamiento auditivo.
@@ -59,7 +60,8 @@ class EarTrainingConfig {
 /// Motor determinista de entrenamiento auditivo y discriminación de intervalos a ciegas.
 ///
 /// Implementado en Pure Dart bajo Clean Architecture (cero dependencias de UI).
-class BlindEarTrainerEngine {
+class BlindEarTrainerEngine implements IEarTrainerEngine {
+  @override
   EarTrainingConfig config;
   final math.Random _random;
 
