@@ -88,6 +88,7 @@ void main() {
     expect(persistence.saveCount, greaterThanOrEqualTo(1));
 
     // Siguiente pregunta y activar modo cantado por microfono
+    await tester.ensureVisible(find.byKey(const Key('btn_next_question')));
     await tester.tap(find.byKey(const Key('btn_next_question')));
     await tester.pump(const Duration(milliseconds: 1500));
 

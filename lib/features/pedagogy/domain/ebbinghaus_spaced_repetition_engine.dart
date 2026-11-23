@@ -80,6 +80,14 @@ class EbbinghausSpacedRepetitionEngine {
 
     final canonicalItems = <EarTrainingItemEntity>[
       EarTrainingItemEntity(
+        id: 'interval_P1',
+        name: 'Unísono Justo',
+        category: EarTrainingCategory.interval,
+        semitones: 0.0,
+        centsDeviation: 0.0,
+        nextReviewDate: now,
+      ),
+      EarTrainingItemEntity(
         id: 'interval_m2',
         name: 'Segunda Menor',
         category: EarTrainingCategory.interval,
