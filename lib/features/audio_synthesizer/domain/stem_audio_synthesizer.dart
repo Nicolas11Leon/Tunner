@@ -34,9 +34,13 @@ class StemAudioSynthesizer {
     return math.max(1.0, totalTicks * secondsPerTick);
   }
 
-  /// Convierte un número de nota MIDI a su frecuencia fundamental $f_0$ en Hz (con A4 = 440 Hz).
-  static double midiPitchToFrequency(int midiPitch) {
-    return 440.0 * math.pow(2.0, (midiPitch - 69) / 12.0);
+  /// Convierte un número de nota MIDI a su frecuencia fundamental $f_0$ en Hz (con referencia A4 configurable, por defecto 440 Hz).
+  static double midiPitchToFrequency(
+    int midiPitch, {
+    double referencePitchHz = 440.0,
+  }) {
+    final safeRef = referencePitchHz > 0.0 ? referencePitchHz : 440.0;
+    return safeRef * math.pow(2.0, (midiPitch - 69) / 12.0);
   }
 
   /// Sintetiza el stem de la melodía de la partitura como arreglo PCM de 16 bits.

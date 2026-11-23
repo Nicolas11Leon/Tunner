@@ -1,8 +1,6 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../song_library/domain/song_decomposer_service.dart';
 import '../domain/dj_audio_processor.dart';
-import '../../../core/channels/domain/studio_patchbay_routing_service.dart';
 import '../../../core/channels/domain/studio_modular_plug.dart';
 import '../../../core/channels/domain/studio_plug_type.dart';
 import '../../../core/channels/presentation/studio_channel_patchbay_bar_widget.dart';
@@ -21,6 +19,7 @@ import '../../../core/docking/presentation/studio_dockable_panel_entity.dart';
 import '../../../core/docking/presentation/studio_workspace_docking_container.dart';
 import 'dj_console_model_builder_modal.dart';
 import 'dj_console_view_model.dart';
+import 'dj_deck_patchbay_bridge.dart';
 import 'dj_interactive_keymap_visualizer_modal.dart';
 import 'dj_parallel_waveform_painter.dart';
 import 'dj_track_loader_modal.dart';
@@ -54,10 +53,7 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
   late final FocusNode _focusNode;
   late String _workstationViewMode;
 
-  late final StudioPatchbayRoutingService _patchbayService;
-  late final StudioModularPlug _deckAPlug;
-  late final StudioModularPlug _deckBPlug;
-  late final StudioModularPlug _masterOutPlug;
+  late final DjDeckPatchbayBridge _patchbayBridge;
 
   @override
   void initState() {
@@ -71,132 +67,20 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
       _internalVm = true;
     }
 
-    _patchbayService = StudioPatchbayRoutingService();
-    _deckAPlug = const StudioModularPlug(
-      id: 'plug_dj_deck_a_in',
-      label: 'IN DECK A',
-      toolId: 'dj_console',
-      type: StudioPlugType.audioInput,
-      connectedChannelId: 'canal_a',
+    _patchbayBridge = DjDeckPatchbayBridge(
+      viewModel: _viewModel,
+      scopePrefix: DjDeckPatchbayBridge.nextScopePrefix('dj_workstation'),
+      includeMasterOut: true,
     );
-    _deckBPlug = const StudioModularPlug(
-      id: 'plug_dj_deck_b_in',
-      label: 'IN DECK B',
-      toolId: 'dj_console',
-      type: StudioPlugType.audioInput,
-      connectedChannelId: 'canal_b',
-    );
-    _masterOutPlug = const StudioModularPlug(
-      id: 'plug_dj_master_out',
-      label: 'OUT MASTER',
-      toolId: 'dj_console',
-      type: StudioPlugType.audioOutput,
-      connectedChannelId: 'canal_d',
-    );
-
-    _patchbayService.registerPlug(_deckAPlug);
-    _patchbayService.registerPlug(_deckBPlug);
-    _patchbayService.registerPlug(_masterOutPlug);
-
-    // Escuchas para sincronización reactiva bidireccional hacia los Decks
-    _patchbayService.registerSinkListener('plug_dj_deck_a_in', (sourceId, channelId, payload) {
-      if (sourceId == 'plug_dj_deck_a_in') return;
-      final wavBytes = payload['wavBytes'] as Uint8List?;
-      final filePath = payload['filePath'] as String?;
-      final title = payload['title'] as String?;
-      final bpm = (payload['bpm'] as num?)?.toDouble();
-      final key = payload['key'] as String?;
-      if (wavBytes != null || filePath != null) {
-        _viewModel.loadDeckTrack(
-          deckId: 'A',
-          wavBytes: wavBytes,
-          filePath: filePath,
-          title: title,
-          bpm: bpm,
-        );
-      } else if (title != null || bpm != null || key != null) {
-        _viewModel.loadTrackSimple(
-          'A',
-          title: title ?? _viewModel.deckA.trackTitle,
-          bpm: bpm ?? _viewModel.deckA.bpm,
-          camelotKey: key ?? _viewModel.deckA.camelotKey,
-        );
-      }
-      final isPlaying = payload['isPlaying'] as bool?;
-      if (isPlaying != null && isPlaying != _viewModel.deckA.isPlaying) {
-        _viewModel.togglePlay('A');
-      }
-    });
-
-    _patchbayService.registerSinkListener('plug_dj_deck_b_in', (sourceId, channelId, payload) {
-      if (sourceId == 'plug_dj_deck_b_in') return;
-      final wavBytes = payload['wavBytes'] as Uint8List?;
-      final filePath = payload['filePath'] as String?;
-      final title = payload['title'] as String?;
-      final bpm = (payload['bpm'] as num?)?.toDouble();
-      final key = payload['key'] as String?;
-      if (wavBytes != null || filePath != null) {
-        _viewModel.loadDeckTrack(
-          deckId: 'B',
-          wavBytes: wavBytes,
-          filePath: filePath,
-          title: title,
-          bpm: bpm,
-        );
-      } else if (title != null || bpm != null || key != null) {
-        _viewModel.loadTrackSimple(
-          'B',
-          title: title ?? _viewModel.deckB.trackTitle,
-          bpm: bpm ?? _viewModel.deckB.bpm,
-          camelotKey: key ?? _viewModel.deckB.camelotKey,
-        );
-      }
-      final isPlaying = payload['isPlaying'] as bool?;
-      if (isPlaying != null && isPlaying != _viewModel.deckB.isPlaying) {
-        _viewModel.togglePlay('B');
-      }
-    });
-
-    _viewModel.addListener(_syncDecksToChannels);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focusNode.requestFocus();
     });
   }
 
-  void _syncDecksToChannels() {
-    final plugA = _patchbayService.plugs['plug_dj_deck_a_in'];
-    if (plugA != null && plugA.isConnected) {
-      _patchbayService.publishChannelParameters(
-        plugA.connectedChannelId!,
-        title: _viewModel.deckA.trackTitle,
-        bpm: _viewModel.deckA.effectiveBpm,
-        key: _viewModel.deckA.effectiveCamelotKey.code,
-        isPlaying: _viewModel.deckA.isPlaying,
-        positionMs: _viewModel.deckA.currentPositionMs,
-        initiatorPlugId: 'plug_dj_deck_a_in',
-      );
-    }
-
-    final plugB = _patchbayService.plugs['plug_dj_deck_b_in'];
-    if (plugB != null && plugB.isConnected) {
-      _patchbayService.publishChannelParameters(
-        plugB.connectedChannelId!,
-        title: _viewModel.deckB.trackTitle,
-        bpm: _viewModel.deckB.effectiveBpm,
-        key: _viewModel.deckB.effectiveCamelotKey.code,
-        isPlaying: _viewModel.deckB.isPlaying,
-        positionMs: _viewModel.deckB.currentPositionMs,
-        initiatorPlugId: 'plug_dj_deck_b_in',
-      );
-    }
-  }
-
   @override
   void dispose() {
-    _viewModel.removeListener(_syncDecksToChannels);
-    _patchbayService.unregisterSinkListener('plug_dj_deck_a_in');
-    _patchbayService.unregisterSinkListener('plug_dj_deck_b_in');
+    _patchbayBridge.dispose();
     _focusNode.dispose();
     if (_internalVm) {
       _viewModel.dispose();
@@ -241,7 +125,7 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                     _buildShortcutsHud(context, tokens, vm),
 
                     // 3. Barra Modular de Parcheo Troncal (Canal A, B, C, D)
-                    StudioChannelPatchbayBarWidget(routingService: _patchbayService),
+                    StudioChannelPatchbayBarWidget(routingService: _patchbayBridge.routingService),
 
                     // 4. Visor Central Condicional según Modo de Vista
                     Expanded(
@@ -795,8 +679,8 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                   type: StudioPlugType.audioOutput,
                   connectedChannelId: 'canal_a',
                 );
-                _patchbayService.registerPlug(scorePlug);
-                _patchbayService.dispatchSignalFromPlug(
+                _patchbayBridge.routingService.registerPlug(scorePlug);
+                _patchbayBridge.routingService.dispatchSignalFromPlug(
                   sourcePlugId: 'plug_score_melody_out',
                   payload: {
                     'title': 'Partitura: Sonata No. 1 en C Mayor',
@@ -893,8 +777,8 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
 
               // Plug Modular Interactivo de Entrada
               StudioModularPlugWidget(
-                plug: deckId == 'A' ? _deckAPlug : _deckBPlug,
-                routingService: _patchbayService,
+                plug: deckId == 'A' ? _patchbayBridge.deckAPlug : _patchbayBridge.deckBPlug,
+                routingService: _patchbayBridge.routingService,
                 showLabel: false,
                 size: 24.0,
               ),

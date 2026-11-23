@@ -34,6 +34,7 @@ class PracticeRecorderController {
   final Stopwatch _recordingStopwatch = Stopwatch();
   final List<double> _rawWaveformPeaks = [];
   final List<double> _currentWaveformPeaks = [];
+  bool _waveformPeaksDirty = false;
   final List<TimedPitchSample> _currentPitchTrack = [];
   final List<TimedSpectralSample> _currentSpectralTrack = [];
 
@@ -70,7 +71,18 @@ class PracticeRecorderController {
 
   bool get isAudioRecording => _isAudioRecording;
   Duration get recordingDuration => _recordingDuration;
-  List<double> get currentWaveformPeaks => List.unmodifiable(_currentWaveformPeaks);
+  List<double> get currentWaveformPeaks {
+    _refreshWaveformPeaksIfNeeded();
+    return List.unmodifiable(_currentWaveformPeaks);
+  }
+
+  void _refreshWaveformPeaksIfNeeded() {
+    if (!_waveformPeaksDirty) return;
+    _currentWaveformPeaks
+      ..clear()
+      ..addAll(downsampleWaveformPeaks(_rawWaveformPeaks));
+    _waveformPeaksDirty = false;
+  }
   List<double> get rawWaveformPeaks => List.unmodifiable(_rawWaveformPeaks);
   List<TimedPitchSample> get currentPitchTrack => List.unmodifiable(_currentPitchTrack);
   List<TimedPitchSample> get rawCurrentPitchTrack => _currentPitchTrack;
@@ -134,10 +146,14 @@ class PracticeRecorderController {
       _rawWaveformPeaks
         ..clear()
         ..addAll(compacted);
+      _waveformPeaksDirty = true;
+      return;
     }
-    _currentWaveformPeaks
-      ..clear()
-      ..addAll(downsampleWaveformPeaks(_rawWaveformPeaks));
+    if (!_waveformPeaksDirty && _rawWaveformPeaks.length <= maxWaveformPeaks) {
+      _currentWaveformPeaks.add(sanitizedPeak);
+    } else {
+      _waveformPeaksDirty = true;
+    }
   }
 
   void updatePlaybackPosition(Duration pos) {
@@ -160,6 +176,7 @@ class PracticeRecorderController {
   void clearMultiTrackTracks() {
     _rawWaveformPeaks.clear();
     _currentWaveformPeaks.clear();
+    _waveformPeaksDirty = false;
     _currentPitchTrack.clear();
     _currentSpectralTrack.clear();
   }
@@ -201,6 +218,7 @@ class PracticeRecorderController {
 
     _rawWaveformPeaks.clear();
     _currentWaveformPeaks.clear();
+    _waveformPeaksDirty = false;
     _currentPitchTrack.clear();
     _currentSpectralTrack.clear();
     _recordingDuration = Duration.zero;
@@ -245,6 +263,7 @@ class PracticeRecorderController {
 
     final filePath = await _recorderService.stopRecording();
     if (filePath != null && recordedDuration.inMilliseconds >= 500) {
+      _refreshWaveformPeaksIfNeeded();
       _recordingDuration = recordedDuration;
       final recording = PracticeRecordingEntity(
         id: 'rec_${DateTime.now().millisecondsSinceEpoch}',

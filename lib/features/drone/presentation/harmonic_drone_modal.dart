@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/design_system/studio_design_system.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/drone_timbre.dart';
 import '../domain/harmonic_drone_config.dart';
@@ -26,7 +27,7 @@ class HarmonicDroneModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<TunerViewModel>();
-    final palette = viewModel.currentPalette;
+    final tokens = StudioThemeScope.of(context);
     final config = viewModel.droneConfig;
     final isPlaying = viewModel.isDronePlaying;
 
@@ -45,9 +46,9 @@ class HarmonicDroneModal extends StatelessWidget {
     return Container(
       height: MediaQuery.of(context).size.height * 0.88,
       decoration: BoxDecoration(
-        color: palette.scaffoldBackground,
+        color: tokens.canvasBackground,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.2)),
+        border: Border.all(color: tokens.borderHairline),
         boxShadow: const [
           BoxShadow(
             color: Colors.black54,
@@ -64,7 +65,7 @@ class HarmonicDroneModal extends StatelessWidget {
             width: 44,
             height: 4,
             decoration: BoxDecoration(
-              color: palette.staffLinesColor.withValues(alpha: 0.4),
+              color: tokens.borderHairline,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -78,10 +79,16 @@ class HarmonicDroneModal extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: palette.primaryAccent.withValues(alpha: 0.15),
+                    color: tokens.elevatedSurface,
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: tokens.borderHairline),
                   ),
-                  child: Icon(Icons.waves, color: palette.primaryAccent, size: 22),
+                  child: StudioIcon(
+                    StudioIconId.moduleDrone,
+                    color: tokens.accentPrimary,
+                    size: 20,
+                    tintCustomAsset: true,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -91,7 +98,7 @@ class HarmonicDroneModal extends StatelessWidget {
                       Text(
                         'Estudio de Dron Armónico',
                         style: TextStyle(
-                          color: palette.textColor,
+                          color: tokens.textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -99,7 +106,7 @@ class HarmonicDroneModal extends StatelessWidget {
                       Text(
                         'Tono pedal continuo para entrenamiento de intonación',
                         style: TextStyle(
-                          color: palette.textMutedColor,
+                          color: tokens.textMuted,
                           fontSize: 11,
                         ),
                       ),
@@ -108,13 +115,18 @@ class HarmonicDroneModal extends StatelessWidget {
                 ),
                 IconButton(
                   key: const Key('close_drone_modal_btn'),
-                  icon: Icon(Icons.close, color: palette.textMutedColor),
+                  icon: StudioIcon(
+                    StudioIconId.uiCloseConfirm,
+                    size: 18,
+                    color: tokens.textSecondary,
+                    tintCustomAsset: true,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
           ),
-          const Divider(height: 24, thickness: 0.5),
+          Divider(height: 24, thickness: 0.5, color: tokens.borderSubtle),
 
           // Cuerpo con scroll
           Expanded(
@@ -126,13 +138,13 @@ class HarmonicDroneModal extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: isPlaying
-                        ? palette.primaryAccent.withValues(alpha: 0.12)
-                        : palette.cardBackground,
+                        ? tokens.elevatedSurface
+                        : tokens.panelBackground,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: isPlaying
-                          ? palette.primaryAccent
-                          : palette.staffLinesColor.withValues(alpha: 0.25),
+                          ? tokens.accentPrimary
+                          : tokens.borderHairline,
                       width: isPlaying ? 1.6 : 1.0,
                     ),
                   ),
@@ -149,7 +161,7 @@ class HarmonicDroneModal extends StatelessWidget {
                                   config.rootDisplayName,
                                   key: const Key('active_drone_note_label'),
                                   style: TextStyle(
-                                    color: isPlaying ? palette.primaryAccent : palette.textColor,
+                                    color: isPlaying ? tokens.accentPrimary : tokens.textPrimary,
                                     fontSize: 28,
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -158,7 +170,7 @@ class HarmonicDroneModal extends StatelessWidget {
                                   '${config.timbre.displayName} • ${fundHz.toStringAsFixed(1)} Hz'
                                   '${config.includeFifth ? ' + 5ta (${fifthHz.toStringAsFixed(1)} Hz)' : ''}',
                                   style: TextStyle(
-                                    color: palette.textMutedColor,
+                                    color: tokens.textMuted,
                                     fontSize: 11,
                                   ),
                                   overflow: TextOverflow.ellipsis,
@@ -170,14 +182,16 @@ class HarmonicDroneModal extends StatelessWidget {
                           ElevatedButton.icon(
                             key: const Key('toggle_drone_playback_btn'),
                             onPressed: () => viewModel.toggleDrone(),
-                            icon: Icon(
-                              isPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded,
-                              size: 24,
+                            icon: StudioIcon(
+                              isPlaying ? StudioIconId.transportStop : StudioIconId.transportPlay,
+                              size: 18,
+                              color: isPlaying ? Colors.white : tokens.textOnAccent,
+                              tintCustomAsset: true,
                             ),
                             label: Text(isPlaying ? 'DETENER' : 'ACTIVAR'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: isPlaying ? Colors.redAccent : palette.primaryAccent,
-                              foregroundColor: Colors.black,
+                              backgroundColor: isPlaying ? tokens.accentDanger : tokens.accentPrimary,
+                              foregroundColor: isPlaying ? Colors.white : tokens.textOnAccent,
                               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -195,7 +209,7 @@ class HarmonicDroneModal extends StatelessWidget {
                 Text(
                   'Nota Fundamental',
                   style: TextStyle(
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
@@ -217,19 +231,19 @@ class HarmonicDroneModal extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? palette.secondaryAccent
-                              : palette.cardBackground,
+                              ? tokens.accentPrimary
+                              : tokens.panelBackground,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: isSelected
-                                ? palette.secondaryAccent
-                                : palette.staffLinesColor.withValues(alpha: 0.2),
+                                ? tokens.accentPrimary
+                                : tokens.borderHairline,
                           ),
                         ),
                         child: Text(
                           noteName,
                           style: TextStyle(
-                            color: isSelected ? Colors.black : palette.textColor,
+                            color: isSelected ? tokens.textOnAccent : tokens.textPrimary,
                             fontSize: 12,
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                           ),
@@ -244,7 +258,7 @@ class HarmonicDroneModal extends StatelessWidget {
                 Text(
                   'Octava de Registro (0 a 8)',
                   style: TextStyle(
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
@@ -267,19 +281,19 @@ class HarmonicDroneModal extends StatelessWidget {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
-                              color: isSelected ? palette.primaryAccent : palette.cardBackground,
+                              color: isSelected ? tokens.accentPrimary : tokens.panelBackground,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: isSelected
-                                    ? palette.primaryAccent
-                                    : palette.staffLinesColor.withValues(alpha: 0.2),
+                                    ? tokens.accentPrimary
+                                    : tokens.borderHairline,
                               ),
                             ),
                             child: Text(
                               label,
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: isSelected ? Colors.black : palette.textColor,
+                                color: isSelected ? tokens.textOnAccent : tokens.textPrimary,
                                 fontSize: 12,
                                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                               ),
@@ -296,7 +310,7 @@ class HarmonicDroneModal extends StatelessWidget {
                 Text(
                   'Capas Armónicas Secundarias',
                   style: TextStyle(
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
@@ -304,9 +318,9 @@ class HarmonicDroneModal extends StatelessWidget {
                 const SizedBox(height: 8),
                 Container(
                   decoration: BoxDecoration(
-                    color: palette.cardBackground,
+                    color: tokens.panelBackground,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.2)),
+                    border: Border.all(color: tokens.borderHairline),
                   ),
                   child: Column(
                     children: [
@@ -320,11 +334,11 @@ class HarmonicDroneModal extends StatelessWidget {
                                 children: [
                                   Text(
                                     'Quinta Armónica Superior (${config.fifthDisplayName})',
-                                    style: TextStyle(color: palette.textColor, fontSize: 13),
+                                    style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                                   ),
                                   Text(
                                     'Intervalo puro 3:2 o temperado para consonancia acústica',
-                                    style: TextStyle(color: palette.textMutedColor, fontSize: 10),
+                                    style: TextStyle(color: tokens.textMuted, fontSize: 10),
                                   ),
                                 ],
                               ),
@@ -332,7 +346,7 @@ class HarmonicDroneModal extends StatelessWidget {
                             Switch(
                               key: const Key('drone_toggle_fifth_switch'),
                               value: config.includeFifth,
-                              activeThumbColor: palette.primaryAccent,
+                              activeThumbColor: tokens.accentPrimary,
                               onChanged: (val) {
                                 viewModel.setDroneConfig(config.copyWith(includeFifth: val));
                               },
@@ -340,7 +354,7 @@ class HarmonicDroneModal extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const Divider(height: 1, thickness: 0.5),
+                      Divider(height: 1, thickness: 0.5, color: tokens.borderSubtle),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: Row(
@@ -351,11 +365,11 @@ class HarmonicDroneModal extends StatelessWidget {
                                 children: [
                                   Text(
                                     'Octava Superior (${config.octaveDisplayName})',
-                                    style: TextStyle(color: palette.textColor, fontSize: 13),
+                                    style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                                   ),
                                   Text(
                                     'Refuerzo de presencia y brillo armónico',
-                                    style: TextStyle(color: palette.textMutedColor, fontSize: 10),
+                                    style: TextStyle(color: tokens.textMuted, fontSize: 10),
                                   ),
                                 ],
                               ),
@@ -363,7 +377,7 @@ class HarmonicDroneModal extends StatelessWidget {
                             Switch(
                               key: const Key('drone_toggle_octave_switch'),
                               value: config.includeOctave,
-                              activeThumbColor: palette.primaryAccent,
+                              activeThumbColor: tokens.accentPrimary,
                               onChanged: (val) {
                                 viewModel.setDroneConfig(config.copyWith(includeOctave: val));
                               },
@@ -380,7 +394,7 @@ class HarmonicDroneModal extends StatelessWidget {
                 Text(
                   'Timbre Acústico Sintetizado',
                   style: TextStyle(
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
@@ -392,54 +406,60 @@ class HarmonicDroneModal extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Material(
                       color: isSelected
-                          ? palette.primaryAccent.withValues(alpha: 0.12)
-                          : palette.cardBackground,
+                          ? tokens.elevatedSurface
+                          : tokens.panelBackground,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                         side: BorderSide(
                           color: isSelected
-                              ? palette.primaryAccent
-                              : palette.staffLinesColor.withValues(alpha: 0.2),
+                              ? tokens.accentPrimary
+                              : tokens.borderHairline,
                         ),
                       ),
                       child: ListTile(
-                      key: Key('drone_timbre_${timbre.name}'),
-                      title: Text(
-                        timbre.displayName,
-                        style: TextStyle(
-                          color: isSelected ? palette.primaryAccent : palette.textColor,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          fontSize: 13,
+                        key: Key('drone_timbre_${timbre.name}'),
+                        title: Text(
+                          timbre.displayName,
+                          style: TextStyle(
+                            color: isSelected ? tokens.accentPrimary : tokens.textPrimary,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            fontSize: 13,
+                          ),
                         ),
+                        subtitle: Text(
+                          timbre.description,
+                          style: TextStyle(color: tokens.textMuted, fontSize: 10),
+                        ),
+                        trailing: isSelected
+                            ? StudioIcon(
+                                StudioIconId.uiCloseConfirm,
+                                color: tokens.accentSuccess,
+                                size: 18,
+                                tintCustomAsset: true,
+                                fallbackOverride: Icons.check_circle,
+                              )
+                            : null,
+                        onTap: () {
+                          viewModel.setDroneConfig(config.copyWith(timbre: timbre));
+                        },
                       ),
-                      subtitle: Text(
-                        timbre.description,
-                        style: TextStyle(color: palette.textMutedColor, fontSize: 10),
-                      ),
-                      trailing: isSelected
-                          ? Icon(Icons.check_circle, color: palette.primaryAccent, size: 20)
-                          : null,
-                      onTap: () {
-                        viewModel.setDroneConfig(config.copyWith(timbre: timbre));
-                      },
                     ),
-                  ),
-                );
+                  );
                 }),
                 const SizedBox(height: 16),
 
                 // Sliders de Volumen y Balance
                 Text(
                   'Volumen General (${(config.volume * 100).round()}%)',
-                  style: TextStyle(color: palette.textColor, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: tokens.textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
                 ),
                 Slider(
                   key: const Key('drone_volume_slider'),
                   value: config.volume,
                   min: 0.0,
                   max: 1.0,
-                  activeColor: palette.primaryAccent,
-                  inactiveColor: palette.staffLinesColor.withValues(alpha: 0.3),
+                  activeColor: tokens.accentPrimary,
+                  inactiveColor: tokens.borderHairline,
                   onChanged: (val) {
                     viewModel.setDroneConfig(config.copyWith(volume: val));
                   },
@@ -447,15 +467,15 @@ class HarmonicDroneModal extends StatelessWidget {
 
                 Text(
                   'Balance Armónico (${(config.harmonicBalance * 100).round()}%)',
-                  style: TextStyle(color: palette.textColor, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: tokens.textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
                 ),
                 Slider(
                   key: const Key('drone_balance_slider'),
                   value: config.harmonicBalance,
                   min: 0.0,
                   max: 1.0,
-                  activeColor: palette.secondaryAccent,
-                  inactiveColor: palette.staffLinesColor.withValues(alpha: 0.3),
+                  activeColor: tokens.accentSecondary,
+                  inactiveColor: tokens.borderHairline,
                   onChanged: (val) {
                     viewModel.setDroneConfig(config.copyWith(harmonicBalance: val));
                   },

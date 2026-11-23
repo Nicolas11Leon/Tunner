@@ -150,6 +150,30 @@ class JsonLocalPersistenceService implements ILocalPersistenceService {
       if (await tempFile.exists()) {
         await tempFile.delete();
       }
+      final parentDir = targetFile.parent;
+      if (await parentDir.exists()) {
+        final targetBaseName =
+            targetFile.path.replaceAll('\\', '/').split('/').last;
+        final orphanPrefix = '$targetBaseName.';
+        await for (final entity in parentDir.list(followLinks: false)) {
+          if (entity is! File) continue;
+          final entityName =
+              entity.path.replaceAll('\\', '/').split('/').last;
+          if (entityName.startsWith(orphanPrefix) &&
+              entityName.endsWith('.tmp')) {
+            try {
+              await entity.delete();
+            } catch (e, st) {
+              StudioDebugLogger.instance.warning(
+                'JsonLocalPersistenceService',
+                'Advertencia al eliminar temporal huerfano $entityName',
+                error: e,
+                stackTrace: st,
+              );
+            }
+          }
+        }
+      }
     } catch (e, st) {
       StudioDebugLogger.instance.warning(
         'JsonLocalPersistenceService',

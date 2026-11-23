@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/design_system/studio_design_system.dart';
 import '../../tuner_viewmodel.dart';
 import '../../tuner/presentation/microphone_calibration_modal.dart';
 import 'practice_recording_player_modal.dart';
 import 'spectral_comparator_modal.dart';
 
 /// Barra de control y estado de grabación de práctica acústica (*Practice Recorder Dock*).
-/// Diseñada con estética de estudio profesional, animación de pulso carmesí y contador digital.
+/// Diseñada con estética de estudio profesional OLED Monochrome, animación de pulso y contador digital.
 class PracticeRecorderDock extends StatefulWidget {
   const PracticeRecorderDock({super.key});
 
@@ -47,7 +48,7 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<TunerViewModel>();
-    final palette = vm.currentPalette;
+    final tokens = StudioThemeScope.of(context);
     final isRecording = vm.isAudioRecording;
     final hasActiveRecording = vm.activeRecording != null;
 
@@ -65,19 +66,19 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
-        color: palette.cardBackground.withValues(alpha: 0.95),
+        color: tokens.panelBackground.withValues(alpha: 0.96),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isRecording
-              ? Colors.redAccent.withValues(alpha: 0.8)
-              : palette.staffLinesColor.withValues(alpha: 0.3),
+              ? tokens.accentDanger.withValues(alpha: 0.85)
+              : tokens.borderHairline,
           width: isRecording ? 1.5 : 1.0,
         ),
         boxShadow: [
           BoxShadow(
             color: isRecording
-                ? Colors.redAccent.withValues(alpha: 0.25)
-                : Colors.black.withValues(alpha: 0.20),
+                ? tokens.accentDanger.withValues(alpha: 0.25)
+                : Colors.black.withValues(alpha: 0.25),
             blurRadius: isRecording ? 12 : 6,
             spreadRadius: isRecording ? 2 : 0,
           ),
@@ -103,16 +104,16 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: isRecording
-                          ? Colors.redAccent
-                          : palette.primaryAccent.withValues(alpha: 0.15),
+                          ? tokens.accentDanger
+                          : tokens.elevatedSurface,
                       border: Border.all(
-                        color: isRecording ? Colors.white : palette.primaryAccent,
+                        color: isRecording ? tokens.textPrimary : tokens.accentPrimary,
                         width: 2,
                       ),
                       boxShadow: isRecording
                           ? [
                               BoxShadow(
-                                color: Colors.redAccent.withValues(alpha: 0.6),
+                                color: tokens.accentDanger.withValues(alpha: 0.55),
                                 blurRadius: 8,
                                 spreadRadius: 2,
                               )
@@ -120,10 +121,13 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
                           : [],
                     ),
                     child: Center(
-                      child: Icon(
-                        isRecording ? Icons.stop_rounded : Icons.fiber_manual_record_rounded,
-                        color: isRecording ? Colors.white : Colors.redAccent,
-                        size: isRecording ? 20 : 18,
+                      child: StudioIcon(
+                        isRecording
+                            ? StudioIconId.transportStop
+                            : StudioIconId.transportRecord,
+                        color: isRecording ? Colors.white : tokens.accentDanger,
+                        size: isRecording ? 18 : 16,
+                        tintCustomAsset: true,
                       ),
                     ),
                   ),
@@ -141,7 +145,7 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
               Text(
                 isRecording ? "GRABANDO TOMA" : "AUTO-ESCUCHA",
                 style: TextStyle(
-                  color: isRecording ? Colors.redAccent : palette.textMutedColor,
+                  color: isRecording ? tokens.accentDanger : tokens.textMuted,
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 0.8,
@@ -154,7 +158,7 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
                         ? "Toma lista (${vm.activeRecording!.formattedDuration})"
                         : "Micrófono listo"),
                 style: TextStyle(
-                  color: palette.textColor,
+                  color: tokens.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   fontFeatures: const [FontFeature.tabularFigures()],
@@ -181,7 +185,7 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
                     width: 3.5,
                     height: (peak * 20.0).clamp(3.0, 20.0),
                     decoration: BoxDecoration(
-                      color: Colors.redAccent.withValues(alpha: 0.9),
+                      color: tokens.accentDanger.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   );
@@ -196,10 +200,8 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
             ElevatedButton.icon(
               key: const Key('open_practice_player_button'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: palette.primaryAccent,
-                foregroundColor: palette.brightness == Brightness.dark
-                    ? Colors.black
-                    : Colors.white,
+                backgroundColor: tokens.accentPrimary,
+                foregroundColor: tokens.textOnAccent,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -214,7 +216,12 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
                   builder: (_) => const PracticeRecordingPlayerModal(),
                 );
               },
-              icon: const Icon(Icons.play_circle_fill_rounded, size: 16),
+              icon: StudioIcon(
+                StudioIconId.transportPlay,
+                size: 16,
+                color: tokens.textOnAccent,
+                tintCustomAsset: true,
+              ),
               label: const Text(
                 "Escuchar",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
@@ -230,7 +237,12 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
               tooltip: "Comparador Espectral de Tomas",
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              icon: Icon(Icons.compare_arrows, size: 20, color: palette.secondaryAccent),
+              icon: StudioIcon(
+                StudioIconId.moduleSpectrogram,
+                size: 18,
+                color: tokens.accentSecondary,
+                tintCustomAsset: true,
+              ),
               onPressed: () => SpectralComparatorModal.show(context, vm),
             ),
             const SizedBox(width: 4),
@@ -239,7 +251,12 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
               tooltip: "Calibración de Micrófono & Rigurosidad (${vm.acousticRigorProfile.preset.displayName})",
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              icon: Icon(Icons.mic_external_on_outlined, size: 20, color: palette.primaryAccent),
+              icon: StudioIcon(
+                StudioIconId.audioMicOn,
+                size: 18,
+                color: tokens.accentPrimary,
+                tintCustomAsset: true,
+              ),
               onPressed: () => MicrophoneCalibrationModal.show(context, vm),
             ),
           ],

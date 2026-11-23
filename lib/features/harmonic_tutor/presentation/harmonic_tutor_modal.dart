@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/tunner_theme.dart';
+import '../../../core/design_system/studio_design_system.dart';
 import '../domain/harmonic_role_entity.dart';
 import '../domain/just_intonation_calculator.dart';
 import 'harmonic_beat_gauge.dart';
@@ -9,7 +9,7 @@ import 'harmonic_tutor_view_model.dart';
 /// canceling acoustic beating in real time.
 class HarmonicTutorModal extends StatelessWidget {
   final HarmonicTutorViewModel viewModel;
-  final TunnerThemePalette palette;
+  final TunnerThemePalette? palette;
   final bool Function()? isMicrophoneActive;
   final Future<void> Function()? onToggleMicrophone;
   final Listenable? microphoneListenable;
@@ -17,7 +17,7 @@ class HarmonicTutorModal extends StatelessWidget {
   const HarmonicTutorModal({
     super.key,
     required this.viewModel,
-    required this.palette,
+    this.palette,
     this.isMicrophoneActive,
     this.onToggleMicrophone,
     this.microphoneListenable,
@@ -26,7 +26,7 @@ class HarmonicTutorModal extends StatelessWidget {
   static Future<void> show(
     BuildContext context, {
     required HarmonicTutorViewModel viewModel,
-    required TunnerThemePalette palette,
+    TunnerThemePalette? palette,
     bool Function()? isMicrophoneActive,
     Future<void> Function()? onToggleMicrophone,
     Listenable? microphoneListenable,
@@ -57,6 +57,8 @@ class HarmonicTutorModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.of(context);
+
     return ListenableBuilder(
       listenable: Listenable.merge([
         viewModel,
@@ -70,12 +72,18 @@ class HarmonicTutorModal extends StatelessWidget {
               rootFrequency: session.rootFrequency,
             );
 
+        final statusColor = analysis.status == HarmonicLockStatus.pureConsonance
+            ? tokens.accentSuccess
+            : analysis.status == HarmonicLockStatus.adjusting
+                ? tokens.accentWarning
+                : tokens.accentDanger;
+
         return Container(
           height: MediaQuery.of(context).size.height * 0.90,
           decoration: BoxDecoration(
-            color: palette.scaffoldBackground,
+            color: tokens.canvasBackground,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.25)),
+            border: Border.all(color: tokens.borderHairline),
           ),
           child: Column(
             children: [
@@ -84,7 +92,12 @@ class HarmonicTutorModal extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
-                    Icon(Icons.waves, color: palette.primaryAccent, size: 24),
+                    StudioIcon(
+                      StudioIconId.moduleDrone,
+                      color: tokens.accentPrimary,
+                      size: 22,
+                      tintCustomAsset: true,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
@@ -93,26 +106,31 @@ class HarmonicTutorModal extends StatelessWidget {
                           Text(
                             'Tutor de Entonación Armónica Adaptativa',
                             style: TextStyle(
-                              color: palette.textColor,
+                              color: tokens.textPrimary,
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             'Afinación Justa (JI), roles armónicos y anulación de batimientos',
-                            style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                            style: TextStyle(color: tokens.textMuted, fontSize: 11),
                           ),
                         ],
                       ),
                     ),
                     IconButton(
-                      icon: Icon(Icons.close, color: palette.textColor),
+                      icon: StudioIcon(
+                        StudioIconId.uiCloseConfirm,
+                        size: 18,
+                        color: tokens.textSecondary,
+                        tintCustomAsset: true,
+                      ),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
                 ),
               ),
-              Divider(height: 1, color: palette.staffLinesColor.withValues(alpha: 0.2)),
+              Divider(height: 1, color: tokens.borderSubtle),
 
               // 2. Main Body
               Expanded(
@@ -123,10 +141,10 @@ class HarmonicTutorModal extends StatelessWidget {
                     children: [
                       // Context Setup Card (Root + Chord Type + Drone Switch)
                       Material(
-                        color: palette.cardBackground,
+                        color: tokens.panelBackground,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.15)),
+                          side: BorderSide(color: tokens.borderHairline),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(14),
@@ -138,7 +156,7 @@ class HarmonicTutorModal extends StatelessWidget {
                                   Text(
                                     'ACORDE GUÍA DE ENSAMBLE',
                                     style: TextStyle(
-                                      color: palette.textMutedColor,
+                                      color: tokens.textMuted,
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       letterSpacing: 1.0,
@@ -149,27 +167,32 @@ class HarmonicTutorModal extends StatelessWidget {
                                   OutlinedButton.icon(
                                     key: const Key('toggle_harmonic_drone_btn'),
                                     onPressed: () => viewModel.toggleDrone(),
-                                    icon: Icon(
-                                      session.isDroneActive ? Icons.volume_up : Icons.volume_off,
+                                    icon: StudioIcon(
+                                      StudioIconId.audioVolumeOn,
                                       size: 14,
-                                      color: session.isDroneActive ? const Color(0xFF00E676) : palette.textMutedColor,
+                                      color: session.isDroneActive
+                                          ? tokens.accentSuccess
+                                          : tokens.textMuted,
+                                      tintCustomAsset: true,
                                     ),
                                     label: Text(
                                       session.isDroneActive ? 'Dron Guía Activo' : 'Activar Dron Guía',
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
-                                        color: session.isDroneActive ? const Color(0xFF00E676) : palette.textColor,
+                                        color: session.isDroneActive
+                                            ? tokens.accentSuccess
+                                            : tokens.textPrimary,
                                       ),
                                     ),
                                     style: OutlinedButton.styleFrom(
                                       side: BorderSide(
                                         color: session.isDroneActive
-                                            ? const Color(0xFF00E676)
-                                            : palette.staffLinesColor.withValues(alpha: 0.3),
+                                            ? tokens.accentSuccess
+                                            : tokens.borderHairline,
                                       ),
                                       backgroundColor: session.isDroneActive
-                                          ? const Color(0xFF00E676).withValues(alpha: 0.1)
+                                          ? tokens.accentSuccess.withValues(alpha: 0.12)
                                           : Colors.transparent,
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                       minimumSize: const Size(0, 30),
@@ -188,7 +211,18 @@ class HarmonicTutorModal extends StatelessWidget {
                                   return ChoiceChip(
                                     label: Text(root.name, style: const TextStyle(fontSize: 11)),
                                     selected: isSelected,
-                                    selectedColor: palette.primaryAccent.withValues(alpha: 0.3),
+                                    backgroundColor: tokens.elevatedSurface,
+                                    selectedColor: tokens.accentPrimary.withValues(alpha: 0.2),
+                                    side: BorderSide(
+                                      color: isSelected
+                                          ? tokens.accentPrimary
+                                          : tokens.borderHairline,
+                                    ),
+                                    labelStyle: TextStyle(
+                                      color: isSelected
+                                          ? tokens.accentPrimary
+                                          : tokens.textPrimary,
+                                    ),
                                     onSelected: (val) {
                                       if (val) viewModel.setRootNote(root.name, root.freq);
                                     },
@@ -202,15 +236,15 @@ class HarmonicTutorModal extends StatelessWidget {
                                 children: [
                                   Text(
                                     'Modalidad:',
-                                    style: TextStyle(color: palette.textColor, fontSize: 12),
+                                    style: TextStyle(color: tokens.textPrimary, fontSize: 12),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: DropdownButton<HarmonicChordType>(
                                       value: session.chordType,
-                                      dropdownColor: palette.cardBackground,
+                                      dropdownColor: tokens.panelBackground,
                                       isDense: true,
-                                      style: TextStyle(color: palette.textColor, fontSize: 12),
+                                      style: TextStyle(color: tokens.textPrimary, fontSize: 12),
                                       items: HarmonicChordType.values.map((type) {
                                         return DropdownMenuItem(
                                           value: type,
@@ -232,13 +266,13 @@ class HarmonicTutorModal extends StatelessWidget {
 
                       // Real-time Acoustic Beat & Consonance Gauge
                       Material(
-                        color: palette.cardBackground,
+                        color: tokens.panelBackground,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                           side: BorderSide(
                             color: analysis.isLocked
-                                ? const Color(0xFF00E676).withValues(alpha: 0.5)
-                                : palette.staffLinesColor.withValues(alpha: 0.15),
+                                ? tokens.accentSuccess.withValues(alpha: 0.5)
+                                : tokens.borderHairline,
                           ),
                         ),
                         child: Padding(
@@ -248,7 +282,7 @@ class HarmonicTutorModal extends StatelessWidget {
                               Text(
                                 'VELOCIDAD DE BATIMIENTO ACÚSTICO',
                                 style: TextStyle(
-                                  color: palette.textMutedColor,
+                                  color: tokens.textMuted,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.0,
@@ -260,7 +294,7 @@ class HarmonicTutorModal extends StatelessWidget {
                                 centsOffset: analysis.centsOffsetFromJi,
                                 beatFrequencyHz: analysis.beatFrequencyHz,
                                 status: analysis.status,
-                                accentColor: palette.primaryAccent,
+                                accentColor: tokens.accentPrimary,
                               ),
                               const SizedBox(height: 8),
 
@@ -268,28 +302,14 @@ class HarmonicTutorModal extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: analysis.status == HarmonicLockStatus.pureConsonance
-                                      ? const Color(0xFF00E676).withValues(alpha: 0.2)
-                                      : analysis.status == HarmonicLockStatus.adjusting
-                                          ? const Color(0xFFFFB300).withValues(alpha: 0.2)
-                                          : const Color(0xFFE53935).withValues(alpha: 0.2),
+                                  color: statusColor.withValues(alpha: 0.16),
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: analysis.status == HarmonicLockStatus.pureConsonance
-                                        ? const Color(0xFF00E676)
-                                        : analysis.status == HarmonicLockStatus.adjusting
-                                            ? const Color(0xFFFFB300)
-                                            : const Color(0xFFE53935),
-                                  ),
+                                  border: Border.all(color: statusColor),
                                 ),
                                 child: Text(
                                   analysis.status.label,
                                   style: TextStyle(
-                                    color: analysis.status == HarmonicLockStatus.pureConsonance
-                                        ? const Color(0xFF00E676)
-                                        : analysis.status == HarmonicLockStatus.adjusting
-                                            ? const Color(0xFFFFB300)
-                                            : const Color(0xFFE53935),
+                                    color: statusColor,
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -303,10 +323,10 @@ class HarmonicTutorModal extends StatelessWidget {
 
                       // Harmonic Role & Acoustic Physics Breakdown
                       Material(
-                        color: palette.cardBackground,
+                        color: tokens.panelBackground,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.15)),
+                          side: BorderSide(color: tokens.borderHairline),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(14),
@@ -318,14 +338,14 @@ class HarmonicTutorModal extends StatelessWidget {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: palette.primaryAccent.withValues(alpha: 0.2),
+                                      color: tokens.elevatedSurface,
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: palette.primaryAccent),
+                                      border: Border.all(color: tokens.accentPrimary),
                                     ),
                                     child: Text(
                                       analysis.role.symbol,
                                       style: TextStyle(
-                                        color: palette.primaryAccent,
+                                        color: tokens.accentPrimary,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14,
                                       ),
@@ -339,21 +359,21 @@ class HarmonicTutorModal extends StatelessWidget {
                                         Text(
                                           'Rol: ${analysis.role.labelEs} (${analysis.role.numerator}/${analysis.role.denominator})',
                                           style: TextStyle(
-                                            color: palette.textColor,
+                                            color: tokens.textPrimary,
                                             fontSize: 14,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                         Text(
                                           analysis.role.description,
-                                          style: TextStyle(color: palette.textMutedColor, fontSize: 11),
+                                          style: TextStyle(color: tokens.textMuted, fontSize: 11),
                                         ),
                                       ],
                                     ),
                                   ),
                                 ],
                               ),
-                              const Divider(height: 20),
+                              Divider(height: 20, color: tokens.borderSubtle),
 
                               // Frequency & Cents Comparisons
                               Wrap(
@@ -361,10 +381,10 @@ class HarmonicTutorModal extends StatelessWidget {
                                 spacing: 12,
                                 runSpacing: 8,
                                 children: [
-                                  _buildStatColumn('Frecuencia Usuario', '${analysis.userFrequency.toStringAsFixed(2)} Hz', palette),
-                                  _buildStatColumn('Diana Justa (JI)', '${analysis.targetFrequencyJi.toStringAsFixed(2)} Hz', palette),
-                                  _buildStatColumn('Desviación JI', '${analysis.centsOffsetFromJi >= 0 ? "+" : ""}${analysis.centsOffsetFromJi.toStringAsFixed(1)} c', palette),
-                                  _buildStatColumn('Offset 12-TET', '${analysis.role.tetOffsetCents >= 0 ? "+" : ""}${analysis.role.tetOffsetCents.toStringAsFixed(1)} c', palette),
+                                  _buildStatColumn('Frecuencia Usuario', '${analysis.userFrequency.toStringAsFixed(2)} Hz', tokens),
+                                  _buildStatColumn('Diana Justa (JI)', '${analysis.targetFrequencyJi.toStringAsFixed(2)} Hz', tokens),
+                                  _buildStatColumn('Desviación JI', '${analysis.centsOffsetFromJi >= 0 ? "+" : ""}${analysis.centsOffsetFromJi.toStringAsFixed(1)} c', tokens),
+                                  _buildStatColumn('Offset 12-TET', '${analysis.role.tetOffsetCents >= 0 ? "+" : ""}${analysis.role.tetOffsetCents.toStringAsFixed(1)} c', tokens),
                                 ],
                               ),
                               const SizedBox(height: 12),
@@ -374,14 +394,14 @@ class HarmonicTutorModal extends StatelessWidget {
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.04),
+                                  color: tokens.inputSurface,
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.white10),
+                                  border: Border.all(color: tokens.borderSubtle),
                                 ),
                                 child: Text(
                                   analysis.tuningAdvice,
                                   style: TextStyle(
-                                    color: palette.textColor,
+                                    color: tokens.textPrimary,
                                     fontSize: 12,
                                     fontStyle: FontStyle.italic,
                                   ),
@@ -396,10 +416,10 @@ class HarmonicTutorModal extends StatelessWidget {
 
                       // Live Acoustic Capture Control
                       Material(
-                        color: palette.cardBackground,
+                        color: tokens.panelBackground,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.15)),
+                          side: BorderSide(color: tokens.borderHairline),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(12),
@@ -409,7 +429,7 @@ class HarmonicTutorModal extends StatelessWidget {
                               Text(
                                 'CAPTURA ACÚSTICA EN VIVO (MICRÓFONO)',
                                 style: TextStyle(
-                                  color: palette.textMutedColor,
+                                  color: tokens.textMuted,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.0,
@@ -423,22 +443,28 @@ class HarmonicTutorModal extends StatelessWidget {
                                       (isMicrophoneActive?.call() ?? false)
                                           ? 'Microfono activo: ${analysis.userFrequency > 0 ? "${analysis.userFrequency.toStringAsFixed(2)} Hz" : "escuchando señal..."}'
                                           : 'Activa el microfono para medir batimientos e intervalos reales.',
-                                      style: TextStyle(color: palette.textColor, fontSize: 11.5),
+                                      style: TextStyle(color: tokens.textPrimary, fontSize: 11.5),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   ElevatedButton.icon(
                                     key: const Key('harmonic_tutor_mic_toggle_btn'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: tokens.accentPrimary,
+                                      foregroundColor: tokens.textOnAccent,
+                                    ),
                                     onPressed: onToggleMicrophone == null
                                         ? null
                                         : () async {
                                             await onToggleMicrophone!();
                                           },
-                                    icon: Icon(
+                                    icon: StudioIcon(
                                       (isMicrophoneActive?.call() ?? false)
-                                          ? Icons.mic_off
-                                          : Icons.mic,
+                                          ? StudioIconId.audioMicOff
+                                          : StudioIconId.audioMicOn,
                                       size: 16,
+                                      color: tokens.textOnAccent,
+                                      tintCustomAsset: true,
                                     ),
                                     label: Text(
                                       (isMicrophoneActive?.call() ?? false)
@@ -464,12 +490,12 @@ class HarmonicTutorModal extends StatelessWidget {
     );
   }
 
-  Widget _buildStatColumn(String label, String value, TunnerThemePalette palette) {
+  Widget _buildStatColumn(String label, String value, StudioDesignTokens tokens) {
     return Column(
       children: [
-        Text(label, style: TextStyle(color: palette.textMutedColor, fontSize: 10)),
+        Text(label, style: TextStyle(color: tokens.textMuted, fontSize: 10)),
         const SizedBox(height: 2),
-        Text(value, style: TextStyle(color: palette.textColor, fontSize: 12, fontWeight: FontWeight.bold)),
+        Text(value, style: TextStyle(color: tokens.textPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
       ],
     );
   }

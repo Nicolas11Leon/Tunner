@@ -215,8 +215,10 @@ class _ActiveLessonPracticeView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Selector horizontal de pasos (Stepper)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: List.generate(progress.lesson.totalSteps, (index) {
               final isCurrent = index == progress.currentStepIndex;
               final isDone = index < progress.currentStepIndex ||
@@ -236,7 +238,6 @@ class _ActiveLessonPracticeView extends StatelessWidget {
                 onTap: () => viewModel.jumpToLessonStep(index),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: dotColor.withValues(alpha: 0.15),

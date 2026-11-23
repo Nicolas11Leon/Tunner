@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tunner/core/audio/infrastructure/memory_studio_audio_engine.dart';
 import 'package:tunner/features/dj_console/data/dj_deck_audio_service.dart';
 import 'package:tunner/features/dj_console/data/memory_dj_deck_audio_player.dart';
 import 'package:tunner/features/dj_console/domain/dj_action.dart';
@@ -42,7 +43,7 @@ void main() {
     });
 
     test('DjDeckAudioService executes cleanly in headless test environment', () async {
-      final service = DjDeckAudioService();
+      final service = DjDeckAudioService(audioEngine: MemoryStudioAudioEngine());
 
       expect(service.isDeckPlaying('A'), isFalse);
       expect(service.isDeckPlaying('B'), isFalse);

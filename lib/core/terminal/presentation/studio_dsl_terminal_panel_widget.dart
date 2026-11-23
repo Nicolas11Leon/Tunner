@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../design_system/studio_design_system.dart';
+import '../../dsl/domain/tunner_dsl_template_catalog.dart';
 import '../application/tunner_os_kernel.dart';
 
 /// Consola REPL y editor interactivo para Tunner DSL en Tunner Studio.
-/// Permite redactar, cargar plantillas y evaluar scripts declarativos en caliente.
+/// Permite redactar, cargar plantillas del catálogo canónico [TunnerDslTemplateCatalog]
+/// y evaluar scripts declarativos en caliente.
 class StudioDslTerminalPanelWidget extends StatefulWidget {
   final TunnerOsKernel kernel;
   final VoidCallback? onClose;
@@ -25,6 +28,7 @@ class _StudioDslTerminalPanelWidgetState extends State<StudioDslTerminalPanelWid
 
   final List<String> _outputLog = [];
   bool _isEvaluating = false;
+  String _activeTemplateId = 'quick_jam';
 
   static const String _templateQuickJam = '''
 // Plantilla: Quick Jam
@@ -93,8 +97,9 @@ set @comp.ratio = 3.5;
     });
   }
 
-  void _loadTemplate(String templateCode) {
+  void _loadTemplate(String templateId, String templateCode) {
     setState(() {
+      _activeTemplateId = templateId;
       _codeController.text = templateCode.trim();
     });
     _focusNode.requestFocus();
@@ -121,18 +126,14 @@ set @comp.ratio = 3.5;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final panelBg = isDark ? const Color(0xFF18181B) : const Color(0xFFF4F4F5);
-    final borderColor = isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7);
-    final editorBg = isDark ? const Color(0xFF09090B) : const Color(0xFFFFFFFF);
-    final textColor = isDark ? const Color(0xFFF4F4F5) : const Color(0xFF18181B);
+    final tokens = StudioThemeScope.of(context);
+    final catalogTemplates = TunnerDslTemplateCatalog.allTemplates;
 
     return Container(
       decoration: BoxDecoration(
-        color: panelBg,
-        border: Border.all(color: borderColor, width: 1.0),
-        borderRadius: BorderRadius.circular(6.0),
+        color: tokens.panelBackground,
+        border: Border.all(color: tokens.borderHairline, width: tokens.borderWidth),
+        borderRadius: BorderRadius.circular(tokens.borderRadiusLarge),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -141,12 +142,19 @@ set @comp.ratio = 3.5;
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: borderColor, width: 1.0)),
-              color: isDark ? const Color(0xFF202024) : const Color(0xFFEBEBEF),
+              border: Border(
+                bottom: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
+              ),
+              color: tokens.panelHeaderBackground,
             ),
             child: Row(
               children: [
-                const Icon(Icons.terminal, size: 16.0),
+                StudioIcon(
+                  StudioIconId.toolTerminal,
+                  size: 16.0,
+                  color: tokens.accentPrimary,
+                  tintCustomAsset: true,
+                ),
                 const SizedBox(width: 8.0),
                 Text(
                   'TUNNER DSL STUDIO REPL',
@@ -154,34 +162,151 @@ set @comp.ratio = 3.5;
                     fontSize: 12.0,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
-                    color: textColor,
-                  ),
-                ),
-                const Spacer(),
-                // Selector de Plantillas
-                TextButton.icon(
-                  onPressed: () => _loadTemplate(_templateQuickJam),
-                  icon: const Icon(Icons.music_note, size: 14.0),
-                  label: const Text('Quick Jam', style: TextStyle(fontSize: 11.0)),
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  ),
-                ),
-                const SizedBox(width: 4.0),
-                TextButton.icon(
-                  onPressed: () => _loadTemplate(_templateMastering),
-                  icon: const Icon(Icons.tune, size: 14.0),
-                  label: const Text('Mastering Chain', style: TextStyle(fontSize: 11.0)),
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    color: tokens.textPrimary,
                   ),
                 ),
                 const SizedBox(width: 8.0),
+                // Presets rápidos y catálogo canónico TunnerDslTemplateCatalog
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                        TextButton.icon(
+                          onPressed: () => _loadTemplate('quick_jam', _templateQuickJam),
+                          icon: StudioIcon(
+                            StudioIconId.fileMusicXmlMidi,
+                            size: 13.0,
+                            color: _activeTemplateId == 'quick_jam'
+                                ? tokens.accentPrimary
+                                : tokens.textSecondary,
+                            tintCustomAsset: true,
+                          ),
+                          label: Text(
+                            'Quick Jam',
+                            style: TextStyle(
+                              fontSize: 11.0,
+                              color: _activeTemplateId == 'quick_jam'
+                                  ? tokens.textPrimary
+                                  : tokens.textSecondary,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 4.0),
+                          ),
+                        ),
+                        const SizedBox(width: 4.0),
+                        TextButton.icon(
+                          onPressed: () => _loadTemplate('mastering', _templateMastering),
+                          icon: StudioIcon(
+                            StudioIconId.moduleTuner,
+                            size: 13.0,
+                            color: _activeTemplateId == 'mastering'
+                                ? tokens.accentPrimary
+                                : tokens.textSecondary,
+                            tintCustomAsset: true,
+                          ),
+                          label: Text(
+                            'Mastering Chain',
+                            style: TextStyle(
+                              fontSize: 11.0,
+                              color: _activeTemplateId == 'mastering'
+                                  ? tokens.textPrimary
+                                  : tokens.textSecondary,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 4.0),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ),
+                ),
+                const SizedBox(width: 6.0),
+                PopupMenuButton<TunnerDslTemplate>(
+                  key: const Key('dsl_catalog_templates_menu'),
+                  tooltip: 'Plantillas canónicas Tunner DSL',
+                  color: tokens.panelBackground,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                    side: BorderSide(color: tokens.borderHairline),
+                  ),
+                  onSelected: (template) =>
+                      _loadTemplate(template.id, template.sourceCode),
+                  itemBuilder: (ctx) => catalogTemplates
+                      .map(
+                        (template) => PopupMenuItem<TunnerDslTemplate>(
+                          key: Key('dsl_template_${template.id}'),
+                          value: template,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                template.title,
+                                style: TextStyle(
+                                  color: tokens.textPrimary,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                '${template.category} · ${template.defaultBpm.round()} BPM',
+                                style: TextStyle(
+                                  color: tokens.textMuted,
+                                  fontSize: 10.0,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(growable: false),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                    decoration: BoxDecoration(
+                      color: tokens.elevatedSurface,
+                      borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                      border: Border.all(color: tokens.borderHairline),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        StudioIcon(
+                          StudioIconId.filePreset,
+                          size: 12.0,
+                          color: tokens.accentPrimary,
+                          tintCustomAsset: true,
+                        ),
+                        const SizedBox(width: 4.0),
+                        Text(
+                          'Catálogo (${catalogTemplates.length})',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: tokens.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6.0),
                 IconButton(
                   tooltip: 'Limpiar salida',
-                  icon: const Icon(Icons.clear_all, size: 16.0),
+                  icon: Icon(Icons.clear_all, size: 16.0, color: tokens.textSecondary),
                   onPressed: _clearOutput,
                   visualDensity: VisualDensity.compact,
                 ),
@@ -189,7 +314,12 @@ set @comp.ratio = 3.5;
                   const SizedBox(width: 4.0),
                   IconButton(
                     tooltip: 'Cerrar panel',
-                    icon: const Icon(Icons.close, size: 16.0),
+                    icon: StudioIcon(
+                      StudioIconId.uiCloseConfirm,
+                      size: 15.0,
+                      color: tokens.textSecondary,
+                      tintCustomAsset: true,
+                    ),
                     onPressed: widget.onClose,
                     visualDensity: VisualDensity.compact,
                   ),
@@ -202,7 +332,7 @@ set @comp.ratio = 3.5;
           Expanded(
             flex: 3,
             child: Container(
-              color: editorBg,
+              color: tokens.inputSurface,
               padding: const EdgeInsets.all(8.0),
               child: Focus(
                 focusNode: _focusNode,
@@ -211,17 +341,19 @@ set @comp.ratio = 3.5;
                   controller: _codeController,
                   maxLines: null,
                   expands: true,
+                  cursorColor: tokens.accentPrimary,
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 12.5,
-                    color: textColor,
+                    color: tokens.textPrimary,
                     height: 1.4,
                   ),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     border: InputBorder.none,
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
                     hintText: '// Escribe tu script Tunner DSL aqui...',
+                    hintStyle: TextStyle(color: tokens.textMuted),
                   ),
                 ),
               ),
@@ -233,28 +365,46 @@ set @comp.ratio = 3.5;
             padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
             decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: borderColor, width: 1.0),
-                bottom: BorderSide(color: borderColor, width: 1.0),
+                top: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
+                bottom: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
               ),
-              color: isDark ? const Color(0xFF1E1E22) : const Color(0xFFECECEE),
+              color: tokens.panelHeaderBackground,
             ),
             child: Row(
               children: [
                 ElevatedButton.icon(
                   onPressed: _isEvaluating ? null : _evaluateScript,
                   icon: _isEvaluating
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 12.0,
                           height: 12.0,
-                          child: CircularProgressIndicator(strokeWidth: 2.0),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.0,
+                            color: tokens.textOnAccent,
+                          ),
                         )
-                      : const Icon(Icons.play_arrow, size: 14.0),
-                  label: const Text('Ejecutar (Ctrl+Enter)', style: TextStyle(fontSize: 11.5)),
+                      : StudioIcon(
+                          StudioIconId.transportPlay,
+                          size: 13.0,
+                          color: tokens.textOnAccent,
+                          tintCustomAsset: true,
+                        ),
+                  label: Text(
+                    'Ejecutar (Ctrl+Enter)',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: tokens.textOnAccent,
+                    ),
+                  ),
                   style: ElevatedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
-                    backgroundColor: const Color(0xFF2563EB),
-                    foregroundColor: Colors.white,
+                    backgroundColor: tokens.accentPrimary,
+                    foregroundColor: tokens.textOnAccent,
                     padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12.0),
@@ -264,7 +414,7 @@ set @comp.ratio = 3.5;
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 10.5,
-                      color: isDark ? Colors.white54 : Colors.black54,
+                      color: tokens.textMuted,
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -277,22 +427,21 @@ set @comp.ratio = 3.5;
           Expanded(
             flex: 2,
             child: Container(
-              color: isDark ? const Color(0xFF0F0F12) : const Color(0xFFFAFAFA),
+              color: tokens.canvasBackground,
               padding: const EdgeInsets.all(8.0),
               child: ListView.builder(
                 controller: _outputScrollController,
                 itemCount: _outputLog.length,
                 itemBuilder: (context, index) {
                   final entry = _outputLog[index];
-                  final isError = entry.contains('Error de sintaxis') || entry.contains('Fallo de evaluacion');
+                  final isError = entry.contains('Error de sintaxis') ||
+                      entry.contains('Fallo de evaluacion');
                   return SelectableText(
                     entry,
                     style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 11.0,
-                      color: isError
-                          ? const Color(0xFFF87171)
-                          : (isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D)),
+                      color: isError ? tokens.accentDanger : tokens.accentSuccess,
                       height: 1.35,
                     ),
                   );

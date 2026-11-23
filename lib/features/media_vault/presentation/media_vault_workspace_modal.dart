@@ -72,8 +72,8 @@ class _MediaVaultWorkspaceModalState extends State<MediaVaultWorkspaceModal> {
         ),
       );
     } else {
-      final result = await widget.viewModel.exportTimeline(format);
-      if (!mounted) return;
+      final result = widget.viewModel.lastExportResult;
+      if (result == null) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.message),
@@ -954,7 +954,17 @@ class _ClipWaveformPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (peaks.isEmpty || size.width <= 0 || size.height <= 0) return;
+    if (peaks.isEmpty ||
+        !size.width.isFinite ||
+        !size.height.isFinite ||
+        size.width <= 0 ||
+        size.height <= 0) {
+      return;
+    }
+
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+
     final paint = Paint()
       ..color = color
       ..strokeWidth = 1.5
@@ -963,13 +973,18 @@ class _ClipWaveformPainter extends CustomPainter {
     final count = peaks.length;
     final stepX = size.width / count;
     final midY = size.height / 2.0;
+    final maxHalfH = size.height * 0.45;
+    final minHalfH = maxHalfH < 1.0 ? maxHalfH : 1.0;
 
     for (int i = 0; i < count; i++) {
-      final amp = peaks[i].clamp(0.0, 1.0);
-      final halfH = (amp * size.height * 0.42).clamp(1.0, size.height * 0.45);
+      final rawPeak = peaks[i];
+      final amp = (rawPeak.isFinite ? rawPeak : 0.0).clamp(0.0, 1.0);
+      final halfH = (amp * size.height * 0.42).clamp(minHalfH, maxHalfH);
       final x = (i + 0.5) * stepX;
       canvas.drawLine(Offset(x, midY - halfH), Offset(x, midY + halfH), paint);
     }
+
+    canvas.restore();
   }
 
   @override

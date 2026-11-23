@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/tunner_theme.dart';
+import '../../../core/design_system/studio_design_system.dart';
 import '../domain/workspace_type.dart';
 
 /// Barra de conmutación de espacios de trabajo minimalista y fluida.
@@ -18,23 +18,18 @@ class WorkspaceSwitchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = StudioThemeScope.of(context);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
       padding: const EdgeInsets.all(4.0),
       decoration: BoxDecoration(
-        color: palette.cardBackground,
-        borderRadius: BorderRadius.circular(16),
+        color: tokens.panelBackground,
+        borderRadius: BorderRadius.circular(tokens.borderRadiusLarge),
         border: Border.all(
-          color: palette.staffLinesColor.withValues(alpha: 0.25),
-          width: 1.0,
+          color: tokens.borderHairline,
+          width: tokens.borderWidth,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: Row(
         children: WorkspaceType.values.map((workspace) {
@@ -45,30 +40,31 @@ class WorkspaceSwitchBar extends StatelessWidget {
             child: InkWell(
               key: Key(keyName),
               onTap: () => onWorkspaceSelected(workspace),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(tokens.radiusMedium),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
+                duration: const Duration(milliseconds: 180),
                 curve: Curves.easeInOut,
                 padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? palette.primaryAccent.withValues(alpha: 0.18)
+                      ? tokens.elevatedSurface
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(tokens.radiusMedium),
                   border: Border.all(
                     color: isSelected
-                        ? palette.primaryAccent.withValues(alpha: 0.7)
+                        ? tokens.borderFocus
                         : Colors.transparent,
-                    width: isSelected ? 1.2 : 0.0,
+                    width: tokens.borderWidth,
                   ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      _iconForWorkspace(workspace),
-                      size: 16,
-                      color: isSelected ? palette.primaryAccent : palette.textMutedColor,
+                    StudioIcon(
+                      _iconIdForWorkspace(workspace),
+                      size: 15,
+                      color: isSelected ? tokens.accentPrimary : tokens.textMuted,
+                      tintCustomAsset: true,
                     ),
                     const SizedBox(width: 6),
                     Flexible(
@@ -76,7 +72,7 @@ class WorkspaceSwitchBar extends StatelessWidget {
                         workspace.displayName,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: isSelected ? palette.primaryAccent : palette.textColor,
+                          color: isSelected ? tokens.textPrimary : tokens.textSecondary,
                           fontSize: 12,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                           letterSpacing: 0.4,
@@ -93,14 +89,14 @@ class WorkspaceSwitchBar extends StatelessWidget {
     );
   }
 
-  IconData _iconForWorkspace(WorkspaceType type) {
+  StudioIconId _iconIdForWorkspace(WorkspaceType type) {
     switch (type) {
       case WorkspaceType.learning:
-        return Icons.school_outlined;
+        return StudioIconId.modulePedagogy;
       case WorkspaceType.composition:
-        return Icons.auto_stories_outlined;
+        return StudioIconId.moduleScoreSheet;
       case WorkspaceType.production:
-        return Icons.graphic_eq_outlined;
+        return StudioIconId.moduleSpectrogram;
     }
   }
 }

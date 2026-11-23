@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import '../core/terminal/domain/i_terminal_feature_ports.dart';
 import '../features/pedagogy/domain/ebbinghaus_spaced_repetition_engine.dart';
-import '../features/pedagogy/domain/pedagogical_certificate_pdf_generator.dart';
+import '../features/pedagogy/infrastructure/pedagogical_certificate_pdf_generator.dart';
 import '../features/pedagogy/domain/vocal_stability_evaluator.dart';
 import '../features/sheet_music/domain/score_playback_coordinator.dart';
 import '../features/tuner_viewmodel.dart';

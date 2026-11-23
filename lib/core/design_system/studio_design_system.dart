@@ -1,6 +1,8 @@
 export 'studio_design_tokens.dart';
 export 'studio_theme_provider.dart';
-export 'tunner_theme.dart';
+export 'domain/studio_icon_catalog.dart';
+export 'domain/studio_workspace_tab_spec.dart';
+export '../theme/tunner_theme.dart';
 
 // Átomos
 export 'atoms/studio_badge.dart';

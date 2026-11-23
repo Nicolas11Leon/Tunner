@@ -7,140 +7,190 @@ import 'media_asset_entity.dart';
 import 'wav_pcm_codec.dart';
 
 /// In-memory repository for the Multimedia Vault with deterministic seeded
-/// offline demo assets so the workspace is immediately interactive.
+/// offline demo assets materialized lazily on demand so construction never
+/// blocks the UI thread with synchronous PCM synthesis.
 class InMemoryMediaVaultRepository implements IMediaVaultRepository {
-  final Map<String, MediaAssetEntity> _assets = <String, MediaAssetEntity>{};
+  static const List<String> _seedIds = <String>[
+    'seed_house_groove',
+    'seed_vocal_stem',
+    'seed_flute_score',
+    'seed_bassline_midi',
+  ];
 
-  InMemoryMediaVaultRepository({bool seedDefaultAssets = true}) {
-    if (seedDefaultAssets) {
-      _seedDefaults();
-    }
+  static final Map<String, MediaAssetEntity> _cachedSeeds =
+      <String, MediaAssetEntity>{};
+
+  final Map<String, MediaAssetEntity> _assets = <String, MediaAssetEntity>{};
+  final Set<String> _removedSeedIds = <String>{};
+  bool _seeded;
+
+  InMemoryMediaVaultRepository({bool seedDefaultAssets = true})
+      : _seeded = !seedDefaultAssets;
+
+  /// Indicates whether default demo seeds have already been materialized.
+  bool get isSeeded => _seeded;
+
+  @override
+  List<MediaAssetEntity> getAll() {
+    _ensureSeeded();
+    return _assets.values.toList(growable: false);
   }
 
   @override
-  List<MediaAssetEntity> getAll() =>
-      _assets.values.toList(growable: false);
-
-  @override
-  MediaAssetEntity? findById(String id) => _assets[id];
+  MediaAssetEntity? findById(String id) {
+    final existing = _assets[id];
+    if (existing != null) {
+      return existing;
+    }
+    if (!_seeded && !_removedSeedIds.contains(id) && _seedIds.contains(id)) {
+      final seed = _materializeSeed(id);
+      _assets[id] = seed;
+      return seed;
+    }
+    return null;
+  }
 
   @override
   void upsert(MediaAssetEntity asset) {
+    _removedSeedIds.remove(asset.id);
     _assets[asset.id] = asset;
   }
 
   @override
   void upsertAll(List<MediaAssetEntity> assets) {
     for (final asset in assets) {
+      _removedSeedIds.remove(asset.id);
       _assets[asset.id] = asset;
     }
   }
 
   @override
   void remove(String id) {
+    _removedSeedIds.add(id);
     _assets.remove(id);
   }
 
   @override
   void clear() {
+    _seeded = true;
+    _removedSeedIds.addAll(_seedIds);
     _assets.clear();
   }
 
-  void _seedDefaults() {
-    const codec = WavPcmCodec();
-    final houseSamples = _generateMusicalSequence(
-      44100,
-      4000,
-      const <double>[110.0, 110.0, 130.81, 146.83, 164.81, 146.83, 130.81, 110.0],
-      amplitude: 0.42,
-    );
-    final vocalStemSamples = _generateMusicalSequence(
-      44100,
-      4000,
-      const <double>[440.0, 523.25, 587.33, 659.25, 587.33, 523.25, 493.88, 440.0],
-      amplitude: 0.36,
-    );
-    final fluteSamples = _generateMusicalSequence(
-      44100,
-      4000,
-      const <double>[440.0, 493.88, 523.25, 587.33, 659.25, 698.46, 783.99, 880.0],
-      amplitude: 0.30,
-    );
-    final bassSamples = _generateMusicalSequence(
-      44100,
-      4000,
-      const <double>[55.0, 65.41, 73.42, 82.41],
-      amplitude: 0.45,
-    );
+  void _ensureSeeded() {
+    if (_seeded) return;
+    _seeded = true;
+    for (final id in _seedIds) {
+      if (!_removedSeedIds.contains(id) && !_assets.containsKey(id)) {
+        _assets[id] = _materializeSeed(id);
+      }
+    }
+  }
 
-    final houseWavBytes = codec.encodeMono16Bit(houseSamples, sampleRate: 44100);
-    final vocalWavBytes = codec.encodeMono16Bit(vocalStemSamples, sampleRate: 44100);
-    final fluteXmlBytes = Uint8List.fromList(utf8.encode(_seedMusicXmlContent()));
-    final bassMidiBytes = _seedMidiSmfBytes();
+  MediaAssetEntity _materializeSeed(String id) {
+    return _cachedSeeds.putIfAbsent(id, () => _buildSeedAsset(id));
+  }
+
+  MediaAssetEntity _buildSeedAsset(String id) {
+    const codec = WavPcmCodec();
     final now = DateTime.utc(2026, 11, 14);
 
-    upsertAll(<MediaAssetEntity>[
-      MediaAssetEntity(
-        id: 'seed_house_groove',
-        title: 'Midnight Groove 124',
-        fileName: 'midnight_groove_124.wav',
-        extensionName: 'wav',
-        kind: MediaAssetKind.audioTrack,
-        durationMs: 4000,
-        bpm: 124.0,
-        camelotKey: '8A',
-        tags: const <String>['house', 'club', 'master'],
-        createdAt: now,
-        pcmSamples: houseSamples,
-        rawBytes: houseWavBytes,
-        waveformPeaks: codec.extractPeaks(houseSamples),
-      ),
-      MediaAssetEntity(
-        id: 'seed_vocal_stem',
-        title: 'Skyline Acapella Stem',
-        fileName: 'skyline_vocals_stem.wav',
-        extensionName: 'wav',
-        kind: MediaAssetKind.stem,
-        durationMs: 4000,
-        bpm: 124.0,
-        camelotKey: '9A',
-        tags: const <String>['vocals', 'stem'],
-        createdAt: now,
-        pcmSamples: vocalStemSamples,
-        rawBytes: vocalWavBytes,
-        waveformPeaks: codec.extractPeaks(vocalStemSamples),
-      ),
-      MediaAssetEntity(
-        id: 'seed_flute_score',
-        title: 'Estudio Melodico en La Menor',
-        fileName: 'estudio_la_menor.musicxml',
-        extensionName: 'musicxml',
-        kind: MediaAssetKind.sheetMusic,
-        durationMs: 8000,
-        bpm: 124.0,
-        camelotKey: '8A',
-        tags: const <String>['partitura', 'flauta', 'musicxml'],
-        createdAt: now,
-        pcmSamples: fluteSamples,
-        rawBytes: fluteXmlBytes,
-        waveformPeaks: codec.extractPeaks(fluteSamples),
-      ),
-      MediaAssetEntity(
-        id: 'seed_bassline_midi',
-        title: 'Sub Bassline Pattern 01',
-        fileName: 'sub_bassline_01.mid',
-        extensionName: 'mid',
-        kind: MediaAssetKind.midiSequence,
-        durationMs: 4000,
-        bpm: 124.0,
-        camelotKey: '8A',
-        tags: const <String>['midi', 'bass'],
-        createdAt: now,
-        pcmSamples: bassSamples,
-        rawBytes: bassMidiBytes,
-        waveformPeaks: codec.extractPeaks(bassSamples),
-      ),
-    ]);
+    switch (id) {
+      case 'seed_house_groove':
+        final houseSamples = _generateMusicalSequence(
+          44100,
+          4000,
+          const <double>[110.0, 110.0, 130.81, 146.83, 164.81, 146.83, 130.81, 110.0],
+          amplitude: 0.42,
+        );
+        final houseWavBytes = codec.encodeMono16Bit(houseSamples, sampleRate: 44100);
+        return MediaAssetEntity(
+          id: 'seed_house_groove',
+          title: 'Midnight Groove 124',
+          fileName: 'midnight_groove_124.wav',
+          extensionName: 'wav',
+          kind: MediaAssetKind.audioTrack,
+          durationMs: 4000,
+          bpm: 124.0,
+          camelotKey: '8A',
+          tags: const <String>['house', 'club', 'master'],
+          createdAt: now,
+          pcmSamples: houseSamples,
+          rawBytes: houseWavBytes,
+          waveformPeaks: codec.extractPeaks(houseSamples),
+        );
+      case 'seed_vocal_stem':
+        final vocalStemSamples = _generateMusicalSequence(
+          44100,
+          4000,
+          const <double>[440.0, 523.25, 587.33, 659.25, 587.33, 523.25, 493.88, 440.0],
+          amplitude: 0.36,
+        );
+        final vocalWavBytes = codec.encodeMono16Bit(vocalStemSamples, sampleRate: 44100);
+        return MediaAssetEntity(
+          id: 'seed_vocal_stem',
+          title: 'Skyline Acapella Stem',
+          fileName: 'skyline_vocals_stem.wav',
+          extensionName: 'wav',
+          kind: MediaAssetKind.stem,
+          durationMs: 4000,
+          bpm: 124.0,
+          camelotKey: '9A',
+          tags: const <String>['vocals', 'stem'],
+          createdAt: now,
+          pcmSamples: vocalStemSamples,
+          rawBytes: vocalWavBytes,
+          waveformPeaks: codec.extractPeaks(vocalStemSamples),
+        );
+      case 'seed_flute_score':
+        final fluteSamples = _generateMusicalSequence(
+          44100,
+          4000,
+          const <double>[440.0, 493.88, 523.25, 587.33, 659.25, 698.46, 783.99, 880.0],
+          amplitude: 0.30,
+        );
+        final fluteXmlBytes = Uint8List.fromList(utf8.encode(_seedMusicXmlContent()));
+        return MediaAssetEntity(
+          id: 'seed_flute_score',
+          title: 'Estudio Melodico en La Menor',
+          fileName: 'estudio_la_menor.musicxml',
+          extensionName: 'musicxml',
+          kind: MediaAssetKind.sheetMusic,
+          durationMs: 8000,
+          bpm: 124.0,
+          camelotKey: '8A',
+          tags: const <String>['partitura', 'flauta', 'musicxml'],
+          createdAt: now,
+          pcmSamples: fluteSamples,
+          rawBytes: fluteXmlBytes,
+          waveformPeaks: codec.extractPeaks(fluteSamples),
+        );
+      case 'seed_bassline_midi':
+        final bassSamples = _generateMusicalSequence(
+          44100,
+          4000,
+          const <double>[55.0, 65.41, 73.42, 82.41],
+          amplitude: 0.45,
+        );
+        final bassMidiBytes = _seedMidiSmfBytes();
+        return MediaAssetEntity(
+          id: 'seed_bassline_midi',
+          title: 'Sub Bassline Pattern 01',
+          fileName: 'sub_bassline_01.mid',
+          extensionName: 'mid',
+          kind: MediaAssetKind.midiSequence,
+          durationMs: 4000,
+          bpm: 124.0,
+          camelotKey: '8A',
+          tags: const <String>['midi', 'bass'],
+          createdAt: now,
+          pcmSamples: bassSamples,
+          rawBytes: bassMidiBytes,
+          waveformPeaks: codec.extractPeaks(bassSamples),
+        );
+      default:
+        throw ArgumentError.value(id, 'id', 'Unknown seed asset id');
+    }
   }
 
   Float64List _generateMusicalSequence(

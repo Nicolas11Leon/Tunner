@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/theme/tunner_theme.dart';
+import '../../../core/design_system/studio_design_system.dart';
 import '../domain/pedagogical_report_models.dart';
 import '../../tuner_viewmodel.dart';
 
@@ -9,11 +9,11 @@ class PedagogicalReportModal extends StatefulWidget {
   const PedagogicalReportModal({super.key});
 
   static Future<void> show(BuildContext context) {
-    final vm = Provider.of<TunerViewModel>(context, listen: false);
+    final tokens = StudioThemeScope.of(context);
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: vm.currentPalette.cardBackground,
+      backgroundColor: tokens.panelBackground,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -68,16 +68,15 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<TunerViewModel>();
-    final palette = vm.currentPalette;
+    final tokens = StudioThemeScope.of(context);
     final session = vm.currentPedagogicalSessionData;
-    final cardBorder = palette.staffLinesColor.withValues(alpha: 0.3);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.88,
       decoration: BoxDecoration(
-        color: palette.cardBackground,
+        color: tokens.panelBackground,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border.all(color: cardBorder),
+        border: Border.all(color: tokens.borderHairline),
       ),
       child: Column(
         children: [
@@ -87,7 +86,7 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
             height: 4,
             margin: const EdgeInsets.only(top: 10, bottom: 6),
             decoration: BoxDecoration(
-              color: palette.textMutedColor.withValues(alpha: 0.5),
+              color: tokens.borderHairline,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -100,11 +99,16 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: palette.primaryAccent.withValues(alpha: 0.2),
+                    color: tokens.elevatedSurface,
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: tokens.borderHairline),
                   ),
-                  child: Icon(Icons.picture_as_pdf,
-                      size: 20, color: palette.primaryAccent),
+                  child: StudioIcon(
+                    StudioIconId.fileExportPdf,
+                    size: 20,
+                    color: tokens.accentPrimary,
+                    tintCustomAsset: true,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -116,27 +120,32 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: palette.textColor,
+                          color: tokens.textPrimary,
                         ),
                       ),
                       Text(
                         'Compilación Vectorial Imprimible (ISO 32000-1)',
                         style: TextStyle(
                           fontSize: 11,
-                          color: palette.textMutedColor,
+                          color: tokens.textMuted,
                         ),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.close, color: palette.textMutedColor),
+                  icon: StudioIcon(
+                    StudioIconId.uiCloseConfirm,
+                    size: 18,
+                    color: tokens.textSecondary,
+                    tintCustomAsset: true,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: tokens.borderSubtle),
 
           // Contenido con scroll
           Expanded(
@@ -150,7 +159,7 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
-                    color: palette.primaryAccent,
+                    color: tokens.accentPrimary,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -161,26 +170,23 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                       label: 'Afinación <= 5c',
                       value:
                           '${session.tuningAccuracyPercentage.toStringAsFixed(1)}%',
-                      palette: palette,
-                      accentColor: palette.correctPitchColor,
-                      cardBorder: cardBorder,
+                      tokens: tokens,
+                      accentColor: tokens.accentSuccess,
                     ),
                     const SizedBox(width: 8),
                     _buildKpiCard(
                       label: 'Desv. Media',
                       value:
                           '${session.averageCentsDeviation >= 0 ? '+' : ''}${session.averageCentsDeviation.toStringAsFixed(1)} c',
-                      palette: palette,
-                      accentColor: palette.primaryAccent,
-                      cardBorder: cardBorder,
+                      tokens: tokens,
+                      accentColor: tokens.accentPrimary,
                     ),
                     const SizedBox(width: 8),
                     _buildKpiCard(
                       label: 'Nivel Logro',
                       value: session.masteryLevel,
-                      palette: palette,
-                      accentColor: palette.secondaryAccent,
-                      cardBorder: cardBorder,
+                      tokens: tokens,
+                      accentColor: tokens.accentSecondary,
                     ),
                   ],
                 ),
@@ -193,7 +199,7 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
-                    color: palette.primaryAccent,
+                    color: tokens.accentPrimary,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -202,9 +208,9 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                   key: const Key('student_name_field'),
                   label: 'Nombre del Estudiante',
                   controller: _studentNameController,
-                  icon: Icons.person_outline,
-                  palette: palette,
-                  cardBorder: cardBorder,
+                  iconId: StudioIconId.modulePedagogy,
+                  fallbackIcon: Icons.person_outline,
+                  tokens: tokens,
                 ),
                 const SizedBox(height: 10),
 
@@ -212,9 +218,9 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                   key: const Key('instrument_name_field'),
                   label: 'Instrumento / Registro Vocal',
                   controller: _instrumentController,
-                  icon: Icons.music_note_outlined,
-                  palette: palette,
-                  cardBorder: cardBorder,
+                  iconId: StudioIconId.fileMusicXmlMidi,
+                  fallbackIcon: Icons.music_note_outlined,
+                  tokens: tokens,
                 ),
                 const SizedBox(height: 10),
 
@@ -222,9 +228,9 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                   key: const Key('institution_field'),
                   label: 'Institución / Conservatorio',
                   controller: _institutionController,
-                  icon: Icons.school_outlined,
-                  palette: palette,
-                  cardBorder: cardBorder,
+                  iconId: StudioIconId.modulePedagogy,
+                  fallbackIcon: Icons.school_outlined,
+                  tokens: tokens,
                 ),
                 const SizedBox(height: 10),
 
@@ -232,9 +238,9 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                   key: const Key('teacher_name_field'),
                   label: 'Docente / Cátedra',
                   controller: _teacherController,
-                  icon: Icons.badge_outlined,
-                  palette: palette,
-                  cardBorder: cardBorder,
+                  iconId: StudioIconId.moduleScoreSheet,
+                  fallbackIcon: Icons.badge_outlined,
+                  tokens: tokens,
                 ),
                 const SizedBox(height: 22),
 
@@ -245,7 +251,7 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
-                    color: palette.primaryAccent,
+                    color: tokens.accentPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -257,8 +263,7 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                       'Gráfico de desviación en cents vs tiempo con bandas de conservatorio',
                   value: _includeIntonation,
                   onChanged: (v) => setState(() => _includeIntonation = v),
-                  palette: palette,
-                  cardBorder: cardBorder,
+                  tokens: tokens,
                 ),
 
                 _buildSwitchTile(
@@ -268,8 +273,7 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                       'Distribución de energía espectral y centroide tímbrico',
                   value: _includeHarmonics,
                   onChanged: (v) => setState(() => _includeHarmonics = v),
-                  palette: palette,
-                  cardBorder: cardBorder,
+                  tokens: tokens,
                 ),
 
                 _buildSwitchTile(
@@ -279,8 +283,7 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                       'Desviación estándar de intervalos y consistencia métrica',
                   value: _includeJitter,
                   onChanged: (v) => setState(() => _includeJitter = v),
-                  palette: palette,
-                  cardBorder: cardBorder,
+                  tokens: tokens,
                 ),
 
                 _buildSwitchTile(
@@ -290,8 +293,7 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                       'Orla ornamental dorada, código criptográfico y sello oficial',
                   value: _includeCertificate,
                   onChanged: (v) => setState(() => _includeCertificate = v),
-                  palette: palette,
-                  cardBorder: cardBorder,
+                  tokens: tokens,
                 ),
               ],
             ),
@@ -301,8 +303,8 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
-              color: palette.cardBackground,
-              border: Border(top: BorderSide(color: cardBorder)),
+              color: tokens.panelBackground,
+              border: Border(top: BorderSide(color: tokens.borderHairline)),
             ),
             child: SizedBox(
               width: double.infinity,
@@ -310,15 +312,20 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
               child: ElevatedButton.icon(
                 key: const Key('export_pedagogical_pdf_btn'),
                 icon: _isExporting
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: tokens.textOnAccent,
                         ),
                       )
-                    : const Icon(Icons.picture_as_pdf, size: 20),
+                    : StudioIcon(
+                        StudioIconId.fileExportPdf,
+                        size: 18,
+                        color: tokens.textOnAccent,
+                        tintCustomAsset: true,
+                      ),
                 label: Text(
                   _isExporting
                       ? 'Compilando Documento...'
@@ -326,13 +333,13 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: palette.primaryAccent,
-                  foregroundColor: Colors.white,
+                  backgroundColor: tokens.accentPrimary,
+                  foregroundColor: tokens.textOnAccent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: _isExporting ? null : () => _exportPdf(vm),
+                onPressed: _isExporting ? null : () => _exportPdf(vm, tokens),
               ),
             ),
           ),
@@ -341,7 +348,7 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
     );
   }
 
-  void _exportPdf(TunerViewModel vm) {
+  Future<void> _exportPdf(TunerViewModel vm, StudioDesignTokens tokens) async {
     setState(() => _isExporting = true);
 
     try {
@@ -366,25 +373,51 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
 
       final pdfBytes = vm.exportPedagogicalReportPdf(config);
       final sizeKb = (pdfBytes.length / 1024).toStringAsFixed(1);
-      vm.platformFileGateway
-          .saveExportedBytes(
-            'tunner_pedagogical_report_${DateTime.now().millisecondsSinceEpoch}.pdf',
-            pdfBytes,
-          )
-          .catchError((_) => '');
+      final savedPath = await vm.platformFileGateway.saveExportedBytes(
+        'tunner_pedagogical_report_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        pdfBytes,
+      );
+
+      if (!mounted) return;
+
+      if (savedPath.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Exportacion cancelada o fallida.',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: tokens.accentDanger,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Reporte PDF exportado exitosamente ($sizeKb KB)',
+            'Reporte PDF exportado exitosamente ($sizeKb KB) en $savedPath',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
-          backgroundColor: const Color(0xFF00C853),
+          backgroundColor: tokens.accentSuccess,
           duration: const Duration(seconds: 3),
         ),
       );
 
       Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error al exportar reporte PDF: $e',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: tokens.accentDanger,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _isExporting = false);
@@ -395,17 +428,16 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
   Widget _buildKpiCard({
     required String label,
     required String value,
-    required TunnerThemePalette palette,
+    required StudioDesignTokens tokens,
     required Color accentColor,
-    required Color cardBorder,
   }) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: palette.cardBackground,
+          color: tokens.canvasBackground,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: cardBorder),
+          border: Border.all(color: tokens.borderHairline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -414,7 +446,7 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
               label,
               style: TextStyle(
                 fontSize: 10,
-                color: palette.textMutedColor,
+                color: tokens.textMuted,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -440,31 +472,40 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
     required Key key,
     required String label,
     required TextEditingController controller,
-    required IconData icon,
-    required TunnerThemePalette palette,
-    required Color cardBorder,
+    required StudioIconId iconId,
+    required IconData fallbackIcon,
+    required StudioDesignTokens tokens,
   }) {
     return TextFormField(
       key: key,
       controller: controller,
-      style: TextStyle(color: palette.textColor, fontSize: 13),
+      style: TextStyle(color: tokens.textPrimary, fontSize: 13),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: palette.textMutedColor, fontSize: 12),
-        prefixIcon: Icon(icon, size: 18, color: palette.primaryAccent),
+        labelStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.all(12),
+          child: StudioIcon(
+            iconId,
+            size: 16,
+            color: tokens.accentPrimary,
+            tintCustomAsset: true,
+            fallbackOverride: fallbackIcon,
+          ),
+        ),
         filled: true,
-        fillColor: palette.cardBackground,
+        fillColor: tokens.inputSurface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: cardBorder),
+          borderSide: BorderSide(color: tokens.borderHairline),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: cardBorder),
+          borderSide: BorderSide(color: tokens.borderHairline),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: palette.primaryAccent, width: 1.5),
+          borderSide: BorderSide(color: tokens.borderFocus, width: 1.5),
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -478,16 +519,15 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
     required String subtitle,
     required bool value,
     required ValueChanged<bool> onChanged,
-    required TunnerThemePalette palette,
-    required Color cardBorder,
+    required StudioDesignTokens tokens,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: palette.cardBackground,
+        color: tokens.canvasBackground,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: cardBorder),
+        border: Border.all(color: tokens.borderHairline),
       ),
       child: Row(
         children: [
@@ -501,7 +541,7 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: palette.textColor,
+                    color: tokens.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -509,7 +549,7 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
                   subtitle,
                   style: TextStyle(
                     fontSize: 11,
-                    color: palette.textMutedColor,
+                    color: tokens.textMuted,
                   ),
                 ),
               ],
@@ -519,8 +559,8 @@ class _PedagogicalReportModalState extends State<PedagogicalReportModal> {
             key: key,
             value: value,
             onChanged: onChanged,
-            activeThumbColor: palette.primaryAccent,
-            activeTrackColor: palette.primaryAccent.withValues(alpha: 0.35),
+            activeThumbColor: tokens.accentPrimary,
+            activeTrackColor: tokens.accentPrimary.withValues(alpha: 0.35),
           ),
         ],
       ),

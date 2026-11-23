@@ -9,6 +9,7 @@ import '../domain/i_studio_master_capture_service.dart';
 class StudioMasterCaptureService implements IStudioMasterCaptureService {
   String? _currentFilePath;
   RandomAccessFile? _randomAccessFile;
+  Future<void> _writeChain = Future<void>.value();
 
   int _sampleRate = 44100;
   int _channels = 2;
@@ -42,6 +43,7 @@ class StudioMasterCaptureService implements IStudioMasterCaptureService {
     _channels = channels;
     _currentFilePath = destinationPath;
     _totalAudioBytes = 0;
+    _writeChain = Future<void>.value();
 
     final file = File(destinationPath);
     if (!await file.parent.exists()) {
@@ -87,10 +89,27 @@ class StudioMasterCaptureService implements IStudioMasterCaptureService {
       byteOffset += 2;
     }
 
-    final bytes = byteData.buffer.asUint8List();
+    final bytes = Uint8List.fromList(byteData.buffer.asUint8List());
     _totalAudioBytes += bytes.length;
-    _randomAccessFile?.writeFromSync(bytes);
+    final raf = _randomAccessFile;
+    if (raf != null) {
+      _writeChain = _writeChain.then((_) async {
+        try {
+          await raf.writeFrom(bytes);
+        } catch (e, st) {
+          StudioDebugLogger.instance.warning(
+            'StudioMasterCaptureService',
+            'Error en escritura asincrona de bloque PCM WAV',
+            error: e,
+            stackTrace: st,
+          );
+        }
+      });
+    }
   }
+
+  /// Finaliza la captura esperando la cola de escritura asíncrona antes de cerrar el archivo WAV.
+  Future<String?> stopAndFinalizeCapture() => stopCapture();
 
   @override
   Future<String?> stopCapture() async {
@@ -101,6 +120,7 @@ class StudioMasterCaptureService implements IStudioMasterCaptureService {
     _durationTicker?.cancel();
 
     try {
+      await _writeChain;
       if (_randomAccessFile != null) {
         // Regresar al inicio del archivo y sobreescribir la cabecera WAV con el tamaño exacto
         await _randomAccessFile!.setPosition(0);

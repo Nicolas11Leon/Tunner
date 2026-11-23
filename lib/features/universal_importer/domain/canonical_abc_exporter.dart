@@ -1,5 +1,6 @@
 import '../../sheet_music/domain/score_tree.dart';
 import '../../song_library/domain/song_package_entity.dart';
+import 'canonical_pitch_notation_codec.dart';
 
 /// Serializador canónico en Pure Dart de partituras a estándar de texto plano ABC Notation.
 /// Produce una representación tipográfica textual estructurada, legible y compatible con editores ABC.
@@ -173,48 +174,7 @@ class CanonicalAbcExporter {
   }
 
   ({String step, int alter, int octave}) _parseSolfegeNote(String rawName) {
-    String name = rawName.trim();
-    if (name.isEmpty) return (step: 'C', alter: 0, octave: 4);
-
-    const solfegeMap = {
-      'DO': 'C',
-      'RE': 'D',
-      'MI': 'E',
-      'FA': 'F',
-      'SOL': 'G',
-      'LA': 'A',
-      'SI': 'B',
-    };
-
-    final upper = name.toUpperCase();
-    String step = 'C';
-    bool matchedSolfege = false;
-    for (final entry in solfegeMap.entries) {
-      if (upper.startsWith(entry.key)) {
-        step = entry.value;
-        name = name.substring(entry.key.length);
-        matchedSolfege = true;
-        break;
-      }
-    }
-    if (!matchedSolfege && name.isNotEmpty && RegExp(r'[A-G]').hasMatch(upper[0])) {
-      step = upper[0];
-      name = name.substring(1);
-    }
-
-    name = name.replaceAll('♯', '#').replaceAll('♭', 'b');
-    int alter = 0;
-    while (name.startsWith('#')) {
-      alter++;
-      name = name.substring(1);
-    }
-    while (name.startsWith('b') || name.startsWith('B')) {
-      alter--;
-      name = name.substring(1);
-    }
-
-    final octMatch = RegExp(r'-?\d+').firstMatch(name);
-    final int octave = (octMatch != null ? (int.tryParse(octMatch.group(0)!) ?? 4) : 4).clamp(0, 8);
-    return (step: step, alter: alter, octave: octave);
+    final parsed = CanonicalPitchNotationCodec.parseOrDefault(rawName);
+    return (step: parsed.step, alter: parsed.alter, octave: parsed.octave);
   }
 }

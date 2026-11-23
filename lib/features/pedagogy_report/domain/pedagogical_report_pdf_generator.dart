@@ -226,7 +226,7 @@ class PedagogicalReportPdfGenerator {
     b.writeln('/F2 13 Tf');
     b.writeln('0.4 0.45 0.5 rg');
     b.writeln('160 740 Td');
-    b.writeln('(${_sanitize("TUNER CONSERVATORY ACADEMY OF MUSIC")}) Tj');
+    b.writeln('(${_sanitize("TUNNER CONSERVATORY ACADEMY OF MUSIC")}) Tj');
     b.writeln('ET');
 
     b.writeln('BT');
@@ -558,27 +558,98 @@ class PedagogicalReportPdfGenerator {
     b.writeln('(${_sanitize("DIAGNOSTICO PEDAGOGICO FORMATIVO Y PAUTAS TECNICAS")}) Tj');
     b.writeln('ET');
 
-    // Texto de diagnóstico
+    // Texto de diagnóstico con ajuste de linea (word-wrap a 85 caracteres)
+    final diagnosticLines = _wrapLines(session.pedagogicalDiagnostic, maxChars: 85);
+    double cursorY = y + h - 36;
+    const double lineStep = 12.0;
+    final double minY = y + 10.0;
+
     b.writeln('BT');
     b.writeln('/F1 8.5 Tf');
     b.writeln('0.25 0.3 0.35 rg');
-    b.writeln('${x + 14} ${y + h - 36} Td');
-    b.writeln('(${_sanitize(session.pedagogicalDiagnostic)}) Tj');
+    for (int i = 0; i < diagnosticLines.length && cursorY >= minY; i++) {
+      b.writeln('1 0 0 1 ${x + 14} $cursorY Tm');
+      b.writeln('(${_sanitize(diagnosticLines[i])}) Tj');
+      cursorY -= lineStep;
+    }
 
-    // Recomendaciones con viñetas
-    b.writeln('/F2 8.5 Tf');
-    b.writeln('0.15 0.2 0.3 rg');
-    b.writeln('0 -22 Td');
-    b.writeln('(${_sanitize("Prescripciones de Estudio Focalizado:")}) Tj');
+    // Recomendaciones con viñetas y word-wrap
+    cursorY -= 8.0;
+    if (cursorY >= minY) {
+      b.writeln('/F2 8.5 Tf');
+      b.writeln('0.15 0.2 0.3 rg');
+      b.writeln('1 0 0 1 ${x + 14} $cursorY Tm');
+      b.writeln('(${_sanitize("Prescripciones de Estudio Focalizado:")}) Tj');
+      cursorY -= 14.0;
+    }
 
     b.writeln('/F1 8 Tf');
     b.writeln('0.3 0.35 0.4 rg');
-    for (int i = 0; i < session.recommendations.length; i++) {
-      b.writeln('0 -15 Td');
-      b.writeln('(${_sanitize("- ${session.recommendations[i]}")}) Tj');
+    for (int i = 0; i < session.recommendations.length && cursorY >= minY; i++) {
+      final recLines = _wrapLines('- ${session.recommendations[i]}', maxChars: 85);
+      for (int j = 0; j < recLines.length && cursorY >= minY; j++) {
+        final lineText = j == 0 ? recLines[j] : '  ${recLines[j]}';
+        b.writeln('1 0 0 1 ${x + 14} $cursorY Tm');
+        b.writeln('(${_sanitize(lineText)}) Tj');
+        cursorY -= lineStep;
+      }
+      cursorY -= 2.0;
     }
     b.writeln('ET');
     b.writeln('Q');
+  }
+
+  /// Divide un parrafo en lineas de longitud maxima [maxChars] respetando limites de palabra.
+  static List<String> _wrapLines(String text, {int maxChars = 85}) {
+    final normalized = text.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (normalized.isEmpty) return const [''];
+    if (normalized.length <= maxChars) return [normalized];
+
+    final words = normalized.split(' ');
+    final lines = <String>[];
+    final current = StringBuffer();
+
+    for (final word in words) {
+      if (current.isEmpty) {
+        if (word.length <= maxChars) {
+          current.write(word);
+        } else {
+          // Dividir palabra excepcionalmente larga en bloques de maxChars
+          for (int i = 0; i < word.length; i += maxChars) {
+            final end = math.min(i + maxChars, word.length);
+            final chunk = word.substring(i, end);
+            if (end < word.length) {
+              lines.add(chunk);
+            } else {
+              current.write(chunk);
+            }
+          }
+        }
+      } else if (current.length + 1 + word.length <= maxChars) {
+        current.write(' $word');
+      } else {
+        lines.add(current.toString());
+        current.clear();
+        if (word.length <= maxChars) {
+          current.write(word);
+        } else {
+          for (int i = 0; i < word.length; i += maxChars) {
+            final end = math.min(i + maxChars, word.length);
+            final chunk = word.substring(i, end);
+            if (end < word.length) {
+              lines.add(chunk);
+            } else {
+              current.write(chunk);
+            }
+          }
+        }
+      }
+    }
+
+    if (current.isNotEmpty) {
+      lines.add(current.toString());
+    }
+    return lines;
   }
 
   void _drawOrnamentalCorner(

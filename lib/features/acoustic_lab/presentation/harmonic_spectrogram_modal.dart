@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/design_system/studio_design_system.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/harmonic_series_analyzer.dart';
 
@@ -19,23 +20,26 @@ class HarmonicSpectrogramModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<TunerViewModel>();
-    final palette = vm.currentPalette;
+    final tokens = StudioThemeScope.of(context);
     const analyzer = HarmonicSeriesAnalyzer(maxHarmonics: 8);
 
     final hasSignal = vm.frequency > 20.0;
+    final activeSampleRate =
+        vm.audioDeviceMatrixService?.matrix.sampleRate.toDouble() ?? 44100.0;
     final analysis = hasSignal
         ? analyzer.analyze(
             fundamentalHz: vm.frequency,
             samples: vm.latestAudioSamples,
+            sampleRate: activeSampleRate,
           )
         : TimbreAnalysisResult.empty;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.72,
       decoration: BoxDecoration(
-        color: palette.cardBackground,
+        color: tokens.panelBackground,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.3)),
+        border: Border.all(color: tokens.borderHairline),
       ),
       child: Column(
         children: [
@@ -46,7 +50,7 @@ class HarmonicSpectrogramModal extends StatelessWidget {
               width: 44,
               height: 4,
               decoration: BoxDecoration(
-                color: palette.textMutedColor.withValues(alpha: 0.4),
+                color: tokens.borderHairline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -58,38 +62,54 @@ class HarmonicSpectrogramModal extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
                   children: [
-                    Text(
-                      "LABORATORIO DE TIMBRE Y ARMÓNICOS",
-                      style: TextStyle(
-                        color: palette.textMutedColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
+                    StudioIcon(
+                      StudioIconId.moduleSpectrogram,
+                      color: tokens.accentPrimary,
+                      size: 20,
+                      tintCustomAsset: true,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      hasSignal ? "${vm.noteName} (${vm.frequency.toStringAsFixed(1)} Hz)" : "Esperando señal acústica...",
-                      style: TextStyle(
-                        color: hasSignal ? palette.primaryAccent : palette.textColor,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "LABORATORIO DE TIMBRE Y ARMÓNICOS",
+                          style: TextStyle(
+                            color: tokens.textMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          hasSignal ? "${vm.noteName} (${vm.frequency.toStringAsFixed(1)} Hz)" : "Esperando señal acústica...",
+                          style: TextStyle(
+                            color: hasSignal ? tokens.accentPrimary : tokens.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
                 IconButton(
-                  icon: Icon(Icons.close, color: palette.textColor),
+                  icon: StudioIcon(
+                    StudioIconId.uiCloseConfirm,
+                    size: 18,
+                    color: tokens.textSecondary,
+                    tintCustomAsset: true,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
           ),
 
-          const Divider(height: 1),
+          Divider(height: 1, color: tokens.borderSubtle),
 
           // Cuerpo del espectrograma y métricas
           Expanded(
@@ -103,9 +123,9 @@ class HarmonicSpectrogramModal extends StatelessWidget {
                     height: 190,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: palette.scaffoldBackground,
+                      color: tokens.canvasBackground,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.2)),
+                      border: Border.all(color: tokens.borderHairline),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -140,7 +160,7 @@ class HarmonicSpectrogramModal extends StatelessWidget {
                                         ? "${h.dbLevel.toStringAsFixed(0)}dB"
                                         : "--",
                                     style: TextStyle(
-                                      color: palette.textMutedColor,
+                                      color: tokens.textMuted,
                                       fontSize: 9,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -161,11 +181,11 @@ class HarmonicSpectrogramModal extends StatelessWidget {
                                               end: Alignment.topCenter,
                                               colors: hasSignal && h.relativeAmplitude > 0.0
                                                   ? (isFund
-                                                      ? [palette.primaryAccent, palette.primaryAccent.withValues(alpha: 0.7)]
-                                                      : [palette.secondaryAccent, palette.secondaryAccent.withValues(alpha: 0.6)])
+                                                      ? [tokens.accentPrimary, tokens.accentPrimary.withValues(alpha: 0.7)]
+                                                      : [tokens.accentSecondary, tokens.accentSecondary.withValues(alpha: 0.6)])
                                                   : [
-                                                      palette.staffLinesColor.withValues(alpha: 0.2),
-                                                      palette.staffLinesColor.withValues(alpha: 0.1),
+                                                      tokens.borderHairline,
+                                                      tokens.borderSubtle,
                                                     ],
                                             ),
                                             borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
@@ -180,7 +200,7 @@ class HarmonicSpectrogramModal extends StatelessWidget {
                                   Text(
                                     "H${h.harmonicNumber}",
                                     style: TextStyle(
-                                      color: hasSignal && isFund ? palette.primaryAccent : palette.textColor,
+                                      color: hasSignal && isFund ? tokens.accentPrimary : tokens.textPrimary,
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -188,7 +208,7 @@ class HarmonicSpectrogramModal extends StatelessWidget {
                                   Text(
                                     h.frequencyHz > 0 ? "${h.frequencyHz.round()}Hz" : "--",
                                     style: TextStyle(
-                                      color: palette.textMutedColor,
+                                      color: tokens.textMuted,
                                       fontSize: 8,
                                     ),
                                   ),
@@ -212,8 +232,8 @@ class HarmonicSpectrogramModal extends StatelessWidget {
                           title: "CENTROIDE ESPECTRAL",
                           value: "${analysis.spectralCentroidHz.round()} Hz",
                           subtitle: "Centro de masa de brillo",
-                          palette: palette,
-                          icon: Icons.wb_sunny_outlined,
+                          tokens: tokens,
+                          iconId: StudioIconId.moduleSpectrogram,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -224,8 +244,8 @@ class HarmonicSpectrogramModal extends StatelessWidget {
                           title: "ENERGÍA DE SOBRETONOS",
                           value: "${analysis.totalHarmonicDistortionPercent.toStringAsFixed(1)}%",
                           subtitle: "Tasa THD armónica",
-                          palette: palette,
-                          icon: Icons.bubble_chart_outlined,
+                          tokens: tokens,
+                          iconId: StudioIconId.moduleDrone,
                         ),
                       ),
                     ],
@@ -237,13 +257,18 @@ class HarmonicSpectrogramModal extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
-                      color: palette.scaffoldBackground,
+                      color: tokens.canvasBackground,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: palette.primaryAccent.withValues(alpha: 0.3)),
+                      border: Border.all(color: tokens.borderHairline),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.graphic_eq, color: palette.primaryAccent, size: 24),
+                        StudioIcon(
+                          StudioIconId.moduleSpectrogram,
+                          color: tokens.accentPrimary,
+                          size: 22,
+                          tintCustomAsset: true,
+                        ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -252,7 +277,7 @@ class HarmonicSpectrogramModal extends StatelessWidget {
                               Text(
                                 "CUALIDAD DEL TIMBRE",
                                 style: TextStyle(
-                                  color: palette.textMutedColor,
+                                  color: tokens.textMuted,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.1,
@@ -262,7 +287,7 @@ class HarmonicSpectrogramModal extends StatelessWidget {
                               Text(
                                 analysis.timbreClassification,
                                 style: TextStyle(
-                                  color: palette.textColor,
+                                  color: tokens.textPrimary,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -286,15 +311,15 @@ class HarmonicSpectrogramModal extends StatelessWidget {
     required String title,
     required String value,
     required String subtitle,
-    required dynamic palette,
-    required IconData icon,
+    required StudioDesignTokens tokens,
+    required StudioIconId iconId,
   }) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: palette.scaffoldBackground,
+        color: tokens.canvasBackground,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: palette.staffLinesColor.withValues(alpha: 0.2)),
+        border: Border.all(color: tokens.borderHairline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -302,23 +327,31 @@ class HarmonicSpectrogramModal extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: palette.textMutedColor,
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
+              Flexible(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: tokens.textMuted,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Icon(icon, size: 14, color: palette.secondaryAccent),
+              StudioIcon(
+                iconId,
+                size: 14,
+                color: tokens.accentSecondary,
+                tintCustomAsset: true,
+              ),
             ],
           ),
           const SizedBox(height: 6),
           Text(
             value,
             style: TextStyle(
-              color: palette.textColor,
+              color: tokens.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -327,7 +360,7 @@ class HarmonicSpectrogramModal extends StatelessWidget {
           Text(
             subtitle,
             style: TextStyle(
-              color: palette.textMutedColor,
+              color: tokens.textMuted,
               fontSize: 10,
             ),
           ),

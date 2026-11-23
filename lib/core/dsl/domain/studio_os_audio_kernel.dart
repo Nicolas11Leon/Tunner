@@ -21,6 +21,9 @@ class StudioOsAudioKernel {
   Future<void> Function(String pitch, double frequencyHz, int midiNote, String durationFraction, double velocity)? onNoteTriggered;
   Future<void> Function(List<String> pitches, List<double> frequenciesHz, List<int> midiNotes, String durationFraction, double velocity)? onChordTriggered;
   Future<void> Function(String durationFraction)? onRestTriggered;
+  Future<void> Function(StudioOsNoteEvent event)? onScheduledNoteTriggered;
+  Future<void> Function(StudioOsChordEvent event)? onScheduledChordTriggered;
+  Future<void> Function(StudioOsRestEvent event)? onScheduledRestTriggered;
   Future<void> Function(String action)? onTransportChanged;
 
   StudioOsAudioKernel({
@@ -32,6 +35,9 @@ class StudioOsAudioKernel {
     this.onNoteTriggered,
     this.onChordTriggered,
     this.onRestTriggered,
+    this.onScheduledNoteTriggered,
+    this.onScheduledChordTriggered,
+    this.onScheduledRestTriggered,
     this.onTransportChanged,
   });
 
@@ -117,6 +123,8 @@ class StudioOsAudioKernel {
     int midiNote,
     String durationFraction, {
     double velocity = 0.8,
+    int scheduledOffsetMs = 0,
+    int durationMs = 0,
   }) async {
     final event = StudioOsNoteEvent(
       pitch: pitch,
@@ -124,9 +132,14 @@ class StudioOsAudioKernel {
       midiNote: midiNote,
       durationFraction: durationFraction,
       velocity: velocity,
+      scheduledOffsetMs: scheduledOffsetMs,
+      durationMs: durationMs,
       timestampMicroseconds: _nowMicroseconds,
     );
     _recordEvent(event);
+    if (onScheduledNoteTriggered != null) {
+      await onScheduledNoteTriggered!(event);
+    }
     if (onNoteTriggered != null) {
       await onNoteTriggered!(pitch, frequencyHz, midiNote, durationFraction, velocity);
     }
@@ -139,6 +152,8 @@ class StudioOsAudioKernel {
     List<int> midiNotes,
     String durationFraction, {
     double velocity = 0.8,
+    int scheduledOffsetMs = 0,
+    int durationMs = 0,
   }) async {
     final event = StudioOsChordEvent(
       pitches: pitches,
@@ -146,21 +161,35 @@ class StudioOsAudioKernel {
       midiNotes: midiNotes,
       durationFraction: durationFraction,
       velocity: velocity,
+      scheduledOffsetMs: scheduledOffsetMs,
+      durationMs: durationMs,
       timestampMicroseconds: _nowMicroseconds,
     );
     _recordEvent(event);
+    if (onScheduledChordTriggered != null) {
+      await onScheduledChordTriggered!(event);
+    }
     if (onChordTriggered != null) {
       await onChordTriggered!(pitches, frequenciesHz, midiNotes, durationFraction, velocity);
     }
   }
 
   /// Despacha un silencio métrico.
-  Future<void> dispatchRest(String durationFraction) async {
+  Future<void> dispatchRest(
+    String durationFraction, {
+    int scheduledOffsetMs = 0,
+    int durationMs = 0,
+  }) async {
     final event = StudioOsRestEvent(
       durationFraction: durationFraction,
+      scheduledOffsetMs: scheduledOffsetMs,
+      durationMs: durationMs,
       timestampMicroseconds: _nowMicroseconds,
     );
     _recordEvent(event);
+    if (onScheduledRestTriggered != null) {
+      await onScheduledRestTriggered!(event);
+    }
     if (onRestTriggered != null) {
       await onRestTriggered!(durationFraction);
     }

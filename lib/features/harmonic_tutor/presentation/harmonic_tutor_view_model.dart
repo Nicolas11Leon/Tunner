@@ -2,12 +2,13 @@ import 'package:flutter/foundation.dart';
 import '../domain/harmonic_reference_synth.dart';
 import '../domain/harmonic_role_entity.dart';
 import '../domain/harmonic_tutor_session_entity.dart';
+import '../domain/i_harmonic_reference_synth.dart';
 import '../domain/just_intonation_calculator.dart';
 
 /// ViewModel managing state, calculations, and reference synthesis
 /// for the Dynamic Just Intonation & Adaptive Harmonic Tuning Tutor.
 class HarmonicTutorViewModel extends ChangeNotifier {
-  final HarmonicReferenceSynth _synth;
+  final IHarmonicReferenceSynth _synth;
   final void Function(Float32List samples, int sampleRate)? onPlayDroneSamples;
   final VoidCallback? onStopDrone;
 
@@ -17,14 +18,12 @@ class HarmonicTutorViewModel extends ChangeNotifier {
   bool _isDisposed = false;
 
   HarmonicTutorViewModel({
-    HarmonicReferenceSynth? synth,
+    IHarmonicReferenceSynth? synth,
     HarmonicTutorSessionEntity? initialSession,
     this.onPlayDroneSamples,
     this.onStopDrone,
   })  : _synth = synth ?? HarmonicReferenceSynth(),
-        _session = initialSession ?? const HarmonicTutorSessionEntity() {
-    _updateAnalysis(261.63); // Initial analysis at unison
-  }
+        _session = initialSession ?? const HarmonicTutorSessionEntity();
 
   HarmonicTutorSessionEntity get session => _session;
   HarmonicRole? get forcedRole => _forcedRole;
@@ -82,8 +81,8 @@ class HarmonicTutorViewModel extends ChangeNotifier {
   }
 
   void _regenerateDrone() {
-    // Generate guide voices: Root + Fifth (plus Third if applicable)
-    final voices = _session.chordType.roles.take(2).toList();
+    // Synthesize all chord voices (including triads and sevenths) without truncation
+    final voices = _session.chordType.roles.toList();
     final buffer = _synth.generateChordBuffer(
       rootFrequency: _session.rootFrequency,
       roles: voices,
@@ -109,7 +108,8 @@ class HarmonicTutorViewModel extends ChangeNotifier {
   }
 
   void _recomputeActivePitch() {
-    final currentFreq = _session.activeAnalysis?.userFrequency ?? _session.rootFrequency;
+    final currentFreq = _session.activeAnalysis?.userFrequency;
+    if (currentFreq == null || currentFreq <= 0.0) return;
     _updateAnalysis(currentFreq);
   }
 

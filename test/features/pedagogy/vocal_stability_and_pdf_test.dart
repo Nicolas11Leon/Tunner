@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tunner/app/terminal_feature_adapters.dart';
 import 'package:tunner/core/terminal/application/tunner_os_kernel.dart';
-import 'package:tunner/features/pedagogy/domain/pedagogical_certificate_pdf_generator.dart';
+import 'package:tunner/features/pedagogy/infrastructure/pedagogical_certificate_pdf_generator.dart';
 import 'package:tunner/features/pedagogy/domain/vocal_stability_evaluator.dart';
 
 void main() {
@@ -199,6 +199,11 @@ void main() {
     setUp(() {
       kernel = TunnerOsKernel(
         vocalEvaluator: const VocalPedagogyTerminalAdapter(),
+        onReadCapturedFrequencies: () => List<double>.generate(
+          40,
+          (i) => 440.0 * (1.0 + 0.002 * (i.isEven ? 1 : -1)),
+        ),
+        onReadCapturedAmplitudes: () => List<double>.filled(40, 0.88),
       );
     });
 

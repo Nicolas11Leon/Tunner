@@ -1,18 +1,21 @@
+import 'dart:io';
 import 'dart:typed_data';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../../../core/file_system/domain/i_platform_file_gateway.dart';
 import '../domain/sf2/i_soundfont_synthesizer_service.dart';
 
 /// Modal bottom sheet para explorar y seleccionar timbres acústicos SoundFont SF2
 /// y probar su afinación con retorno auditivo inmediato.
 class InstrumentSoundFontSelectorModal extends StatefulWidget {
   final ISoundFontSynthesizerService synthService;
+  final IPlatformFileGateway? fileGateway;
   final Function(int patch, String name)? onInstrumentSelected;
   final void Function(Uint8List wavBytes)? onPlayPreviewWav;
 
   const InstrumentSoundFontSelectorModal({
     super.key,
     required this.synthService,
+    this.fileGateway,
     this.onInstrumentSelected,
     this.onPlayPreviewWav,
   });
@@ -20,6 +23,7 @@ class InstrumentSoundFontSelectorModal extends StatefulWidget {
   static Future<void> show(
     BuildContext context, {
     required ISoundFontSynthesizerService synthService,
+    IPlatformFileGateway? fileGateway,
     Function(int patch, String name)? onInstrumentSelected,
     void Function(Uint8List wavBytes)? onPlayPreviewWav,
   }) {
@@ -32,6 +36,7 @@ class InstrumentSoundFontSelectorModal extends StatefulWidget {
       ),
       builder: (ctx) => InstrumentSoundFontSelectorModal(
         synthService: synthService,
+        fileGateway: fileGateway,
         onInstrumentSelected: onInstrumentSelected,
         onPlayPreviewWav: onPlayPreviewWav,
       ),
@@ -99,15 +104,30 @@ class _InstrumentSoundFontSelectorModalState
   }
 
   Future<void> _pickAndLoadSoundFont() async {
+    final gateway = widget.fileGateway;
+    if (gateway == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gateway de archivos no inyectado para cargar .sf2.'),
+          ),
+        );
+      }
+      return;
+    }
     try {
-      final files = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['sf2'],
-      );
-      if (files.isNotEmpty) {
-        final file = files.first;
-        final bytes = await file.readAsBytes();
-        if (bytes.isNotEmpty) {
+      final picked = await gateway.pickFile(allowedExtensions: const ['sf2']);
+      if (picked != null) {
+        Uint8List? bytes = picked.bytes;
+        if ((bytes == null || bytes.isEmpty) &&
+            picked.path != null &&
+            picked.path!.isNotEmpty) {
+          final file = File(picked.path!);
+          if (await file.exists()) {
+            bytes = await file.readAsBytes();
+          }
+        }
+        if (bytes != null && bytes.isNotEmpty) {
           widget.synthService.loadSoundFontFromBytes(bytes);
           if (mounted) {
             setState(() {
@@ -116,7 +136,7 @@ class _InstrumentSoundFontSelectorModalState
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'SoundFont cargado: ${file.name} (${widget.synthService.availablePresets.length} presets)',
+                  'SoundFont cargado: ${picked.name} (${widget.synthService.availablePresets.length} presets)',
                 ),
                 backgroundColor: Colors.green,
               ),
