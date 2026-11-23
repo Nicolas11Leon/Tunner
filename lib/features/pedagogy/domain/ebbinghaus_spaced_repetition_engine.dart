@@ -22,6 +22,18 @@ class EarTrainingEvaluationResult {
     required this.cognitiveFeedback,
   });
 
+  Map<String, dynamic> toJson() {
+    return {
+      'updatedItem': updatedItem.toJson(),
+      'qualityGrade': qualityGrade,
+      'previousRetention': previousRetention,
+      'nextRetentionProjected': nextRetentionProjected,
+      'centsError': centsError,
+      'responseTimeSeconds': responseTimeSeconds,
+      'cognitiveFeedback': cognitiveFeedback,
+    };
+  }
+
   @override
   String toString() =>
       'EvaluationResult(item: ${updatedItem.id}, grade: $qualityGrade/5, '

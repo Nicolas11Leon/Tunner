@@ -17,6 +17,7 @@ class ProceduralInstrumentSynthesizer {
     required double frequencyHz,
     required double durationSeconds,
     double velocity = 0.8,
+    int sampleRate = ProceduralInstrumentSynthesizer.sampleRate,
   }) {
     final customization = InstrumentCustomizationProfile.defaultFor(instrument);
     return synthesizeCustomNote(
@@ -24,6 +25,7 @@ class ProceduralInstrumentSynthesizer {
       frequencyHz: frequencyHz,
       durationSeconds: durationSeconds,
       velocity: velocity,
+      sampleRate: sampleRate,
     );
   }
 
@@ -33,8 +35,10 @@ class ProceduralInstrumentSynthesizer {
     required double frequencyHz,
     required double durationSeconds,
     double velocity = 0.8,
+    int sampleRate = ProceduralInstrumentSynthesizer.sampleRate,
   }) {
-    final numSamples = (sampleRate * durationSeconds).toInt();
+    final effectiveSampleRate = sampleRate > 0 ? sampleRate : ProceduralInstrumentSynthesizer.sampleRate;
+    final numSamples = (effectiveSampleRate * durationSeconds).toInt();
     if (numSamples <= 0) return Float32List(0);
 
     final buffer = Float32List(numSamples);
@@ -42,17 +46,23 @@ class ProceduralInstrumentSynthesizer {
     final adsr = customization.instrument.timbralProfile.adsr;
     final baseHarmonics = customization.instrument.timbralProfile.harmonicOvertoneAmplitudes;
     final noiseRatio = customization.instrument.timbralProfile.noiseTransientRatio;
+    final resonance = customization.resonanceFactor.clamp(0.0, 1.0);
 
-    // Aplicar multiplicadores de personalización tímbrica
+    // Aplicar multiplicadores de personalización tímbrica y resonancia de caja
     final attackMs = adsr.attackMs * customization.attackMultiplier;
-    final sustainLevel = (adsr.sustainLevel * customization.sustainMultiplier).clamp(0.0, 1.0);
+    final sustainLevel = (adsr.sustainLevel * customization.sustainMultiplier * (0.90 + 0.10 * resonance))
+        .clamp(0.0, 1.0);
+    final effectiveReleaseMs = adsr.releaseMs * (1.0 + resonance * 0.5);
 
-    final attackSamples = (attackMs * sampleRate / 1000.0).clamp(1.0, numSamples.toDouble()).toInt();
-    final decaySamples = (adsr.decayMs * sampleRate / 1000.0).clamp(1.0, numSamples.toDouble()).toInt();
-    final releaseSamples = (adsr.releaseMs * sampleRate / 1000.0).clamp(1.0, numSamples.toDouble()).toInt();
+    final attackSamples = (attackMs * effectiveSampleRate / 1000.0).clamp(1.0, numSamples.toDouble()).toInt();
+    final decaySamples = (adsr.decayMs * effectiveSampleRate / 1000.0).clamp(1.0, numSamples.toDouble()).toInt();
+    final releaseSamples =
+        (effectiveReleaseMs * effectiveSampleRate / 1000.0).clamp(1.0, numSamples.toDouble()).toInt();
     final sustainSamples = math.max(0, numSamples - attackSamples - decaySamples - releaseSamples);
 
     final random = math.Random(42);
+    double resonantState = 0.0;
+    final double resonantFeedback = resonance * 0.35;
 
     for (int i = 0; i < numSamples; i++) {
       // 1. Ganancia ADSR
@@ -71,11 +81,11 @@ class ProceduralInstrumentSynthesizer {
 
       // 2. Síntesis aditiva armónica con brillo ajustado
       double sampleValue = 0.0;
-      final t = i / sampleRate;
+      final t = i / effectiveSampleRate;
 
       for (int h = 0; h < baseHarmonics.length; h++) {
         final harmonicFreq = frequencyHz * (h + 1);
-        if (harmonicFreq < sampleRate / 2.0) {
+        if (harmonicFreq < effectiveSampleRate / 2.0) {
           // Si h > 0 (sobretonos), se modula con harmonicBrightness
           final brightnessScale = (h == 0) ? 1.0 : customization.harmonicBrightness;
           final amp = (baseHarmonics[h] * brightnessScale).clamp(0.0, 1.0);
@@ -89,7 +99,13 @@ class ProceduralInstrumentSynthesizer {
         sampleValue += noise;
       }
 
-      // 4. Normalización y escalado
+      // 4. Resonancia fisica del cuerpo acustico (realimentacion resonante de primer orden)
+      if (resonantFeedback > 0.0) {
+        resonantState = sampleValue + resonantFeedback * resonantState;
+        sampleValue = sampleValue * (1.0 - resonance * 0.25) + resonantState * (resonance * 0.25);
+      }
+
+      // 5. Normalización y escalado
       buffer[i] = (sampleValue * envelope * velocity * 0.35).clamp(-1.0, 1.0);
     }
 
@@ -101,21 +117,23 @@ class ProceduralInstrumentSynthesizer {
     required InstrumentCustomizationProfile customization,
     required MusicalPhraseEntity phrase,
     int? bpmOverride,
+    int sampleRate = ProceduralInstrumentSynthesizer.sampleRate,
   }) {
+    final effectiveSampleRate = sampleRate > 0 ? sampleRate : ProceduralInstrumentSynthesizer.sampleRate;
     final bpm = bpmOverride ?? phrase.defaultBpm;
     // Un tick (semicorchea) en segundos: 60 / (bpm * 4)
     final secondsPerTick = 60.0 / (bpm * 4.0);
 
     // Calcular tamaño total del buffer
     final totalDurationSeconds = phrase.totalTicks * secondsPerTick;
-    final totalSamples = (sampleRate * totalDurationSeconds).toInt();
+    final totalSamples = (effectiveSampleRate * totalDurationSeconds).toInt();
     final phraseBuffer = Float32List(totalSamples);
 
     int writeOffset = 0;
 
     for (final note in phrase.notes) {
       final noteDuration = note.durationTicks * secondsPerTick;
-      final noteSampleCount = (sampleRate * noteDuration).toInt();
+      final noteSampleCount = (effectiveSampleRate * noteDuration).toInt();
 
       if (!note.isRest) {
         // Calcular frecuencia exacta considerando micro-afinaciones y temperamento
@@ -126,6 +144,7 @@ class ProceduralInstrumentSynthesizer {
           frequencyHz: freqHz,
           durationSeconds: noteDuration,
           velocity: note.velocity,
+          sampleRate: effectiveSampleRate,
         );
 
         // Copiar muestras al buffer de la estrofa

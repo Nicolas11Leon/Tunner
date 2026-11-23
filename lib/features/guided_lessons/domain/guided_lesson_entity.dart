@@ -67,6 +67,32 @@ class GuidedLessonStepEntity {
       writtenNoteName: writtenNoteName ?? this.writtenNoteName,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'stepIndex': stepIndex,
+      'instruction': instruction,
+      'targetNoteName': targetNoteName,
+      'targetFrequencyHz': targetFrequencyHz,
+      'targetDurationSeconds': targetDurationSeconds,
+      'toleranceCents': toleranceCents,
+      'feedbackTip': feedbackTip,
+      'writtenNoteName': writtenNoteName,
+    };
+  }
+
+  factory GuidedLessonStepEntity.fromJson(Map<String, dynamic> json) {
+    return GuidedLessonStepEntity(
+      stepIndex: (json['stepIndex'] as num?)?.toInt() ?? 0,
+      instruction: json['instruction'] as String? ?? '',
+      targetNoteName: json['targetNoteName'] as String? ?? '--',
+      targetFrequencyHz: (json['targetFrequencyHz'] as num?)?.toDouble() ?? 440.0,
+      targetDurationSeconds: (json['targetDurationSeconds'] as num?)?.toDouble() ?? 2.0,
+      toleranceCents: (json['toleranceCents'] as num?)?.toDouble() ?? 10.0,
+      feedbackTip: json['feedbackTip'] as String? ?? '',
+      writtenNoteName: json['writtenNoteName'] as String?,
+    );
+  }
 }
 
 /// Entidad que representa una lección completa estructurada por pasos pedagógicos.
@@ -98,6 +124,39 @@ class GuidedLessonEntity {
         targetDurationSeconds: 2.0,
         feedbackTip: '',
       );
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'category': category.name,
+      'difficulty': difficulty,
+      'totalSteps': totalSteps,
+      'steps': steps.map((s) => s.toJson()).toList(),
+    };
+  }
+
+  factory GuidedLessonEntity.fromJson(Map<String, dynamic> json) {
+    final categoryName = json['category'] as String? ?? GuidedLessonCategory.fundamentals.name;
+    final parsedCategory = GuidedLessonCategory.values.firstWhere(
+      (c) => c.name == categoryName,
+      orElse: () => GuidedLessonCategory.fundamentals,
+    );
+    final parsedSteps = (json['steps'] as List<dynamic>?)
+            ?.whereType<Map<String, dynamic>>()
+            .map(GuidedLessonStepEntity.fromJson)
+            .toList() ??
+        const <GuidedLessonStepEntity>[];
+    return GuidedLessonEntity(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      category: parsedCategory,
+      difficulty: json['difficulty'] as String? ?? 'Principiante',
+      steps: parsedSteps,
+    );
+  }
 }
 
 /// Estado reactivo del progreso en tiempo real de una sesión de lección guiada.
@@ -158,5 +217,19 @@ class GuidedLessonProgressEntity {
       totalAccumulatedAccuracy: totalAccumulatedAccuracy ?? this.totalAccumulatedAccuracy,
       successfulNotesCount: successfulNotesCount ?? this.successfulNotesCount,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'lesson': lesson.toJson(),
+      'currentStepIndex': currentStepIndex,
+      'sustainedSeconds': sustainedSeconds,
+      'isStepComplete': isStepComplete,
+      'isLessonComplete': isLessonComplete,
+      'totalAccumulatedAccuracy': totalAccumulatedAccuracy,
+      'successfulNotesCount': successfulNotesCount,
+      'stepProgressRatio': stepProgressRatio,
+      'overallLessonProgressRatio': overallLessonProgressRatio,
+    };
   }
 }

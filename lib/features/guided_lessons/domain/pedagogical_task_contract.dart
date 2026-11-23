@@ -48,6 +48,30 @@ class TaskStep {
     this.toleranceCents = 10.0,
     required this.hint,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'index': index,
+      'instruction': instruction,
+      'noteOrTarget': noteOrTarget,
+      'frequencyHz': frequencyHz,
+      'targetDurationSeconds': targetDurationSeconds,
+      'toleranceCents': toleranceCents,
+      'hint': hint,
+    };
+  }
+
+  factory TaskStep.fromJson(Map<String, dynamic> json) {
+    return TaskStep(
+      index: (json['index'] as num?)?.toInt() ?? 0,
+      instruction: json['instruction'] as String? ?? '',
+      noteOrTarget: json['noteOrTarget'] as String? ?? '',
+      frequencyHz: (json['frequencyHz'] as num?)?.toDouble() ?? 440.0,
+      targetDurationSeconds: (json['targetDurationSeconds'] as num?)?.toDouble() ?? 2.0,
+      toleranceCents: (json['toleranceCents'] as num?)?.toDouble() ?? 10.0,
+      hint: json['hint'] as String? ?? '',
+    );
+  }
 }
 
 /// Enlace declarativo de conexión entre puertos de herramientas en una tarea conjunta.
@@ -61,6 +85,22 @@ class TaskInterconnectionLink {
     required this.destinationPortId,
     this.description,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'sourcePortId': sourcePortId,
+      'destinationPortId': destinationPortId,
+      'description': description,
+    };
+  }
+
+  factory TaskInterconnectionLink.fromJson(Map<String, dynamic> json) {
+    return TaskInterconnectionLink(
+      sourcePortId: json['sourcePortId'] as String? ?? '',
+      destinationPortId: json['destinationPortId'] as String? ?? '',
+      description: json['description'] as String?,
+    );
+  }
 }
 
 /// Contrato base inmutable para cualquier tarea pedagógica en Tunner.
@@ -91,6 +131,25 @@ abstract class PedagogicalTaskEntity implements Comparable<PedagogicalTaskEntity
 
   @override
   int compareTo(PedagogicalTaskEntity other) => code.compareTo(other.code);
+
+  Map<String, dynamic> toJson() {
+    return {
+      'code': code.formatted,
+      'title': title,
+      'description': description,
+      'estimatedDurationMinutes': estimatedDurationMinutes,
+      'steps': steps.map((s) => s.toJson()).toList(),
+      'searchTags': searchTags,
+      'status': status.id,
+      'bestGrade': bestGrade.letter,
+      'targetInstrumentId': targetInstrumentId,
+      'requiredToolIds': requiredToolIds,
+      'interconnectionLinks': interconnectionLinks.map((l) => l.toJson()).toList(),
+      'isMultiTool': isMultiTool,
+      'isCompleted': isCompleted,
+      'totalSteps': totalSteps,
+    };
+  }
 }
 
 /// Implementación concreta estándar inmutable de una tarea pedagógica.
@@ -157,6 +216,56 @@ class StandardPedagogicalTask extends PedagogicalTaskEntity {
       targetInstrumentId: targetInstrumentId ?? this.targetInstrumentId,
       requiredToolIds: requiredToolIds ?? this.requiredToolIds,
       interconnectionLinks: interconnectionLinks ?? this.interconnectionLinks,
+    );
+  }
+
+  factory StandardPedagogicalTask.fromJson(Map<String, dynamic> json) {
+    final codeStr = json['code'] as String? ?? 'EAR.01.INTV.001';
+    final parsedCode = TaskTaxonomyCode.tryParse(codeStr) ??
+        TaskTaxonomyCode.parse('EAR.01.INTV.001');
+
+    final statusId = json['status'] as String? ?? TaskCompletionStatus.notStarted.id;
+    final parsedStatus = TaskCompletionStatus.values.firstWhere(
+      (s) => s.id == statusId || s.name == statusId,
+      orElse: () => TaskCompletionStatus.notStarted,
+    );
+
+    final gradeStr = json['bestGrade'] as String? ?? TaskGrade.none.letter;
+    final parsedGrade = TaskGrade.values.firstWhere(
+      (g) => g.letter == gradeStr || g.name == gradeStr,
+      orElse: () => TaskGrade.none,
+    );
+
+    final parsedSteps = (json['steps'] as List<dynamic>?)
+            ?.whereType<Map<String, dynamic>>()
+            .map(TaskStep.fromJson)
+            .toList() ??
+        const <TaskStep>[];
+
+    final parsedLinks = (json['interconnectionLinks'] as List<dynamic>?)
+            ?.whereType<Map<String, dynamic>>()
+            .map(TaskInterconnectionLink.fromJson)
+            .toList() ??
+        const <TaskInterconnectionLink>[];
+
+    return StandardPedagogicalTask(
+      code: parsedCode,
+      title: json['title'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      estimatedDurationMinutes: (json['estimatedDurationMinutes'] as num?)?.toInt() ?? 5,
+      steps: parsedSteps,
+      searchTags: (json['searchTags'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const <String>[],
+      status: parsedStatus,
+      bestGrade: parsedGrade,
+      targetInstrumentId: json['targetInstrumentId'] as String?,
+      requiredToolIds: (json['requiredToolIds'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const <String>[],
+      interconnectionLinks: parsedLinks,
     );
   }
 

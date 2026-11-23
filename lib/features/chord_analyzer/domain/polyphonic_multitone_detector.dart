@@ -78,12 +78,12 @@ class PolyphonicMultiToneDetector {
       rawMagnitudes[midi] = (2.0 / analysisLength) * math.sqrt(sumCos * sumCos + sumSin * sumSin);
     }
 
-    // 3. Extracción de Cromagrama y Reconocimiento de Acorde
-    final recognizedChord = _chordRecognizer.identifyFromSamples(
-      samples: samples,
-      sampleRate: sampleRate,
-      a4Ref: a4Ref,
-      noiseGateRms: noiseGateRms,
+    // 3. Extraccion de Cromagrama y Reconocimiento de Acorde reutilizando la DFT ya calculada
+    final recognizedChord = _chordRecognizer.identifyFromMidiMagnitudes(
+      rawMagnitudes,
+      rms: rms,
+      minMidiNote: minMidiNote,
+      maxMidiNote: maxMidiNote,
     );
 
     // 4. Algoritmo de Tamiz Armónico y Función de Salience

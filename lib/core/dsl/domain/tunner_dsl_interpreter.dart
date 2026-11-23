@@ -3,6 +3,30 @@ import 'dart:math' as math;
 import 'studio_os_audio_event.dart';
 import 'studio_os_audio_kernel.dart';
 import 'tunner_ast_node.dart';
+import 'tunner_dsl_diagnostic.dart';
+
+/// Excepcion controlada emitida cuando un script DSL excede los limites de
+/// seguridad de ejecucion (`maxStatements` o `maxLoopDepth`).
+class TunnerDslSecurityLimitException implements Exception {
+  final String code;
+  final String message;
+
+  const TunnerDslSecurityLimitException({
+    required this.code,
+    required this.message,
+  });
+
+  TunnerDslDiagnostic toDiagnostic({int line = 1, int column = 1}) {
+    return TunnerDslDiagnostic.error(
+      '[$code] $message',
+      line: line,
+      column: column,
+    );
+  }
+
+  @override
+  String toString() => 'TunnerDslSecurityLimitException($code): $message';
+}
 
 /// Contexto mutable de ejecución durante la evaluación de un script Tunner DSL.
 class TunnerDslExecutionContext {
@@ -11,13 +35,19 @@ class TunnerDslExecutionContext {
   double currentBeatOffset = 0.0;
   double currentTimeOffsetMs = 0.0;
   int executedStatements = 0;
+  int currentLoopDepth = 0;
+  final int maxStatements;
+  final int maxLoopDepth;
   final List<String> warnings = [];
+  final List<TunnerDslDiagnostic> diagnostics = [];
   final bool isDryRun;
 
   TunnerDslExecutionContext({
     required this.kernel,
     this.currentBpm = 120.0,
     this.isDryRun = false,
+    this.maxStatements = TunnerDslInterpreter.defaultMaxStatements,
+    this.maxLoopDepth = TunnerDslInterpreter.defaultMaxLoopDepth,
   });
 
   /// Offset temporal acumulado en milisegundos desde el inicio del programa DSL.
@@ -31,6 +61,7 @@ class TunnerDslExecutionReport {
   final int executionTimeMicroseconds;
   final int totalScheduledDurationMs;
   final List<String> warnings;
+  final List<TunnerDslDiagnostic> diagnostics;
   final List<StudioOsAudioEvent> generatedEvents;
 
   const TunnerDslExecutionReport({
@@ -39,8 +70,21 @@ class TunnerDslExecutionReport {
     required this.executionTimeMicroseconds,
     this.totalScheduledDurationMs = 0,
     required this.warnings,
+    this.diagnostics = const [],
     required this.generatedEvents,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'isSuccess': isSuccess,
+      'totalStatementsExecuted': totalStatementsExecuted,
+      'executionTimeMicroseconds': executionTimeMicroseconds,
+      'totalScheduledDurationMs': totalScheduledDurationMs,
+      'warnings': List<String>.from(warnings),
+      'diagnostics': diagnostics.map((d) => d.toJson()).toList(),
+      'generatedEventsCount': generatedEvents.length,
+    };
+  }
 
   @override
   String toString() =>
@@ -53,9 +97,18 @@ class TunnerDslExecutionReport {
 /// las acciones hacia el micro-kernel `StudioOsAudioKernel`.
 class TunnerDslInterpreter
     implements TunnerAstVisitor<Future<void>, TunnerDslExecutionContext> {
-  final StudioOsAudioKernel? defaultKernel;
+  static const int defaultMaxStatements = 10000;
+  static const int defaultMaxLoopDepth = 8;
 
-  TunnerDslInterpreter({this.defaultKernel});
+  final StudioOsAudioKernel? defaultKernel;
+  final int maxStatements;
+  final int maxLoopDepth;
+
+  TunnerDslInterpreter({
+    this.defaultKernel,
+    this.maxStatements = defaultMaxStatements,
+    this.maxLoopDepth = defaultMaxLoopDepth,
+  });
 
   /// Evalúa un programa AST completo y retorna su reporte de ejecución.
   Future<TunnerDslExecutionReport> interpret(
@@ -63,12 +116,16 @@ class TunnerDslInterpreter
     StudioOsAudioKernel? kernel,
     bool isDryRun = false,
     double initialBpm = 120.0,
+    int? maxStatements,
+    int? maxLoopDepth,
   }) async {
     final activeKernel = kernel ?? defaultKernel ?? StudioOsAudioKernel();
     final context = TunnerDslExecutionContext(
       kernel: activeKernel,
       currentBpm: initialBpm,
       isDryRun: isDryRun,
+      maxStatements: maxStatements ?? this.maxStatements,
+      maxLoopDepth: maxLoopDepth ?? this.maxLoopDepth,
     );
 
     final stopwatch = Stopwatch()..start();
@@ -95,11 +152,13 @@ class TunnerDslInterpreter
         executionTimeMicroseconds: stopwatch.elapsedMicroseconds,
         totalScheduledDurationMs: context.currentScheduledOffsetMs,
         warnings: List.unmodifiable(context.warnings),
+        diagnostics: List.unmodifiable(context.diagnostics),
         generatedEvents: List.unmodifiable(newEvents),
       );
-    } catch (e) {
+    } on TunnerDslSecurityLimitException catch (e) {
       stopwatch.stop();
-      context.warnings.add('Excepción durante evaluación: $e');
+      context.warnings.add(e.message);
+      context.diagnostics.add(e.toDiagnostic());
 
       return TunnerDslExecutionReport(
         isSuccess: false,
@@ -107,9 +166,36 @@ class TunnerDslInterpreter
         executionTimeMicroseconds: stopwatch.elapsedMicroseconds,
         totalScheduledDurationMs: context.currentScheduledOffsetMs,
         warnings: List.unmodifiable(context.warnings),
+        diagnostics: List.unmodifiable(context.diagnostics),
+        generatedEvents: const [],
+      );
+    } catch (e) {
+      stopwatch.stop();
+      context.warnings.add('Excepción durante evaluación: $e');
+      context.diagnostics.add(
+        TunnerDslDiagnostic.error('Excepcion durante evaluacion: $e', line: 1, column: 1),
+      );
+
+      return TunnerDslExecutionReport(
+        isSuccess: false,
+        totalStatementsExecuted: context.executedStatements,
+        executionTimeMicroseconds: stopwatch.elapsedMicroseconds,
+        totalScheduledDurationMs: context.currentScheduledOffsetMs,
+        warnings: List.unmodifiable(context.warnings),
+        diagnostics: List.unmodifiable(context.diagnostics),
         generatedEvents: const [],
       );
     }
+  }
+
+  void _consumeStatementBudget(TunnerDslExecutionContext context) {
+    if (context.executedStatements >= context.maxStatements) {
+      throw TunnerDslSecurityLimitException(
+        code: 'MAX_STATEMENTS_EXCEEDED',
+        message: 'Limite global de seguridad excedido: maximo ${context.maxStatements} sentencias permitidas.',
+      );
+    }
+    context.executedStatements++;
   }
 
   @override
@@ -127,8 +213,8 @@ class TunnerDslInterpreter
     TempoStatementNode node,
     TunnerDslExecutionContext context,
   ) async {
+    _consumeStatementBudget(context);
     context.currentBpm = node.bpm.clamp(20.0, 360.0);
-    context.executedStatements++;
     await context.kernel.dispatchTempo(context.currentBpm);
   }
 
@@ -137,7 +223,7 @@ class TunnerDslInterpreter
     ChannelDeclNode node,
     TunnerDslExecutionContext context,
   ) async {
-    context.executedStatements++;
+    _consumeStatementBudget(context);
     await context.kernel.dispatchDeclareChannel(node.channelName);
   }
 
@@ -146,7 +232,7 @@ class TunnerDslInterpreter
     ConnectStatementNode node,
     TunnerDslExecutionContext context,
   ) async {
-    context.executedStatements++;
+    _consumeStatementBudget(context);
     await context.kernel.dispatchConnect(node.source, node.destination);
   }
 
@@ -155,7 +241,7 @@ class TunnerDslInterpreter
     SetParamStatementNode node,
     TunnerDslExecutionContext context,
   ) async {
-    context.executedStatements++;
+    _consumeStatementBudget(context);
     await context.kernel.dispatchSetParameter(
       node.target,
       node.parameter,
@@ -169,7 +255,7 @@ class TunnerDslInterpreter
     NoteStatementNode node,
     TunnerDslExecutionContext context,
   ) async {
-    context.executedStatements++;
+    _consumeStatementBudget(context);
     final midi = pitchToMidi(node.pitch);
     final freq = midiToFrequency(midi);
     final scheduledOffsetMs = context.currentScheduledOffsetMs;
@@ -196,7 +282,7 @@ class TunnerDslInterpreter
     ChordStatementNode node,
     TunnerDslExecutionContext context,
   ) async {
-    context.executedStatements++;
+    _consumeStatementBudget(context);
     final midiNotes = <int>[];
     final frequencies = <double>[];
 
@@ -230,7 +316,7 @@ class TunnerDslInterpreter
     RestStatementNode node,
     TunnerDslExecutionContext context,
   ) async {
-    context.executedStatements++;
+    _consumeStatementBudget(context);
     final scheduledOffsetMs = context.currentScheduledOffsetMs;
     final beats = parseFraction(node.durationFraction) * 4.0;
     final durationMsExact = calculateDurationMs(node.durationFraction, context.currentBpm);
@@ -252,7 +338,7 @@ class TunnerDslInterpreter
     TransportStatementNode node,
     TunnerDslExecutionContext context,
   ) async {
-    context.executedStatements++;
+    _consumeStatementBudget(context);
     if (context.isDryRun) return;
     await context.kernel.dispatchTransport(node.action);
   }
@@ -262,11 +348,24 @@ class TunnerDslInterpreter
     LoopStatementNode node,
     TunnerDslExecutionContext context,
   ) async {
-    final loopCount = node.count.clamp(1, 1000);
-    for (var i = 0; i < loopCount; i++) {
-      for (final stmt in node.body) {
-        await stmt.accept(this, context);
+    context.currentLoopDepth++;
+    if (context.currentLoopDepth > context.maxLoopDepth) {
+      context.currentLoopDepth--;
+      throw TunnerDslSecurityLimitException(
+        code: 'MAX_LOOP_DEPTH_EXCEEDED',
+        message: 'Limite de anidamiento de bucles excedido: maximo ${context.maxLoopDepth} niveles permitidos.',
+      );
+    }
+
+    try {
+      final loopCount = node.count.clamp(1, 1000);
+      for (var i = 0; i < loopCount; i++) {
+        for (final stmt in node.body) {
+          await stmt.accept(this, context);
+        }
       }
+    } finally {
+      context.currentLoopDepth--;
     }
   }
 

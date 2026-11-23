@@ -102,6 +102,8 @@ class PracticeReportEntity {
     this.recording,
   });
 
+  Map<String, dynamic> toJson() => toMap();
+
   Map<String, dynamic> toMap() {
     return {
       'songTitle': songTitle,
@@ -118,6 +120,7 @@ class PracticeReportEntity {
       'sustainAccuracyPercentage': sustainAccuracyPercentage,
       'overallScore': overallScore,
       'grade': grade.name,
+      'evaluations': evaluations.map((e) => e.toJson()).toList(),
       'noteAccuracyMap': noteAccuracyMap,
       'criticalNotes': criticalNotes,
       'masteredNotes': masteredNotes,
@@ -126,6 +129,9 @@ class PracticeReportEntity {
       'recording': recording?.toMap(),
     };
   }
+
+  factory PracticeReportEntity.fromJson(Map<String, dynamic> json) =>
+      PracticeReportEntity.fromMap(json);
 
   factory PracticeReportEntity.fromMap(Map<String, dynamic> map) {
     final gradeName = map['grade'] as String? ?? 'd';
@@ -142,6 +148,14 @@ class PracticeReportEntity {
 
     final rawAccuracyMap = map['noteAccuracyMap'] as Map<String, dynamic>? ?? {};
     final noteAccuracyMap = rawAccuracyMap.map((k, v) => MapEntry(k, (v as num).toDouble()));
+
+    final rawEvaluations = map['evaluations'] as List<dynamic>?;
+    final parsedEvaluations = rawEvaluations != null
+        ? rawEvaluations
+            .whereType<Map<String, dynamic>>()
+            .map(NoteEvaluationEntity.fromJson)
+            .toList()
+        : const <NoteEvaluationEntity>[];
 
     return PracticeReportEntity(
       songTitle: map['songTitle'] as String? ?? 'Obra',
@@ -160,7 +174,7 @@ class PracticeReportEntity {
       sustainAccuracyPercentage: (map['sustainAccuracyPercentage'] as num?)?.toDouble() ?? 100.0,
       overallScore: (map['overallScore'] as num?)?.toDouble() ?? 0.0,
       grade: grade,
-      evaluations: const [],
+      evaluations: parsedEvaluations,
       noteAccuracyMap: noteAccuracyMap,
       criticalNotes: (map['criticalNotes'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
       masteredNotes: (map['masteredNotes'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],

@@ -6,6 +6,8 @@ import 'guided_lesson_entity.dart';
 /// en cents y acumula el tiempo de sostenimiento continuo hasta completar cada paso.
 class GuidedLessonEvaluator {
   GuidedLessonProgressEntity? _progress;
+  int _evaluatedSamplesCount = 0;
+  double _accumulatedAccuracySum = 0.0;
 
   GuidedLessonEvaluator();
 
@@ -17,6 +19,9 @@ class GuidedLessonEvaluator {
     GuidedLessonEntity lesson, {
     double? customToleranceCents,
   }) {
+    _evaluatedSamplesCount = 0;
+    _accumulatedAccuracySum = 0.0;
+
     // Si se proporciona una tolerancia adaptativa (del perfil pedagógico), ajustarla a los pasos
     final List<GuidedLessonStepEntity> adaptedSteps;
     if (customToleranceCents != null && customToleranceCents > 0) {
@@ -50,6 +55,8 @@ class GuidedLessonEvaluator {
   /// Cancela o finaliza la sesión activa.
   void cancelLesson() {
     _progress = null;
+    _evaluatedSamplesCount = 0;
+    _accumulatedAccuracySum = 0.0;
   }
 
   /// Evalúa una muestra de afinación en tiempo real y actualiza el progreso.
@@ -81,6 +88,18 @@ class GuidedLessonEvaluator {
 
     final bool inTune = cents.abs() <= effectiveTolerance;
 
+    // Actualizar precision acumulada real sobre muestras tonales evaluadas
+    final double sampleAccuracy;
+    if (noteMatches) {
+      final double denominator = math.max(effectiveTolerance * 2.0, 1.0);
+      sampleAccuracy = (1.0 - (cents.abs() / denominator)).clamp(0.0, 1.0);
+    } else {
+      sampleAccuracy = 0.0;
+    }
+    _evaluatedSamplesCount++;
+    _accumulatedAccuracySum += sampleAccuracy;
+    final double updatedAccuracy = _accumulatedAccuracySum / _evaluatedSamplesCount;
+
     if (noteMatches && inTune) {
       // Acumular tiempo de sostenimiento exitoso
       final double newSustained = _progress!.sustainedSeconds + deltaSeconds;
@@ -94,6 +113,7 @@ class GuidedLessonEvaluator {
             sustainedSeconds: step.targetDurationSeconds,
             isStepComplete: true,
             isLessonComplete: true,
+            totalAccumulatedAccuracy: updatedAccuracy,
             successfulNotesCount: _progress!.successfulNotesCount + 1,
           );
         } else {
@@ -101,6 +121,7 @@ class GuidedLessonEvaluator {
             currentStepIndex: _progress!.currentStepIndex + 1,
             sustainedSeconds: 0.0,
             isStepComplete: true,
+            totalAccumulatedAccuracy: updatedAccuracy,
             successfulNotesCount: _progress!.successfulNotesCount + 1,
           );
         }
@@ -108,17 +129,19 @@ class GuidedLessonEvaluator {
         _progress = _progress!.copyWith(
           sustainedSeconds: newSustained,
           isStepComplete: false,
+          totalAccumulatedAccuracy: updatedAccuracy,
         );
       }
     } else {
       // Si la nota desafina o es incorrecta, penalización suave (retroceso pausado)
-      if (_progress!.sustainedSeconds > 0) {
-        final decayed = math.max(0.0, _progress!.sustainedSeconds - (deltaSeconds * 0.4));
-        _progress = _progress!.copyWith(
-          sustainedSeconds: decayed,
-          isStepComplete: false,
-        );
-      }
+      final double decayed = _progress!.sustainedSeconds > 0
+          ? math.max(0.0, _progress!.sustainedSeconds - (deltaSeconds * 0.4))
+          : 0.0;
+      _progress = _progress!.copyWith(
+        sustainedSeconds: decayed,
+        isStepComplete: false,
+        totalAccumulatedAccuracy: updatedAccuracy,
+      );
     }
 
     return _progress;
