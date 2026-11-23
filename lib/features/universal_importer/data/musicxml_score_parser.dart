@@ -39,135 +39,232 @@ class MusicXmlScoreParser implements IScoreParserService {
     String composer = _extractComposer(document);
     int bpm = _extractTempo(document);
 
-    // 2. Extracción de Compases y Notas
-    final measures = <MeasureEntity>[];
-    int divisions = 4; // Divisiones por negra por defecto
-    TimeSignature currentTimeSignature = TimeSignature.commonTime44;
+    // 2. Extracción de Compases y Notas de TODAS las partes (<part>)
     int totalNotesCount = 0;
     final warnings = <String>[];
 
-    final parts = document.findAllElements('part');
-    final xmlMeasures = parts.isNotEmpty
-        ? parts.first.findElements('measure')
-        : document.findAllElements('measure');
-    if (xmlMeasures.isEmpty) {
+    final parts = document.findAllElements('part').toList();
+    final partMeasureLists = parts.isNotEmpty
+        ? parts.map((p) => p.findElements('measure').toList()).toList()
+        : [document.findAllElements('measure').toList()];
+
+    if (partMeasureLists.every((list) => list.isEmpty)) {
       throw const FormatException('El archivo MusicXML no contiene ningún elemento <measure>.');
     }
 
-    int measureIndex = 0;
-    for (final measureNode in xmlMeasures) {
-      // Atributos de compás (divisions, time)
-      final attributesNode = measureNode.getElement('attributes');
-      if (attributesNode != null) {
-        final divNode = attributesNode.getElement('divisions');
-        if (divNode != null) {
-          final parsedDiv = int.tryParse(divNode.innerText.trim());
-          if (parsedDiv != null && parsedDiv > 0) {
-            divisions = parsedDiv;
-          }
-        }
+    final measureNotesByIndex = <int, List<HierarchicalNote>>{};
+    final measureTimeSigByIndex = <int, TimeSignature>{};
+    final measureKeyFifthsByIndex = <int, int>{};
 
-        final timeNode = attributesNode.getElement('time');
-        if (timeNode != null) {
-          currentTimeSignature = _parseTimeSignature(timeNode);
-        }
+    int staffOffset = 0;
+    int maxMeasureCount = 0;
+
+    for (int pIdx = 0; pIdx < partMeasureLists.length; pIdx++) {
+      final xmlMeasures = partMeasureLists[pIdx];
+      if (xmlMeasures.length > maxMeasureCount) {
+        maxMeasureCount = xmlMeasures.length;
       }
 
-      // Procesar notas del compas preservando acordes polifonicos (<chord/>)
-      final notes = <HierarchicalNote>[];
-      int currentTick = 0;
-      int lastBaseNoteStartTick = 0;
-      bool hasBaseNote = false;
-      final maxTicks = currentTimeSignature.totalTicks > 0 ? currentTimeSignature.totalTicks : 16;
+      int divisions = 4; // Divisiones por negra por defecto
+      TimeSignature currentTimeSignature = TimeSignature.commonTime44;
+      int currentKeyFifths = 0;
+      int maxLocalStaffInPart = 1;
 
-      for (final noteNode in measureNode.findElements('note')) {
-        // Ignorar notas de gracia que no consumen tiempo metrico
-        if (noteNode.getElement('grace') != null) {
-          continue;
-        }
+      for (int measureIndex = 0; measureIndex < xmlMeasures.length; measureIndex++) {
+        final measureNode = xmlMeasures[measureIndex];
+        final partMeasureNotes = <HierarchicalNote>[];
+        int currentTick = 0;
+        int maxTickReached = 0;
+        int lastBaseNoteStartTick = 0;
+        bool hasBaseNote = false;
 
-        final isChord = noteNode.getElement('chord') != null;
-        final isRest = noteNode.getElement('rest') != null;
-        final durationNode = noteNode.getElement('duration');
-        final durationXml = int.tryParse(durationNode?.innerText.trim() ?? '') ?? divisions;
+        // Procesar elementos hijos en orden de documento (attributes, backup, forward, note)
+        for (final child in measureNode.childElements) {
+          final tag = child.name.local;
 
-        // Convertir duracion XML a ticks de semicorchea de Tunner (4 ticks por negra)
-        int rawDurationTicks = ((durationXml * 4) / divisions).round();
-        if (rawDurationTicks <= 0) rawDurationTicks = 1;
+          if (tag == 'attributes') {
+            final divNode = child.getElement('divisions');
+            if (divNode != null) {
+              final parsedDiv = int.tryParse(divNode.innerText.trim());
+              if (parsedDiv != null && parsedDiv > 0) {
+                divisions = parsedDiv;
+              }
+            }
 
-        if (isChord) {
-          if (!hasBaseNote || isRest || lastBaseNoteStartTick >= maxTicks) {
+            final keyNode = child.getElement('key');
+            if (keyNode != null) {
+              final fifthsNode = keyNode.getElement('fifths');
+              final parsedFifths = int.tryParse(fifthsNode?.innerText.trim() ?? '');
+              if (parsedFifths != null) {
+                currentKeyFifths = parsedFifths.clamp(-7, 7);
+              }
+            }
+
+            final timeNode = child.getElement('time');
+            if (timeNode != null) {
+              currentTimeSignature = _parseTimeSignature(timeNode);
+            }
+
+            final stavesNode = child.getElement('staves');
+            if (stavesNode != null) {
+              final parsedStaves = int.tryParse(stavesNode.innerText.trim());
+              if (parsedStaves != null && parsedStaves > maxLocalStaffInPart) {
+                maxLocalStaffInPart = parsedStaves;
+              }
+            }
             continue;
           }
-          final chordDuration = rawDurationTicks.clamp(1, maxTicks - lastBaseNoteStartTick);
-          final pitchNode = noteNode.getElement('pitch');
-          final noteName = _parsePitch(pitchNode);
-          notes.add(HierarchicalNote.note(
-            startTick: lastBaseNoteStartTick,
-            durationTicks: chordDuration,
-            noteName: noteName,
-          ));
-          totalNotesCount++;
-          continue;
+
+          if (tag == 'backup') {
+            final durXml = int.tryParse(child.getElement('duration')?.innerText.trim() ?? '') ?? 0;
+            final backupTicks = ((durXml * 4) / divisions).round();
+            currentTick = (currentTick - backupTicks).clamp(0, currentTimeSignature.totalTicks);
+            hasBaseNote = false;
+            continue;
+          }
+
+          if (tag == 'forward') {
+            final durXml = int.tryParse(child.getElement('duration')?.innerText.trim() ?? '') ?? 0;
+            final forwardTicks = ((durXml * 4) / divisions).round();
+            final maxTicks = currentTimeSignature.totalTicks > 0 ? currentTimeSignature.totalTicks : 16;
+            currentTick = (currentTick + forwardTicks).clamp(0, maxTicks);
+            if (currentTick > maxTickReached) maxTickReached = currentTick;
+            hasBaseNote = false;
+            continue;
+          }
+
+          if (tag != 'note') {
+            continue;
+          }
+
+          // Ignorar notas de gracia que no consumen tiempo metrico
+          if (child.getElement('grace') != null) {
+            continue;
+          }
+
+          final maxTicks = currentTimeSignature.totalTicks > 0 ? currentTimeSignature.totalTicks : 16;
+          final isChord = child.getElement('chord') != null;
+          final isRest = child.getElement('rest') != null;
+          final durationNode = child.getElement('duration');
+          final durationXml = int.tryParse(durationNode?.innerText.trim() ?? '') ?? divisions;
+          final localStaff = (int.tryParse(child.getElement('staff')?.innerText.trim() ?? '') ?? 1).clamp(1, 16);
+          if (localStaff > maxLocalStaffInPart) {
+            maxLocalStaffInPart = localStaff;
+          }
+          final effectiveStaff = staffOffset + localStaff;
+          final voice = (int.tryParse(child.getElement('voice')?.innerText.trim() ?? '') ?? 1).clamp(1, 32);
+          final isTied = child.findElements('tie').any(
+                (t) => t.getAttribute('type')?.trim().toLowerCase() == 'start',
+              );
+
+          // Convertir duracion XML a ticks de semicorchea de Tunner (4 ticks por negra)
+          int rawDurationTicks = ((durationXml * 4) / divisions).round();
+          if (rawDurationTicks <= 0) rawDurationTicks = 1;
+
+          if (isChord) {
+            if (!hasBaseNote || isRest || lastBaseNoteStartTick >= maxTicks) {
+              continue;
+            }
+            final chordDuration = rawDurationTicks.clamp(1, maxTicks - lastBaseNoteStartTick);
+            final pitchNode = child.getElement('pitch');
+            final noteName = _parsePitch(pitchNode);
+            partMeasureNotes.add(HierarchicalNote.note(
+              startTick: lastBaseNoteStartTick,
+              durationTicks: chordDuration,
+              noteName: noteName,
+              isTied: isTied,
+              voice: voice,
+              staff: effectiveStaff,
+            ));
+            totalNotesCount++;
+            continue;
+          }
+
+          if (currentTick >= maxTicks) {
+            hasBaseNote = false;
+            continue;
+          }
+
+          final durationTicks = rawDurationTicks.clamp(1, maxTicks - currentTick);
+
+          if (isRest) {
+            partMeasureNotes.add(HierarchicalNote.rest(
+              startTick: currentTick,
+              durationTicks: durationTicks,
+              voice: voice,
+              staff: effectiveStaff,
+            ));
+            hasBaseNote = false;
+          } else {
+            final pitchNode = child.getElement('pitch');
+            final noteName = _parsePitch(pitchNode);
+            partMeasureNotes.add(HierarchicalNote.note(
+              startTick: currentTick,
+              durationTicks: durationTicks,
+              noteName: noteName,
+              isTied: isTied,
+              voice: voice,
+              staff: effectiveStaff,
+            ));
+            lastBaseNoteStartTick = currentTick;
+            hasBaseNote = true;
+            totalNotesCount++;
+          }
+
+          currentTick += durationTicks;
+          if (currentTick > maxTickReached) {
+            maxTickReached = currentTick;
+          }
         }
 
-        if (currentTick >= maxTicks) {
-          hasBaseNote = false;
-          break;
+        final maxTicks = currentTimeSignature.totalTicks > 0 ? currentTimeSignature.totalTicks : 16;
+
+        // Si el compás de esta parte quedó incompleto, rellenar con silencio canónico
+        if (maxTickReached < maxTicks) {
+          partMeasureNotes.add(HierarchicalNote.rest(
+            startTick: maxTickReached,
+            durationTicks: maxTicks - maxTickReached,
+            voice: 1,
+            staff: staffOffset + 1,
+          ));
         }
 
-        final durationTicks = rawDurationTicks.clamp(1, maxTicks - currentTick);
-
-        if (isRest) {
-          notes.add(HierarchicalNote.rest(
-            startTick: currentTick,
-            durationTicks: durationTicks,
+        if (partMeasureNotes.isEmpty) {
+          partMeasureNotes.add(HierarchicalNote.rest(
+            startTick: 0,
+            durationTicks: maxTicks,
+            voice: 1,
+            staff: staffOffset + 1,
           ));
-          hasBaseNote = false;
-        } else {
-          final pitchNode = noteNode.getElement('pitch');
-          final noteName = _parsePitch(pitchNode);
-          notes.add(HierarchicalNote.note(
-            startTick: currentTick,
-            durationTicks: durationTicks,
-            noteName: noteName,
-          ));
-          lastBaseNoteStartTick = currentTick;
-          hasBaseNote = true;
-          totalNotesCount++;
         }
 
-        currentTick += durationTicks;
+        measureNotesByIndex.putIfAbsent(measureIndex, () => []).addAll(partMeasureNotes);
+        measureTimeSigByIndex.putIfAbsent(measureIndex, () => currentTimeSignature);
+        measureKeyFifthsByIndex.putIfAbsent(measureIndex, () => currentKeyFifths);
       }
 
-      // Si el compás quedó incompleto, rellenar con silencios canónicos
-      if (currentTick < maxTicks) {
-        notes.add(HierarchicalNote.rest(
-          startTick: currentTick,
-          durationTicks: maxTicks - currentTick,
-        ));
-      }
+      staffOffset += maxLocalStaffInPart;
+    }
 
-      // Si el compás estaba completamente vacío, crear silencio de compás entero
-      if (notes.isEmpty) {
-        notes.add(HierarchicalNote.rest(
-          startTick: 0,
-          durationTicks: maxTicks,
-        ));
-      }
-
+    final measures = <MeasureEntity>[];
+    for (int mIdx = 0; mIdx < maxMeasureCount; mIdx++) {
+      final ts = measureTimeSigByIndex[mIdx] ?? TimeSignature.commonTime44;
+      final keyFifths = measureKeyFifthsByIndex[mIdx] ?? 0;
+      final notes = measureNotesByIndex[mIdx] ??
+          [HierarchicalNote.rest(startTick: 0, durationTicks: ts.totalTicks)];
       measures.add(MeasureEntity(
-        index: measureIndex,
-        timeSignature: currentTimeSignature,
+        index: mIdx,
+        timeSignature: ts,
         notes: notes,
+        keySignatureFifths: keyFifths,
       ));
-      measureIndex++;
     }
 
     final score = HierarchicalScore(
       title: title,
       baseBpm: bpm,
       measures: measures,
+      staffCount: staffOffset < 1 ? 1 : staffOffset,
     );
 
     final cleanId = "import_${DateTime.now().millisecondsSinceEpoch}";

@@ -171,6 +171,18 @@ class CanonicalPdfExporter {
 
     double currentX = marginLeft + 35.0;
 
+    // 3.5. Armadura de clave (keySignatureFifths) en cada sistema
+    final keyFifths = measures.isNotEmpty ? measures.first.keySignatureFifths.clamp(-7, 7) : 0;
+    if (keyFifths != 0) {
+      currentX = _renderKeySignature(
+        buf,
+        fifths: keyFifths,
+        startX: currentX,
+        bottomY: staffBottomY,
+        isBassClef: isBassClef,
+      );
+    }
+
     // 4. Métrica de Compás real en el primer sistema
     if (isFirstSystem) {
       final ts = measures.isNotEmpty ? measures.first.timeSignature : TimeSignature.commonTime44;
@@ -189,6 +201,7 @@ class CanonicalPdfExporter {
 
       final measureData = (m < measures.length) ? measures[m] : null;
       final notes = measureData?.notes ?? const <HierarchicalNote>[];
+      final totalTicks = measureData?.timeSignature.totalTicks ?? 16;
 
       if (notes.isEmpty) {
         // Silencio de redonda por defecto en compás vacío
@@ -197,6 +210,7 @@ class CanonicalPdfExporter {
         _renderMeasureNotes(
           buf,
           notes: notes,
+          totalTicks: totalTicks,
           measureStartX: measureX + 8.0,
           measureWidth: measureWidth - 16.0,
           bottomY: staffBottomY,
@@ -328,24 +342,81 @@ class CanonicalPdfExporter {
     buf.writeln('ET');
   }
 
-  /// Renderiza las notas y silencios de un compás con cálculo de alturas y líneas adicionales.
+  /// Renderiza la armadura de clave (sostenidos o bemoles) según [fifths] (-7..+7)
+  /// y retorna la coordenada X avanzada tras la armadura.
+  double _renderKeySignature(
+    StringBuffer buf, {
+    required int fifths,
+    required double startX,
+    required double bottomY,
+    required bool isBassClef,
+  }) {
+    if (fifths == 0) return startX;
+
+    // Pasos diatónicos desde la Línea 1 del pentagrama:
+    // Clave de Sol (Mi4 = 0): F#5=8, C#5=5, G#5=9, D#5=6, A#4=3, E#5=7, B#4=4
+    //                         Bb4=4, Eb5=7, Ab4=3, Db5=6, Gb4=2, Cb5=5, Fb4=1
+    // Clave de Fa (Sol2 = 0): F#3=6, C#3=3, G#3=7, D#3=4, A#2=1, E#3=5, B#2=2
+    //                         Bb2=2, Eb3=5, Ab2=1, Db3=4, Gb2=0, Cb3=3, Fb2=-1
+    const trebleSharps = <int>[8, 5, 9, 6, 3, 7, 4];
+    const trebleFlats = <int>[4, 7, 3, 6, 2, 5, 1];
+    const bassSharps = <int>[6, 3, 7, 4, 1, 5, 2];
+    const bassFlats = <int>[2, 5, 1, 4, 0, 3, -1];
+
+    final isSharp = fifths > 0;
+    final count = fifths.abs().clamp(0, 7);
+    final positions = isBassClef
+        ? (isSharp ? bassSharps : bassFlats)
+        : (isSharp ? trebleSharps : trebleFlats);
+    final accidentalSymbol = isSharp ? '#' : 'b';
+
+    const double stepX = 7.5;
+    double cursorX = startX;
+    for (int i = 0; i < count; i++) {
+      final y = bottomY + (positions[i] * (staffSpace / 2.0));
+      _renderAccidental(buf, accidental: accidentalSymbol, x: cursorX, y: y);
+      cursorX += stepX;
+    }
+
+    return cursorX + 4.0;
+  }
+
+  /// Renderiza un puntillo de aumentación junto a una nota o silencio con duración con puntillo.
+  void _renderAugmentationDot(
+    StringBuffer buf, {
+    required double x,
+    required double y,
+  }) {
+    _writeFilledRectPath(buf, x - 1.3, y - 1.3, 2.6, 2.6);
+  }
+
+  /// Renderiza las notas y silencios de un compás posicionándolos proporcionalmente según `startTick`,
+  /// de modo que las notas simultáneas de un acorde se apilan verticalmente en la misma coordenada X.
   void _renderMeasureNotes(
     StringBuffer buf, {
     required List<HierarchicalNote> notes,
+    required int totalTicks,
     required double measureStartX,
     required double measureWidth,
     required double bottomY,
     bool isBassClef = false,
   }) {
-    final noteCount = notes.length;
-    final slotWidth = measureWidth / noteCount;
+    final safeTotalTicks = totalTicks > 0 ? totalTicks : 16;
+    final usableWidth = measureWidth > 12.0 ? measureWidth - 12.0 : measureWidth;
 
-    for (int i = 0; i < noteCount; i++) {
-      final note = notes[i];
-      final noteX = measureStartX + (i * slotWidth) + (slotWidth * 0.2);
+    for (final note in notes) {
+      final tickRatio = (note.startTick / safeTotalTicks).clamp(0.0, 0.95);
+      final noteX = measureStartX + 4.0 + (tickRatio * usableWidth);
 
       if (note.isRest || note.noteName.isEmpty) {
         _renderRest(buf, ticks: note.durationTicks, x: noteX, bottomY: bottomY);
+        if (note.isDotted) {
+          _renderAugmentationDot(
+            buf,
+            x: noteX + 8.0,
+            y: bottomY + (staffSpace * 2.5),
+          );
+        }
         continue;
       }
 
@@ -364,6 +435,15 @@ class CanonicalPdfExporter {
       // 3. Cabeza de la nota (Notehead)
       final isHollow = (note.durationTicks >= 8); // Blanca (8 ticks) o Redonda (16 ticks)
       _renderNotehead(buf, x: noteX, y: noteCenterY, isHollow: isHollow);
+
+      // 3.5. Puntillo de aumentación (ticks 3, 6, 12, 24)
+      if (note.isDotted) {
+        // Si la nota cae sobre una línea (diatonicOffset par), elevar el puntillo al espacio superior
+        final dotY = diatonicOffset.isEven
+            ? noteCenterY + (staffSpace / 4.0)
+            : noteCenterY;
+        _renderAugmentationDot(buf, x: noteX + 8.5, y: dotY);
+      }
 
       // 4. Plica (Stem) y Banderas (Flags)
       if (note.durationTicks < 16) {
