@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 
+import '../../../core/audio/domain/i_audio_transcoder_port.dart';
 import '../../../core/logging/domain/i_studio_logger.dart';
 import '../../../core/file_system/domain/i_platform_file_gateway.dart';
 import '../domain/tuning_preset_entity.dart';
@@ -105,6 +106,7 @@ class TunerViewModel extends ChangeNotifier
   final IAudioSynthesizerService _audioSynthesizer;
   final AcousticEchoSuppressor _echoSuppressor;
   final IPlatformFileGateway _platformFileGateway;
+  final IAudioTranscoderPort _audioTranscoder;
   late final PracticeRecorderController _recorderController;
   late final ScoreEditorController _scoreEditorController;
   late final VocalPedagogyController _vocalPedagogyController;
@@ -273,6 +275,7 @@ class TunerViewModel extends ChangeNotifier
     ITunnerPackageCodec? packageCodec,
     IStudioAudioDeviceMatrixPort? audioDeviceMatrixService,
     IPlatformFileGateway? platformFileGateway,
+    IAudioTranscoderPort? audioTranscoder,
     void Function(String themeId)? onStudioThemeIdChanged,
     IStudioLogger? logger,
     Future<String> Function()? documentsDirectoryProvider,
@@ -291,6 +294,7 @@ class TunerViewModel extends ChangeNotifier
         _audioSynthesizer = audioSynthesizerService ?? const NoOpAudioSynthesizerService(),
         _echoSuppressor = echoSuppressor ?? AcousticEchoSuppressor(),
         _platformFileGateway = platformFileGateway ?? const NoOpPlatformFileGateway(),
+        _audioTranscoder = audioTranscoder ?? const NoOpAudioTranscoderPort(),
         _multiToneDetector = multiToneDetector ?? PolyphonicMultiToneDetector(),
         _soundFontSynthesizer = soundFontSynthesizer ?? const NoOpSoundFontSynthesizerService(),
         _polyphonicVoicePool = polyphonicVoicePool ?? PolyphonicVoicePool(),
@@ -358,6 +362,7 @@ class TunerViewModel extends ChangeNotifier
   bool get isEssentialMode => _displayMode == AppDisplayMode.essential;
   ISoundFontSynthesizerService get soundFontSynthesizer => _soundFontSynthesizer;
   IPlatformFileGateway get platformFileGateway => _platformFileGateway;
+  IAudioTranscoderPort get audioTranscoder => _audioTranscoder;
   int get activeSoundFontPatch => _soundFontSynthesizer.activePatch;
   List<Sf2Preset> get availableSoundFontPresets => _soundFontSynthesizer.availablePresets;
 
@@ -1920,12 +1925,33 @@ class TunerViewModel extends ChangeNotifier
 
   IScoreParserService get scoreImporterService => _scoreImporterService;
 
-  /// Importa una partitura externa en formato MusicXML o MIDI a partir de su contenido en bytes.
+  /// Importa una partitura externa (MusicXML, MIDI, ABC, PDF) o audio (WAV, MP3, FLAC, OGG, M4A) a partir de su contenido en bytes.
   Future<ParsedScoreResult?> importScoreFromBytes(Uint8List bytes, String fileName) async {
     try {
+      Uint8List effectiveBytes = bytes;
+      String effectiveFileName = fileName;
+      final dotIdx = fileName.lastIndexOf('.');
+      final ext = dotIdx >= 0 ? fileName.substring(dotIdx + 1).toLowerCase() : '';
+      if (_audioTranscoder.isSupportedCompressedExtension(ext)) {
+        final transcodedWav = await _audioTranscoder.transcodeToWav16BitPcm(
+          bytes,
+          fileExtension: ext,
+        );
+        if (transcodedWav == null || transcodedWav.isEmpty) {
+          _logger.warning(
+            'TunerViewModel',
+            'No se pudo decodificar el audio comprimido "$fileName" (.$ext).',
+          );
+          return null;
+        }
+        effectiveBytes = transcodedWav;
+        final baseTitle = dotIdx >= 0 ? fileName.substring(0, dotIdx) : fileName;
+        effectiveFileName = '$baseTitle.wav';
+      }
+
       final result = await _scoreImporterService.parseScoreData(
-        bytes: bytes,
-        fileName: fileName,
+        bytes: effectiveBytes,
+        fileName: effectiveFileName,
       );
       addSongPackage(result.package);
       _workspaceScores.removeWhere((p) => p.id == result.package.id);
@@ -2005,11 +2031,26 @@ class TunerViewModel extends ChangeNotifier
     notifyListeners();
   }
 
-  /// Abre el selector nativo del sistema de archivos para importar partituras MusicXML, MIDI, etc.
+  /// Abre el selector nativo del sistema de archivos para importar partituras o audio (MP3, WAV, FLAC, OGG, MusicXML, MIDI, ABC, PDF).
   Future<ParsedScoreResult?> importScoreFromFilePicker() async {
     try {
       final picked = await _platformFileGateway.pickFile(
-        allowedExtensions: ['musicxml', 'xml', 'mxl', 'mid', 'midi', 'abc', 'pdf', 'wav'],
+        allowedExtensions: const [
+          'mp3',
+          'wav',
+          'flac',
+          'ogg',
+          'm4a',
+          'aac',
+          'opus',
+          'musicxml',
+          'xml',
+          'mxl',
+          'mid',
+          'midi',
+          'abc',
+          'pdf',
+        ],
       );
 
       if (picked == null || picked.bytes == null || picked.bytes!.isEmpty) {

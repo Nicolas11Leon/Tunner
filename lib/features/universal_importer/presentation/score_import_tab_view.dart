@@ -26,7 +26,21 @@ class ScoreImportTabView extends StatefulWidget {
     try {
       final effectiveGateway = gateway ?? const NoOpPlatformFileGateway();
       final picked = await effectiveGateway.pickFile(
-        allowedExtensions: const ['xml', 'musicxml', 'mxl', 'mid', 'midi', 'abc', 'wav', 'pdf'],
+        allowedExtensions: const [
+          'mp3',
+          'wav',
+          'flac',
+          'ogg',
+          'm4a',
+          'aac',
+          'xml',
+          'musicxml',
+          'mxl',
+          'mid',
+          'midi',
+          'abc',
+          'pdf',
+        ],
       );
       if (picked == null || picked.bytes == null) return null;
       return (bytes: picked.bytes!, fileName: picked.name);
