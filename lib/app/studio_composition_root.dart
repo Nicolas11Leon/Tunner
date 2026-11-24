@@ -1,4 +1,6 @@
 import '../core/audio/domain/ffi/i_native_dsp_bridge.dart';
+import '../core/audio/domain/i_audio_transcoder_port.dart';
+import '../core/audio/infrastructure/ffmpeg_audio_transcoder_service.dart';
 import '../core/audio/infrastructure/ffi/native_dsp_ffi_bridge.dart';
 import '../core/audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../core/audio/infrastructure/studio_audio_engine.dart';
@@ -41,6 +43,7 @@ import 'studio_workspace_seed_provider.dart';
 /// evitando acoplamientos directos en la capa de presentación y singletons globales en pruebas.
 class StudioCompositionRoot {
   final IPlatformFileGateway platformFileGateway;
+  final IAudioTranscoderPort audioTranscoder;
   final NativeDspFfiBridge nativeDspBridge;
   final StudioMasterDspChain masterDspChain;
   final StudioAudioEngine audioEngine;
@@ -57,6 +60,7 @@ class StudioCompositionRoot {
 
   StudioCompositionRoot._({
     required this.platformFileGateway,
+    required this.audioTranscoder,
     required this.nativeDspBridge,
     required this.masterDspChain,
     required this.audioEngine,
@@ -106,6 +110,7 @@ class StudioCompositionRoot {
 
     return StudioCompositionRoot._(
       platformFileGateway: fileGateway,
+      audioTranscoder: const FfmpegAudioTranscoderService(),
       nativeDspBridge: dspBridge,
       masterDspChain: dspChain,
       audioEngine: outEngine,
@@ -142,6 +147,7 @@ class StudioCompositionRoot {
       seedDefaults: seedDefaults,
       audioDeviceMatrixService: audioMatrixService,
       platformFileGateway: platformFileGateway,
+      audioTranscoder: audioTranscoder,
       documentsDirectoryProvider: platformFileGateway.getDocumentsDirectoryPath,
       audioSynthesizerService: audioSynthesizerService,
       playbackService: AudioPlaybackService(audioEngine: audioEngine),
@@ -181,7 +187,7 @@ class StudioCompositionRoot {
   /// Crea el ViewModel de la Bóveda Multimedia con servicios de I/O y audio inyectados.
   MediaVaultViewModel createMediaVaultViewModel() {
     return MediaVaultViewModel(
-      ioService: const UniversalMediaIoService(),
+      ioService: UniversalMediaIoService(audioTranscoder: audioTranscoder),
       fileGateway: platformFileGateway,
       fileSystemRepository: fileSystemService.fileSystemRepository,
       audioEngine: audioEngine,
