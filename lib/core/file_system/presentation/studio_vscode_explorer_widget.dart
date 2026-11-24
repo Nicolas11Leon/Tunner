@@ -13,11 +13,13 @@ import 'studio_folder_tree_tile.dart';
 class StudioVsCodeExplorerWidget extends StatelessWidget {
   final IStudioWorkspaceFileSystem service;
   final VoidCallback? onFileTapped;
+  final VoidCallback? onImportExternalFile;
 
   const StudioVsCodeExplorerWidget({
     super.key,
     required this.service,
     this.onFileTapped,
+    this.onImportExternalFile,
   });
 
   @override
@@ -38,7 +40,10 @@ class StudioVsCodeExplorerWidget extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Barra de Herramientas Superior estilo VS Code ([+] File, [+] Folder, Refresh, Collapse, Search)
-              StudioExplorerActionHeader(service: service),
+              StudioExplorerActionHeader(
+                service: service,
+                onImportExternalFile: onImportExternalFile,
+              ),
 
               // Árbol jerárquico de carpetas y archivos
               Expanded(

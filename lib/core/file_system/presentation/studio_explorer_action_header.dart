@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import '../../design_system/studio_theme_provider.dart';
+import '../data/platform_file_gateway.dart';
 import '../domain/i_studio_workspace_file_system.dart';
+import '../domain/studio_file_type.dart';
 import 'studio_file_system_modals.dart';
 
 /// Barra de acciones de cabecera estilo VS Code con botones de archivo/carpeta y buscador en vivo.
 class StudioExplorerActionHeader extends StatefulWidget {
   final IStudioWorkspaceFileSystem service;
+  final VoidCallback? onImportExternalFile;
 
   const StudioExplorerActionHeader({
     super.key,
     required this.service,
+    this.onImportExternalFile,
   });
 
   @override
@@ -108,6 +112,57 @@ class _StudioExplorerActionHeaderState extends State<StudioExplorerActionHeader>
                   context,
                   service: widget.service,
                 ),
+              ),
+
+              // Botón Importar Archivo Externo
+              IconButton(
+                key: const Key('btn_import_external_file'),
+                tooltip: 'Importar Audio o Partitura del Computador...',
+                icon: Icon(Icons.file_upload_outlined, size: 14, color: tokens.accentPrimary),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                style: IconButton.styleFrom(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(20, 20),
+                ),
+                constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                onPressed: () async {
+                  if (widget.onImportExternalFile != null) {
+                    widget.onImportExternalFile!.call();
+                    return;
+                  }
+                  final picked = await const PlatformFileGateway().pickFile(
+                    allowedExtensions: const [
+                      'mp3',
+                      'wav',
+                      'flac',
+                      'ogg',
+                      'm4a',
+                      'aac',
+                      'opus',
+                      'musicxml',
+                      'xml',
+                      'mxl',
+                      'mid',
+                      'midi',
+                      'abc',
+                      'pdf',
+                    ],
+                  );
+                  if (picked == null || picked.bytes == null || picked.bytes!.isEmpty) {
+                    return;
+                  }
+                  final inferredType = StudioFileType.fromFileName(picked.name);
+                  final created = widget.service.createFile(
+                    name: picked.name,
+                    fileType: inferredType,
+                    sizeBytes: picked.bytes!.length,
+                    payload: picked.bytes,
+                    initialBytes: picked.bytes,
+                  );
+                  widget.service.onOpenFile?.call(created);
+                },
               ),
 
               // Botón Nueva Carpeta
