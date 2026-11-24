@@ -956,6 +956,10 @@ class TunerViewModel extends ChangeNotifier
       );
       if (transcribedPkg != null) {
         _activePackage = transcribedPkg;
+        if (_activePackage.score.measures.isNotEmpty) {
+          _currentMeasureIndex = _scoreEditorController.liveTranscriptionMeasureIndex
+              .clamp(0, _activePackage.score.measures.length - 1);
+        }
       }
 
       if (_isChordRecognitionActive) {
@@ -1577,6 +1581,10 @@ class TunerViewModel extends ChangeNotifier
     );
     if (transcribedPkg != null) {
       _activePackage = transcribedPkg;
+      if (_activePackage.score.measures.isNotEmpty) {
+        _currentMeasureIndex = _scoreEditorController.liveTranscriptionMeasureIndex
+            .clamp(0, _activePackage.score.measures.length - 1);
+      }
     }
 
     _vocalPedagogyController.processPitchFrame(
@@ -2948,12 +2956,7 @@ class TunerViewModel extends ChangeNotifier
     Uint8List audioBytes,
     String fileName,
   ) async {
-    final result = await _scoreEditorController.transcribeAudioFileToScore(audioBytes, fileName);
-    if (result != null) {
-      addSongPackage(result.package);
-      notifyListeners();
-    }
-    return result;
+    return importScoreFromBytes(audioBytes, fileName);
   }
 
   void toggleLiveTranscription() {
@@ -2965,6 +2968,8 @@ class TunerViewModel extends ChangeNotifier
     );
     if (finalPkg != null) {
       _activePackage = finalPkg;
+    } else if (isLiveTranscriptionActive && !_isRecording) {
+      unawaited(toggleRecording());
     }
     notifyListeners();
   }
@@ -2983,6 +2988,8 @@ class TunerViewModel extends ChangeNotifier
     );
     if (finalPkg != null) {
       _activePackage = finalPkg;
+    } else if (isPolyphonicTranscriptionActive && !_isRecording) {
+      unawaited(toggleRecording());
     }
     notifyListeners();
   }

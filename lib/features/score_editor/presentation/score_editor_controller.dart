@@ -75,6 +75,7 @@ class ScoreEditorController {
   int get scoreRedoCount => _scoreHistory.redoCount;
   bool get isLiveTranscriptionActive => _isLiveTranscriptionActive;
   bool get isPolyphonicTranscriptionActive => _isPolyphonicTranscriptionActive;
+  int get liveTranscriptionMeasureIndex => _transcriptionEngine.currentMeasureIndex;
   ExportBundleResult? get lastExportBundle => _lastExportBundle;
   bool get isExportingStems => _isExportingStems;
 
