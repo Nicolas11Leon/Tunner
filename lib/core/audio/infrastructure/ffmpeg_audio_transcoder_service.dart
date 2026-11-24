@@ -40,8 +40,9 @@ class FfmpegAudioTranscoderService implements IAudioTranscoderPort {
       final outFile = File('${tempDir.path}${Platform.pathSeparator}output.wav');
       await inFile.writeAsBytes(inputBytes, flush: true);
 
+      final executable = await _resolveExecutable();
       final result = await Process.run(
-        ffmpegExecutable,
+        executable,
         <String>[
           '-y',
           '-v',
@@ -59,6 +60,7 @@ class FfmpegAudioTranscoderService implements IAudioTranscoderPort {
           'pcm_s16le',
           outFile.path,
         ],
+        runInShell: Platform.isWindows && executable == 'ffmpeg',
       );
 
       if (result.exitCode != 0 || !await outFile.exists()) {
@@ -90,5 +92,53 @@ class FfmpegAudioTranscoderService implements IAudioTranscoderPort {
         }
       }
     }
+  }
+
+  /// Resuelve el binario de `ffmpeg` de forma multiplataforma (Linux y Windows),
+  /// priorizando binarios empaquetados junto al ejecutable y rutas estándar.
+  Future<String> _resolveExecutable() async {
+    if (ffmpegExecutable != 'ffmpeg') {
+      return ffmpegExecutable;
+    }
+
+    final binaryName = Platform.isWindows ? 'ffmpeg.exe' : 'ffmpeg';
+    try {
+      final exeDir = File(Platform.resolvedExecutable).parent.path;
+      final bundledCandidates = <String>[
+        '$exeDir${Platform.pathSeparator}$binaryName',
+        '$exeDir${Platform.pathSeparator}bin${Platform.pathSeparator}$binaryName',
+      ];
+      for (final candidate in bundledCandidates) {
+        if (await File(candidate).exists()) {
+          return candidate;
+        }
+      }
+    } catch (_) {
+      // Ignorar si resolvedExecutable no está disponible en entornos embebidos.
+    }
+
+    if (Platform.isWindows) {
+      const windowsFallbacks = <String>[
+        r'C:\ffmpeg\bin\ffmpeg.exe',
+        r'C:\Program Files\ffmpeg\bin\ffmpeg.exe',
+      ];
+      for (final candidate in windowsFallbacks) {
+        if (await File(candidate).exists()) {
+          return candidate;
+        }
+      }
+    } else if (Platform.isLinux) {
+      const linuxFallbacks = <String>[
+        '/usr/bin/ffmpeg',
+        '/usr/local/bin/ffmpeg',
+      ];
+      for (final candidate in linuxFallbacks) {
+        if (await File(candidate).exists()) {
+          return candidate;
+        }
+      }
+    }
+
+    return ffmpegExecutable;
   }
 }

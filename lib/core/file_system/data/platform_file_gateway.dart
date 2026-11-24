@@ -12,27 +12,49 @@ class PlatformFileGateway
 
   @override
   Future<PlatformPickedFile?> pickFile({List<String>? allowedExtensions}) async {
-    final normalizedExts = allowedExtensions
-        ?.expand((e) => <String>[e.toLowerCase(), e.toUpperCase()])
+    final lowerExts = allowedExtensions
+        ?.map((e) => e.trim().toLowerCase())
+        .where((e) => e.isNotEmpty)
         .toSet()
         .toList();
 
+    // En Windows el diálogo nativo es insensible a mayúsculas y funciona
+    // óptimamente con FileType.custom y extensiones en minúsculas sin duplicados.
     // En Linux (zenity/kdialog/portal), FileType.custom con listas largas de
-    // extensiones mixtas puede bloquear el filtro a un solo tipo (p. ej. PDF).
-    // Para selectores multi-formato usamos FileType.any para mostrar MP3, WAV,
-    // MusicXML, MIDI, ABC y PDF sin restricciones.
-    final useCustomFilter = normalizedExts != null &&
-        normalizedExts.isNotEmpty &&
-        (!Platform.isLinux || normalizedExts.length <= 2);
+    // extensiones mixtas puede bloquear el filtro a un solo tipo (p. ej. PDF),
+    // por lo que para selectores multi-formato usamos FileType.any.
+    final bool useCustomFilter;
+    final List<String>? effectiveExts;
+    if (lowerExts == null || lowerExts.isEmpty) {
+      useCustomFilter = false;
+      effectiveExts = null;
+    } else if (Platform.isLinux) {
+      useCustomFilter = lowerExts.length <= 1;
+      effectiveExts = useCustomFilter
+          ? lowerExts
+              .expand((e) => <String>[e.toLowerCase(), e.toUpperCase()])
+              .toSet()
+              .toList()
+          : null;
+    } else {
+      useCustomFilter = true;
+      effectiveExts = lowerExts;
+    }
 
     final files = await FilePicker.pickFiles(
       type: useCustomFilter ? FileType.custom : FileType.any,
-      allowedExtensions: useCustomFilter ? normalizedExts : null,
+      allowedExtensions: effectiveExts,
     );
 
     if (files.isEmpty) return null;
     final picked = files.first;
-    final bytes = await picked.readAsBytes();
+    var bytes = await picked.readAsBytes();
+    if (bytes.isEmpty && picked.path != null && picked.path!.isNotEmpty) {
+      final file = File(picked.path!);
+      if (await file.exists()) {
+        bytes = await file.readAsBytes();
+      }
+    }
     return PlatformPickedFile(
       name: picked.name,
       path: picked.path,
