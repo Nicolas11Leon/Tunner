@@ -33,7 +33,10 @@ class _StudioWorkspaceDockingContainerState
     extends State<StudioWorkspaceDockingContainer> {
   late StudioDockLayoutEntity _layout;
   String? _maximizedPanelId;
+  bool _isDraggingPanel = false;
+  String? _resizingFloatingPanelId;
   final Map<String, Offset> _floatingOffsets = <String, Offset>{};
+  final Map<String, Size> _floatingSizes = <String, Size>{};
 
   @override
   void initState() {
@@ -49,12 +52,15 @@ class _StudioWorkspaceDockingContainerState
 
   void _handlePanelDropped(StudioDockablePanelEntity panel, StudioDockZone targetZone) {
     setState(() {
+      _isDraggingPanel = false;
       _layout = _layout.movePanel(panel.id, targetZone);
       _maximizedPanelId = null; // Restaurar si estaba maximizado
-      if (targetZone == StudioDockZone.floating &&
-          !_floatingOffsets.containsKey(panel.id)) {
-        final index = _floatingOffsets.length;
-        _floatingOffsets[panel.id] = Offset(24.0 + index * 20.0, 44.0 + index * 20.0);
+      if (targetZone == StudioDockZone.floating) {
+        if (!_floatingOffsets.containsKey(panel.id)) {
+          final index = _floatingOffsets.length;
+          _floatingOffsets[panel.id] = Offset(24.0 + index * 20.0, 44.0 + index * 20.0);
+        }
+        _floatingSizes.putIfAbsent(panel.id, () => const Size(440.0, 320.0));
       }
     });
     widget.onLayoutChanged?.call(_layout);
@@ -183,16 +189,19 @@ class _StudioWorkspaceDockingContainerState
         final centerPanels = _getPanelsForZone(StudioDockZone.center);
         final floatingPanels = _getPanelsForZone(StudioDockZone.floating);
 
+        final showLeftZone = leftPanels.isNotEmpty || _isDraggingPanel;
+        final showRightZone = rightPanels.isNotEmpty || _isDraggingPanel;
+        final hasBottom = bottomPanels.isNotEmpty || _isDraggingPanel;
+
         // 1. Área Horizontal Superior (Izquierda + Centro + Derecha)
-        final hasBottom = bottomPanels.isNotEmpty;
         final bottomHeight = hasBottom ? availableHeight * _layout.bottomSplitRatio : 0.0;
         final minTopHeight = math.min(100.0, math.max(0.0, availableHeight - bottomHeight));
         final topHeight = (availableHeight - bottomHeight).clamp(minTopHeight, double.infinity);
 
-        final splitterWidth = (leftPanels.isNotEmpty ? 6.0 : 0.0) + (rightPanels.isNotEmpty ? 6.0 : 0.0);
+        final splitterWidth = (showLeftZone ? 6.0 : 0.0) + (showRightZone ? 6.0 : 0.0);
         final contentWidth = (totalWidth - splitterWidth).clamp(0.0, double.infinity);
-        double leftWidth = leftPanels.isNotEmpty ? contentWidth * _layout.leftSplitRatio : 0.0;
-        double rightWidth = rightPanels.isNotEmpty ? contentWidth * _layout.rightSplitRatio : 0.0;
+        double leftWidth = showLeftZone ? contentWidth * _layout.leftSplitRatio : 0.0;
+        double rightWidth = showRightZone ? contentWidth * _layout.rightSplitRatio : 0.0;
         final maxSideWidth = contentWidth * 0.85;
         if (leftWidth + rightWidth > maxSideWidth && (leftWidth + rightWidth) > 0) {
           final scale = maxSideWidth / (leftWidth + rightWidth);
@@ -216,7 +225,7 @@ class _StudioWorkspaceDockingContainerState
                   child: Row(
                     children: [
                       // Panel Izquierdo
-                      if (leftPanels.isNotEmpty) ...[
+                      if (showLeftZone) ...[
                         SizedBox(
                           width: leftWidth,
                           child: StudioDockDropZoneTarget(
@@ -247,7 +256,7 @@ class _StudioWorkspaceDockingContainerState
                       ),
 
                       // Panel Derecho
-                      if (rightPanels.isNotEmpty) ...[
+                      if (showRightZone) ...[
                         StudioSplitterDivider(
                           direction: Axis.horizontal,
                           onDragDelta: (delta) {
@@ -296,19 +305,34 @@ class _StudioWorkspaceDockingContainerState
               ],
             ),
 
-            // Capa de paneles en StudioDockZone.floating
+            // Capa de paneles en StudioDockZone.floating (Movibles y Redimensionables)
             if (floatingPanels.isNotEmpty)
               ...floatingPanels.asMap().entries.map((entry) {
                 final idx = entry.key;
                 final panel = entry.value;
                 final rawOffset = _floatingOffsets[panel.id] ??
                     Offset(16.0 + idx * 18.0, math.min(headerHeight + 8.0, math.max(0.0, totalHeight - 40.0)));
-                final floatWidth = math.min(420.0, math.max(40.0, totalWidth * 0.75));
-                final floatHeight = math.min(300.0, math.max(40.0, totalHeight * 0.75));
+                final desiredSize = _floatingSizes[panel.id] ?? const Size(420.0, 300.0);
+                final minW = math.min(240.0, math.max(40.0, totalWidth * 0.4));
+                final minH = math.min(160.0, math.max(40.0, totalHeight * 0.35));
+                final maxW = math.max(minW, totalWidth * 0.95);
+                final maxH = math.max(minH, totalHeight * 0.92);
+                final floatWidth = desiredSize.width.clamp(minW, maxW);
+                final floatHeight = desiredSize.height.clamp(minH, maxH);
                 final maxLeft = math.max(0.0, totalWidth - floatWidth);
                 final maxTop = math.max(0.0, totalHeight - floatHeight);
                 final clampedLeft = rawOffset.dx.clamp(0.0, maxLeft);
                 final clampedTop = rawOffset.dy.clamp(0.0, maxTop);
+
+                void moveByDelta(Offset delta) {
+                  if (_resizingFloatingPanelId == panel.id) return;
+                  setState(() {
+                    _floatingOffsets[panel.id] = Offset(
+                      (clampedLeft + delta.dx).clamp(0.0, maxLeft),
+                      (clampedTop + delta.dy).clamp(0.0, maxTop),
+                    );
+                  });
+                }
 
                 return Positioned(
                   key: ValueKey('floating_panel_${panel.id}'),
@@ -317,22 +341,69 @@ class _StudioWorkspaceDockingContainerState
                   width: floatWidth,
                   height: floatHeight,
                   child: GestureDetector(
-                    onPanUpdate: (details) {
-                      setState(() {
-                        _floatingOffsets[panel.id] = Offset(
-                          (clampedLeft + details.delta.dx).clamp(0.0, maxLeft),
-                          (clampedTop + details.delta.dy).clamp(0.0, maxTop),
-                        );
-                      });
-                    },
+                    onPanUpdate: (details) => moveByDelta(details.delta),
                     child: Material(
-                      elevation: 12,
+                      elevation: 14,
                       color: Colors.transparent,
-                      child: StudioDockableWindowCard(
-                        panel: panel,
-                        onMoveToZone: (newZone) => _handlePanelDropped(panel, newZone),
-                        onToggleMaximize: () => setState(() => _maximizedPanelId = panel.id),
-                        child: panel.builder?.call(context) ?? const SizedBox.shrink(),
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: StudioDockableWindowCard(
+                              panel: panel,
+                              onMoveToZone: (newZone) => _handlePanelDropped(panel, newZone),
+                              onToggleMaximize: () => setState(() => _maximizedPanelId = panel.id),
+                              onDragStarted: () => setState(() => _isDraggingPanel = true),
+                              onDragCompleted: () => setState(() => _isDraggingPanel = false),
+                              onHeaderPanUpdate: (details) => moveByDelta(details.delta),
+                              child: panel.builder?.call(context) ?? const SizedBox.shrink(),
+                            ),
+                          ),
+                          // Tirador de redimensionamiento libre 2D en esquina inferior derecha
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.resizeDownRight,
+                              child: Listener(
+                                key: ValueKey('floating_resize_handle_${panel.id}'),
+                                behavior: HitTestBehavior.opaque,
+                                onPointerDown: (_) {
+                                  _resizingFloatingPanelId = panel.id;
+                                },
+                                onPointerMove: (event) {
+                                  setState(() {
+                                    final cur = _floatingSizes[panel.id] ?? Size(floatWidth, floatHeight);
+                                    _floatingSizes[panel.id] = Size(
+                                      (cur.width + event.delta.dx).clamp(minW, maxW),
+                                      (cur.height + event.delta.dy).clamp(minH, maxH),
+                                    );
+                                  });
+                                },
+                                onPointerUp: (_) {
+                                  if (_resizingFloatingPanelId == panel.id) {
+                                    _resizingFloatingPanelId = null;
+                                  }
+                                },
+                                onPointerCancel: (_) {
+                                  if (_resizingFloatingPanelId == panel.id) {
+                                    _resizingFloatingPanelId = null;
+                                  }
+                                },
+                                child: Container(
+                                  width: 26,
+                                  height: 26,
+                                  alignment: Alignment.bottomRight,
+                                  padding: const EdgeInsets.all(3),
+                                  child: Icon(
+                                    Icons.south_east,
+                                    size: 14,
+                                    color: StudioThemeScope.of(context).accentPrimary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -377,6 +448,8 @@ class _StudioWorkspaceDockingContainerState
         panel: panel,
         onMoveToZone: (newZone) => _handlePanelDropped(panel, newZone),
         onToggleMaximize: () => setState(() => _maximizedPanelId = panel.id),
+        onDragStarted: () => setState(() => _isDraggingPanel = true),
+        onDragCompleted: () => setState(() => _isDraggingPanel = false),
         child: panel.builder?.call(context) ?? const SizedBox.shrink(),
       );
     }
@@ -417,6 +490,8 @@ class _StudioWorkspaceDockingContainerState
                   panel: panel,
                   onMoveToZone: (newZone) => _handlePanelDropped(panel, newZone),
                   onToggleMaximize: () => setState(() => _maximizedPanelId = panel.id),
+                  onDragStarted: () => setState(() => _isDraggingPanel = true),
+                  onDragCompleted: () => setState(() => _isDraggingPanel = false),
                   child: panel.builder?.call(context) ?? const SizedBox.shrink(),
                 );
               }).toList(),
