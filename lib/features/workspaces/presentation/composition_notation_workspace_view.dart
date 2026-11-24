@@ -738,7 +738,7 @@ class _CompositionNotationWorkspaceViewState
             ),
           ),
 
-        // Barra de Transcripción de Audio en Vivo
+        // Barra de Transcripción de Audio en Vivo y Transformador de Archivos a Partitura
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 3.0),
           child: Container(
@@ -751,37 +751,68 @@ class _CompositionNotationWorkspaceViewState
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      StudioIcon(
+                        viewModel.isLiveTranscriptionActive
+                            ? StudioIconId.audioMicOn
+                            : StudioIconId.audioMicOff,
+                        color: viewModel.isLiveTranscriptionActive
+                            ? tokens.accentSuccess
+                            : tokens.textMuted,
+                        size: 16,
+                        tintCustomAsset: true,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          viewModel.isLiveTranscriptionActive
+                              ? "Transcripción en vivo activa • ${viewModel.noteName} (${viewModel.frequency.toStringAsFixed(1)} Hz)"
+                              : "Transcripción de Audio en Pentagrama",
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: viewModel.isLiveTranscriptionActive
+                                ? tokens.accentPrimary
+                                : tokens.textPrimary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    StudioIcon(
-                      viewModel.isLiveTranscriptionActive
-                          ? StudioIconId.audioMicOn
-                          : StudioIconId.audioMicOff,
-                      color: viewModel.isLiveTranscriptionActive
-                          ? tokens.accentSuccess
-                          : tokens.textMuted,
-                      size: 16,
-                      tintCustomAsset: true,
+                    ActionChip(
+                      key: const Key('transcribe_audio_file_to_score_btn'),
+                      avatar: StudioIcon(
+                        StudioIconId.fileWavAudio,
+                        size: 14,
+                        color: tokens.accentPrimary,
+                        tintCustomAsset: true,
+                      ),
+                      label: const Text('Transformar Archivo (MP3/WAV)'),
+                      backgroundColor: tokens.inputSurface,
+                      labelStyle: TextStyle(
+                        color: tokens.textPrimary,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      side: BorderSide(color: tokens.accentPrimary.withValues(alpha: 0.45)),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      onPressed: widget.onOpenLibraryModal,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      viewModel.isLiveTranscriptionActive
-                          ? "Transcripción en vivo activa"
-                          : "Transcripción de Audio en Pentagrama",
-                      style: TextStyle(
-                        color: viewModel.isLiveTranscriptionActive
-                            ? tokens.accentPrimary
-                            : tokens.textPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Switch.adaptive(
+                      value: viewModel.isLiveTranscriptionActive,
+                      activeTrackColor: tokens.accentPrimary,
+                      onChanged: (_) => viewModel.toggleLiveTranscription(),
                     ),
                   ],
-                ),
-                Switch.adaptive(
-                  value: viewModel.isLiveTranscriptionActive,
-                  activeTrackColor: tokens.accentPrimary,
-                  onChanged: (_) => viewModel.toggleLiveTranscription(),
                 ),
               ],
             ),

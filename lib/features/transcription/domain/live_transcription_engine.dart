@@ -63,7 +63,7 @@ class LiveTranscriptionEngine {
 
   LiveTranscriptionEngine({
     this.minFramesForOnset = 2,
-    this.minClarityThreshold = 0.80,
+    this.minClarityThreshold = 0.45,
     this.defaultFrameDurationMs = 20.0,
     this.clockMsProvider,
     ScoreEditorOperations? operations,
