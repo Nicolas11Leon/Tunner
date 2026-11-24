@@ -148,6 +148,7 @@ class StudioCompositionRoot {
       audioDeviceMatrixService: audioMatrixService,
       platformFileGateway: platformFileGateway,
       audioTranscoder: audioTranscoder,
+      workspaceFileSystem: fileSystemService,
       documentsDirectoryProvider: platformFileGateway.getDocumentsDirectoryPath,
       audioSynthesizerService: audioSynthesizerService,
       playbackService: AudioPlaybackService(audioEngine: audioEngine),
