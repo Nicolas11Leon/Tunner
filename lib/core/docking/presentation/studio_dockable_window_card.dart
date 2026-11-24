@@ -10,6 +10,9 @@ class StudioDockableWindowCard extends StatelessWidget {
   final ValueChanged<StudioDockZone>? onMoveToZone;
   final VoidCallback? onClose;
   final VoidCallback? onToggleMaximize;
+  final VoidCallback? onDragStarted;
+  final VoidCallback? onDragCompleted;
+  final GestureDragUpdateCallback? onHeaderPanUpdate;
   final bool isMaximized;
 
   const StudioDockableWindowCard({
@@ -19,6 +22,9 @@ class StudioDockableWindowCard extends StatelessWidget {
     this.onMoveToZone,
     this.onClose,
     this.onToggleMaximize,
+    this.onDragStarted,
+    this.onDragCompleted,
+    this.onHeaderPanUpdate,
     this.isMaximized = false,
   });
 
@@ -38,6 +44,7 @@ class StudioDockableWindowCard extends StatelessWidget {
           // Header Bar con agarrador Draggable y atajo de doble clic
           GestureDetector(
             onDoubleTap: onToggleMaximize,
+            onPanUpdate: onHeaderPanUpdate,
             child: Container(
               height: 36,
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -51,6 +58,9 @@ class StudioDockableWindowCard extends StatelessWidget {
                   // Agarrador de Arrastre (Draggable Grip)
                   Draggable<StudioDockablePanelEntity>(
                     data: panel,
+                    onDragStarted: onDragStarted,
+                    onDragEnd: (_) => onDragCompleted?.call(),
+                    onDraggableCanceled: (_, _) => onDragCompleted?.call(),
                     feedback: Material(
                       color: Colors.transparent,
                       child: Container(
@@ -158,6 +168,15 @@ class StudioDockableWindowCard extends StatelessWidget {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
                         onPressed: () => onMoveToZone?.call(StudioDockZone.bottom),
+                      ),
+                    if (panel.currentZone != StudioDockZone.floating)
+                      IconButton(
+                        key: Key('float_window_btn_${panel.id}'),
+                        tooltip: 'Desacoplar en Ventana Flotante Libre',
+                        icon: Icon(Icons.picture_in_picture_alt_outlined, size: 14, color: tokens.accentPrimary),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                        onPressed: () => onMoveToZone?.call(StudioDockZone.floating),
                       ),
                   ],
 

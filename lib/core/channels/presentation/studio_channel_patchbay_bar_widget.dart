@@ -207,20 +207,40 @@ class StudioChannelPatchbayBarWidget extends StatelessWidget {
           ),
           const SizedBox(width: 6),
 
-          // Conteo de Plugs
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-            decoration: BoxDecoration(
-              color: tokens.inputSurface,
-              borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
+          // Conteo de Plugs (Clic para abrir Inspector de Ruteo y Fader del Canal)
+          InkWell(
+            key: Key('channel_plugs_inspector_btn_${channel.id}'),
+            onTap: () => StudioRenameChannelModal.show(
+              context,
+              routingService: routingService,
+              channel: channel,
             ),
-            child: Text(
-              '$totalConnections Plugs',
-              style: TextStyle(
-                color: totalConnections > 0 ? chColor : tokens.textMuted,
-                fontSize: 8.5,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'monospace',
+            borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: tokens.inputSurface,
+                borderRadius: BorderRadius.circular(tokens.borderRadiusSmall),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.tune,
+                    size: 10,
+                    color: totalConnections > 0 ? chColor : tokens.textMuted,
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    '$totalConnections Plugs',
+                    style: TextStyle(
+                      color: totalConnections > 0 ? chColor : tokens.textMuted,
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

@@ -165,62 +165,96 @@ class PitchDetectorService implements IPitchDetectorService {
           enableDcBlocker: enableDc,
         );
 
-        // Desplazar y acumular en el búfer flotante
-        final newSamples = conditionedFloats.length;
-        if (newSamples >= windowSizeSamples) {
-          slidingFloatBuffer.setRange(0, windowSizeSamples, conditionedFloats, newSamples - windowSizeSamples);
-          bufferFilledSamples = windowSizeSamples;
-        } else {
-          if (bufferFilledSamples + newSamples > windowSizeSamples) {
-            final keep = windowSizeSamples - newSamples;
-            slidingFloatBuffer.setRange(0, keep, slidingFloatBuffer, newSamples);
-            slidingFloatBuffer.setRange(keep, windowSizeSamples, conditionedFloats);
+        // Procesar en saltos (hops) de 1024 muestras para que bloques grandes de SO (parecord / PipeWire)
+        // alimenten múltiples cuadros consecutivos al ToneLockTracker sin perder bloqueo tonal.
+        const int hopSizeSamples = 1024;
+        final int totalIncoming = conditionedFloats.length;
+        int offset = 0;
+        Map<String, dynamic>? latestConfirmedPayload;
+        double latestRms = 0.0;
+
+        while (offset < totalIncoming) {
+          final int chunkLen = math.min(hopSizeSamples, totalIncoming - offset);
+          final chunkSlice = Float64List.sublistView(
+            conditionedFloats,
+            offset,
+            offset + chunkLen,
+          );
+          offset += chunkLen;
+
+          if (chunkLen >= windowSizeSamples) {
+            slidingFloatBuffer.setRange(
+              0,
+              windowSizeSamples,
+              chunkSlice,
+              chunkLen - windowSizeSamples,
+            );
+            bufferFilledSamples = windowSizeSamples;
+          } else if (bufferFilledSamples + chunkLen > windowSizeSamples) {
+            final keep = windowSizeSamples - chunkLen;
+            slidingFloatBuffer.setRange(0, keep, slidingFloatBuffer, chunkLen);
+            slidingFloatBuffer.setRange(keep, windowSizeSamples, chunkSlice);
             bufferFilledSamples = windowSizeSamples;
           } else {
-            slidingFloatBuffer.setRange(bufferFilledSamples, bufferFilledSamples + newSamples, conditionedFloats);
-            bufferFilledSamples += newSamples;
+            slidingFloatBuffer.setRange(
+              bufferFilledSamples,
+              bufferFilledSamples + chunkLen,
+              chunkSlice,
+            );
+            bufferFilledSamples += chunkLen;
+          }
+
+          // Ejecutar estimación si se dispone de al menos 2048 muestras (46.4 ms)
+          if (bufferFilledSamples >= 2048) {
+            final activeFloats = Float64List.sublistView(
+              slidingFloatBuffer,
+              0,
+              bufferFilledSamples,
+            );
+            final result = mpm.estimatePitch(
+              activeFloats,
+              sampleRate: activeSampleRate,
+            );
+            latestRms = result.rms;
+
+            if (result.pitched) {
+              final confirmedPitch = toneLockTracker.processFrame(
+                rawPitchHz: result.pitchHz,
+                clarity: result.clarity,
+                config: filterConfig,
+              );
+              if (confirmedPitch != null) {
+                final windowSize = math.min(1024, bufferFilledSamples);
+                final windowSlice = List<double>.from(
+                  Float64List.sublistView(
+                    slidingFloatBuffer,
+                    bufferFilledSamples - windowSize,
+                    bufferFilledSamples,
+                  ),
+                );
+                latestConfirmedPayload = <String, dynamic>{
+                  'pitch': confirmedPitch,
+                  'clarity': result.clarity,
+                  'window': windowSlice,
+                  'rms': result.rms,
+                };
+              }
+            } else {
+              toneLockTracker.reset();
+            }
           }
         }
 
-        // Ejecutar estimación si se dispone de al menos 2048 muestras (46.4 ms)
-        if (bufferFilledSamples >= 2048) {
-          final activeFloats = Float64List.sublistView(slidingFloatBuffer, 0, bufferFilledSamples);
-          final result = mpm.estimatePitch(activeFloats, sampleRate: activeSampleRate);
+        rmsThrottleCounter++;
+        final shouldSendRms = (rmsThrottleCounter % 2 == 0);
 
-          // Notificar nivel RMS para el medidor VU cada ~4 frames (aprox 20-25 Hz)
-          rmsThrottleCounter++;
-          final shouldSendRms = (rmsThrottleCounter % 4 == 0);
-
-          if (result.pitched) {
-            final confirmedPitch = toneLockTracker.processFrame(
-              rawPitchHz: result.pitchHz,
-              clarity: result.clarity,
-              config: filterConfig,
-            );
-            if (confirmedPitch != null) {
-              final windowSize = math.min(1024, bufferFilledSamples);
-              final windowSlice = List<double>.from(
-                Float64List.sublistView(slidingFloatBuffer, bufferFilledSamples - windowSize, bufferFilledSamples),
-              );
-              final payload = <String, dynamic>{
-                'pitch': confirmedPitch,
-                'clarity': result.clarity,
-                'window': windowSlice,
-              };
-              if (shouldSendRms) {
-                payload['rms'] = result.rms;
-              }
-              toMainPort.send(payload);
-            }
-          } else {
-            toneLockTracker.reset();
-            if (shouldSendRms) {
-              toMainPort.send({
-                'rms': result.rms,
-                'clarity': 0.0,
-              });
-            }
-          }
+        if (latestConfirmedPayload != null) {
+          toMainPort.send(latestConfirmedPayload);
+        } else if (shouldSendRms && bufferFilledSamples >= 2048) {
+          toMainPort.send({
+            'rms': latestRms,
+            'clarity': 0.0,
+          });
         }
       }
     });
