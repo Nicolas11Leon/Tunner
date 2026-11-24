@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import '../../../core/logging/domain/i_studio_logger.dart';
-import '../../mixer/domain/mixer_track_entity.dart';
 import '../../sheet_music/domain/score_tree.dart';
+import '../../song_library/domain/song_decomposer_service.dart';
 import '../../song_library/domain/song_package_entity.dart';
 import '../../transcription/domain/audio_to_score_transcription_engine.dart';
 import '../domain/i_score_parser_service.dart';
@@ -129,7 +129,8 @@ class UniversalScoreImporterService implements IScoreParserService {
     );
   }
 
-  /// Transcribe un archivo de audio directamente a un [ParsedScoreResult].
+  /// Transcribe un archivo de audio directamente a un [ParsedScoreResult] con
+  /// descomposición automática en 4 stems (Melodía, Armonía/Piano, Bajo y Ritmo).
   ParsedScoreResult transcribeAudioToScoreResult({
     required Uint8List bytes,
     required String fileName,
@@ -149,22 +150,16 @@ class UniversalScoreImporterService implements IScoreParserService {
       totalNotes += m.notes.where((n) => !n.isRest).length;
     }
 
-    final track = AudioTrack(
-      id: 'audio_transcribed_track',
-      title: title,
-      instrumentIcon: 'mic',
-      volume: 1.0,
-    );
-
-    final pkg = SongPackage(
-      id: 'transcribed_${DateTime.now().millisecondsSinceEpoch}',
+    final SongPackage pkg = SongDecomposerService.decomposeCustomScore(
       title: title,
       composer: 'Transcripción Automática Tunner',
-      genre: MusicGenre.classical,
-      difficulty: SongDifficulty.intermediate,
-      defaultBpm: bpm,
-      tracks: [track],
-      score: score,
+      bpm: bpm,
+      timeSignature: timeSignature,
+      measures: score.measures,
+      includeLead: true,
+      includePiano: true,
+      includeBass: true,
+      includeRhythm: true,
     );
 
     return ParsedScoreResult(
@@ -172,7 +167,9 @@ class UniversalScoreImporterService implements IScoreParserService {
       format: 'AudioWAV',
       totalMeasures: score.measures.length,
       totalNotes: totalNotes,
-      warnings: const ['Partitura transcrita automáticamente desde audio monofónico (MPM).'],
+      warnings: const [
+        'Partitura transcrita automáticamente desde audio offline con 4 stems (MPM).',
+      ],
     );
   }
 
