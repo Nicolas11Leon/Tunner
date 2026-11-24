@@ -37,17 +37,48 @@ class StudioAssetsModals {
     void Function(SongPackage importedScore)? onScoreImported,
   }) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
-    final result = await viewModel.importScoreFromFilePicker();
-    if (!context.mounted) return;
-    if (result != null) {
-      onScoreImported?.call(result.package);
-      onNavigateToTab(4);
+    try {
+      final result = await viewModel.importScoreFromFilePicker();
+      if (!context.mounted) return;
+      if (result != null) {
+        onScoreImported?.call(result.package);
+        onNavigateToTab(4);
+        messenger?.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Importado: "${result.package.title}" (${result.totalMeasures} compases, ${result.package.tracks.length} pistas).',
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        String? errorMessage;
+        try {
+          final dynamic vm = viewModel;
+          final dynamic candidate = vm.lastImportError;
+          if (candidate is String && candidate.isNotEmpty) {
+            errorMessage = candidate;
+          }
+        } catch (_) {
+          // Getter opcional aún no disponible en TunerViewModel.
+        }
+        if (errorMessage != null) {
+          messenger?.showSnackBar(
+            SnackBar(
+              content: Text(
+                'No se pudo importar o decodificar el archivo: $errorMessage',
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (error) {
+      if (!context.mounted) return;
       messenger?.showSnackBar(
         SnackBar(
-          content: Text(
-            'Archivo "${result.package.title}" importado correctamente.',
-          ),
-          duration: const Duration(seconds: 3),
+          content: Text('Error al importar el archivo seleccionado: $error'),
+          duration: const Duration(seconds: 4),
         ),
       );
     }
