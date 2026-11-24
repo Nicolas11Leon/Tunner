@@ -17,11 +17,17 @@ class PlatformFileGateway
         .toSet()
         .toList();
 
+    // En Linux (zenity/kdialog/portal), FileType.custom con listas largas de
+    // extensiones mixtas puede bloquear el filtro a un solo tipo (p. ej. PDF).
+    // Para selectores multi-formato usamos FileType.any para mostrar MP3, WAV,
+    // MusicXML, MIDI, ABC y PDF sin restricciones.
+    final useCustomFilter = normalizedExts != null &&
+        normalizedExts.isNotEmpty &&
+        (!Platform.isLinux || normalizedExts.length <= 2);
+
     final files = await FilePicker.pickFiles(
-      type: normalizedExts != null && normalizedExts.isNotEmpty
-          ? FileType.custom
-          : FileType.any,
-      allowedExtensions: normalizedExts,
+      type: useCustomFilter ? FileType.custom : FileType.any,
+      allowedExtensions: useCustomFilter ? normalizedExts : null,
     );
 
     if (files.isEmpty) return null;

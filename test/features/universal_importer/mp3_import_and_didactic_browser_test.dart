@@ -155,8 +155,16 @@ class _FakeDiskBrowserFileGateway
       filesByPath[filePath];
 
   @override
-  Future<PlatformPickedFile?> pickFile({List<String>? allowedExtensions}) async =>
-      null;
+  Future<PlatformPickedFile?> pickFile({List<String>? allowedExtensions}) async {
+    const path = '/home/user/Music/backing_track_440.mp3';
+    final bytes = filesByPath[path];
+    if (bytes == null) return null;
+    return PlatformPickedFile(
+      name: 'backing_track_440.mp3',
+      path: path,
+      bytes: bytes,
+    );
+  }
 
   @override
   Future<String> getDocumentsDirectoryPath() async => '/home/user/Documents';
@@ -285,9 +293,9 @@ void main() {
     });
   });
 
-  group('Didactic Studio File Browser Dialog', () {
+  group('Direct OS File Explorer Import', () {
     testWidgets(
-      'Renders didactic disk browser, filters Audio vs Partituras, and imports MP3',
+      'showImportScoreDialog opens native file picker directly and imports MP3',
       (tester) async {
         tester.view.physicalSize = const Size(1400, 950);
         tester.view.devicePixelRatio = 1.0;
@@ -328,30 +336,6 @@ void main() {
         );
 
         await tester.tap(find.text('Abrir Importador'));
-        await tester.pumpAndSettle();
-
-        expect(find.byKey(const Key('import_tab_disk_btn')), findsOneWidget);
-        expect(
-          find.byKey(const Key('import_tab_library_btn')),
-          findsOneWidget,
-        );
-        expect(
-          find.byKey(const Key('import_dialog_os_picker_btn')),
-          findsOneWidget,
-        );
-        expect(find.text('Música'), findsOneWidget);
-        expect(find.text('Descargas'), findsOneWidget);
-        expect(find.text('backing_track_440.mp3'), findsOneWidget);
-        expect(find.text('estudio_clasico.musicxml'), findsOneWidget);
-
-        // Filter to Audio only
-        await tester.tap(find.text('Audio (MP3 / WAV / FLAC / OGG)'));
-        await tester.pumpAndSettle();
-        expect(find.text('backing_track_440.mp3'), findsOneWidget);
-        expect(find.text('estudio_clasico.musicxml'), findsNothing);
-
-        // Tap Transcribir button on MP3 entry to import
-        await tester.tap(find.text('Transcribir'));
         await tester.pumpAndSettle();
 
         expect(fakeTranscoder.transcodedExtensions, equals(['mp3']));
