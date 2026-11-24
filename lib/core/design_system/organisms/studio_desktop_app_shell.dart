@@ -59,6 +59,7 @@ class StudioDesktopAppShell extends StatefulWidget {
   final Widget? customSidebarExplorer;
   final String initialSidebarMode;
   final String? bufferLatencyLabel;
+  final bool initialCommandPromptVisible;
 
   const StudioDesktopAppShell({
     super.key,
@@ -98,6 +99,7 @@ class StudioDesktopAppShell extends StatefulWidget {
     this.onOpenSpectrogram,
     this.customSidebarExplorer,
     this.initialSidebarMode = 'tools',
+    this.initialCommandPromptVisible = true,
   });
 
   @override
@@ -110,14 +112,23 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
   bool _isDualSplitActive = false;
   double _dualSplitRatio = 0.50;
   late String _sidebarMode;
+  late bool _isCommandPromptVisible;
+
+  bool get isCommandPromptVisible => _isCommandPromptVisible;
 
   void toggleSidebar() => _toggleSidebar();
   void toggleDualSplit() => _toggleDualSplit();
+  void toggleCommandPromptBar() {
+    setState(() {
+      _isCommandPromptVisible = !_isCommandPromptVisible;
+    });
+  }
 
   @override
   void initState() {
     super.initState();
     _sidebarMode = widget.initialSidebarMode;
+    _isCommandPromptVisible = widget.initialCommandPromptVisible;
   }
 
   void _toggleSidebar() {
@@ -630,17 +641,19 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                               ),
 
                               // Barra de Comandos / Prompt Acústico estilo Antigravity IDE
-                              if (widget.promptSuggestions != null && widget.promptSuggestions!.isNotEmpty)
-                                StudioCommandPromptBar(
-                                  suggestions: widget.promptSuggestions!,
-                                  onOpenHelp: widget.onOpenHelp ?? widget.onOpenShortcuts,
-                                  onCommandExecuted: widget.onCommandSubmitted,
-                                  engineName: widget.engineName,
-                                  isRecording: widget.isRecording,
-                                  onToggleRecording: widget.onToggleRecording,
-                                )
-                              else
-                                _buildStudioPromptBar(tokens),
+                              if (_isCommandPromptVisible) ...[
+                                if (widget.promptSuggestions != null && widget.promptSuggestions!.isNotEmpty)
+                                  StudioCommandPromptBar(
+                                    suggestions: widget.promptSuggestions!,
+                                    onOpenHelp: widget.onOpenHelp ?? widget.onOpenShortcuts,
+                                    onCommandExecuted: widget.onCommandSubmitted,
+                                    engineName: widget.engineName,
+                                    isRecording: widget.isRecording,
+                                    onToggleRecording: widget.onToggleRecording,
+                                  )
+                                else
+                                  _buildStudioPromptBar(tokens),
+                              ],
                             ],
                           ),
                         );
@@ -666,42 +679,99 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
               ),
               child: Row(
                 children: [
-                  const StudioStatusLed(state: StudioLedState.active, size: 6.0),
-                  const SizedBox(width: 6),
-                  Text(
-                    'MOTOR DSP EN LÍNEA',
-                    style: TextStyle(
-                      color: tokens.textSecondary,
-                      fontSize: 9.0,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const StudioHairline(orientation: Axis.vertical, length: 12),
-                  const SizedBox(width: 12),
-                  Flexible(
-                    child: Text(
-                      widget.bufferLatencyLabel ?? 'BUFFER: 256 • LATENCIA: 5.3 ms',
-                      style: TextStyle(
-                        color: tokens.textMuted,
-                        fontSize: 9.0,
-                        fontFamily: 'monospace',
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const StudioStatusLed(state: StudioLedState.active, size: 6.0),
+                        const SizedBox(width: 6),
+                        Text(
+                          'MOTOR DSP EN LÍNEA',
+                          style: TextStyle(
+                            color: tokens.textSecondary,
+                            fontSize: 9.0,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const StudioHairline(orientation: Axis.vertical, length: 12),
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: Text(
+                            widget.bufferLatencyLabel ?? 'BUFFER: 256 • LATENCIA: 5.3 ms',
+                            style: TextStyle(
+                              color: tokens.textMuted,
+                              fontSize: 9.0,
+                              fontFamily: 'monospace',
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (widget.customStatusItems != null) ...[
+                          for (int i = 0; i < widget.customStatusItems!.length; i++) ...[
+                            if (i > 0) ...[
+                              const SizedBox(width: 8),
+                              const StudioHairline(orientation: Axis.vertical, length: 12),
+                              const SizedBox(width: 8),
+                            ],
+                            widget.customStatusItems![i],
+                          ],
+                        ],
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),
-                  if (widget.customStatusItems != null) ...[
-                    for (int i = 0; i < widget.customStatusItems!.length; i++) ...[
-                      if (i > 0) ...[
-                        const SizedBox(width: 8),
-                        const StudioHairline(orientation: Axis.vertical, length: 12),
-                        const SizedBox(width: 8),
-                      ],
-                      widget.customStatusItems![i],
-                    ],
-                  ],
+                  Tooltip(
+                    message: _isCommandPromptVisible
+                        ? 'Ocultar Barra de Comandos CLI'
+                        : 'Mostrar Barra de Comandos CLI',
+                    child: InkWell(
+                      key: const Key('btn_toggle_command_prompt_bar'),
+                      onTap: toggleCommandPromptBar,
+                      borderRadius: BorderRadius.circular(3.0),
+                      child: Container(
+                        height: 18.0,
+                        padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                        decoration: BoxDecoration(
+                          color: _isCommandPromptVisible
+                              ? tokens.accentPrimary.withValues(alpha: 0.16)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(3.0),
+                          border: Border.all(
+                            color: _isCommandPromptVisible
+                                ? tokens.accentPrimary.withValues(alpha: 0.45)
+                                : tokens.borderHairline,
+                            width: tokens.borderWidth,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.terminal,
+                              size: 11.0,
+                              color: _isCommandPromptVisible
+                                  ? tokens.accentPrimary
+                                  : tokens.textMuted,
+                            ),
+                            const SizedBox(width: 4.0),
+                            Text(
+                              'CLI',
+                              style: TextStyle(
+                                color: _isCommandPromptVisible
+                                    ? tokens.accentPrimary
+                                    : tokens.textSecondary,
+                                fontSize: 9.0,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -800,6 +870,7 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
       onSelected: (val) {
         if (val == 'toggle_sidebar') _toggleSidebar();
         if (val == 'toggle_dual_split') _toggleDualSplit();
+        if (val == 'toggle_command_prompt') toggleCommandPromptBar();
         if (val == 'toggle_rack') widget.onMenuToggleRack?.call();
         if (val == 'search') widget.onOpenSearch();
         if (val == 'automations') widget.onOpenAutomations?.call();
@@ -809,6 +880,13 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
       items: [
         _buildPopupMenuItem('toggle_sidebar', 'Alternar Barra Lateral', Icons.view_sidebar_rounded, tokens, shortcut: 'Ctrl+B'),
         _buildPopupMenuItem('toggle_dual_split', 'Alternar Vista Dividida Dual', Icons.vertical_split_rounded, tokens, shortcut: 'Ctrl+Shift+D'),
+        _buildPopupMenuItem(
+          'toggle_command_prompt',
+          _isCommandPromptVisible ? 'Ocultar Barra de Comandos CLI' : 'Mostrar Barra de Comandos CLI',
+          Icons.terminal,
+          tokens,
+          shortcut: 'Ctrl+~',
+        ),
         const PopupMenuDivider(height: 8),
         _buildPopupMenuItem('search', 'Búsqueda Rápida Omnibox', Icons.search_rounded, tokens, shortcut: 'Ctrl+K'),
         _buildPopupMenuItem('toggle_rack', 'Rack Modular de Estudio', Icons.developer_board_rounded, tokens, shortcut: 'F2'),
