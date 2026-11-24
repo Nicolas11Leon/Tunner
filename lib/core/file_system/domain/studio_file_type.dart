@@ -55,14 +55,39 @@ enum StudioFileType {
     required this.colorHex,
   });
 
+  static const Set<String> _audioExtensions = {
+    '.wav',
+    '.pcm',
+    '.aif',
+    '.aiff',
+    '.mp3',
+    '.flac',
+    '.ogg',
+    '.m4a',
+    '.aac',
+    '.opus',
+    '.wma',
+    '.webm',
+  };
+
+  static const Set<String> _scoreExtensions = {
+    '.musicxml',
+    '.mxl',
+    '.xml',
+    '.mid',
+    '.midi',
+    '.abc',
+    '.pdf',
+  };
+
   /// Deduce el tipo de archivo según la extensión del nombre provisto.
   static StudioFileType fromFileName(String fileName) {
-    final lower = fileName.toLowerCase();
+    final lower = fileName.trim().toLowerCase();
     if (lower.endsWith('.tunner')) return StudioFileType.project;
-    if (lower.endsWith('.musicxml') || lower.endsWith('.mxl') || lower.endsWith('.xml')) {
+    if (_scoreExtensions.any(lower.endsWith)) {
       return StudioFileType.score;
     }
-    if (lower.endsWith('.wav') || lower.endsWith('.pcm') || lower.endsWith('.aif')) {
+    if (_audioExtensions.any(lower.endsWith)) {
       return StudioFileType.audioWav;
     }
     if (lower.endsWith('.tnt')) return StudioFileType.rackTool;
@@ -71,5 +96,20 @@ enum StudioFileType {
       return StudioFileType.djBlueprint;
     }
     return StudioFileType.genericFile;
+  }
+
+  /// Extrae la extensión real del archivo en minúsculas con punto inicial (ej. `.mp3`).
+  /// Si el nombre no contiene una extensión explícita válida, retorna [fallbackType.extension].
+  static String extractExtension(String fileName, StudioFileType fallbackType) {
+    final trimmed = fileName.trim();
+    final dotIndex = trimmed.lastIndexOf('.');
+    if (dotIndex <= 0 || dotIndex >= trimmed.length - 1) {
+      return fallbackType.extension;
+    }
+    final ext = trimmed.substring(dotIndex).toLowerCase();
+    if (ext.contains('/') || ext.contains('\\') || ext.contains(' ')) {
+      return fallbackType.extension;
+    }
+    return ext;
   }
 }

@@ -260,7 +260,7 @@ class LocalDiskStudioFileSystemRepository implements StudioFileSystemRepository 
               name: fileName,
               relativePath: fileRelPath,
               modifiedAtMicros: modified,
-              extension: fileType.extension,
+              extension: StudioFileType.extractExtension(fileName, fileType),
               fileType: fileType,
               sizeBytes: size,
             ),

@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import '../../../core/audio/domain/i_audio_transcoder_port.dart';
 import '../../../core/logging/domain/i_studio_logger.dart';
 import '../../../core/file_system/domain/i_platform_file_gateway.dart';
+import '../../../core/file_system/domain/i_studio_workspace_file_system.dart';
+import '../../../core/file_system/domain/studio_file_type.dart';
 import '../domain/tuning_preset_entity.dart';
 import '../../../core/theme/tunner_theme.dart';
 import '../domain/note_entity.dart';
@@ -230,7 +232,12 @@ class TunerViewModel extends ChangeNotifier
   // Empaquetador Canónico de Proyectos .tunner
   ITunnerPackageCodec packageCodec;
   final IStudioAudioDeviceMatrixPort? _audioDeviceMatrixService;
+  final IStudioWorkspaceFileSystem? _workspaceFileSystem;
   final IStudioLogger _logger;
+
+  // Diagnóstico de importación universal (US-FS-03)
+  String? _lastImportError;
+  bool _isImportingFile = false;
 
   // Calibración y Adaptación Acústica del Micrófono (UC-41)
   MicrophoneCalibrationProfile _micProfile = const MicrophoneCalibrationProfile();
@@ -276,6 +283,7 @@ class TunerViewModel extends ChangeNotifier
     IStudioAudioDeviceMatrixPort? audioDeviceMatrixService,
     IPlatformFileGateway? platformFileGateway,
     IAudioTranscoderPort? audioTranscoder,
+    IStudioWorkspaceFileSystem? workspaceFileSystem,
     void Function(String themeId)? onStudioThemeIdChanged,
     IStudioLogger? logger,
     Future<String> Function()? documentsDirectoryProvider,
@@ -300,6 +308,7 @@ class TunerViewModel extends ChangeNotifier
         _polyphonicVoicePool = polyphonicVoicePool ?? PolyphonicVoicePool(),
         packageCodec = packageCodec ?? const NoOpTunnerPackageCodec(),
         _audioDeviceMatrixService = audioDeviceMatrixService,
+        _workspaceFileSystem = workspaceFileSystem,
         _logger = logger ?? const NoOpStudioLogger() {
     _activePackage = _curatedLibrary.first;
     _bpm = _activePackage.defaultBpm;
@@ -363,6 +372,8 @@ class TunerViewModel extends ChangeNotifier
   ISoundFontSynthesizerService get soundFontSynthesizer => _soundFontSynthesizer;
   IPlatformFileGateway get platformFileGateway => _platformFileGateway;
   IAudioTranscoderPort get audioTranscoder => _audioTranscoder;
+  String? get lastImportError => _lastImportError;
+  bool get isImportingFile => _isImportingFile;
   int get activeSoundFontPatch => _soundFontSynthesizer.activePatch;
   List<Sf2Preset> get availableSoundFontPresets => _soundFontSynthesizer.availablePresets;
 
@@ -1927,17 +1938,24 @@ class TunerViewModel extends ChangeNotifier
 
   /// Importa una partitura externa (MusicXML, MIDI, ABC, PDF) o audio (WAV, MP3, FLAC, OGG, M4A) a partir de su contenido en bytes.
   Future<ParsedScoreResult?> importScoreFromBytes(Uint8List bytes, String fileName) async {
+    _lastImportError = null;
+    _isImportingFile = true;
+    notifyListeners();
+
     try {
       Uint8List effectiveBytes = bytes;
       String effectiveFileName = fileName;
       final dotIdx = fileName.lastIndexOf('.');
       final ext = dotIdx >= 0 ? fileName.substring(dotIdx + 1).toLowerCase() : '';
-      if (_audioTranscoder.isSupportedCompressedExtension(ext)) {
+      final isCompressedAudio = _audioTranscoder.isSupportedCompressedExtension(ext);
+      if (isCompressedAudio) {
         final transcodedWav = await _audioTranscoder.transcodeToWav16BitPcm(
           bytes,
           fileExtension: ext,
         );
         if (transcodedWav == null || transcodedWav.isEmpty) {
+          _lastImportError =
+              'No se pudo decodificar el archivo de audio "$fileName" (.$ext). Verifique que sea un archivo de audio válido.';
           _logger.warning(
             'TunerViewModel',
             'No se pudo decodificar el audio comprimido "$fileName" (.$ext).',
@@ -1956,12 +1974,58 @@ class TunerViewModel extends ChangeNotifier
       addSongPackage(result.package);
       _workspaceScores.removeWhere((p) => p.id == result.package.id);
       _workspaceScores.insert(0, result.package);
+
+      if (_workspaceFileSystem != null) {
+        try {
+          final isAudioFile = isCompressedAudio ||
+              ext == 'wav' ||
+              ext == 'pcm' ||
+              ext == 'aif' ||
+              ext == 'aiff';
+          final folderName =
+              isAudioFile ? 'Tomas de Audio & WAV' : 'Partituras & Notación';
+          final targetFolder = '/$folderName';
+          final fileType =
+              isAudioFile ? StudioFileType.audioWav : StudioFileType.score;
+
+          String? targetFolderId;
+          for (final node in _workspaceFileSystem.rootFolder.children) {
+            if (node.relativePath == targetFolder || node.name == folderName) {
+              targetFolderId = node.id;
+              break;
+            }
+          }
+          targetFolderId ??= _workspaceFileSystem
+              .createFolder(
+                name: folderName,
+                parentFolderId: _workspaceFileSystem.rootFolder.id,
+              )
+              .id;
+
+          _workspaceFileSystem.createFile(
+            name: effectiveFileName,
+            parentFolderId: targetFolderId,
+            fileType: fileType,
+            sizeBytes: effectiveBytes.length,
+            initialBytes: effectiveBytes,
+          );
+        } catch (fsError) {
+          _logger.warning(
+            'TunerViewModel',
+            'No se pudo persistir copia de "$effectiveFileName" en el proyecto: $fsError',
+          );
+        }
+      }
+
       await _triggerAutoSave();
-      notifyListeners();
       return result;
     } catch (e) {
+      _lastImportError = 'No se pudo importar "$fileName": $e';
       _logger.warning('TunerViewModel', "Error al importar partitura: $e");
       return null;
+    } finally {
+      _isImportingFile = false;
+      notifyListeners();
     }
   }
 
@@ -2033,6 +2097,7 @@ class TunerViewModel extends ChangeNotifier
 
   /// Abre el selector nativo del sistema de archivos para importar partituras o audio (MP3, WAV, FLAC, OGG, MusicXML, MIDI, ABC, PDF).
   Future<ParsedScoreResult?> importScoreFromFilePicker() async {
+    _lastImportError = null;
     try {
       final picked = await _platformFileGateway.pickFile(
         allowedExtensions: const [
@@ -2053,14 +2118,24 @@ class TunerViewModel extends ChangeNotifier
         ],
       );
 
-      if (picked == null || picked.bytes == null || picked.bytes!.isEmpty) {
+      if (picked == null) {
+        _lastImportError = null;
+        return null;
+      }
+
+      if (picked.bytes == null || picked.bytes!.isEmpty) {
+        _lastImportError =
+            'El archivo seleccionado "${picked.name}" está vacío o no pudo leerse.';
+        notifyListeners();
         return null;
       }
 
       final parsed = await importScoreFromBytes(picked.bytes!, picked.name);
       return parsed;
     } catch (e) {
+      _lastImportError = 'Error al seleccionar archivo: $e';
       _logger.warning('TunerViewModel', "Error al seleccionar archivo en FilePicker: $e");
+      notifyListeners();
       return null;
     }
   }
