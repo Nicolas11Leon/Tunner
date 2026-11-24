@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../../../core/design_system/studio_design_system.dart';
 import '../../tuner_viewmodel.dart';
 import '../../tuner/presentation/concert_pitch_selector_modal.dart';
+import '../../tuner/presentation/strobe_tuner_widget.dart';
 import '../../tuner/presentation/temperament_selector_modal.dart';
+import '../../tuner/presentation/tuner_acoustic_telemetry.dart';
 import '../../tuner/domain/temperament_engine.dart';
 import '../../acoustic_lab/presentation/harmonic_spectrogram_modal.dart';
 import '../../chord_analyzer/presentation/chord_analyzer_modal.dart';
@@ -12,7 +14,8 @@ import '../../vocal_autotune/domain/autotune_config_entity.dart';
 
 /// Vista especializada para el Modo 3: Laboratorio Acústico & Producción de Audio.
 /// Enfocada en ingenieros de sonido, acústica física, calibración microtonal,
-/// temperamentos históricos, espectrogramas FFT y análisis armónico polifónico.
+/// temperamentos históricos, espectrogramas FFT y análisis armónico polifónico,
+/// manteniendo siempre visible el Afinador Estroboscópico en vivo.
 class ProductionAcousticLabWorkspaceView extends StatelessWidget {
   final TunerViewModel viewModel;
   final TunnerThemePalette palette;
@@ -36,6 +39,152 @@ class ProductionAcousticLabWorkspaceView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Afinador Estroboscópico Permanente en Vivo (60 Hz)
+          ValueListenableBuilder<TunerAcousticTelemetry>(
+            valueListenable: viewModel.telemetryListenable,
+            builder: (context, telemetry, _) {
+              final effectiveFreq = telemetry.frequency > 0
+                  ? telemetry.frequency
+                  : viewModel.frequency;
+              final rawNote = telemetry.noteName.isNotEmpty &&
+                      telemetry.noteName != '--'
+                  ? telemetry.noteName
+                  : viewModel.noteName;
+              final displayNote = viewModel.hasTransposition
+                  ? (viewModel.writtenNoteName.isEmpty
+                      ? "--"
+                      : viewModel.writtenNoteName)
+                  : (rawNote.isEmpty ? "--" : rawNote);
+              final cents = telemetry.frequency > 0
+                  ? telemetry.cents
+                  : viewModel.cents;
+              final isListening =
+                  telemetry.isRecording || viewModel.isRecording;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 14.0),
+                padding: const EdgeInsets.all(14.0),
+                decoration: BoxDecoration(
+                  color: tokens.panelBackground,
+                  borderRadius:
+                      BorderRadius.circular(tokens.borderRadiusLarge),
+                  border: Border.all(color: tokens.borderHairline),
+                ),
+                child: Column(
+                  children: [
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              displayNote,
+                              style: TextStyle(
+                                color: tokens.textPrimary,
+                                fontSize: 32,
+                                fontWeight: FontWeight.w900,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  effectiveFreq > 0
+                                      ? "${effectiveFreq.toStringAsFixed(1)} Hz"
+                                      : "-- Hz",
+                                  style: TextStyle(
+                                    color: tokens.textSecondary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                                Text(
+                                  effectiveFreq > 0
+                                      ? "${cents >= 0 ? '+' : ''}${cents.toStringAsFixed(1)} cents"
+                                      : "ESPERANDO AUDIO",
+                                  style: TextStyle(
+                                    color: tokens.accentPrimary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            ElevatedButton.icon(
+                              key: const Key('pro_lab_mic_toggle_btn'),
+                              onPressed: viewModel.toggleRecording,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isListening
+                                    ? tokens.accentDanger
+                                    : tokens.accentPrimary,
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                              icon: Icon(
+                                isListening ? Icons.mic_off : Icons.mic,
+                                size: 15,
+                              ),
+                              label: Text(
+                                isListening
+                                    ? "Pausar Escucha"
+                                    : "Activar Afinador",
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: () =>
+                                  viewModel.playReferenceTone("La4"),
+                              icon: const Icon(
+                                Icons.volume_up_outlined,
+                                size: 15,
+                              ),
+                              label: const Text(
+                                "Tono La4",
+                                style: TextStyle(fontSize: 11),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    StrobeTunerWidget(
+                      cents: cents,
+                      frequency: effectiveFreq,
+                      noteName: displayNote,
+                      soundingNoteName:
+                          viewModel.hasTransposition ? rawNote : null,
+                      isRecording: isListening,
+                      onPlayReferenceTone: () =>
+                          viewModel.playReferenceTone("La4"),
+                      palette: palette,
+                      centsTolerance: viewModel.centsTolerance,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+
           // Tarjeta de Calibración Microtonal y Acústica
           Container(
             padding: const EdgeInsets.all(16.0),

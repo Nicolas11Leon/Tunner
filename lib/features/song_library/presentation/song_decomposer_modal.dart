@@ -85,6 +85,85 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
     );
   }
 
+  void _loadFromHierarchicalScore(
+    HierarchicalScore score, {
+    String? customTitle,
+    String? customComposer,
+    int? customBpm,
+  }) {
+    final measureStrings = <String>[];
+    for (final measure in score.measures) {
+      if (measure.notes.isEmpty) continue;
+      final tokens = measure.notes.map((n) {
+        if (n.isRest || n.noteName == '--' || n.noteName.isEmpty) {
+          return '_:${n.durationTicks}';
+        }
+        return '${n.noteName}:${n.durationTicks}';
+      }).join(' ');
+      if (tokens.isNotEmpty) {
+        measureStrings.add(tokens);
+      }
+    }
+
+    setState(() {
+      _titleController.text = customTitle ?? score.title;
+      if (customComposer != null && customComposer.isNotEmpty) {
+        _composerController.text = customComposer;
+      }
+      _bpm = (customBpm ?? score.baseBpm).clamp(40, 220);
+      if (score.measures.isNotEmpty) {
+        _timeSignature = score.measures.first.timeSignature;
+      }
+      if (measureStrings.isNotEmpty) {
+        _notationController.text = measureStrings.join(' | ');
+      }
+      _selectedTab = 0;
+    });
+  }
+
+  Future<void> _importAudioOrScoreFile() async {
+    final parsed = await widget.viewModel.importScoreFromFilePicker();
+    if (!mounted || parsed == null) return;
+
+    _loadFromHierarchicalScore(
+      parsed.package.score,
+      customTitle: parsed.package.title,
+      customComposer: parsed.package.composer,
+      customBpm: parsed.package.score.baseBpm,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          "Audio/Partitura '${parsed.package.title}' transcrito y listo para descomponer en 4 Stems.",
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _auditionStemPreview(String stemRole, List<MeasureEntity> measures) {
+    String previewNote = 'La4';
+    for (final m in measures) {
+      for (final n in m.notes) {
+        if (!n.isRest && n.noteName != '--' && n.noteName.isNotEmpty) {
+          previewNote = n.noteName;
+          break;
+        }
+      }
+      if (previewNote != 'La4') break;
+    }
+
+    if (stemRole == 'bass') {
+      previewNote = previewNote.replaceAll(RegExp(r'\d+'), '2');
+    } else if (stemRole == 'harmony') {
+      previewNote = previewNote.replaceAll(RegExp(r'\d+'), '3');
+    } else if (stemRole == 'rhythm') {
+      previewNote = 'Do3';
+    }
+    widget.viewModel.playReferenceTone(previewNote);
+  }
+
   void _appendNote(String baseName) {
     String noteToken;
     if (baseName == 'R') {
@@ -395,9 +474,108 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
     List<MeasureEntity> parsedPreview,
     int totalNotes,
   ) {
+    final recordings = widget.viewModel.recordingHistory;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Panel de Ingesta Directa de Audio Real (WAV / MIDI / Obra Actual / Tomas del Estudio)
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: palette.scaffoldBackground,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: palette.primaryAccent.withValues(alpha: 0.35)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.graphic_eq, size: 16, color: palette.primaryAccent),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      "Fuente de Audio o Partitura para Descomponer en 4 Stems",
+                      style: TextStyle(
+                        color: palette.textColor,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  ElevatedButton.icon(
+                    key: const Key('decomposer_pick_audio_file_btn'),
+                    onPressed: _importAudioOrScoreFile,
+                    icon: const Icon(Icons.audio_file_outlined, size: 14),
+                    label: const Text(
+                      "Cargar Audio WAV / MIDI / XML...",
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: palette.primaryAccent,
+                      foregroundColor: isDark ? Colors.black : Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      elevation: 0,
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    key: const Key('decomposer_from_active_score_btn'),
+                    onPressed: () {
+                      final active = widget.viewModel.activePackage;
+                      _loadFromHierarchicalScore(
+                        active.score,
+                        customTitle: "${active.title} (Stems)",
+                        customComposer: active.composer,
+                        customBpm: active.score.baseBpm,
+                      );
+                    },
+                    icon: Icon(Icons.library_music_outlined, size: 14, color: palette.primaryAccent),
+                    label: Text(
+                      "Extraer de Obra Actual (${widget.viewModel.activePackage.title})",
+                      style: TextStyle(fontSize: 11, color: palette.textColor),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: palette.surfaceBorderColor),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                  for (final rec in recordings.take(3))
+                    ActionChip(
+                      avatar: Icon(Icons.mic, size: 13, color: palette.secondaryAccent),
+                      label: Text(
+                        "Toma: ${rec.songTitle}",
+                        style: TextStyle(fontSize: 10.5, color: palette.textColor),
+                      ),
+                      backgroundColor: palette.cardBackground,
+                      side: BorderSide(color: palette.surfaceBorderColor),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      onPressed: () {
+                        setState(() {
+                          _titleController.text = "${rec.songTitle} (Stems)";
+                          _bpm = rec.bpm.clamp(40, 220);
+                        });
+                      },
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
         // Fila de Título y Compositor
         Row(
           children: [
@@ -570,6 +748,57 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
             _buildLayerFilterChip("Armonía / Piano", _includePiano, (v) => setState(() => _includePiano = v), palette),
             _buildLayerFilterChip("Bajo / Cello", _includeBass, (v) => setState(() => _includeBass = v), palette),
             _buildLayerFilterChip("Ritmo / Batería", _includeRhythm, (v) => setState(() => _includeRhythm = v), palette),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            if (_includeLead)
+              ActionChip(
+                key: const Key('decomposer_audition_lead_btn'),
+                avatar: Icon(Icons.volume_up, size: 13, color: palette.primaryAccent),
+                label: Text("Escuchar Lead ($totalNotes notas)", style: TextStyle(fontSize: 10, color: palette.textColor)),
+                backgroundColor: palette.scaffoldBackground,
+                side: BorderSide(color: palette.surfaceBorderColor),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                onPressed: () => _auditionStemPreview('lead', parsedPreview),
+              ),
+            if (_includePiano)
+              ActionChip(
+                key: const Key('decomposer_audition_harmony_btn'),
+                avatar: Icon(Icons.volume_up, size: 13, color: palette.primaryAccent),
+                label: Text("Escuchar Armonía", style: TextStyle(fontSize: 10, color: palette.textColor)),
+                backgroundColor: palette.scaffoldBackground,
+                side: BorderSide(color: palette.surfaceBorderColor),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                onPressed: () => _auditionStemPreview('harmony', parsedPreview),
+              ),
+            if (_includeBass)
+              ActionChip(
+                key: const Key('decomposer_audition_bass_btn'),
+                avatar: Icon(Icons.volume_up, size: 13, color: palette.primaryAccent),
+                label: Text("Escuchar Bajo", style: TextStyle(fontSize: 10, color: palette.textColor)),
+                backgroundColor: palette.scaffoldBackground,
+                side: BorderSide(color: palette.surfaceBorderColor),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                onPressed: () => _auditionStemPreview('bass', parsedPreview),
+              ),
+            if (_includeRhythm)
+              ActionChip(
+                key: const Key('decomposer_audition_rhythm_btn'),
+                avatar: Icon(Icons.volume_up, size: 13, color: palette.primaryAccent),
+                label: Text("Escuchar Ritmo", style: TextStyle(fontSize: 10, color: palette.textColor)),
+                backgroundColor: palette.scaffoldBackground,
+                side: BorderSide(color: palette.surfaceBorderColor),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                onPressed: () => _auditionStemPreview('rhythm', parsedPreview),
+              ),
           ],
         ),
         const SizedBox(height: 14),

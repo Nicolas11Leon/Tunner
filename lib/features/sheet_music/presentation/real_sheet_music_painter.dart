@@ -111,9 +111,58 @@ class RealSheetMusicPainter extends CustomPainter {
     return absStep - refStep;
   }
 
+  double _computeStaffSpacing(Size size) {
+    return math.min(size.height / 14.0, 16.0);
+  }
+
   double _computeLeftMargin() {
     final int keyCount = keySignatureFifths.abs().clamp(0, 7);
     return keyCount == 0 ? 75.0 : 75.0 + (keyCount * 7.5);
+  }
+
+  /// Convierte una coordenada horizontal [localOffset] en el tick cuantizado dentro del compás.
+  int resolveTickAtOffset(
+    Offset localOffset,
+    Size size, {
+    int quantizeTicks = 1,
+  }) {
+    final double leftMargin = _computeLeftMargin();
+    final double rightMargin = 20.0;
+    final double playAreaWidth = math.max(1.0, size.width - leftMargin - rightMargin);
+    final int totalMeasureTicks = math.max(1, timeSignature.totalTicks);
+    final double relativeX = (localOffset.dx - leftMargin).clamp(0.0, playAreaWidth - 0.01);
+    final int rawTick = ((relativeX / playAreaWidth) * totalMeasureTicks).floor();
+    final int q = math.max(1, quantizeTicks);
+    final int quantized = (rawTick ~/ q) * q;
+    return quantized.clamp(0, totalMeasureTicks - 1);
+  }
+
+  /// Convierte una coordenada vertical [localOffset] en el nombre canónico de nota (ej. 'Do4', 'Fa#4').
+  String resolveNoteNameAtOffset(
+    Offset localOffset,
+    Size size, {
+    String accidental = '',
+  }) {
+    final double staffSpacing = _computeStaffSpacing(size);
+    if (staffSpacing <= 0) return 'Do4';
+    final double staffCenterY = size.height / 2.0;
+    final double line1Y = staffCenterY + (staffSpacing * 2.0);
+    final int step = ((line1Y - localOffset.dy) / (staffSpacing / 2.0))
+        .round()
+        .clamp(-10, 18);
+
+    final int refStep = switch (clef) {
+      InstrumentClef.bass => 18,
+      InstrumentClef.alto => 24,
+      InstrumentClef.treble => 30,
+    };
+
+    final int absStep = (refStep + step).clamp(7, 55);
+    final int octave = (absStep ~/ 7).clamp(0, 8);
+    final int diatonic = absStep % 7;
+    const solfegeNames = ['Do', 'Re', 'Mi', 'Fa', 'Sol', 'La', 'Si'];
+    final String baseName = solfegeNames[diatonic];
+    return '$baseName$accidental$octave';
   }
 
   /// Retorna el índice de la nota ubicada en las coordenadas [localOffset], o null si no se tocó ninguna.
@@ -132,7 +181,7 @@ class RealSheetMusicPainter extends CustomPainter {
     final double stepWidth = playAreaWidth / totalMeasureTicks;
 
     final double staffCenterY = size.height / 2.0;
-    final double staffSpacing = size.height / 14.0;
+    final double staffSpacing = _computeStaffSpacing(size);
     final double line1Y = staffCenterY + (staffSpacing * 2.0);
 
     final matchingXIndices = <int>[];
@@ -202,7 +251,7 @@ class RealSheetMusicPainter extends CustomPainter {
     final double playAreaWidth = math.max(1.0, size.width - leftMargin - rightMargin);
     final int totalMeasureTicks = math.max(1, timeSignature.totalTicks);
     final double stepWidth = playAreaWidth / totalMeasureTicks;
-    final double staffSpacing = size.height / 14;
+    final double staffSpacing = _computeStaffSpacing(size);
     final double centerY = size.height / 2;
 
     // Línea 1 inferior del pentagrama
@@ -216,6 +265,20 @@ class RealSheetMusicPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
     }
 
+    // Guías sutiles de pulso (Beats) para edición interactiva directa en lienzo
+    final int ticksPerBeat = math.max(1, totalMeasureTicks ~/ math.max(1, timeSignature.numerator));
+    final beatGuidePaint = Paint()
+      ..color = palette.staffLinesColor.withValues(alpha: 0.25)
+      ..strokeWidth = 1.0;
+    for (int t = 0; t < totalMeasureTicks; t += ticksPerBeat) {
+      final double beatX = leftMargin + (t * stepWidth);
+      canvas.drawLine(
+        Offset(beatX, topStaffY - (staffSpacing * 0.6)),
+        Offset(beatX, baseLine1Y + (staffSpacing * 0.6)),
+        beatGuidePaint,
+      );
+    }
+
     // Barra divisoria o final de compás (Barline)
     final double barX = size.width - rightMargin;
     if (measureIndex == totalMeasures - 1) {
@@ -226,7 +289,7 @@ class RealSheetMusicPainter extends CustomPainter {
     }
 
     // Numeración del compás sobre la barra inicial
-    _drawUnicodeText(canvas, "${measureIndex + 1}", leftMargin - 15, topStaffY - 14, 15, palette.textMutedColor);
+    _drawUnicodeText(canvas, "${measureIndex + 1}", leftMargin - 15, topStaffY - 14, 13, palette.textMutedColor);
 
     // 2. Dibujar la Clave SMuFL Vectorial (Sol, Fa o Do)
     if (clef == InstrumentClef.bass) {
@@ -234,7 +297,7 @@ class RealSheetMusicPainter extends CustomPainter {
       final line4Y = baseLine1Y - (3 * staffSpacing);
       _smuflEngine.drawFClef(
         canvas,
-        anchorLine4: Offset(26, line4Y),
+        anchorLine4: Offset(28, line4Y),
         staffSpace: staffSpacing,
         color: palette.musicalSymbolsColor,
       );
@@ -243,7 +306,7 @@ class RealSheetMusicPainter extends CustomPainter {
       final line3Y = baseLine1Y - (2 * staffSpacing);
       _smuflEngine.drawCClef(
         canvas,
-        anchorLine: Offset(26, line3Y),
+        anchorLine: Offset(28, line3Y),
         staffSpace: staffSpacing,
         color: palette.musicalSymbolsColor,
       );
@@ -252,7 +315,7 @@ class RealSheetMusicPainter extends CustomPainter {
       final line2Y = baseLine1Y - (1 * staffSpacing);
       _smuflEngine.drawGClef(
         canvas,
-        anchorLine2: Offset(26, line2Y),
+        anchorLine2: Offset(28, line2Y),
         staffSpace: staffSpacing,
         color: palette.musicalSymbolsColor,
       );
@@ -410,10 +473,14 @@ class RealSheetMusicPainter extends CustomPainter {
             !isFlat &&
             (cleanNote.contains('♮') || _naturalNoteRegExp.hasMatch(cleanNote));
 
+        final double accidentalOffsetX = stemGoesDown
+            ? (staffSpacing * 1.35)
+            : (staffSpacing * 1.15);
+
         if (isSharp) {
           _smuflEngine.drawAccidental(
             canvas,
-            center: Offset(noteCenterX - (staffSpacing * 0.95), noteY),
+            center: Offset(noteCenterX - accidentalOffsetX, noteY),
             staffSpace: staffSpacing,
             accidental: '#',
             color: noteColor,
@@ -421,7 +488,7 @@ class RealSheetMusicPainter extends CustomPainter {
         } else if (isFlat) {
           _smuflEngine.drawAccidental(
             canvas,
-            center: Offset(noteCenterX - (staffSpacing * 0.95), noteY),
+            center: Offset(noteCenterX - accidentalOffsetX, noteY),
             staffSpace: staffSpacing,
             accidental: 'b',
             color: noteColor,
@@ -429,7 +496,7 @@ class RealSheetMusicPainter extends CustomPainter {
         } else if (isNatural) {
           _smuflEngine.drawAccidental(
             canvas,
-            center: Offset(noteCenterX - (staffSpacing * 0.95), noteY),
+            center: Offset(noteCenterX - accidentalOffsetX, noteY),
             staffSpace: staffSpacing,
             accidental: 'n',
             color: noteColor,

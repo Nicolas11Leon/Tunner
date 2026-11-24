@@ -300,7 +300,14 @@ class _StudioRenameChannelModalState extends State<StudioRenameChannelModal> {
   @override
   Widget build(BuildContext context) {
     final tokens = StudioThemeScope.of(context);
-    final chColor = Color(widget.channel.colorHex);
+    final liveChannel = widget.routingService.channels.firstWhere(
+      (c) => c.id == widget.channel.id,
+      orElse: () => widget.channel,
+    );
+    final chColor = Color(liveChannel.colorHex);
+    final allPlugs = widget.routingService.plugs.values.toList();
+    final connectedSources = widget.routingService.matrix.findSourcesForChannel(liveChannel.id);
+    final connectedSinks = widget.routingService.matrix.findSinksForChannel(liveChannel.id);
 
     return Dialog(
       backgroundColor: tokens.panelBackground,
@@ -309,8 +316,8 @@ class _StudioRenameChannelModalState extends State<StudioRenameChannelModal> {
         side: BorderSide(color: tokens.borderHairline, width: tokens.borderWidth),
       ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 400),
-        child: Padding(
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -337,14 +344,23 @@ class _StudioRenameChannelModalState extends State<StudioRenameChannelModal> {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      'RENOMBRAR CANAL',
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'RENOMBRAR CANAL',
+                          style: TextStyle(
+                            color: tokens.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        Text(
+                          'Inspector de Mezcla, Fader y Matriz de Ruteo (${liveChannel.shortCode})',
+                          style: TextStyle(color: tokens.textMuted, fontSize: 10),
+                        ),
+                      ],
                     ),
                   ),
                   IconButton(
@@ -384,7 +400,159 @@ class _StudioRenameChannelModalState extends State<StudioRenameChannelModal> {
                 ),
                 onSubmitted: (_) => _submit(),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
+
+              // Sección de Fader de Ganancia, Mute y Estado de Transporte del Canal
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: tokens.inputSurface,
+                  borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                  border: Border.all(color: tokens.borderHairline),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        Text(
+                          'FADER DE CANAL (${(liveChannel.gain * 100).round()}%)',
+                          style: TextStyle(
+                            color: tokens.textSecondary,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            InkWell(
+                              key: const Key('channel_inspector_mute_btn'),
+                              onTap: () {
+                                widget.routingService.toggleChannelMute(liveChannel.id);
+                                setState(() {});
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: liveChannel.isMuted
+                                      ? tokens.statusError.withValues(alpha: 0.2)
+                                      : tokens.elevatedSurface,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: liveChannel.isMuted ? tokens.statusError : tokens.borderHairline,
+                                  ),
+                                ),
+                                child: Text(
+                                  liveChannel.isMuted ? 'MUTEADO' : 'ACTIVO',
+                                  style: TextStyle(
+                                    color: liveChannel.isMuted ? tokens.statusError : tokens.statusSuccess,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            InkWell(
+                              key: const Key('channel_inspector_toggle_play_btn'),
+                              onTap: () {
+                                widget.routingService.publishChannelParameters(
+                                  liveChannel.id,
+                                  isPlaying: !liveChannel.isPlaying,
+                                );
+                                setState(() {});
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: liveChannel.isPlaying
+                                      ? chColor.withValues(alpha: 0.2)
+                                      : tokens.elevatedSurface,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: liveChannel.isPlaying ? chColor : tokens.borderHairline,
+                                  ),
+                                ),
+                                child: Text(
+                                  liveChannel.isPlaying ? 'STOP BUS' : 'PLAY BUS',
+                                  style: TextStyle(
+                                    color: liveChannel.isPlaying ? chColor : tokens.textSecondary,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      value: liveChannel.gain.clamp(0.0, 2.0),
+                      min: 0.0,
+                      max: 2.0,
+                      divisions: 40,
+                      activeColor: chColor,
+                      onChanged: (val) {
+                        widget.routingService.setChannelGain(liveChannel.id, val);
+                        setState(() {});
+                      },
+                    ),
+                    if (allPlugs.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'CONEXIONES PATCHBAY EN ESTE CANAL (${connectedSources.length + connectedSinks.length} activas):',
+                        style: TextStyle(
+                          color: tokens.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: allPlugs.map((plug) {
+                          final isConnected =
+                              connectedSources.any((p) => p.id == plug.id) ||
+                              connectedSinks.any((p) => p.id == plug.id);
+                          return FilterChip(
+                            label: Text(
+                              plug.label,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: isConnected ? tokens.textPrimary : tokens.textSecondary,
+                              ),
+                            ),
+                            selected: isConnected,
+                            selectedColor: chColor.withValues(alpha: 0.25),
+                            backgroundColor: tokens.elevatedSurface,
+                            checkmarkColor: chColor,
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            onSelected: (selected) {
+                              if (selected) {
+                                widget.routingService.connectPlugToChannel(plug.id, liveChannel.id);
+                              } else {
+                                widget.routingService.disconnectPlug(plug.id);
+                              }
+                              setState(() {});
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: Wrap(

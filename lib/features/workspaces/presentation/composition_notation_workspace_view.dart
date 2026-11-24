@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../core/design_system/studio_design_system.dart';
 import '../../tuner_viewmodel.dart';
@@ -8,10 +9,16 @@ import '../../score_editor/presentation/score_editor_modal.dart';
 import '../../metronome/presentation/tap_tempo_modal.dart';
 import '../../audio_synthesizer/presentation/audio_midi_export_modal.dart';
 
+enum ScoreCanvasEditMode {
+  write,
+  select,
+  erase,
+}
+
 /// Vista especializada para el Modo 2: Composición & Partituras.
-/// Enfocada en el lienzo del pentagrama tipográfico SMuFL, transcripción de audio,
-/// edición de compases/notas y separación de temas en partitura.
-class CompositionNotationWorkspaceView extends StatelessWidget {
+/// Soporta edición directa en el lienzo SMuFL (clic y arrastre vertical para colocar/mover notas,
+/// clic derecho o modo borrador para eliminar, barra de figuras, alteraciones y gestión multi-compás).
+class CompositionNotationWorkspaceView extends StatefulWidget {
   final TunerViewModel viewModel;
   final TunnerThemePalette palette;
   final VoidCallback onOpenLibraryModal;
@@ -26,6 +33,463 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
   });
 
   @override
+  State<CompositionNotationWorkspaceView> createState() =>
+      _CompositionNotationWorkspaceViewState();
+}
+
+class _CompositionNotationWorkspaceViewState
+    extends State<CompositionNotationWorkspaceView> {
+  ScoreCanvasEditMode _editMode = ScoreCanvasEditMode.write;
+  int _selectedDurationTicks = 4; // Negra por defecto
+  String _selectedAccidental = ''; // '', '#', 'b'
+  bool _isRestMode = false;
+  int? _draggingTick;
+  String? _lastDraggedNoteName;
+
+  TunerViewModel get viewModel => widget.viewModel;
+  TunnerThemePalette get palette => widget.palette;
+
+  void _handleCanvasTapDown(
+    TapDownDetails details,
+    RealSheetMusicPainter painter,
+    Size canvasSize,
+  ) {
+    final tappedIndex = painter.findNoteIndexAtOffset(
+      details.localPosition,
+      canvasSize,
+    );
+
+    if (_editMode == ScoreCanvasEditMode.erase) {
+      if (tappedIndex != null &&
+          tappedIndex >= 0 &&
+          tappedIndex < viewModel.currentMeasureNotes.length) {
+        final targetNote = viewModel.currentMeasureNotes[tappedIndex];
+        viewModel.deleteScoreNote(
+          measureIndex: viewModel.currentMeasureIndex,
+          startTick: targetNote.startTick,
+        );
+      }
+      return;
+    }
+
+    if (_editMode == ScoreCanvasEditMode.select) {
+      if (tappedIndex != null) {
+        viewModel.selectAndPreviewScoreNote(tappedIndex);
+      } else {
+        viewModel.clearSelectedScoreNote();
+      }
+      return;
+    }
+
+    // Modo Escritura Directa en el Lienzo (ScoreCanvasEditMode.write)
+    if (details.localPosition.dx < 68.0) {
+      if (tappedIndex != null) {
+        viewModel.selectAndPreviewScoreNote(tappedIndex);
+      }
+      return;
+    }
+
+    final int targetTick;
+    final int targetDuration;
+    if (tappedIndex != null &&
+        tappedIndex >= 0 &&
+        tappedIndex < viewModel.currentMeasureNotes.length) {
+      final existing = viewModel.currentMeasureNotes[tappedIndex];
+      targetTick = existing.startTick;
+      targetDuration = _selectedDurationTicks;
+    } else {
+      final quantize = math.min(_selectedDurationTicks, 4);
+      targetTick = painter.resolveTickAtOffset(
+        details.localPosition,
+        canvasSize,
+        quantizeTicks: quantize,
+      );
+      targetDuration = _selectedDurationTicks;
+    }
+
+    final String noteName = _isRestMode
+        ? '--'
+        : painter.resolveNoteNameAtOffset(
+            details.localPosition,
+            canvasSize,
+            accidental: _selectedAccidental,
+          );
+
+    viewModel.insertOrUpdateScoreNote(
+      measureIndex: viewModel.currentMeasureIndex,
+      startTick: targetTick,
+      durationTicks: targetDuration,
+      noteName: noteName,
+      playAudibleFeedback: true,
+    );
+
+    final updatedIdx = viewModel.currentMeasureNotes.indexWhere(
+      (n) => n.startTick == targetTick,
+    );
+    if (updatedIdx >= 0) {
+      viewModel.selectAndPreviewScoreNote(updatedIdx);
+    }
+  }
+
+  void _handleCanvasSecondaryTapDown(
+    TapDownDetails details,
+    RealSheetMusicPainter painter,
+    Size canvasSize,
+  ) {
+    final tappedIndex = painter.findNoteIndexAtOffset(
+      details.localPosition,
+      canvasSize,
+    );
+    if (tappedIndex != null &&
+        tappedIndex >= 0 &&
+        tappedIndex < viewModel.currentMeasureNotes.length) {
+      final targetNote = viewModel.currentMeasureNotes[tappedIndex];
+      viewModel.deleteScoreNote(
+        measureIndex: viewModel.currentMeasureIndex,
+        startTick: targetNote.startTick,
+      );
+    }
+  }
+
+  void _handleCanvasVerticalDragStart(
+    DragStartDetails details,
+    RealSheetMusicPainter painter,
+    Size canvasSize,
+  ) {
+    final tappedIndex = painter.findNoteIndexAtOffset(
+      details.localPosition,
+      canvasSize,
+    );
+    if (tappedIndex != null &&
+        tappedIndex >= 0 &&
+        tappedIndex < viewModel.currentMeasureNotes.length) {
+      final note = viewModel.currentMeasureNotes[tappedIndex];
+      _draggingTick = note.startTick;
+      _lastDraggedNoteName = note.noteName;
+      viewModel.selectAndPreviewScoreNote(tappedIndex);
+    } else if (_editMode == ScoreCanvasEditMode.write &&
+        details.localPosition.dx >= 68.0) {
+      final quantize = math.min(_selectedDurationTicks, 4);
+      _draggingTick = painter.resolveTickAtOffset(
+        details.localPosition,
+        canvasSize,
+        quantizeTicks: quantize,
+      );
+      _lastDraggedNoteName = null;
+    }
+  }
+
+  void _handleCanvasVerticalDragUpdate(
+    DragUpdateDetails details,
+    RealSheetMusicPainter painter,
+    Size canvasSize,
+  ) {
+    final tick = _draggingTick;
+    if (tick == null) return;
+
+    final newNoteName = painter.resolveNoteNameAtOffset(
+      details.localPosition,
+      canvasSize,
+      accidental: _selectedAccidental,
+    );
+    if (newNoteName == _lastDraggedNoteName) return;
+    _lastDraggedNoteName = newNoteName;
+
+    final existingIdx = viewModel.currentMeasureNotes.indexWhere(
+      (n) => n.startTick == tick,
+    );
+    final duration = existingIdx >= 0
+        ? viewModel.currentMeasureNotes[existingIdx].durationTicks
+        : _selectedDurationTicks;
+
+    viewModel.insertOrUpdateScoreNote(
+      measureIndex: viewModel.currentMeasureIndex,
+      startTick: tick,
+      durationTicks: duration,
+      noteName: newNoteName,
+      playAudibleFeedback: true,
+    );
+  }
+
+  void _handleCanvasVerticalDragEnd(DragEndDetails _) {
+    _draggingTick = null;
+    _lastDraggedNoteName = null;
+  }
+
+  Widget _buildDirectCanvasEditToolbar(
+    BuildContext context,
+    StudioDesignTokens tokens,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 3.0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: tokens.panelBackground,
+          borderRadius: BorderRadius.circular(tokens.radiusMedium),
+          border: Border.all(color: tokens.borderHairline),
+        ),
+        child: Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            // 1. Modo de Herramienta (Escribir / Seleccionar / Borrar)
+            _buildToolChip(
+              key: const Key('score_tool_write_btn'),
+              tokens: tokens,
+              icon: Icons.edit,
+              label: 'Escribir',
+              isSelected: _editMode == ScoreCanvasEditMode.write,
+              onTap: () => setState(() => _editMode = ScoreCanvasEditMode.write),
+            ),
+            _buildToolChip(
+              key: const Key('score_tool_select_btn'),
+              tokens: tokens,
+              icon: Icons.touch_app_outlined,
+              label: 'Seleccionar',
+              isSelected: _editMode == ScoreCanvasEditMode.select,
+              onTap: () => setState(() => _editMode = ScoreCanvasEditMode.select),
+            ),
+            _buildToolChip(
+              key: const Key('score_tool_erase_btn'),
+              tokens: tokens,
+              icon: Icons.auto_fix_off,
+              label: 'Borrador',
+              isSelected: _editMode == ScoreCanvasEditMode.erase,
+              activeColor: tokens.accentDanger,
+              onTap: () => setState(() => _editMode = ScoreCanvasEditMode.erase),
+            ),
+            _buildToolbarDivider(tokens),
+
+            // 2. Figuras Musicales (1/1, 1/2, 1/4, 1/8, 1/16, Silencio)
+            _buildDurationChip(tokens, 16, '1/1 Redonda'),
+            _buildDurationChip(tokens, 8, '1/2 Blanca'),
+            _buildDurationChip(tokens, 4, '1/4 Negra'),
+            _buildDurationChip(tokens, 2, '1/8 Corchea'),
+            _buildDurationChip(tokens, 1, '1/16 Semic.'),
+            _buildToolChip(
+              key: const Key('score_tool_rest_toggle'),
+              tokens: tokens,
+              icon: Icons.pause_circle_outline,
+              label: 'Silencio',
+              isSelected: _isRestMode,
+              onTap: () => setState(() {
+                _isRestMode = !_isRestMode;
+                _editMode = ScoreCanvasEditMode.write;
+              }),
+            ),
+            _buildToolbarDivider(tokens),
+
+            // 3. Alteraciones (Natural, Sostenido #, Bemol b)
+            _buildAccidentalChip(tokens, '', '♮'),
+            _buildAccidentalChip(tokens, '#', '♯'),
+            _buildAccidentalChip(tokens, 'b', '♭'),
+            _buildToolbarDivider(tokens),
+
+            // 4. Deshacer / Rehacer / Compases
+            IconButton(
+              key: const Key('score_canvas_undo_btn'),
+              tooltip: 'Deshacer cambio en partitura',
+              icon: Icon(
+                Icons.undo,
+                size: 15,
+                color: viewModel.canUndoScoreEdit
+                    ? tokens.textPrimary
+                    : tokens.textMuted,
+              ),
+              style: IconButton.styleFrom(
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.all(4),
+                minimumSize: const Size(24, 24),
+              ),
+              onPressed: viewModel.canUndoScoreEdit
+                  ? viewModel.undoScoreEdit
+                  : null,
+            ),
+            IconButton(
+              key: const Key('score_canvas_redo_btn'),
+              tooltip: 'Rehacer cambio en partitura',
+              icon: Icon(
+                Icons.redo,
+                size: 15,
+                color: viewModel.canRedoScoreEdit
+                    ? tokens.textPrimary
+                    : tokens.textMuted,
+              ),
+              style: IconButton.styleFrom(
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.all(4),
+                minimumSize: const Size(24, 24),
+              ),
+              onPressed: viewModel.canRedoScoreEdit
+                  ? viewModel.redoScoreEdit
+                  : null,
+            ),
+            _buildToolChip(
+              key: const Key('score_add_measure_btn'),
+              tokens: tokens,
+              icon: Icons.add,
+              label: '+ Compás',
+              isSelected: false,
+              onTap: () {
+                viewModel.addScoreMeasure();
+                viewModel.selectMeasure(viewModel.totalMeasures - 1);
+              },
+            ),
+            if (viewModel.totalMeasures > 1)
+              _buildToolChip(
+                key: const Key('score_remove_measure_btn'),
+                tokens: tokens,
+                icon: Icons.remove,
+                label: '- Compás',
+                isSelected: false,
+                onTap: () => viewModel.removeScoreMeasure(
+                  viewModel.currentMeasureIndex,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToolbarDivider(StudioDesignTokens tokens) {
+    return Container(
+      height: 18,
+      width: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      color: tokens.borderHairline,
+    );
+  }
+
+  Widget _buildToolChip({
+    Key? key,
+    required StudioDesignTokens tokens,
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    Color? activeColor,
+  }) {
+    final effectiveColor = activeColor ?? tokens.accentPrimary;
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(tokens.radiusSmall),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? effectiveColor.withValues(alpha: 0.22)
+              : tokens.elevatedSurface,
+          borderRadius: BorderRadius.circular(tokens.radiusSmall),
+          border: Border.all(
+            color: isSelected ? effectiveColor : tokens.borderHairline,
+            width: isSelected ? 1.2 : 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 13,
+              color: isSelected ? effectiveColor : tokens.textSecondary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? tokens.textPrimary : tokens.textSecondary,
+                fontSize: 10.5,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDurationChip(
+    StudioDesignTokens tokens,
+    int ticks,
+    String label,
+  ) {
+    final isSelected = !_isRestMode && _selectedDurationTicks == ticks;
+    return InkWell(
+      key: Key('score_duration_chip_$ticks'),
+      onTap: () => setState(() {
+        _selectedDurationTicks = ticks;
+        _isRestMode = false;
+        _editMode = ScoreCanvasEditMode.write;
+      }),
+      borderRadius: BorderRadius.circular(tokens.radiusSmall),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? tokens.accentPrimary.withValues(alpha: 0.22)
+              : tokens.elevatedSurface,
+          borderRadius: BorderRadius.circular(tokens.radiusSmall),
+          border: Border.all(
+            color: isSelected ? tokens.accentPrimary : tokens.borderHairline,
+            width: isSelected ? 1.2 : 0.8,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? tokens.textPrimary : tokens.textSecondary,
+            fontSize: 10.5,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccidentalChip(
+    StudioDesignTokens tokens,
+    String accidental,
+    String label,
+  ) {
+    final isSelected = !_isRestMode && _selectedAccidental == accidental;
+    return InkWell(
+      key: Key('score_accidental_chip_${accidental.isEmpty ? "nat" : accidental}'),
+      onTap: () => setState(() {
+        _selectedAccidental = accidental;
+        _isRestMode = false;
+        _editMode = ScoreCanvasEditMode.write;
+      }),
+      borderRadius: BorderRadius.circular(tokens.radiusSmall),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? tokens.accentSecondary.withValues(alpha: 0.22)
+              : tokens.elevatedSurface,
+          borderRadius: BorderRadius.circular(tokens.radiusSmall),
+          border: Border.all(
+            color: isSelected ? tokens.accentSecondary : tokens.borderHairline,
+            width: isSelected ? 1.2 : 0.8,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? tokens.textPrimary : tokens.textSecondary,
+            fontSize: 10.5,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final tokens = StudioThemeScope.of(context);
 
@@ -33,16 +497,16 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
       children: [
         // Encabezado de la Obra y Navegación de Compases
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
                 child: InkWell(
-                  onTap: onOpenLibraryModal,
+                  onTap: widget.onOpenLibraryModal,
                   borderRadius: BorderRadius.circular(tokens.radiusMedium),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: tokens.panelBackground,
                       borderRadius: BorderRadius.circular(tokens.radiusMedium),
@@ -75,6 +539,55 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
                     ),
                   ),
                 ),
+              ),
+              const SizedBox(width: 10),
+              // Navegación de compases integrada
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: StudioIcon(
+                      StudioIconId.transportRewind,
+                      color: tokens.textSecondary,
+                      size: 15,
+                      tintCustomAsset: true,
+                    ),
+                    style: IconButton.styleFrom(
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.all(4),
+                      minimumSize: const Size(24, 24),
+                    ),
+                    onPressed: () => viewModel.previousMeasure(),
+                    tooltip: "Compás Anterior",
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: Text(
+                      "Compás ${viewModel.currentMeasureIndex + 1} de ${viewModel.totalMeasures}  (${viewModel.currentMeasureTimeSignature})",
+                      style: TextStyle(
+                        color: tokens.textPrimary,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: StudioIcon(
+                      StudioIconId.transportForward,
+                      color: tokens.textSecondary,
+                      size: 15,
+                      tintCustomAsset: true,
+                    ),
+                    style: IconButton.styleFrom(
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.all(4),
+                      minimumSize: const Size(24, 24),
+                    ),
+                    onPressed: () => viewModel.nextMeasure(),
+                    tooltip: "Siguiente Compás",
+                  ),
+                ],
               ),
               const SizedBox(width: 10),
               // Controles de tempo y reproducción
@@ -148,51 +661,14 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
           ),
         ),
 
-        // Barra de Compases
-        if (viewModel.totalMeasures > 1)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: StudioIcon(
-                    StudioIconId.transportRewind,
-                    color: tokens.textSecondary,
-                    size: 16,
-                    tintCustomAsset: true,
-                  ),
-                  onPressed: () => viewModel.previousMeasure(),
-                  tooltip: "Compás Anterior",
-                ),
-                Text(
-                  "Compás ${viewModel.currentMeasureIndex + 1} de ${viewModel.totalMeasures}  (${viewModel.currentMeasureTimeSignature})",
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-                IconButton(
-                  icon: StudioIcon(
-                    StudioIconId.transportForward,
-                    color: tokens.textSecondary,
-                    size: 16,
-                    tintCustomAsset: true,
-                  ),
-                  onPressed: () => viewModel.nextMeasure(),
-                  tooltip: "Siguiente Compás",
-                ),
-              ],
-            ),
-          ),
+        // Barra Interactiva de Edición Directa sobre el Lienzo del Pentagrama
+        _buildDirectCanvasEditToolbar(context, tokens),
 
-        // Lienzo del Pentagrama Tipográfico SMuFL
+        // Lienzo del Pentagrama Tipográfico SMuFL (Edición Directa con Clic y Arrastre Vertical)
         if (viewModel.workspaceConfiguration.showSheetMusicCanvas)
           Expanded(
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+              margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
               decoration: BoxDecoration(
                 color: tokens.inputSurface,
                 borderRadius: BorderRadius.circular(tokens.borderRadiusLarge),
@@ -201,6 +677,10 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: LayoutBuilder(
                 builder: (context, constraints) {
+                  final canvasSize = Size(
+                    constraints.maxWidth,
+                    constraints.maxHeight,
+                  );
                   final painter = RealSheetMusicPainter(
                     currentSubTick: viewModel.currentSubTick,
                     notes: viewModel.currentMeasureNotes,
@@ -217,22 +697,40 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
                     selectedNoteIndex: viewModel.selectedScoreNoteIndex,
                   );
 
-                  return GestureDetector(
-                    key: const Key('score_interactive_canvas_gesture'),
-                    onTapDown: (details) {
-                      final tappedIndex = painter.findNoteIndexAtOffset(
-                        details.localPosition,
-                        Size(constraints.maxWidth, constraints.maxHeight),
-                      );
-                      if (tappedIndex != null) {
-                        viewModel.selectAndPreviewScoreNote(tappedIndex);
-                      } else {
-                        viewModel.clearSelectedScoreNote();
-                      }
-                    },
-                    child: CustomPaint(
-                      painter: painter,
-                      size: Size(constraints.maxWidth, constraints.maxHeight),
+                  return MouseRegion(
+                    cursor: _editMode == ScoreCanvasEditMode.erase
+                        ? SystemMouseCursors.precise
+                        : SystemMouseCursors.click,
+                    child: GestureDetector(
+                      key: const Key('score_interactive_canvas_gesture'),
+                      onTapDown: (details) => _handleCanvasTapDown(
+                        details,
+                        painter,
+                        canvasSize,
+                      ),
+                      onSecondaryTapDown: (details) =>
+                          _handleCanvasSecondaryTapDown(
+                        details,
+                        painter,
+                        canvasSize,
+                      ),
+                      onVerticalDragStart: (details) =>
+                          _handleCanvasVerticalDragStart(
+                        details,
+                        painter,
+                        canvasSize,
+                      ),
+                      onVerticalDragUpdate: (details) =>
+                          _handleCanvasVerticalDragUpdate(
+                        details,
+                        painter,
+                        canvasSize,
+                      ),
+                      onVerticalDragEnd: _handleCanvasVerticalDragEnd,
+                      child: CustomPaint(
+                        painter: painter,
+                        size: canvasSize,
+                      ),
                     ),
                   );
                 },
@@ -242,9 +740,9 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
 
         // Barra de Transcripción de Audio en Vivo
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 3.0),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: tokens.panelBackground,
               borderRadius: BorderRadius.circular(tokens.radiusMedium),
@@ -292,7 +790,7 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
 
         // Barra de Herramientas de Composición y Exportación
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -367,7 +865,7 @@ class CompositionNotationWorkspaceView extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                   side: BorderSide(color: tokens.borderHairline),
-                  onPressed: onOpenMixerModal,
+                  onPressed: widget.onOpenMixerModal,
                 ),
                 const SizedBox(width: 8),
                 ActionChip(

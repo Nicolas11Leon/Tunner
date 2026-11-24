@@ -144,6 +144,14 @@ class RackUnitCard extends StatelessWidget {
                   onPressed: () => _exportToolPreset(context),
                 ),
 
+                // Botón Desacoplar Módulo en Ventana Flotante Libre
+                IconButton(
+                  key: Key('rack_float_module_btn_${module.moduleId}'),
+                  icon: Icon(Icons.picture_in_picture_alt_outlined, color: primaryColor, size: 16),
+                  tooltip: 'Desacoplar en Ventana Flotante Movible',
+                  onPressed: () => _showFloatingModuleWindow(context),
+                ),
+
                 // Insignia de ayuda contextual (?)
                 Padding(
                   padding: const EdgeInsets.only(left: 6, right: 6),
@@ -246,6 +254,128 @@ class RackUnitCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+
+  void _showFloatingModuleWindow(BuildContext context) {
+    Offset windowOffset = const Offset(80, 70);
+    Size windowSize = const Size(520, 360);
+
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black26,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setFloatingState) {
+            final screenSize = MediaQuery.of(ctx).size;
+            final maxLeft = (screenSize.width - windowSize.width).clamp(0.0, screenSize.width);
+            final maxTop = (screenSize.height - windowSize.height).clamp(0.0, screenSize.height);
+            final left = windowOffset.dx.clamp(0.0, maxLeft);
+            final top = windowOffset.dy.clamp(0.0, maxTop);
+
+            return Stack(
+              children: [
+                Positioned(
+                  left: left,
+                  top: top,
+                  width: windowSize.width,
+                  height: windowSize.height,
+                  child: Material(
+                    color: const Color(0xFF161F30),
+                    elevation: 18,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: const BorderSide(color: Color(0xFF38BDF8), width: 1.5),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Stack(
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Barra de título arrastrable
+                            GestureDetector(
+                              onPanUpdate: (details) {
+                                setFloatingState(() {
+                                  windowOffset = Offset(
+                                    (left + details.delta.dx).clamp(0.0, maxLeft),
+                                    (top + details.delta.dy).clamp(0.0, maxTop),
+                                  );
+                                });
+                              },
+                              child: Container(
+                                height: 38,
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                color: const Color(0xFF0F172A),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.drag_indicator, color: Color(0xFF38BDF8), size: 16),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        '${module.title.toUpperCase()} (VENTANA FLOTANTE)',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 0.8,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.close, color: Colors.white70, size: 16),
+                                      tooltip: 'Acoplar de nuevo al Rack',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                                      onPressed: () => Navigator.of(dialogCtx).pop(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.all(14),
+                                child: ListenableBuilder(
+                                  listenable: viewModel,
+                                  builder: (innerCtx, _) => _buildModuleContent(context),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Tirador de redimensionamiento en esquina inferior derecha
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: GestureDetector(
+                            onPanUpdate: (details) {
+                              setFloatingState(() {
+                                windowSize = Size(
+                                  (windowSize.width + details.delta.dx).clamp(320.0, screenSize.width * 0.95),
+                                  (windowSize.height + details.delta.dy).clamp(220.0, screenSize.height * 0.90),
+                                );
+                              });
+                            },
+                            child: Container(
+                              width: 22,
+                              height: 22,
+                              alignment: Alignment.bottomRight,
+                              padding: const EdgeInsets.all(3),
+                              child: const Icon(Icons.south_east, size: 14, color: Color(0xFF38BDF8)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
