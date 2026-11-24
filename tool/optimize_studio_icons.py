@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
-"""Smart tight-bounding-box auto-fitter for Tunner Studio PNG icons.
+"""Multi-resolution tight-bounding-box optimizer for Tunner Studio PNG icons.
 
-Detects the real foreground icon silhouette using an alpha threshold (ignoring
-faint anti-alias halos or stray dust pixels), crops tightly around the icon,
-scales it with Lanczos resampling to maximize canvas utilization (96% fill on
-a 96x96 canvas with a 2px anti-aliasing safety border), applies gentle edge
-sharpening, and centers the glyph optically.
+Reads each canonical PNG icon, detects the solid foreground silhouette (ignoring
+faint anti-alias halos), crops tightly, and generates 3 resolution-aware tiers
+matching Flutter's AssetImage DPR system and the logical sizes used in Tunner:
+  - 1.0x (assets/icons/png/<name>.png):       24x24 px (1px margin) for 10-24dp UI
+  - 2.0x (assets/icons/png/2.0x/<name>.png):  48x48 px (1px margin) for 2x HiDPI / 24-38dp
+  - 3.0x (assets/icons/png/3.0x/<name>.png):  96x96 px (2px margin) for 3x Ultra-DPI / hero
+
+Each tier uses Lanczos resampling, gentle edge sharpening, and lossless/near-lossless
+FASTOCTREE 256-color RGBA palette quantization to minimize disk & GPU footprint
+without sacrificing crispness.
 """
 
 from __future__ import annotations
@@ -18,42 +23,33 @@ from PIL import Image, ImageFilter
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CANONICAL_ICONS_DIR = (PROJECT_ROOT / "assets" / "icons" / "png").resolve()
 
+TIERS: list[tuple[str, int, int]] = [
+    ("", 24, 1),
+    ("2.0x", 48, 1),
+    ("3.0x", 96, 2),
+]
 
-def optimize_icon(
-    path: Path,
-    canvas_size: int = 96,
-    margin_px: int = 2,
+
+def _extract_tight_glyph(
+    im: Image.Image,
     alpha_threshold: int = 100,
     noise_floor: int = 24,
-    sharpen: bool = True,
-) -> tuple[float, float]:
-    """Optimize a single RGBA PNG icon in-place.
-
-    Detects the real solid glyph body using [alpha_threshold] (ignoring soft
-    outer glows or background halos that shrink perceived icon size), crops
-    tightly with a 1px anti-alias guard, scales to maximize canvas fill, and
-    centers the icon optically.
-
-    Returns (before_fill_ratio, after_fill_ratio) measured at [alpha_threshold].
-    """
-    im = Image.open(path).convert("RGBA")
+) -> tuple[Image.Image, float]:
+    """Crop tightly around the solid foreground glyph and clean stray halo noise."""
     orig_w, orig_h = im.size
     alpha = im.split()[3]
 
-    # Compute tight solid-body bounding box above alpha_threshold.
     mask = alpha.point(lambda p: 255 if p >= alpha_threshold else 0)
     bbox = mask.getbbox()
     if bbox is None:
-        # Fallback for very faint translucent icons.
         bbox = alpha.point(lambda p: 255 if p >= 28 else 0).getbbox()
         if bbox is None:
-            return (0.0, 0.0)
+            return (im, 0.0)
 
     bw = bbox[2] - bbox[0]
     bh = bbox[3] - bbox[1]
     before_ratio = max(bw / orig_w, bh / orig_h)
 
-    # Expand crop by 1px (clamped) to preserve smooth anti-aliased edge pixels.
     crop_box = (
         max(0, bbox[0] - 1),
         max(0, bbox[1] - 1),
@@ -62,24 +58,31 @@ def optimize_icon(
     )
     cropped = im.crop(crop_box)
 
-    # Clean faint outer halo/noise pixels below noise_floor.
     r, g, b, a = cropped.split()
     a_clean = a.point(lambda p: 0 if p < noise_floor else p)
-    cropped = Image.merge("RGBA", (r, g, b, a_clean))
+    return (Image.merge("RGBA", (r, g, b, a_clean)), before_ratio)
 
-    cw, ch = cropped.size
+
+def _render_tier(
+    glyph: Image.Image,
+    canvas_size: int,
+    margin_px: int,
+    sharpen: bool = True,
+    quantize: bool = True,
+) -> Image.Image:
+    """Scale [glyph] into a square [canvas_size] canvas and optimize palette."""
+    cw, ch = glyph.size
     target_max = max(1, canvas_size - 2 * margin_px)
     scale = target_max / max(cw, ch)
     new_w = max(1, int(round(cw * scale)))
     new_h = max(1, int(round(ch * scale)))
 
-    resized = cropped.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    resized = glyph.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
     if sharpen:
-        # Sharpen RGB channels gently while keeping alpha smooth.
         rr, gg, bb, aa = resized.split()
         rgb = Image.merge("RGB", (rr, gg, bb)).filter(
-            ImageFilter.UnsharpMask(radius=0.8, percent=70, threshold=3)
+            ImageFilter.UnsharpMask(radius=0.7, percent=65, threshold=3)
         )
         rr2, gg2, bb2 = rgb.split()
         resized = Image.merge("RGBA", (rr2, gg2, bb2, aa))
@@ -89,36 +92,69 @@ def optimize_icon(
     offset_y = (canvas_size - new_h) // 2
     canvas.paste(resized, (offset_x, offset_y), resized)
 
-    canvas.save(path, format="PNG", optimize=True)
+    if quantize:
+        return canvas.quantize(
+            colors=256,
+            method=Image.Quantize.FASTOCTREE,
+            dither=Image.Dither.NONE,
+        )
+    return canvas
 
-    after_alpha = canvas.split()[3]
-    after_mask = after_alpha.point(lambda p: 255 if p >= alpha_threshold else 0)
-    after_bbox = after_mask.getbbox()
-    if after_bbox is None:
-        after_ratio = 0.0
-    else:
-        aw = after_bbox[2] - after_bbox[0]
-        ah = after_bbox[3] - after_bbox[1]
-        after_ratio = max(aw / canvas_size, ah / canvas_size)
 
-    return (before_ratio, after_ratio)
+def optimize_icon(
+    filename: str,
+    sharpen: bool = True,
+    quantize: bool = True,
+) -> tuple[int, int]:
+    """Optimize a single PNG icon from highest-res source into 1x/2x/3x tiers.
+
+    Returns (before_total_bytes, after_total_bytes).
+    """
+    base_path = (CANONICAL_ICONS_DIR / filename).resolve()
+    master_3x_path = (CANONICAL_ICONS_DIR / "3.0x" / filename).resolve()
+
+    if not base_path.is_relative_to(CANONICAL_ICONS_DIR):
+        raise ValueError(f"Invalid icon path: {base_path}")
+
+    # Prefer existing 3.0x master if present so re-runs never lose source resolution.
+    source_path = master_3x_path if master_3x_path.is_file() else base_path
+    before_bytes = base_path.stat().st_size if base_path.is_file() else 0
+
+    im = Image.open(source_path).convert("RGBA")
+    glyph, _ = _extract_tight_glyph(im)
+
+    after_bytes = 0
+    for subdir, size, margin in TIERS:
+        out_dir = (CANONICAL_ICONS_DIR / subdir).resolve() if subdir else CANONICAL_ICONS_DIR
+        if not out_dir.is_relative_to(CANONICAL_ICONS_DIR):
+            raise ValueError(f"Invalid tier directory: {out_dir}")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = (out_dir / filename).resolve()
+        if not out_path.is_relative_to(CANONICAL_ICONS_DIR):
+            raise ValueError(f"Invalid output path: {out_path}")
+
+        rendered = _render_tier(
+            glyph,
+            canvas_size=size,
+            margin_px=margin,
+            sharpen=sharpen,
+            quantize=quantize,
+        )
+        rendered.save(out_path, format="PNG", optimize=True)
+        if not subdir:
+            after_bytes = out_path.stat().st_size
+
+    return (before_bytes, after_bytes)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Auto-detect tight icon bounds and maximize canvas fill."
+        description="Generate optimized 1x (24px), 2x (48px), 3x (96px) PNG icon tiers."
     )
     parser.add_argument(
-        "--size",
-        type=int,
-        default=96,
-        help="Target square canvas size in pixels (default: 96).",
-    )
-    parser.add_argument(
-        "--margin",
-        type=int,
-        default=2,
-        help="Safety anti-alias border in pixels per side (default: 2).",
+        "--no-quantize",
+        action="store_true",
+        help="Disable 256-color RGBA palette quantization.",
     )
     args = parser.parse_args()
 
@@ -127,7 +163,7 @@ def main() -> int:
         return 1
 
     files = sorted(
-        p
+        p.name
         for p in CANONICAL_ICONS_DIR.iterdir()
         if p.is_file()
         and not p.is_symlink()
@@ -138,19 +174,18 @@ def main() -> int:
         print(f"No PNG icons found in {CANONICAL_ICONS_DIR}", file=sys.stderr)
         return 1
 
-    print(
-        f"Optimizing {len(files)} icons in {CANONICAL_ICONS_DIR} "
-        f"({args.size}x{args.size}, margin={args.margin}px)..."
-    )
-    for path in files:
-        before, after = optimize_icon(
-            path,
-            canvas_size=args.size,
-            margin_px=args.margin,
-        )
-        print(f"  {path.name:32s} fill: {before:5.1%} -> {after:5.1%}")
+    total_before = 0
+    total_after_1x = 0
+    print(f"Optimizing {len(files)} icons into 1x (24px), 2x (48px), 3x (96px) tiers...")
+    for name in files:
+        before, after = optimize_icon(name, quantize=not args.no_quantize)
+        total_before += before
+        total_after_1x += after
+        pct = ((before - after) / before * 100.0) if before > 0 else 0.0
+        print(f"  {name:30s} 1x: {before:6d} B -> {after:5d} B (-{pct:4.1f}%)")
 
-    print("Done.")
+    total_pct = ((total_before - total_after_1x) / total_before * 100.0) if total_before > 0 else 0.0
+    print(f"Total 1x size: {total_before / 1024:.1f} KB -> {total_after_1x / 1024:.1f} KB (-{total_pct:.1f}%)")
     return 0
 
 
