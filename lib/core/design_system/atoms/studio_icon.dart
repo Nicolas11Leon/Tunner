@@ -251,18 +251,42 @@ class StudioIcon extends StatelessWidget {
       );
     }
 
+    final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.0;
+    final requiredPx = size * dpr;
+    String resolvedAssetPath = spec.pngAssetPath;
+    if (dpr < 1.5 && requiredPx > 48.0) {
+      resolvedAssetPath = spec.pngAssetPath.replaceFirst(
+        '${StudioIconCatalog.pngBaseDir}/',
+        '${StudioIconCatalog.pngBaseDir}/3.0x/',
+      );
+    } else if (dpr < 1.5 && requiredPx > 24.0) {
+      resolvedAssetPath = spec.pngAssetPath.replaceFirst(
+        '${StudioIconCatalog.pngBaseDir}/',
+        '${StudioIconCatalog.pngBaseDir}/2.0x/',
+      );
+    }
+
     return SizedBox(
       width: size,
       height: size,
       child: Image.asset(
-        spec.pngAssetPath,
+        resolvedAssetPath,
         width: size,
         height: size,
         fit: BoxFit.contain,
         filterQuality: FilterQuality.high,
         color: tintCustomAsset ? effectiveColor : null,
         colorBlendMode: tintCustomAsset ? BlendMode.srcIn : null,
-        errorBuilder: (context, error, stackTrace) => fallback,
+        errorBuilder: (context, error, stackTrace) => Image.asset(
+          spec.pngAssetPath,
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          color: tintCustomAsset ? effectiveColor : null,
+          colorBlendMode: tintCustomAsset ? BlendMode.srcIn : null,
+          errorBuilder: (context, error, stackTrace) => fallback,
+        ),
       ),
     );
   }
