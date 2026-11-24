@@ -4,8 +4,23 @@ import 'studio_file_system_node.dart';
 import 'studio_file_system_repository.dart';
 import 'studio_file_type.dart';
 
+/// Acciones musicales contextuales disponibles sobre un archivo del espacio de trabajo.
+enum StudioFileMusicalAction {
+  openDefault,
+  transformToScoreAndStems,
+  loadInDjDeckA,
+  loadInDjDeckB,
+  openInScoreEditor,
+}
+
 /// Callback para cuando un archivo es seleccionado o ejecutado para apertura.
 typedef StudioOpenFileCallback = void Function(StudioFileEntity file);
+
+/// Callback para ejecutar una acción musical explícita sobre un archivo.
+typedef StudioFileMusicalActionCallback = void Function(
+  StudioFileEntity file,
+  StudioFileMusicalAction action,
+);
 
 /// Puerto abstracto de dominio para la orquestación reactiva del espacio de trabajo de archivos.
 abstract class IStudioWorkspaceFileSystem implements IStudioListenable {
@@ -16,11 +31,13 @@ abstract class IStudioWorkspaceFileSystem implements IStudioListenable {
   String get searchQuery;
   StudioFileSystemRepository get fileSystemRepository;
   StudioOpenFileCallback? onOpenFile;
+  StudioFileMusicalActionCallback? onFileMusicalAction;
 
   Future<void> initializeWorkspace();
   Future<void> refreshFromDisk();
   void resetToDefaults();
   void selectNode(String nodeId);
+  void triggerFileMusicalAction(StudioFileEntity file, StudioFileMusicalAction action);
   void toggleFolder(String folderId);
   void collapseAll();
   void expandAll();
@@ -83,6 +100,9 @@ class NoOpStudioWorkspaceFileSystem with StudioPureNotifierMixin implements IStu
   StudioOpenFileCallback? onOpenFile;
 
   @override
+  StudioFileMusicalActionCallback? onFileMusicalAction;
+
+  @override
   Future<void> initializeWorkspace() async {}
 
   @override
@@ -93,6 +113,19 @@ class NoOpStudioWorkspaceFileSystem with StudioPureNotifierMixin implements IStu
 
   @override
   void selectNode(String nodeId) {}
+
+  @override
+  void triggerFileMusicalAction(
+    StudioFileEntity file,
+    StudioFileMusicalAction action,
+  ) {
+    selectNode(file.id);
+    if (onFileMusicalAction != null) {
+      onFileMusicalAction!(file, action);
+    } else {
+      onOpenFile?.call(file);
+    }
+  }
 
   @override
   void toggleFolder(String folderId) {}
