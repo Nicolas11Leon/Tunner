@@ -141,19 +141,23 @@ class AudioToScoreTranscriptionEngine {
     final Float64List? decimatedWindow =
         decimation > 1 ? Float64List(decimatedWindowSize) : null;
 
+    int activeAudioFrames = 0;
+    int mpmPitchedFrames = 0;
+
     for (int frameIdx = 0; frameIdx < totalFrames; frameIdx++) {
       final start = frameIdx * effectiveHopSize;
       final window = Float64List.sublistView(samples, start, start + windowSize);
 
-      if (!hasActiveAudio) {
-        double sumSq = 0.0;
-        for (int i = 0; i < window.length; i++) {
-          final v = window[i];
-          sumSq += v * v;
-        }
-        if (math.sqrt(sumSq / window.length) > activeRmsThreshold) {
-          hasActiveAudio = true;
-        }
+      double sumSq = 0.0;
+      for (int i = 0; i < window.length; i++) {
+        final v = window[i];
+        sumSq += v * v;
+      }
+      final double frameRms = math.sqrt(sumSq / window.length);
+      final bool isFrameActive = frameRms > activeRmsThreshold;
+      if (isFrameActive) {
+        hasActiveAudio = true;
+        activeAudioFrames++;
       }
 
       final Float64List mpmWindow;
@@ -174,6 +178,7 @@ class AudioToScoreTranscriptionEngine {
 
       final result = mpm.estimatePitch(mpmWindow, sampleRate: mpmSampleRate);
       if (result.pitched && result.clarity >= minClarity && result.pitchHz >= 25.0) {
+        mpmPitchedFrames++;
         final note = NoteEntity.fromFrequency(result.pitchHz);
         rawEvents.add(_RawPitchFrame(
           frameIndex: frameIdx,
@@ -196,14 +201,25 @@ class AudioToScoreTranscriptionEngine {
     // 3. Segmentación en notas continuas
     var segments = _segmentFrames(rawEvents, effectiveHopSize, sampleRate);
 
-    // Respaldo polifónico-tolerante: si hay energía activa real pero MPM no retuvo
-    // segmentos con tono, extraer contorno espectral vía ZCR ponderado por RMS.
-    if (hasActiveAudio && (segments.isEmpty || !segments.any((s) => s.isPitched))) {
-      segments = _extractFallbackPolyphonicSegments(
+    // Respaldo polifónico-tolerante: si hay energía activa real pero MPM retuvo
+    // menos del 35% de las ventanas activas (típico en canciones MP3 con batería,
+    // bajo y acordes donde solo algunos frames aislados superan NSDF), combinar o
+    // extraer el contorno espectral vía ZCR ponderado por RMS.
+    final bool sparseMpmInActiveSong =
+        activeAudioFrames > 0 && (mpmPitchedFrames < (activeAudioFrames * 0.35));
+    if (hasActiveAudio &&
+        (segments.isEmpty ||
+            !segments.any((s) => s.isPitched) ||
+            sparseMpmInActiveSong)) {
+      final fallbackSegments = _extractFallbackPolyphonicSegments(
         samples,
         sampleRate,
         effectiveHopSize,
+        mpmFrames: rawEvents,
       );
+      if (fallbackSegments.any((s) => s.isPitched)) {
+        segments = fallbackSegments;
+      }
     }
 
     // 4. Proyección y Cuantización Rítmica al compás configurado
@@ -214,9 +230,30 @@ class AudioToScoreTranscriptionEngine {
         samples,
         sampleRate,
         effectiveHopSize,
+        mpmFrames: rawEvents,
       );
       if (fallbackSegments.any((s) => s.isPitched)) {
         measures = _quantizeSegmentsToMeasures(fallbackSegments, bpm, timeSignature);
+      }
+    }
+
+    // Recortar compases iniciales que sean 100% silencio si existen compases posteriores con notas,
+    // para que el Compás 1 siempre muestre las primeras notas reales de la canción.
+    if (measures.length > 1 &&
+        measures.any((m) => m.notes.any((n) => !n.isRest))) {
+      while (measures.length > 1 &&
+          measures.first.notes.every((n) => n.isRest)) {
+        measures.removeAt(0);
+      }
+      for (int i = 0; i < measures.length; i++) {
+        final m = measures[i];
+        if (m.index != i) {
+          measures[i] = MeasureEntity(
+            index: i,
+            timeSignature: m.timeSignature,
+            notes: m.notes,
+          );
+        }
       }
     }
 
@@ -400,8 +437,9 @@ class AudioToScoreTranscriptionEngine {
   List<_AudioSegment> _extractFallbackPolyphonicSegments(
     Float64List samples,
     int sampleRate,
-    int effectiveHopSize,
-  ) {
+    int effectiveHopSize, {
+    List<_RawPitchFrame>? mpmFrames,
+  }) {
     final availableSpan = samples.length - windowSize;
     if (availableSpan <= 0 || effectiveHopSize <= 0) return const [];
 
@@ -428,6 +466,13 @@ class AudioToScoreTranscriptionEngine {
     final int subBlockLen = windowSize ~/ subBlocks;
 
     for (int frameIdx = 0; frameIdx < totalFrames; frameIdx++) {
+      if (mpmFrames != null &&
+          frameIdx < mpmFrames.length &&
+          mpmFrames[frameIdx].isPitched) {
+        rawFrames.add(mpmFrames[frameIdx]);
+        continue;
+      }
+
       final start = frameIdx * effectiveHopSize;
       final window = Float64List.sublistView(samples, start, start + windowSize);
 
@@ -564,10 +609,39 @@ class AudioToScoreTranscriptionEngine {
 
     final parsedNotes = <({String noteName, bool isRest, int durationTicks})>[];
 
+    double pendingPitchedSeconds = 0.0;
+    String pendingPitchedNote = '';
+
+    void flushPendingPitched() {
+      if (pendingPitchedSeconds >= (secondsPerSubTick * 0.50) &&
+          pendingPitchedNote.isNotEmpty) {
+        final rawSubTicks = math.max(1, (pendingPitchedSeconds / secondsPerSubTick).round());
+        final quantizedTicks = RhythmicQuantizer.quantizeDuration(rawSubTicks);
+        parsedNotes.add((
+          noteName: pendingPitchedNote,
+          isRest: false,
+          durationTicks: quantizedTicks,
+        ));
+      }
+      pendingPitchedSeconds = 0.0;
+      pendingPitchedNote = '';
+    }
+
     for (final seg in segments) {
       if (seg.durationSeconds < (secondsPerSubTick * 0.75)) {
-        continue; // Descartar transitorios breves
+        if (seg.isPitched && seg.noteName.isNotEmpty) {
+          if (pendingPitchedNote.isEmpty) {
+            pendingPitchedNote = seg.noteName;
+          }
+          pendingPitchedSeconds += seg.durationSeconds;
+          if (pendingPitchedSeconds >= secondsPerSubTick) {
+            flushPendingPitched();
+          }
+        }
+        continue; // Acumular micro-segmentos con tono o descartar micro-silencios
       }
+
+      flushPendingPitched();
 
       int rawSubTicks = (seg.durationSeconds / secondsPerSubTick).round();
       int quantizedTicks = RhythmicQuantizer.quantizeDuration(rawSubTicks);
@@ -586,6 +660,7 @@ class AudioToScoreTranscriptionEngine {
         ));
       }
     }
+    flushPendingPitched();
 
     // Empaquetar notas secuenciales en compases segun timeSignature
     int measureIndex = 0;
