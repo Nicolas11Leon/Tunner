@@ -44,6 +44,8 @@ import '../../../core/file_system/presentation/studio_vscode_explorer_widget.dar
 import '../../../core/terminal/application/tunner_os_kernel.dart';
 import '../../../core/terminal/domain/tunner_os_command_entity.dart';
 import '../../../core/terminal/presentation/tunner_os_terminal_drawer.dart';
+import '../../../core/audio/domain/i_audio_transcoder_port.dart';
+import '../../../core/audio/infrastructure/ffmpeg_audio_transcoder_service.dart';
 import '../../../core/audio/infrastructure/studio_master_clock_service.dart';
 import '../../../core/audio/infrastructure/studio_audio_device_matrix_service.dart';
 import '../../../core/audio/infrastructure/studio_audio_engine.dart';
@@ -60,10 +62,14 @@ export 'studio_keyboard_intents.dart';
 /// integrando el Quick Action Dock y el despachador de atajos globales de memoria muscular.
 class MainAppShell extends StatefulWidget {
   final int initialIndex;
+  final IStudioWorkspaceFileSystem? fileSystemService;
+  final IAudioTranscoderPort? audioTranscoder;
 
   const MainAppShell({
     super.key,
     this.initialIndex = 0,
+    this.fileSystemService,
+    this.audioTranscoder,
   });
 
   @override
@@ -76,6 +82,7 @@ class _MainAppShellState extends State<MainAppShell> {
   late final DjConsoleViewModel _djConsoleViewModel;
   late final MediaVaultViewModel _mediaVaultViewModel;
   late final IStudioWorkspaceFileSystem _fileSystemService;
+  late final IAudioTranscoderPort _audioTranscoder;
   late final StudioAudioDeviceMatrixService _audioMatrixService;
   StudioAudioInputEngine? _ownedAudioInput;
   bool _ownsAudioMatrixService = false;
@@ -160,7 +167,17 @@ class _MainAppShellState extends State<MainAppShell> {
       }
     };
 
-    _fileSystemService = root?.fileSystemService ?? NoOpStudioWorkspaceFileSystem();
+    IStudioWorkspaceFileSystem? injectedFileSystem;
+    if (widget.fileSystemService != null) {
+      injectedFileSystem = widget.fileSystemService;
+    } else {
+      try {
+        injectedFileSystem = context.read<IStudioWorkspaceFileSystem>();
+      } catch (_) {
+        injectedFileSystem = null;
+      }
+    }
+    _fileSystemService = injectedFileSystem ?? root?.fileSystemService ?? NoOpStudioWorkspaceFileSystem();
     _fileSystemService.onOpenFile = _handleOpenFile;
     _fileSystemService.initializeWorkspace();
 
@@ -176,6 +193,12 @@ class _MainAppShellState extends State<MainAppShell> {
       );
       existingVm = null;
     }
+
+    _audioTranscoder = widget.audioTranscoder ??
+        root?.audioTranscoder ??
+        ((existingVm != null && existingVm.audioTranscoder is! NoOpAudioTranscoderPort)
+            ? existingVm.audioTranscoder
+            : const FfmpegAudioTranscoderService());
 
     if (root != null) {
       _audioMatrixService = root.audioMatrixService;
@@ -267,40 +290,123 @@ class _MainAppShellState extends State<MainAppShell> {
         () => vm.frequency > 0 ? const <double>[0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85] : const <double>[];
   }
 
-  void _handleOpenFile(StudioFileEntity file) {
+  Future<Uint8List?> _resolveFileBytes(StudioFileEntity file) async {
+    Uint8List? resolvedBytes;
+    if (file.payload is Uint8List) {
+      resolvedBytes = file.payload as Uint8List;
+    } else if (file.payload is String) {
+      resolvedBytes = Uint8List.fromList(utf8.encode(file.payload as String));
+    }
+
+    final bool hasStructuredPayload = file.payload is SongPackage ||
+        file.payload is Map<String, dynamic> ||
+        file.payload is InstrumentCustomizationProfile;
+
+    if (!hasStructuredPayload && (resolvedBytes == null || resolvedBytes.isEmpty)) {
+      try {
+        resolvedBytes = await _fileSystemService.fileSystemRepository.readFile(file.relativePath);
+      } catch (e, st) {
+        StudioDebugLogger.instance.warning(
+          'MainAppShell',
+          'No se pudieron leer bytes en disco para ${file.relativePath}: $e',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+    return resolvedBytes;
+  }
+
+  Future<void> _handleOpenFile(StudioFileEntity file) async {
     final vm = context.read<TunerViewModel>();
     final tokens = StudioThemeScope.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    final resolvedBytes = await _resolveFileBytes(file);
+    if (!mounted) return;
+
     switch (file.fileType) {
       case StudioFileType.score:
         _navigateToTab(4);
+        bool scoreLoaded = false;
         if (file.payload is SongPackage) {
           vm.loadSongPackage(file.payload as SongPackage);
-        } else if (file.payload is Uint8List) {
-          vm.importScoreFromBytes(file.payload as Uint8List, file.name);
-        } else if (file.payload is String) {
-          final bytes = Uint8List.fromList(utf8.encode(file.payload as String));
-          vm.importScoreFromBytes(bytes, file.name);
+          scoreLoaded = true;
+        } else if (resolvedBytes != null && resolvedBytes.isNotEmpty) {
+          final parsed = await vm.importScoreFromBytes(resolvedBytes, file.name);
+          if (!mounted) return;
+          scoreLoaded = parsed != null;
         }
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
-            content: Text('Partitura cargada en el Editor: ${file.name}'),
-            backgroundColor: tokens.accentSuccess,
+            content: Text(
+              scoreLoaded
+                  ? 'Partitura cargada en el Editor: ${file.name}'
+                  : 'No se pudo cargar la partitura: ${file.name}',
+            ),
+            backgroundColor: scoreLoaded ? tokens.accentSuccess : tokens.accentWarning,
             duration: const Duration(seconds: 2),
           ),
         );
         break;
       case StudioFileType.audioWav:
-        _navigateToTab(5);
-        _djConsoleViewModel.loadDeckTrack(
+        if (resolvedBytes == null || resolvedBytes.isEmpty) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('No se pudieron leer los bytes de audio: ${file.name}'),
+              backgroundColor: tokens.accentWarning,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          break;
+        }
+
+        final dotIdx = file.name.lastIndexOf('.');
+        final ext = dotIdx >= 0 ? file.name.substring(dotIdx + 1).toLowerCase() : '';
+        final bool hasRiffHeader = resolvedBytes.length >= 12 &&
+            resolvedBytes[0] == 0x52 &&
+            resolvedBytes[1] == 0x49 &&
+            resolvedBytes[2] == 0x46 &&
+            resolvedBytes[3] == 0x46;
+
+        Uint8List? wavBytesForDj = hasRiffHeader ? resolvedBytes : null;
+        String scoreImportFileName = file.name;
+        if (!hasRiffHeader && _audioTranscoder.isSupportedCompressedExtension(ext)) {
+          final transcoded = await _audioTranscoder.transcodeToWav16BitPcm(
+            resolvedBytes,
+            fileExtension: ext,
+          );
+          if (!mounted) return;
+          if (transcoded != null && transcoded.isNotEmpty) {
+            wavBytesForDj = transcoded;
+            final baseName = dotIdx >= 0 ? file.name.substring(0, dotIdx) : file.name;
+            scoreImportFileName = '$baseName.wav';
+          }
+        }
+
+        await _djConsoleViewModel.loadDeckTrack(
           deckId: 'A',
           filePath: file.relativePath,
-          wavBytes: file.payload is Uint8List ? file.payload as Uint8List : null,
+          wavBytes: wavBytesForDj,
           title: file.name,
-          bpm: 124.0,
+          bpm: vm.bpm.toDouble(),
         );
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (!mounted) return;
+
+        await vm.importScoreFromBytes(wavBytesForDj ?? resolvedBytes, scoreImportFileName);
+        if (!mounted) return;
+
+        final bool keepNotationTab = _currentIndex == 4 || _currentIndex == 2;
+        if (!keepNotationTab) {
+          _navigateToTab(5);
+        }
+        messenger.showSnackBar(
           SnackBar(
-            content: Text('Audio cargado en Deck A de la Consola DJ: ${file.name}'),
+            content: Text(
+              keepNotationTab
+                  ? 'Audio transcrito a partitura y cargado en Deck A: ${file.name}'
+                  : 'Audio cargado en Deck A de la Consola DJ y transcrito a partitura: ${file.name}',
+            ),
             backgroundColor: tokens.elevatedSurface,
             duration: const Duration(seconds: 2),
           ),
@@ -308,29 +414,38 @@ class _MainAppShellState extends State<MainAppShell> {
         break;
       case StudioFileType.tuningPreset:
         _navigateToTab(1);
+        Map<String, dynamic>? presetMap;
         if (file.payload is Map<String, dynamic>) {
-          final map = file.payload as Map<String, dynamic>;
-          final pitch = (map['referencePitch'] as num?)?.toDouble();
-          if (pitch != null) vm.setReferencePitch(pitch);
-          final temperamentId = map['temperamentId'] as String?;
-          if (temperamentId != null) vm.setTemperament(temperamentId);
-        } else if (file.payload is String) {
-          try {
-            final map = jsonDecode(file.payload as String) as Map<String, dynamic>;
-            final pitch = (map['referencePitch'] as num?)?.toDouble();
-            if (pitch != null) vm.setReferencePitch(pitch);
-            final temperamentId = map['temperamentId'] as String?;
-            if (temperamentId != null) vm.setTemperament(temperamentId);
-          } catch (e, st) {
-            StudioDebugLogger.instance.warning(
-              'MainAppShell',
-              'Error decodificando preset de afinacion: $e',
-              error: e,
-              stackTrace: st,
-            );
+          presetMap = file.payload as Map<String, dynamic>;
+        } else {
+          final String? rawJson = file.payload is String
+              ? file.payload as String
+              : (resolvedBytes != null && resolvedBytes.isNotEmpty
+                  ? utf8.decode(resolvedBytes, allowMalformed: true)
+                  : null);
+          if (rawJson != null && rawJson.trim().isNotEmpty) {
+            try {
+              final decoded = jsonDecode(rawJson);
+              if (decoded is Map<String, dynamic>) {
+                presetMap = decoded;
+              }
+            } catch (e, st) {
+              StudioDebugLogger.instance.warning(
+                'MainAppShell',
+                'Error decodificando preset de afinacion: $e',
+                error: e,
+                stackTrace: st,
+              );
+            }
           }
         }
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (presetMap != null) {
+          final pitch = (presetMap['referencePitch'] as num?)?.toDouble();
+          if (pitch != null) vm.setReferencePitch(pitch);
+          final temperamentId = presetMap['temperamentId'] as String?;
+          if (temperamentId != null) vm.setTemperament(temperamentId);
+        }
+        messenger.showSnackBar(
           SnackBar(
             content: Text('Preset de afinación activado: ${file.name}'),
             backgroundColor: tokens.accentWarning,
@@ -343,7 +458,7 @@ class _MainAppShellState extends State<MainAppShell> {
         if (file.payload is InstrumentCustomizationProfile) {
           _modularRackViewModel.updateCustomization(file.payload as InstrumentCustomizationProfile);
         }
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Text('Módulo de rack cargado: ${file.name}'),
             backgroundColor: tokens.elevatedSurface,
@@ -353,10 +468,36 @@ class _MainAppShellState extends State<MainAppShell> {
         break;
       case StudioFileType.djBlueprint:
         _navigateToTab(5);
-        if (file.payload is String) {
-          _djConsoleViewModel.selectSkin(file.payload as String);
+        final String? rawBlueprint = file.payload is String
+            ? file.payload as String
+            : (resolvedBytes != null && resolvedBytes.isNotEmpty
+                ? utf8.decode(resolvedBytes, allowMalformed: true)
+                : null);
+        if (rawBlueprint != null && rawBlueprint.trim().isNotEmpty) {
+          final trimmed = rawBlueprint.trim();
+          String? skinId;
+          if (trimmed.startsWith('{')) {
+            try {
+              final decoded = jsonDecode(trimmed);
+              if (decoded is Map<String, dynamic>) {
+                skinId = (decoded['skinId'] ?? decoded['id']) as String?;
+              }
+            } catch (e, st) {
+              StudioDebugLogger.instance.warning(
+                'MainAppShell',
+                'Error decodificando blueprint DJ: $e',
+                error: e,
+                stackTrace: st,
+              );
+            }
+          } else {
+            skinId = trimmed;
+          }
+          if (skinId != null && skinId.isNotEmpty) {
+            _djConsoleViewModel.selectSkin(skinId);
+          }
         }
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Text('Modelo de consola DJ aplicado: ${file.name}'),
             backgroundColor: tokens.elevatedSurface,
@@ -366,13 +507,10 @@ class _MainAppShellState extends State<MainAppShell> {
         break;
       case StudioFileType.project:
         _navigateToTab(0);
-        if (file.payload is Uint8List) {
-          vm.importProjectFromTunnerBytes(file.payload as Uint8List);
-        } else if (file.payload is String) {
-          final bytes = Uint8List.fromList(utf8.encode(file.payload as String));
-          vm.importProjectFromTunnerBytes(bytes);
+        if (resolvedBytes != null && resolvedBytes.isNotEmpty) {
+          vm.importProjectFromTunnerBytes(resolvedBytes);
         }
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Text('Proyecto Tunner restaurado íntegramente: ${file.name}'),
             backgroundColor: tokens.accentSuccess,
@@ -381,7 +519,7 @@ class _MainAppShellState extends State<MainAppShell> {
         );
         break;
       case StudioFileType.genericFile:
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Text('Archivo cargado: ${file.name} (${file.formattedSize})'),
             duration: const Duration(seconds: 2),
