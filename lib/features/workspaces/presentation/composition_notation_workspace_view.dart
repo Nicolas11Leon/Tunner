@@ -8,6 +8,7 @@ import '../../song_library/presentation/song_decomposer_modal.dart';
 import '../../score_editor/presentation/score_editor_modal.dart';
 import '../../metronome/presentation/tap_tempo_modal.dart';
 import '../../audio_synthesizer/presentation/audio_midi_export_modal.dart';
+import '../../song_library/domain/song_package_entity.dart';
 
 enum ScoreCanvasEditMode {
   write,
@@ -489,22 +490,386 @@ class _CompositionNotationWorkspaceViewState
     );
   }
 
+  void _openSongPickerSheet(
+    BuildContext context,
+    StudioDesignTokens tokens,
+  ) {
+    final List<SongPackage> allSongs = [];
+    final Set<String> seenIds = {};
+    for (final pkg in [...viewModel.workspaceScores, ...viewModel.curatedLibrary]) {
+      if (seenIds.add(pkg.id)) {
+        allSongs.add(pkg);
+      }
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: tokens.panelBackground,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        final maxHeight = MediaQuery.of(sheetContext).size.height * 0.78;
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: tokens.borderHairline,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            StudioIcon(
+                              StudioIconId.moduleScoreSheet,
+                              color: tokens.accentPrimary,
+                              size: 20,
+                              tintCustomAsset: true,
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'Repertorio & Obras del Proyecto',
+                                style: TextStyle(
+                                  color: tokens.textPrimary,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Cerrar selector de obras',
+                        icon: Icon(Icons.close, size: 18, color: tokens.textMuted),
+                        onPressed: () => Navigator.of(sheetContext).pop(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  InkWell(
+                    key: const Key('song_picker_import_from_disk_btn'),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      widget.onOpenLibraryModal();
+                    },
+                    borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                      decoration: BoxDecoration(
+                        color: tokens.accentPrimary.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                        border: Border.all(
+                          color: tokens.accentPrimary.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          StudioIcon(
+                            StudioIconId.fileOpen,
+                            color: tokens.accentPrimary,
+                            size: 18,
+                            tintCustomAsset: true,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Importar Audio (MP3/WAV) o Partitura del Computador...',
+                              style: TextStyle(
+                                color: tokens.accentPrimary,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 13,
+                            color: tokens.accentPrimary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Obras disponibles (${allSongs.length})',
+                    style: TextStyle(
+                      color: tokens.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: allSongs.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 6),
+                      itemBuilder: (context, index) {
+                        final pkg = allSongs[index];
+                        final isSelected = pkg.id == viewModel.activePackage.id;
+                        return InkWell(
+                          key: Key('song_picker_item_${pkg.id}'),
+                          onTap: () {
+                            viewModel.loadSongPackage(pkg);
+                            Navigator.of(sheetContext).pop();
+                          },
+                          borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? tokens.accentPrimary.withValues(alpha: 0.14)
+                                  : tokens.elevatedSurface,
+                              borderRadius: BorderRadius.circular(tokens.radiusMedium),
+                              border: Border.all(
+                                color: isSelected
+                                    ? tokens.accentPrimary
+                                    : tokens.borderHairline,
+                                width: isSelected ? 1.2 : 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isSelected
+                                      ? Icons.check_circle_rounded
+                                      : Icons.music_note_rounded,
+                                  size: 18,
+                                  color: isSelected
+                                      ? tokens.accentPrimary
+                                      : tokens.textSecondary,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        pkg.title,
+                                        style: TextStyle(
+                                          color: tokens.textPrimary,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${pkg.composer} • ${pkg.defaultBpm} BPM • ${pkg.totalMeasures} compases • ${pkg.tracks.length} pistas',
+                                        style: TextStyle(
+                                          color: tokens.textMuted,
+                                          fontSize: 11,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInlineStemsAndMinusOneBar(
+    BuildContext context,
+    StudioDesignTokens tokens,
+  ) {
+    final tracks = viewModel.activePackage.tracks;
+    if (tracks.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final stems = viewModel.mixerConsole.stems.isNotEmpty
+        ? viewModel.mixerConsole.stems
+        : tracks;
+    final isMinusOne = viewModel.isMinusOneActive;
+    final targetTrackId = viewModel.minusOneUserTrackId ?? tracks.first.id;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2.0),
+      child: Container(
+        key: const Key('inline_stems_minus_one_bar'),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: tokens.panelBackground,
+          borderRadius: BorderRadius.circular(tokens.radiusMedium),
+          border: Border.all(color: tokens.borderHairline),
+        ),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              InkWell(
+                key: const Key('inline_minus_one_toggle_chip'),
+                onTap: () => viewModel.toggleMinusOneMode(
+                  targetTrackId: targetTrackId,
+                ),
+                borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isMinusOne
+                        ? tokens.accentSecondary.withValues(alpha: 0.22)
+                        : tokens.elevatedSurface,
+                    borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                    border: Border.all(
+                      color: isMinusOne
+                          ? tokens.accentSecondary
+                          : tokens.borderHairline,
+                      width: isMinusOne ? 1.2 : 0.8,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isMinusOne
+                            ? Icons.headset_mic_rounded
+                            : Icons.headset_mic_outlined,
+                        size: 13,
+                        color: isMinusOne
+                            ? tokens.accentSecondary
+                            : tokens.textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Minus-One',
+                        style: TextStyle(
+                          color: isMinusOne
+                              ? tokens.textPrimary
+                              : tokens.textSecondary,
+                          fontSize: 10.5,
+                          fontWeight: isMinusOne
+                              ? FontWeight.bold
+                              : FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              _buildToolbarDivider(tokens),
+              ...stems.map((track) {
+                final isAudible = !track.isMuted;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6.0),
+                  child: InkWell(
+                    key: Key('inline_stem_toggle_${track.id}'),
+                    onTap: () => viewModel.toggleTrackMute(track.id),
+                    borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isAudible
+                            ? tokens.accentPrimary.withValues(alpha: 0.16)
+                            : tokens.elevatedSurface,
+                        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                        border: Border.all(
+                          color: isAudible
+                              ? tokens.accentPrimary.withValues(alpha: 0.65)
+                              : tokens.borderHairline,
+                          width: isAudible ? 1.1 : 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isAudible
+                                ? Icons.volume_up_rounded
+                                : Icons.volume_off_rounded,
+                            size: 13,
+                            color: isAudible
+                                ? tokens.accentPrimary
+                                : tokens.accentDanger,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            track.title,
+                            style: TextStyle(
+                              color: isAudible
+                                  ? tokens.textPrimary
+                                  : tokens.textMuted,
+                              fontSize: 10.5,
+                              fontWeight: isAudible
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              decoration: isAudible
+                                  ? null
+                                  : TextDecoration.lineThrough,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = StudioThemeScope.of(context);
 
-    return Column(
-      children: [
-        // Encabezado de la Obra y Navegación de Compases
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: InkWell(
-                  onTap: widget.onOpenLibraryModal,
-                  borderRadius: BorderRadius.circular(tokens.radiusMedium),
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, _) {
+        return Column(
+          children: [
+            // Encabezado de la Obra y Navegación de Compases
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: InkWell(
+                      key: const Key('score_workspace_song_picker_btn'),
+                      onTap: () => _openSongPickerSheet(context, tokens),
+                      borderRadius: BorderRadius.circular(tokens.radiusMedium),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
@@ -819,6 +1184,10 @@ class _CompositionNotationWorkspaceViewState
           ),
         ),
 
+        // Barra Integrada de 4 Stems y Minus-One (US-UX-01)
+        if (viewModel.activePackage.tracks.isNotEmpty)
+          _buildInlineStemsAndMinusOneBar(context, tokens),
+
         // Barra de Herramientas de Composición y Exportación
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
@@ -937,6 +1306,8 @@ class _CompositionNotationWorkspaceViewState
           ),
         ),
       ],
+    );
+      },
     );
   }
 }

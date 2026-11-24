@@ -72,6 +72,8 @@ class StudioWorkspaceFileSystemService
   String _searchQuery = '';
   @override
   StudioOpenFileCallback? onOpenFile;
+  @override
+  StudioFileMusicalActionCallback? onFileMusicalAction;
 
   Object? get repository => _repository;
   @override
@@ -224,14 +226,32 @@ class StudioWorkspaceFileSystemService
   /// Selecciona un nodo por su ID y si es carpeta la define como carpeta activa.
   @override
   void selectNode(String nodeId) {
+    _selectNodeInternal(nodeId, triggerOpen: true);
+  }
+
+  void _selectNodeInternal(String nodeId, {required bool triggerOpen}) {
     _selectedNodeId = nodeId;
     final node = _rootFolder.findNode(nodeId);
     if (node is StudioFolderEntity) {
       _activeFolderId = node.id;
-    } else if (node is StudioFileEntity) {
+    } else if (triggerOpen && node is StudioFileEntity) {
       onOpenFile?.call(node);
     }
     notifyListeners();
+  }
+
+  /// Selecciona el archivo y dispara una acción musical contextual o el fallback de apertura.
+  @override
+  void triggerFileMusicalAction(
+    StudioFileEntity file,
+    StudioFileMusicalAction action,
+  ) {
+    _selectNodeInternal(file.id, triggerOpen: false);
+    if (onFileMusicalAction != null) {
+      onFileMusicalAction!(file, action);
+    } else {
+      onOpenFile?.call(file);
+    }
   }
 
   /// Conmuta la expansión de una carpeta.

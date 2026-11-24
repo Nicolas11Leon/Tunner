@@ -179,6 +179,7 @@ class _MainAppShellState extends State<MainAppShell> {
     }
     _fileSystemService = injectedFileSystem ?? root?.fileSystemService ?? NoOpStudioWorkspaceFileSystem();
     _fileSystemService.onOpenFile = _handleOpenFile;
+    _fileSystemService.onFileMusicalAction = _handleFileMusicalAction;
     _fileSystemService.initializeWorkspace();
 
     TunerViewModel? existingVm;
@@ -317,6 +318,102 @@ class _MainAppShellState extends State<MainAppShell> {
     return resolvedBytes;
   }
 
+  Future<({Uint8List? wavBytes, String wavFileName})> _prepareAudioForDjAndScore(
+    StudioFileEntity file,
+    Uint8List resolvedBytes,
+  ) async {
+    final dotIdx = file.name.lastIndexOf('.');
+    final ext = dotIdx >= 0 ? file.name.substring(dotIdx + 1).toLowerCase() : '';
+    final bool hasRiffHeader = resolvedBytes.length >= 12 &&
+        resolvedBytes[0] == 0x52 &&
+        resolvedBytes[1] == 0x49 &&
+        resolvedBytes[2] == 0x46 &&
+        resolvedBytes[3] == 0x46;
+
+    Uint8List? wavBytes = hasRiffHeader ? resolvedBytes : null;
+    String wavFileName = file.name;
+    if (!hasRiffHeader && _audioTranscoder.isSupportedCompressedExtension(ext)) {
+      final transcoded = await _audioTranscoder.transcodeToWav16BitPcm(
+        resolvedBytes,
+        fileExtension: ext,
+      );
+      if (transcoded != null && transcoded.isNotEmpty) {
+        wavBytes = transcoded;
+        final baseName = dotIdx >= 0 ? file.name.substring(0, dotIdx) : file.name;
+        wavFileName = '$baseName.wav';
+      }
+    }
+    return (wavBytes: wavBytes, wavFileName: wavFileName);
+  }
+
+  Future<void> _handleFileMusicalAction(
+    StudioFileEntity file,
+    StudioFileMusicalAction action,
+  ) async {
+    if (action == StudioFileMusicalAction.openInScoreEditor ||
+        action == StudioFileMusicalAction.openDefault) {
+      await _handleOpenFile(file);
+      return;
+    }
+
+    final vm = context.read<TunerViewModel>();
+    final tokens = StudioThemeScope.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final resolvedBytes = await _resolveFileBytes(file);
+    if (!mounted) return;
+
+    if (resolvedBytes == null || resolvedBytes.isEmpty) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('No se pudieron leer los bytes de audio: ${file.name}'),
+          backgroundColor: tokens.accentWarning,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    switch (action) {
+      case StudioFileMusicalAction.transformToScoreAndStems:
+        _navigateToTab(4);
+        await vm.importScoreFromBytes(resolvedBytes, file.name);
+        if (!mounted) return;
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Audio transformado a Partitura y 4 Stems: ${file.name}'),
+            backgroundColor: tokens.accentSuccess,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        break;
+      case StudioFileMusicalAction.loadInDjDeckA:
+      case StudioFileMusicalAction.loadInDjDeckB:
+        final deckId = action == StudioFileMusicalAction.loadInDjDeckA ? 'A' : 'B';
+        final prepared = await _prepareAudioForDjAndScore(file, resolvedBytes);
+        if (!mounted) return;
+        _navigateToTab(5);
+        await _djConsoleViewModel.loadDeckTrack(
+          deckId: deckId,
+          filePath: file.relativePath,
+          wavBytes: prepared.wavBytes,
+          title: file.name,
+          bpm: vm.bpm.toDouble(),
+        );
+        if (!mounted) return;
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Audio cargado en Deck $deckId de la Consola DJ: ${file.name}'),
+            backgroundColor: tokens.elevatedSurface,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        break;
+      case StudioFileMusicalAction.openInScoreEditor:
+      case StudioFileMusicalAction.openDefault:
+        break;
+    }
+  }
+
   Future<void> _handleOpenFile(StudioFileEntity file) async {
     final vm = context.read<TunerViewModel>();
     final tokens = StudioThemeScope.of(context);
@@ -361,28 +458,10 @@ class _MainAppShellState extends State<MainAppShell> {
           break;
         }
 
-        final dotIdx = file.name.lastIndexOf('.');
-        final ext = dotIdx >= 0 ? file.name.substring(dotIdx + 1).toLowerCase() : '';
-        final bool hasRiffHeader = resolvedBytes.length >= 12 &&
-            resolvedBytes[0] == 0x52 &&
-            resolvedBytes[1] == 0x49 &&
-            resolvedBytes[2] == 0x46 &&
-            resolvedBytes[3] == 0x46;
-
-        Uint8List? wavBytesForDj = hasRiffHeader ? resolvedBytes : null;
-        String scoreImportFileName = file.name;
-        if (!hasRiffHeader && _audioTranscoder.isSupportedCompressedExtension(ext)) {
-          final transcoded = await _audioTranscoder.transcodeToWav16BitPcm(
-            resolvedBytes,
-            fileExtension: ext,
-          );
-          if (!mounted) return;
-          if (transcoded != null && transcoded.isNotEmpty) {
-            wavBytesForDj = transcoded;
-            final baseName = dotIdx >= 0 ? file.name.substring(0, dotIdx) : file.name;
-            scoreImportFileName = '$baseName.wav';
-          }
-        }
+        final prepared = await _prepareAudioForDjAndScore(file, resolvedBytes);
+        if (!mounted) return;
+        final Uint8List? wavBytesForDj = prepared.wavBytes;
+        final String scoreImportFileName = prepared.wavFileName;
 
         await _djConsoleViewModel.loadDeckTrack(
           deckId: 'A',
@@ -533,6 +612,9 @@ class _MainAppShellState extends State<MainAppShell> {
   void dispose() {
     if (_fileSystemService.onOpenFile == _handleOpenFile) {
       _fileSystemService.onOpenFile = null;
+    }
+    if (_fileSystemService.onFileMusicalAction == _handleFileMusicalAction) {
+      _fileSystemService.onFileMusicalAction = null;
     }
     _masterClockService.onPlayAll = null;
     _masterClockService.onPauseAll = null;
