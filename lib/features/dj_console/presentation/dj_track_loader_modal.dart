@@ -1,4 +1,6 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../../core/audio/infrastructure/ffmpeg_audio_transcoder_service.dart';
 import '../../../core/design_system/studio_theme_provider.dart';
 import '../../../core/file_system/domain/i_platform_file_gateway.dart';
 import '../../../core/logging/infrastructure/studio_debug_logger.dart';
@@ -187,14 +189,28 @@ class _DjTrackLoaderModalState extends State<DjTrackLoaderModal> with SingleTick
         final name = file.name;
         final bytes = file.bytes;
 
-        // Si es un archivo WAV con muestras PCM válidas, ejecutar análisis de BPM y Camelot real
+        // Si es un archivo de audio comprimido (MP3, FLAC, OGG, M4A, AAC) o WAV, decodificar a PCM
         if (bytes != null && bytes.isNotEmpty) {
-          final pcm = PcmWavDecoder.decodeWavToFloat32(bytes);
+          Uint8List effectiveWavBytes = bytes;
+          final dotIdx = name.lastIndexOf('.');
+          final ext = dotIdx >= 0 ? name.substring(dotIdx + 1).toLowerCase() : '';
+          const transcoder = FfmpegAudioTranscoderService();
+          if (ext != 'wav' && transcoder.isSupportedCompressedExtension(ext)) {
+            final converted = await transcoder.transcodeToWav16BitPcm(
+              bytes,
+              fileExtension: ext,
+            );
+            if (converted != null && converted.isNotEmpty) {
+              effectiveWavBytes = converted;
+            }
+          }
+
+          final pcm = PcmWavDecoder.decodeWavToFloat32(effectiveWavBytes);
           if (pcm.isNotEmpty) {
             final bpm = await widget.viewModel.loadTrackWithBeatTrackingAsync(
               widget.deckId,
               title: name,
-              artist: 'Archivo Local',
+              artist: 'Archivo Local (${ext.toUpperCase()})',
               audioSamples: pcm,
             );
             if (context.mounted) {

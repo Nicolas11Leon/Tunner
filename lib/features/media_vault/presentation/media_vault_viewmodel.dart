@@ -74,7 +74,13 @@ class MediaVaultViewModel extends ChangeNotifier {
       if (gw == null) return false;
       final file = await gw.pickFile(
         allowedExtensions: const <String>[
+          'mp3',
           'wav',
+          'flac',
+          'ogg',
+          'm4a',
+          'aac',
+          'opus',
           'mid',
           'midi',
           'musicxml',

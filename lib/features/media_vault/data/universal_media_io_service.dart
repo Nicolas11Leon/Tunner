@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../../../core/audio/domain/i_audio_transcoder_port.dart';
 import '../../../core/logging/domain/i_studio_logger.dart';
 import '../../../core/logging/infrastructure/studio_stderr_logger.dart';
 import '../../dj_console/domain/bpm_beat_tracker_engine.dart';
@@ -28,15 +29,18 @@ class UniversalMediaIoService implements IMediaIoService {
 
   final WavPcmCodec _wavCodec;
   final UniversalScoreImporterService _scoreImporter;
+  final IAudioTranscoderPort _audioTranscoder;
   final IStudioLogger _logger;
 
   const UniversalMediaIoService({
     WavPcmCodec wavCodec = const WavPcmCodec(),
     UniversalScoreImporterService scoreImporter =
         const UniversalScoreImporterService(),
+    IAudioTranscoderPort audioTranscoder = const NoOpAudioTranscoderPort(),
     IStudioLogger logger = StudioStderrLogger.instance,
   })  : _wavCodec = wavCodec,
         _scoreImporter = scoreImporter,
+        _audioTranscoder = audioTranscoder,
         _logger = logger;
 
   @override
@@ -60,8 +64,23 @@ class UniversalMediaIoService implements IMediaIoService {
       return _importTunnerJson(fileName, bytes);
     }
 
-    if (ext == 'wav') {
-      final decoded = _wavCodec.decode(bytes);
+    if (ext == 'wav' || _audioTranscoder.isSupportedCompressedExtension(ext)) {
+      Uint8List wavBytes = bytes;
+      if (ext != 'wav') {
+        final transcoded = await _audioTranscoder.transcodeToWav16BitPcm(
+          bytes,
+          fileExtension: ext,
+        );
+        if (transcoded == null || transcoded.isEmpty) {
+          return MediaImportResult(
+            success: false,
+            message: 'No se pudo decodificar el archivo .$ext a PCM.',
+          );
+        }
+        wavBytes = transcoded;
+      }
+
+      final decoded = _wavCodec.decode(wavBytes);
       if (decoded == null) {
         return const MediaImportResult(
           success: false,
@@ -86,22 +105,22 @@ class UniversalMediaIoService implements IMediaIoService {
         id: 'asset_${now.microsecondsSinceEpoch}',
         title: baseTitle,
         fileName: fileName,
-        extensionName: 'wav',
+        extensionName: ext,
         kind: MediaAssetKind.audioTrack,
         durationMs: decoded.durationMs,
         bpm: estimatedBpm,
         camelotKey: estimatedCamelot,
         sampleRate: decoded.sampleRate,
-        tags: const <String>['wav', 'lossless'],
+        tags: <String>[ext, ext == 'wav' ? 'lossless' : 'audio'],
         createdAt: now,
         pcmSamples: decoded.monoSamples,
-        rawBytes: bytes,
+        rawBytes: wavBytes,
         waveformPeaks: peaks,
       );
       return MediaImportResult(
         success: true,
         importedAssets: <MediaAssetEntity>[asset],
-        message: 'Audio WAV importado (${decoded.durationMs} ms).',
+        message: 'Audio ${ext.toUpperCase()} importado (${decoded.durationMs} ms).',
       );
     }
 
