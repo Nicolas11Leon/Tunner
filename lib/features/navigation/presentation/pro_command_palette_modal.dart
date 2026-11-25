@@ -57,15 +57,24 @@ class _ProCommandPaletteModalState extends State<ProCommandPaletteModal> {
   final TextEditingController _searchCtrl = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final ScrollController _scrollCtrl = ScrollController();
-  String _query = '';
+  String _searchQuery = '';
+  String _selectedCategoryFilter = 'all';
   int _selectedIndex = 0;
+
+  static const List<({String id, String keyName, String label})> _categoryFilters = [
+    (id: 'all', keyName: 'cmd_filter_all', label: 'Todos'),
+    (id: 'navigation', keyName: 'cmd_filter_navigation', label: 'Espacios'),
+    (id: 'dsp', keyName: 'cmd_filter_dsp', label: 'Afinación & DSP'),
+    (id: 'scores', keyName: 'cmd_filter_scores', label: 'Partituras & Archivos'),
+    (id: 'pedagogy', keyName: 'cmd_filter_pedagogy', label: 'Pedagogía'),
+  ];
 
   @override
   void initState() {
     super.initState();
     _searchCtrl.addListener(() {
       setState(() {
-        _query = _searchCtrl.text.trim().toLowerCase();
+        _searchQuery = _searchCtrl.text.trim().toLowerCase();
         _selectedIndex = 0;
       });
     });
@@ -128,12 +137,46 @@ class _ProCommandPaletteModalState extends State<ProCommandPaletteModal> {
     super.dispose();
   }
 
+  bool _matchesCategoryFilter(CommandItem cmd) {
+    if (_selectedCategoryFilter == 'all') return true;
+    final cat = cmd.category.toLowerCase();
+    switch (_selectedCategoryFilter) {
+      case 'navigation':
+        return cat.contains('navegación') ||
+            cat.contains('espacios') ||
+            cat.contains('interfaz') ||
+            cat.contains('sistema');
+      case 'dsp':
+        return cat.contains('afinación') ||
+            cat.contains('dsp') ||
+            cat.contains('audio') ||
+            cat.contains('metrónomo') ||
+            cat.contains('transporte') ||
+            cat.contains('ajustes');
+      case 'scores':
+        return cat.contains('archivo') ||
+            cat.contains('partitura') ||
+            cat.contains('composición') ||
+            cat.contains('producción') ||
+            cat.contains('grabación');
+      case 'pedagogy':
+        return cat.contains('pedagogía') ||
+            cat.contains('conservatorio') ||
+            cat.contains('entrenamiento') ||
+            cat.contains('armonía') ||
+            cat.contains('instrumento');
+      default:
+        return true;
+    }
+  }
+
   List<CommandItem> get _filteredCommands {
-    if (_query.isEmpty) return widget.commands;
     return widget.commands.where((cmd) {
-      return cmd.title.toLowerCase().contains(_query) ||
-          cmd.subtitle.toLowerCase().contains(_query) ||
-          cmd.category.toLowerCase().contains(_query);
+      if (!_matchesCategoryFilter(cmd)) return false;
+      if (_searchQuery.isEmpty) return true;
+      return cmd.title.toLowerCase().contains(_searchQuery) ||
+          cmd.subtitle.toLowerCase().contains(_searchQuery) ||
+          cmd.category.toLowerCase().contains(_searchQuery);
     }).toList();
   }
 
@@ -207,6 +250,27 @@ class _ProCommandPaletteModalState extends State<ProCommandPaletteModal> {
                         ),
                       ),
                       Container(
+                        key: const Key('command_palette_shortcut_hint_badge'),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: palette.scaffoldBackground,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: palette.staffLinesColor.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Text(
+                          'CTRL+K / CTRL+P',
+                          style: TextStyle(
+                            color: palette.textMutedColor,
+                            fontSize: 10,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: palette.scaffoldBackground,
@@ -227,6 +291,65 @@ class _ProCommandPaletteModalState extends State<ProCommandPaletteModal> {
                     ],
                   ),
                 ),
+                // Barra horizontal de Píldoras de Filtro por Categoría
+                Container(
+                  key: const Key('command_palette_category_filter_bar'),
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (int i = 0; i < _categoryFilters.length; i++)
+                        Builder(
+                          builder: (context) {
+                            final filter = _categoryFilters[i];
+                            final isActive = _selectedCategoryFilter == filter.id;
+                            return InkWell(
+                              key: Key(filter.keyName),
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: () {
+                                setState(() {
+                                  _selectedCategoryFilter = filter.id;
+                                  _selectedIndex = 0;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isActive
+                                      ? palette.primaryAccent.withValues(alpha: 0.22)
+                                      : palette.scaffoldBackground,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: isActive
+                                        ? palette.primaryAccent
+                                        : palette.staffLinesColor.withValues(alpha: 0.25),
+                                    width: isActive ? 1.3 : 1.0,
+                                  ),
+                                ),
+                                child: Text(
+                                  filter.label,
+                                  style: TextStyle(
+                                    color: isActive
+                                        ? palette.textColor
+                                        : palette.textMutedColor,
+                                    fontSize: 11.0,
+                                    fontWeight: isActive
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
                 Divider(
                   height: 1,
                   color: palette.staffLinesColor.withValues(alpha: 0.2),
@@ -237,7 +360,7 @@ class _ProCommandPaletteModalState extends State<ProCommandPaletteModal> {
                   child: results.isEmpty
                       ? Center(
                           child: Text(
-                            'No se encontraron comandos para "$_query"',
+                            'No se encontraron comandos para "$_searchQuery"',
                             style: TextStyle(
                               color: palette.textMutedColor,
                               fontSize: 14,
@@ -246,6 +369,7 @@ class _ProCommandPaletteModalState extends State<ProCommandPaletteModal> {
                         )
                       : ListView.separated(
                           controller: _scrollCtrl,
+                          cacheExtent: 2000,
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           itemCount: results.length,
                           separatorBuilder: (_, _) => Divider(
