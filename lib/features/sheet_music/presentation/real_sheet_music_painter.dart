@@ -5,6 +5,9 @@ import '../../instrument/domain/instrument_profile_entity.dart';
 import '../domain/score_tree.dart';
 import 'smufl/smufl_glyph_path_engine.dart';
 
+/// Alias retrocompatible para la paleta cromática del pentagrama.
+typedef SheetMusicColorPalette = TunnerThemePalette;
+
 /// Registro de ejecución de una nota o silencio por el usuario para coloreado histórico.
 class PlayedRecord {
   final String noteName;
@@ -26,7 +29,7 @@ class PlayedRecord {
 class RealSheetMusicPainter extends CustomPainter {
   final int currentSubTick;
   final List<HierarchicalNote> notes;
-  final Map<int, PlayedRecord> history;
+  final Map<int, Object?> history;
   final String liveNote;
   final double liveCents;
   final bool isCountingIn;
@@ -38,6 +41,10 @@ class RealSheetMusicPainter extends CustomPainter {
   final InstrumentClef clef;
   final int? selectedNoteIndex;
   final int keySignatureFifths;
+  final bool enableSemanticNoteColoring;
+  final bool enableLivePitchTrail;
+  final int? loopStartMeasure;
+  final int? loopEndMeasure;
 
   static final RegExp _digitsRegExp = RegExp(r'[-+]?\d+');
   static final RegExp _accidentalSuffixRegExp = RegExp(r'[#♭♯♮n]+$');
@@ -67,8 +74,65 @@ class RealSheetMusicPainter extends CustomPainter {
     this.clef = InstrumentClef.treble,
     this.selectedNoteIndex,
     this.keySignatureFifths = 0,
+    this.enableSemanticNoteColoring = true,
+    this.enableLivePitchTrail = true,
+    this.loopStartMeasure,
+    this.loopEndMeasure,
     SmuflGlyphPathEngine? smuflEngine,
   }) : _smuflEngine = smuflEngine ?? const SmuflGlyphPathEngine();
+
+  static bool? _extractHistoryEvaluation(Object? entry) {
+    if (entry is bool) return entry;
+    if (entry is PlayedRecord) return entry.isCorrect;
+    return null;
+  }
+
+  /// Resuelve determinísticamente el color semántico de evaluación para una cabeza de nota SMuFL.
+  static Color resolveNoteEvaluationColor({
+    required bool isSelected,
+    required bool isRest,
+    required int noteIndex,
+    required int totalNotes,
+    required Map<int, Object?> history,
+    required SheetMusicColorPalette palette,
+    bool enableSemanticColoring = true,
+    int? noteStartSubTick,
+    int? noteEndSubTick,
+    int totalMeasureTicks = 16,
+  }) {
+    if (isSelected) return palette.secondaryAccent;
+    if (!enableSemanticColoring || isRest || history.isEmpty) {
+      return palette.musicalSymbolsColor;
+    }
+
+    final safeTotalNotes = math.max(1, totalNotes);
+    final startTick = noteStartSubTick ??
+        ((noteIndex * totalMeasureTicks) ~/ safeTotalNotes);
+    final endTick = noteEndSubTick ??
+        math.max(
+          startTick + 1,
+          (((noteIndex + 1) * totalMeasureTicks) ~/ safeTotalNotes),
+        );
+
+    bool hasHit = false;
+    bool hasMiss = false;
+
+    for (final entry in history.entries) {
+      final tick = entry.key;
+      if ((tick >= startTick && tick < endTick) || tick == noteIndex) {
+        final eval = _extractHistoryEvaluation(entry.value);
+        if (eval == true) {
+          hasHit = true;
+        } else if (eval == false) {
+          hasMiss = true;
+        }
+      }
+    }
+
+    if (hasHit && !hasMiss) return palette.correctPitchColor;
+    if (hasMiss) return palette.errorPitchColor;
+    return palette.musicalSymbolsColor;
+  }
 
   /// Calcula el offset de semiespacio de la nota respecto a la línea 1 del pentagrama.
   /// Línea 1 = 0, Línea 2 = 2, Línea 3 (centro) = 4, Línea 4 = 6, Línea 5 = 8.
@@ -444,7 +508,18 @@ class RealSheetMusicPainter extends CustomPainter {
         );
       }
 
-      final noteColor = isSelected ? palette.secondaryAccent : palette.musicalSymbolsColor;
+      final noteColor = resolveNoteEvaluationColor(
+        isSelected: isSelected,
+        isRest: note.isRest,
+        noteIndex: idx,
+        totalNotes: math.max(1, notes.length),
+        history: history,
+        palette: palette,
+        enableSemanticColoring: enableSemanticNoteColoring,
+        noteStartSubTick: note.startTick,
+        noteEndSubTick: note.endTick,
+        totalMeasureTicks: totalMeasureTicks,
+      );
 
       if (note.isRest) {
         // Silencio vectorial SMuFL
@@ -651,15 +726,106 @@ class RealSheetMusicPainter extends CustomPainter {
     }
 
     // 5. Historial Dinámico de Evaluación
-    history.forEach((tick, record) {
+    final List<Offset> pitchTrailPoints = [];
+    final sortedHistoryKeys = history.keys.toList()..sort();
+
+    for (final tick in sortedHistoryKeys) {
+      final entry = history[tick];
+      final bool isCorrect = _extractHistoryEvaluation(entry) ?? false;
       double startX = leftMargin + (tick * stepWidth);
-      Color feedbackColor = record.isCorrect
+      Color feedbackColor = isCorrect
           ? palette.correctPitchColor.withValues(alpha: 0.45)
           : palette.errorPitchColor.withValues(alpha: 0.45);
 
       final histPaint = Paint()..color = feedbackColor;
-      canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(startX + 2, topStaffY, stepWidth - 4, baseLine1Y - topStaffY), const Radius.circular(4)), histPaint);
-    });
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(startX + 2, topStaffY, stepWidth - 4, baseLine1Y - topStaffY),
+          const Radius.circular(4),
+        ),
+        histPaint,
+      );
+
+      double trailY = centerLine3Y;
+      if (entry is PlayedRecord && !entry.isRest && entry.noteName.isNotEmpty && entry.noteName != '--') {
+        final step = getNoteStep(entry.noteName);
+        final centsOffset = (entry.cents.clamp(-50.0, 50.0) / 100.0) * (staffSpacing / 2.0);
+        trailY = baseLine1Y - (step * (staffSpacing / 2.0)) - centsOffset;
+      } else {
+        // Inferir de la nota activa en este tick o desplazar según acierto/error
+        HierarchicalNote? matchingNote;
+        for (final n in notes) {
+          if (!n.isRest && tick >= n.startTick && tick < n.endTick) {
+            matchingNote = n;
+            break;
+          }
+        }
+        if (matchingNote != null) {
+          final step = getNoteStep(matchingNote.noteName);
+          trailY = baseLine1Y - (step * (staffSpacing / 2.0)) + (isCorrect ? 0.0 : (staffSpacing * 0.35));
+        } else {
+          trailY = isCorrect ? (centerLine3Y - staffSpacing * 0.5) : (centerLine3Y + staffSpacing * 0.5);
+        }
+      }
+      pitchTrailPoints.add(Offset(startX + (stepWidth / 2.0), trailY));
+    }
+
+    // 5b. Rastro Continuo de Entonación (Live Pitch Trail)
+    if (enableLivePitchTrail && pitchTrailPoints.isNotEmpty) {
+      final trailPath = Path()..moveTo(pitchTrailPoints.first.dx, pitchTrailPoints.first.dy);
+      for (int i = 1; i < pitchTrailPoints.length; i++) {
+        trailPath.lineTo(pitchTrailPoints[i].dx, pitchTrailPoints[i].dy);
+      }
+      if (pitchTrailPoints.length == 1) {
+        trailPath.lineTo(pitchTrailPoints.first.dx + (stepWidth * 0.4), pitchTrailPoints.first.dy);
+      }
+      final trailPaint = Paint()
+        ..color = palette.primaryAccent.withValues(alpha: 0.85)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.2
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      canvas.drawPath(trailPath, trailPaint);
+    }
+
+    // 5c. Insignia Visual de Bucle A-B (LOOP A-B Badge)
+    if (loopStartMeasure != null && loopEndMeasure != null) {
+      final badgeText = 'LOOP A-B [${loopStartMeasure! + 1}-${loopEndMeasure! + 1}]';
+      final badgeTextPainter = TextPainter(
+        text: TextSpan(
+          text: badgeText,
+          style: TextStyle(
+            color: palette.primaryAccent,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+            fontFamily: 'monospace',
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      final badgeWidth = badgeTextPainter.width + 14.0;
+      final badgeHeight = badgeTextPainter.height + 6.0;
+      final badgeRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width - rightMargin - badgeWidth - 4.0, 6.0, badgeWidth, badgeHeight),
+        const Radius.circular(6.0),
+      );
+
+      final badgeBgPaint = Paint()
+        ..color = palette.primaryAccent.withValues(alpha: 0.16)
+        ..style = PaintingStyle.fill;
+      final badgeBorderPaint = Paint()
+        ..color = palette.primaryAccent.withValues(alpha: 0.75)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2;
+
+      canvas.drawRRect(badgeRect, badgeBgPaint);
+      canvas.drawRRect(badgeRect, badgeBorderPaint);
+      badgeTextPainter.paint(
+        canvas,
+        Offset(badgeRect.left + 7.0, badgeRect.top + 3.0),
+      );
+    }
 
     // 6. Afinación en Tiempo Real Sobre el Playhead
     if (currentSubTick >= 0 && liveNote != "--" && liveNote.isNotEmpty) {
@@ -693,6 +859,10 @@ class RealSheetMusicPainter extends CustomPainter {
         oldDelegate.palette != palette ||
         oldDelegate.clef != clef ||
         oldDelegate.selectedNoteIndex != selectedNoteIndex ||
-        oldDelegate.keySignatureFifths != keySignatureFifths;
+        oldDelegate.keySignatureFifths != keySignatureFifths ||
+        oldDelegate.enableSemanticNoteColoring != enableSemanticNoteColoring ||
+        oldDelegate.enableLivePitchTrail != enableLivePitchTrail ||
+        oldDelegate.loopStartMeasure != loopStartMeasure ||
+        oldDelegate.loopEndMeasure != loopEndMeasure;
   }
 }

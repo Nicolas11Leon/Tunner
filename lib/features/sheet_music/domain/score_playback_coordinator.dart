@@ -24,6 +24,11 @@ class ScorePlaybackCoordinator {
   int _currentSubTick = 0;
   double _bpm = 120.0;
 
+  int? _loopStartMeasureIndex;
+  int? _loopEndMeasureIndex;
+  bool _waitForNoteMode = false;
+  int _loopIterationCount = 0;
+
   HierarchicalScore? _activeScore;
   final Map<int, Timer> _activePreviewTimers = {};
 
@@ -43,6 +48,32 @@ class ScorePlaybackCoordinator {
   int get currentSubTick => _currentSubTick;
   double get bpm => _bpm;
   HierarchicalScore? get activeScore => _activeScore;
+  int? get loopStartMeasureIndex => _loopStartMeasureIndex;
+  int? get loopEndMeasureIndex => _loopEndMeasureIndex;
+  bool get isMeasureLoopActive => _loopStartMeasureIndex != null && _loopEndMeasureIndex != null;
+  bool get waitForNoteMode => _waitForNoteMode;
+  int get loopIterationCount => _loopIterationCount;
+
+  /// Configura y activa el bucle A-B por rango de compases.
+  void setMeasureLoopRange(int startMeasureIndex, int endMeasureIndex) {
+    final normStart = math.max(0, math.min(startMeasureIndex, endMeasureIndex));
+    final normEnd = math.max(0, math.max(startMeasureIndex, endMeasureIndex));
+    _loopStartMeasureIndex = normStart;
+    _loopEndMeasureIndex = normEnd;
+    _loopIterationCount = 0;
+  }
+
+  /// Limpia y desactiva el bucle A-B por rango de compases.
+  void clearMeasureLoop() {
+    _loopStartMeasureIndex = null;
+    _loopEndMeasureIndex = null;
+    _loopIterationCount = 0;
+  }
+
+  /// Activa o desactiva el modo Wait-For-Note (Espera Activa estilo Yousician/SmartMusic).
+  void setWaitForNoteMode(bool enabled) {
+    _waitForNoteMode = enabled;
+  }
 
   set bpm(double newBpm) {
     _bpm = math.max(20.0, newBpm);
@@ -175,6 +206,9 @@ class ScorePlaybackCoordinator {
     }
   }
 
+  /// Avanza un sub-tick en el secuenciador métrico, evaluando límites de compás y bucles A-B.
+  void advanceTick() => _advanceTick();
+
   void _advanceTick() {
     if (!_isPlaying || _activeScore == null || _activeScore!.measures.isEmpty) {
       return;
@@ -196,11 +230,17 @@ class ScorePlaybackCoordinator {
       }
 
       _currentSubTick = 0;
-      _currentMeasureIndex++;
-      if (_currentMeasureIndex >= _activeScore!.measures.length) {
-        // Fin de la partitura
-        stopPlayback();
-        return;
+      if (isMeasureLoopActive && _currentMeasureIndex >= _loopEndMeasureIndex!) {
+        final maxMeasureIndex = math.max(0, _activeScore!.measures.length - 1);
+        _currentMeasureIndex = _loopStartMeasureIndex!.clamp(0, maxMeasureIndex);
+        _loopIterationCount++;
+      } else {
+        _currentMeasureIndex++;
+        if (_currentMeasureIndex >= _activeScore!.measures.length) {
+          // Fin de la partitura
+          stopPlayback();
+          return;
+        }
       }
     }
 
