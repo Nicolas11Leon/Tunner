@@ -16,6 +16,13 @@ enum ScoreCanvasEditMode {
   erase,
 }
 
+enum ScoreWorkflowTaskMode {
+  all,      // Vista completa por defecto (retrocompatible con todos los tests existentes)
+  write,    // Modo Steinberg Dorico 'Write': foco en edición de notas y pentagrama
+  mixStems, // Modo Dorico/Moises 'Play & Mix': foco en barra 4-Stems, Minus-One y Síntesis
+  practice, // Modo 'Practice & Loop': foco en pentagrama limpio, Bucle A-B y transcripción en vivo
+}
+
 /// Vista especializada para el Modo 2: Composición & Partituras.
 /// Soporta edición directa en el lienzo SMuFL (clic y arrastre vertical para colocar/mover notas,
 /// clic derecho o modo borrador para eliminar, barra de figuras, alteraciones y gestión multi-compás).
@@ -40,12 +47,24 @@ class CompositionNotationWorkspaceView extends StatefulWidget {
 
 class _CompositionNotationWorkspaceViewState
     extends State<CompositionNotationWorkspaceView> {
+  ScoreWorkflowTaskMode _workflowTaskMode = ScoreWorkflowTaskMode.all;
   ScoreCanvasEditMode _editMode = ScoreCanvasEditMode.write;
   int _selectedDurationTicks = 4; // Negra por defecto
   String _selectedAccidental = ''; // '', '#', 'b'
   bool _isRestMode = false;
   int? _draggingTick;
   String? _lastDraggedNoteName;
+  int _loopMeasureA = 1;
+  int _loopMeasureB = 1;
+  bool _isAbLoopActive = false;
+  bool _isDoricoPopoverOpen = false;
+  final TextEditingController _doricoPopoverController = TextEditingController();
+
+  @override
+  void dispose() {
+    _doricoPopoverController.dispose();
+    super.dispose();
+  }
 
   TunerViewModel get viewModel => widget.viewModel;
   TunnerThemePalette get palette => widget.palette;
@@ -224,6 +243,7 @@ class _CompositionNotationWorkspaceViewState
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 3.0),
       child: Container(
+        key: const Key('direct_canvas_edit_toolbar'),
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
@@ -707,6 +727,464 @@ class _CompositionNotationWorkspaceViewState
     );
   }
 
+  void _applyDoricoQuickCommand() {
+    final raw = _doricoPopoverController.text.trim().toLowerCase();
+    if (raw.isEmpty) return;
+
+    final measureMatch = RegExp(r'^(?:m|comp[aá]s)\s*(\d+)$').firstMatch(raw);
+    if (measureMatch != null) {
+      final measureNumber = int.tryParse(measureMatch.group(1) ?? '');
+      if (measureNumber != null) {
+        final targetIndex = (measureNumber - 1).clamp(0, math.max(0, viewModel.totalMeasures - 1)).toInt();
+        viewModel.selectMeasure(targetIndex);
+        setState(() {
+          _isDoricoPopoverOpen = false;
+          _doricoPopoverController.clear();
+        });
+        return;
+      }
+    }
+
+    final bpmValue = int.tryParse(raw.replaceAll(RegExp(r'\s*bpm$'), ''));
+    if (bpmValue != null) {
+      viewModel.updateBpm(bpmValue);
+      setState(() {
+        _isDoricoPopoverOpen = false;
+        _doricoPopoverController.clear();
+      });
+    }
+  }
+
+  Widget _buildDoricoWorkflowModeSelector(
+    BuildContext context,
+    StudioDesignTokens tokens,
+  ) {
+    Widget buildModeChip({
+      required Key key,
+      required ScoreWorkflowTaskMode mode,
+      required IconData icon,
+      required String label,
+    }) {
+      final isSelected = _workflowTaskMode == mode;
+      return InkWell(
+        key: key,
+        onTap: () => setState(() => _workflowTaskMode = mode),
+        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? tokens.accentPrimary.withValues(alpha: 0.22)
+                : tokens.elevatedSurface,
+            borderRadius: BorderRadius.circular(tokens.radiusSmall),
+            border: Border.all(
+              color: isSelected ? tokens.accentPrimary : tokens.borderHairline,
+              width: isSelected ? 1.2 : 0.8,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 12,
+                color: isSelected ? tokens.accentPrimary : tokens.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? tokens.textPrimary : tokens.textSecondary,
+                  fontSize: 10.5,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2.0),
+      child: Container(
+        key: const Key('dorico_score_task_mode_selector'),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: tokens.panelBackground,
+          borderRadius: BorderRadius.circular(tokens.radiusMedium),
+          border: Border.all(color: tokens.borderHairline),
+        ),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              Text(
+                'Flujo Dorico:',
+                style: TextStyle(
+                  color: tokens.textMuted,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 8),
+              buildModeChip(
+                key: const Key('dorico_mode_all_chip'),
+                mode: ScoreWorkflowTaskMode.all,
+                icon: Icons.dashboard_customize_outlined,
+                label: 'Todo',
+              ),
+              const SizedBox(width: 6),
+              buildModeChip(
+                key: const Key('dorico_mode_write_chip'),
+                mode: ScoreWorkflowTaskMode.write,
+                icon: Icons.edit_note_rounded,
+                label: 'Escribir (Write)',
+              ),
+              const SizedBox(width: 6),
+              buildModeChip(
+                key: const Key('dorico_mode_mix_chip'),
+                mode: ScoreWorkflowTaskMode.mixStems,
+                icon: Icons.tune_rounded,
+                label: 'Mezclar Stems (Mix)',
+              ),
+              const SizedBox(width: 6),
+              buildModeChip(
+                key: const Key('dorico_mode_practice_chip'),
+                mode: ScoreWorkflowTaskMode.practice,
+                icon: Icons.repeat_rounded,
+                label: 'Practicar (Practice)',
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                key: const Key('btn_open_dorico_quick_popover'),
+                onTap: () => setState(() {
+                  _isDoricoPopoverOpen = !_isDoricoPopoverOpen;
+                }),
+                borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: _isDoricoPopoverOpen
+                        ? tokens.accentPrimary.withValues(alpha: 0.22)
+                        : tokens.elevatedSurface,
+                    borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                    border: Border.all(
+                      color: _isDoricoPopoverOpen
+                          ? tokens.accentPrimary
+                          : tokens.borderHairline,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.bolt_rounded,
+                        size: 12,
+                        color: tokens.accentPrimary,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Popover Rápido (Tempo/Compás)',
+                        style: TextStyle(
+                          color: _isDoricoPopoverOpen
+                              ? tokens.textPrimary
+                              : tokens.textSecondary,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (_workflowTaskMode != ScoreWorkflowTaskMode.practice) ...[
+                const SizedBox(width: 8),
+                _buildToolChip(
+                  key: const Key('btn_set_loop_point_a'),
+                  tokens: tokens,
+                  icon: Icons.first_page_rounded,
+                  label: 'Fijar A',
+                  isSelected: _isAbLoopActive,
+                  onTap: () => setState(() {
+                    _loopMeasureA = viewModel.currentMeasureIndex + 1;
+                    if (_loopMeasureB < _loopMeasureA) {
+                      _loopMeasureB = _loopMeasureA;
+                    }
+                  }),
+                ),
+                const SizedBox(width: 6),
+                _buildToolChip(
+                  key: const Key('btn_set_loop_point_b'),
+                  tokens: tokens,
+                  icon: Icons.last_page_rounded,
+                  label: 'Fijar B',
+                  isSelected: _isAbLoopActive,
+                  onTap: () => setState(() {
+                    _loopMeasureB = viewModel.currentMeasureIndex + 1;
+                    if (_loopMeasureB < _loopMeasureA) {
+                      _loopMeasureA = _loopMeasureB;
+                    }
+                    _isAbLoopActive = true;
+                  }),
+                ),
+                if (_isAbLoopActive) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    key: const Key('chip_ab_loop_status'),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: tokens.accentSecondary.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                      border: Border.all(color: tokens.accentSecondary),
+                    ),
+                    child: Text(
+                      'LOOP A-B: Compás $_loopMeasureA - $_loopMeasureB',
+                      style: TextStyle(
+                        color: tokens.textPrimary,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  InkWell(
+                    key: const Key('btn_clear_ab_loop'),
+                    onTap: () => setState(() {
+                      _isAbLoopActive = false;
+                    }),
+                    child: Icon(Icons.close_rounded, size: 14, color: tokens.textMuted),
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDoricoQuickPopoverBar(
+    BuildContext context,
+    StudioDesignTokens tokens,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2.0),
+      child: Container(
+        key: const Key('dorico_quick_command_popover'),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: tokens.panelBackground,
+          borderRadius: BorderRadius.circular(tokens.radiusMedium),
+          border: Border.all(
+            color: tokens.accentPrimary.withValues(alpha: 0.7),
+            width: 1.1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.bolt_rounded,
+              size: 15,
+              color: tokens.accentPrimary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Popover Rápido (Tempo/Compás):',
+              style: TextStyle(
+                color: tokens.textPrimary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SizedBox(
+                height: 28,
+                child: TextField(
+                  key: const Key('dorico_popover_input_field'),
+                  controller: _doricoPopoverController,
+                  onSubmitted: (_) => _applyDoricoQuickCommand(),
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 11.5,
+                    fontFamily: 'monospace',
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Ej: 120 (BPM) o m3 (Ir a compás 3)',
+                    hintStyle: TextStyle(
+                      color: tokens.textMuted,
+                      fontSize: 10.5,
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
+                    filled: true,
+                    fillColor: tokens.inputSurface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                      borderSide: BorderSide(color: tokens.borderHairline),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                      borderSide: BorderSide(color: tokens.borderHairline),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            InkWell(
+              key: const Key('dorico_popover_apply_btn'),
+              onTap: _applyDoricoQuickCommand,
+              borderRadius: BorderRadius.circular(tokens.radiusSmall),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: tokens.accentPrimary.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                  border: Border.all(color: tokens.accentPrimary),
+                ),
+                child: Text(
+                  'Aplicar',
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAbMeasureLoopBar(
+    BuildContext context,
+    StudioDesignTokens tokens,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2.0),
+      child: Container(
+        key: const Key('score_ab_measure_loop_bar'),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: tokens.panelBackground,
+          borderRadius: BorderRadius.circular(tokens.radiusMedium),
+          border: Border.all(color: tokens.borderHairline),
+        ),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              Icon(
+                Icons.repeat_rounded,
+                size: 13,
+                color: _isAbLoopActive ? tokens.accentSecondary : tokens.textMuted,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Bucle A-B:',
+                style: TextStyle(
+                  color: tokens.textSecondary,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildToolChip(
+                key: const Key('btn_set_loop_point_a'),
+                tokens: tokens,
+                icon: Icons.first_page_rounded,
+                label: 'Fijar A',
+                isSelected: _isAbLoopActive,
+                onTap: () => setState(() {
+                  _loopMeasureA = viewModel.currentMeasureIndex + 1;
+                  if (_loopMeasureB < _loopMeasureA) {
+                    _loopMeasureB = _loopMeasureA;
+                  }
+                }),
+              ),
+              const SizedBox(width: 6),
+              _buildToolChip(
+                key: const Key('btn_set_loop_point_b'),
+                tokens: tokens,
+                icon: Icons.last_page_rounded,
+                label: 'Fijar B',
+                isSelected: _isAbLoopActive,
+                onTap: () => setState(() {
+                  _loopMeasureB = viewModel.currentMeasureIndex + 1;
+                  if (_loopMeasureB < _loopMeasureA) {
+                    _loopMeasureA = _loopMeasureB;
+                  }
+                  _isAbLoopActive = true;
+                }),
+              ),
+              if (_isAbLoopActive) ...[
+                const SizedBox(width: 8),
+                Container(
+                  key: const Key('chip_ab_loop_status'),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: tokens.accentSecondary.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                    border: Border.all(color: tokens.accentSecondary),
+                  ),
+                  child: Text(
+                    'LOOP A-B: Compás $_loopMeasureA - $_loopMeasureB',
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                InkWell(
+                  key: const Key('btn_clear_ab_loop'),
+                  onTap: () => setState(() {
+                    _isAbLoopActive = false;
+                  }),
+                  borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: tokens.elevatedSurface,
+                      borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                      border: Border.all(color: tokens.borderHairline),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.close_rounded, size: 12, color: tokens.accentDanger),
+                        const SizedBox(width: 3),
+                        Text(
+                          'Limpiar',
+                          style: TextStyle(
+                            color: tokens.textSecondary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildInlineStemsAndMinusOneBar(
     BuildContext context,
     StudioDesignTokens tokens,
@@ -1026,8 +1504,21 @@ class _CompositionNotationWorkspaceViewState
           ),
         ),
 
+        // Popover Rápido estilo Dorico (Shift+T / Shift+M)
+        if (_isDoricoPopoverOpen)
+          _buildDoricoQuickPopoverBar(context, tokens),
+
+        // Selector segmentado de Modos de Flujo Musical estilo Steinberg Dorico 5 (US-UX-07)
+        _buildDoricoWorkflowModeSelector(context, tokens),
+
         // Barra Interactiva de Edición Directa sobre el Lienzo del Pentagrama
-        _buildDirectCanvasEditToolbar(context, tokens),
+        if (_workflowTaskMode == ScoreWorkflowTaskMode.all ||
+            _workflowTaskMode == ScoreWorkflowTaskMode.write)
+          _buildDirectCanvasEditToolbar(context, tokens),
+
+        // Barra Rápida de Bucle de Práctica A-B por Compases (en modo Practicar)
+        if (_workflowTaskMode == ScoreWorkflowTaskMode.practice)
+          _buildAbMeasureLoopBar(context, tokens),
 
         // Lienzo del Pentagrama Tipográfico SMuFL (Edición Directa con Clic y Arrastre Vertical)
         if (viewModel.workspaceConfiguration.showSheetMusicCanvas)
@@ -1185,7 +1676,10 @@ class _CompositionNotationWorkspaceViewState
         ),
 
         // Barra Integrada de 4 Stems y Minus-One (US-UX-01)
-        if (viewModel.activePackage.tracks.isNotEmpty)
+        if (viewModel.activePackage.tracks.isNotEmpty &&
+            (_workflowTaskMode == ScoreWorkflowTaskMode.all ||
+                _workflowTaskMode == ScoreWorkflowTaskMode.mixStems ||
+                _workflowTaskMode == ScoreWorkflowTaskMode.practice))
           _buildInlineStemsAndMinusOneBar(context, tokens),
 
         // Barra de Herramientas de Composición y Exportación
