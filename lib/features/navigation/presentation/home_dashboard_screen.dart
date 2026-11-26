@@ -6,11 +6,16 @@ import '../../../core/design_system/domain/studio_icon_catalog.dart';
 import '../../../core/design_system/studio_design_tokens.dart';
 import '../../../core/design_system/studio_theme_provider.dart';
 import '../../instrument/presentation/instrument_selector_modal.dart';
+import '../../media_vault/presentation/media_vault_viewmodel.dart';
+import '../../modular_rack/presentation/modular_rack_viewmodel.dart';
 import '../../pedagogy_report/presentation/pedagogical_report_modal.dart';
 import '../../tuner/presentation/concert_pitch_selector_modal.dart';
 import '../../tuner/presentation/microphone_calibration_modal.dart';
 import '../../tuner/presentation/temperament_selector_modal.dart';
 import '../../tuner_viewmodel.dart';
+import 'keyboard_shortcuts_modal.dart';
+import 'pro_command_palette_modal.dart';
+import 'studio_command_catalog_builder.dart';
 import 'tool_search_modal.dart';
 
 /// Hub Técnico y Lanzador Pro-DAW de Tunner Studio (UC-174).
@@ -22,13 +27,52 @@ class HomeDashboardScreen extends StatelessWidget {
   final void Function(int tabIndex) onNavigateToTab;
   final VoidCallback? onOpenTerminal;
   final void Function(String deckId, String songKey)? onLoadDjTemplate;
+  final VoidCallback? onOpenUniversalCommandPalette;
 
   const HomeDashboardScreen({
     super.key,
     required this.onNavigateToTab,
     this.onOpenTerminal,
     this.onLoadDjTemplate,
+    this.onOpenUniversalCommandPalette,
   });
+
+  void _openDefaultUniversalCommandPalette(
+    BuildContext context,
+    TunerViewModel viewModel,
+  ) {
+    if (onOpenUniversalCommandPalette != null) {
+      onOpenUniversalCommandPalette!();
+      return;
+    }
+    final rackVm = ModularRackViewModel();
+    final vaultVm = MediaVaultViewModel();
+    final commands = StudioCommandCatalogBuilder.build(
+      context: context,
+      viewModel: viewModel,
+      modularRackViewModel: rackVm,
+      mediaVaultViewModel: vaultVm,
+      onNavigateToTab: onNavigateToTab,
+      onOpenInstrumentSelector: () =>
+          InstrumentSelectorModal.show(context, viewModel),
+      onToggleSidebar: () {},
+      onToggleDualSplit: () {},
+      onToggleTerminal: onOpenTerminal ?? () {},
+      onOpenShortcutsGuide: () => KeyboardShortcutsCheatSheetModal.show(
+        context: context,
+        palette: viewModel.currentPalette,
+      ),
+      onOpenMasterConsole: () {},
+    );
+    ProCommandPaletteModal.show(
+      context: context,
+      palette: viewModel.currentPalette,
+      commands: commands,
+    ).whenComplete(() {
+      rackVm.dispose();
+      vaultVm.dispose();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -295,21 +339,31 @@ class HomeDashboardScreen extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: tokens.elevatedSurface,
-                      borderRadius: BorderRadius.circular(tokens.radiusSmall),
-                      border: Border.all(color: tokens.borderHairline),
+                  GestureDetector(
+                    key: const Key('home_universal_command_palette_trigger'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _openDefaultUniversalCommandPalette(
+                      context,
+                      viewModel,
                     ),
-                    child: Text(
-                      'CTRL+K',
-                      style: TextStyle(
-                        color: tokens.textSecondary,
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w700,
-                        fontFamily: 'monospace',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: tokens.elevatedSurface,
+                        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                        border: Border.all(color: tokens.borderHairline),
+                      ),
+                      child: Text(
+                        'CTRL+K',
+                        style: TextStyle(
+                          color: tokens.textSecondary,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'monospace',
+                        ),
                       ),
                     ),
                   ),

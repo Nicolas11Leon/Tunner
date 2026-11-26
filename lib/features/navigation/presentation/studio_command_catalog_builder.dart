@@ -1,8 +1,13 @@
+import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
+import '../../media_vault/domain/wav_pcm_codec.dart';
 import '../../chord_analyzer/presentation/chord_analyzer_modal.dart';
 import '../../ear_training/presentation/blind_ear_trainer_modal.dart';
 import '../../guided_lessons/presentation/task_quick_jump_modal.dart';
+import '../../harmonic_tutor/presentation/harmonic_tutor_modal.dart';
+import '../../harmonic_tutor/presentation/harmonic_tutor_view_model.dart';
 import '../../instrument/presentation/universal_master_keyboard_widget.dart';
 import '../../media_vault/presentation/media_vault_viewmodel.dart';
 import '../../media_vault/presentation/media_vault_workspace_modal.dart';
@@ -208,6 +213,45 @@ class StudioCommandCatalogBuilder {
         onSelect: () => ScoreEditorModal.show(context),
       ),
       CommandItem(
+        id: 'open_harmonic_tutor',
+        title: 'Abrir Tutor Armónico (Entonación Justa & Batimentos)',
+        subtitle: 'Afinación Justa (JI), roles armónicos y anulación de batimientos en vivo',
+        icon: Icons.graphic_eq_rounded,
+        category: 'Pedagogía & Conservatorio',
+        onSelect: () {
+          final tutorVm = HarmonicTutorViewModel(
+            onPlayDroneSamples: (samples, sampleRate) {
+              final wavBytes = const WavPcmCodec().encodeMono16Bit(
+                Float64List.fromList(samples),
+                sampleRate: sampleRate,
+              );
+              unawaited(viewModel.audioSynthesizer.startDroneLoop(wavBytes));
+            },
+            onStopDrone: () {
+              unawaited(viewModel.audioSynthesizer.stopDroneLoop());
+            },
+          );
+          void onTelemetry() {
+            final freq = viewModel.telemetryListenable.value.frequency;
+            if (freq > 0.0) {
+              tutorVm.onPitchDetected(freq);
+            }
+          }
+          viewModel.telemetryListenable.addListener(onTelemetry);
+          HarmonicTutorModal.show(
+            context,
+            viewModel: tutorVm,
+            palette: viewModel.currentPalette,
+            isMicrophoneActive: () => viewModel.isRecording,
+            onToggleMicrophone: viewModel.toggleRecording,
+            microphoneListenable: viewModel,
+          ).whenComplete(() {
+            viewModel.telemetryListenable.removeListener(onTelemetry);
+            tutorVm.dispose();
+          });
+        },
+      ),
+      CommandItem(
         id: 'open_ear_trainer',
         title: 'Entrenador Auditivo a Ciegas (Intervalos)',
         subtitle: 'Práctica de discriminación auditiva y afinación sin apoyo visual',
@@ -371,6 +415,42 @@ class StudioCommandCatalogBuilder {
         category: 'Producción',
         onSelect: () => MediaVaultWorkspaceModal.show(context, viewModel: mediaVaultViewModel),
       ),
+      CommandItem(
+        id: 'set_a4_432',
+        title: 'Calibrar Referencia A4 = 432 Hz',
+        subtitle: 'Ajustar frecuencia maestra del diapasón a 432.0 Hz',
+        icon: Icons.tune,
+        category: 'Afinación & DSP',
+        onSelect: () => viewModel.setReferencePitch(432.0),
+      ),
+      CommandItem(
+        id: 'set_a4_440',
+        title: 'Calibrar Referencia A4 = 440 Hz (Estándar ISO 16)',
+        subtitle: 'Restaurar frecuencia de concierto internacional a 440.0 Hz',
+        icon: Icons.tune,
+        category: 'Afinación & DSP',
+        onSelect: () => viewModel.setReferencePitch(440.0),
+      ),
+      CommandItem(
+        id: 'set_a4_442',
+        title: 'Calibrar Referencia A4 = 442 Hz (Orquesta Sinfónica)',
+        subtitle: 'Ajustar frecuencia filarmónica europea a 442.0 Hz',
+        icon: Icons.tune,
+        category: 'Afinación & DSP',
+        onSelect: () => viewModel.setReferencePitch(442.0),
+      ),
+      for (int i = 0; i < viewModel.workspaceScores.length; i++)
+        CommandItem(
+          id: 'open_project_score_$i',
+          title: 'Partitura del Proyecto: ${viewModel.workspaceScores[i].title}',
+          subtitle: 'Cargar partitura de ${viewModel.workspaceScores[i].composer} en el atril SMuFL',
+          icon: Icons.library_music_rounded,
+          category: 'Archivos & Partituras',
+          onSelect: () {
+            viewModel.loadSongPackage(viewModel.workspaceScores[i]);
+            onNavigateToTab(4);
+          },
+        ),
     ];
   }
 }
