@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../song_library/domain/song_decomposer_service.dart';
+import '../../tuner_viewmodel.dart';
 import '../domain/dj_audio_processor.dart';
 import '../../../core/channels/domain/studio_modular_plug.dart';
 import '../../../core/channels/domain/studio_plug_type.dart';
@@ -672,6 +674,24 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                 minimumSize: Size.zero,
               ),
               onPressed: () {
+                TunerViewModel? tunerVm;
+                try {
+                  tunerVm = Provider.of<TunerViewModel>(context, listen: false);
+                } catch (_) {
+                  tunerVm = null;
+                }
+
+                final String scoreTitle = tunerVm != null
+                    ? 'Partitura: ${tunerVm.activePackage.title}'
+                    : 'Partitura: Sonata No. 1 en C Mayor';
+                final double scoreBpm = tunerVm != null
+                    ? tunerVm.bpm.toDouble()
+                    : 120.0;
+                final List<String> measureNotes = (tunerVm != null &&
+                        tunerVm.activePackage.score.measures.isNotEmpty)
+                    ? tunerVm.currentMeasureNotes.map((n) => n.noteName).toList()
+                    : const <String>[];
+
                 const scorePlug = StudioModularPlug(
                   id: 'plug_score_melody_out',
                   label: 'OUT PARTITURA',
@@ -680,13 +700,27 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                   connectedChannelId: 'canal_a',
                 );
                 _patchbayBridge.routingService.registerPlug(scorePlug);
+                _patchbayBridge.routingService.publishChannelParameters(
+                  'canal_a',
+                  title: scoreTitle,
+                  bpm: scoreBpm,
+                  key: '8B',
+                  initiatorPlugId: 'plug_score_melody_out',
+                );
                 _patchbayBridge.routingService.dispatchSignalFromPlug(
                   sourcePlugId: 'plug_score_melody_out',
                   payload: {
-                    'title': 'Partitura: Sonata No. 1 en C Mayor',
-                    'bpm': 120.0,
+                    'title': scoreTitle,
+                    'bpm': scoreBpm,
                     'key': '8B',
+                    if (tunerVm != null) 'notes': measureNotes,
                   },
+                );
+                _viewModel.loadTrackSimple(
+                  'A',
+                  title: scoreTitle,
+                  bpm: scoreBpm,
+                  camelotKey: '8B',
                 );
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
