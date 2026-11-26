@@ -11,6 +11,7 @@ import '../domain/studio_workspace_tab_spec.dart';
 import '../molecules/studio_tree_view.dart';
 import '../molecules/studio_command_prompt_bar.dart';
 import '../molecules/studio_workspace_tab_bar.dart';
+import '../molecules/studio_hover_info_view.dart';
 
 /// Organismo de UI: Estación de Trabajo Desktop Profesional (StudioDesktopAppShell).
 ///
@@ -60,6 +61,14 @@ class StudioDesktopAppShell extends StatefulWidget {
   final String initialSidebarMode;
   final String? bufferLatencyLabel;
   final bool initialCommandPromptVisible;
+  final bool initialInspectorVisible;
+  final Widget? rightInspectorContent;
+  final double a4Hz;
+  final double tempoBpm;
+  final String activeInstrumentName;
+  final String? activeTabId;
+  final String? audioStatusLabel;
+  final bool isAudioEngineActive;
 
   const StudioDesktopAppShell({
     super.key,
@@ -100,6 +109,14 @@ class StudioDesktopAppShell extends StatefulWidget {
     this.customSidebarExplorer,
     this.initialSidebarMode = 'tools',
     this.initialCommandPromptVisible = true,
+    this.initialInspectorVisible = false,
+    this.rightInspectorContent,
+    this.a4Hz = 440.0,
+    this.tempoBpm = 120.0,
+    this.activeInstrumentName = 'Cromático Universal (A0-C8)',
+    this.activeTabId,
+    this.audioStatusLabel,
+    this.isAudioEngineActive = true,
   });
 
   @override
@@ -113,11 +130,20 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
   double _dualSplitRatio = 0.50;
   late String _sidebarMode;
   late bool _isCommandPromptVisible;
+  late bool _isInspectorVisible;
+  bool _isInspectorLevel2Expanded = false;
 
   bool get isCommandPromptVisible => _isCommandPromptVisible;
+  bool get isInspectorVisible => _isInspectorVisible;
 
   void toggleSidebar() => _toggleSidebar();
   void toggleDualSplit() => _toggleDualSplit();
+  void toggleInspector() {
+    setState(() {
+      _isInspectorVisible = !_isInspectorVisible;
+    });
+  }
+
   void toggleCommandPromptBar() {
     setState(() {
       _isCommandPromptVisible = !_isCommandPromptVisible;
@@ -129,6 +155,7 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
     super.initState();
     _sidebarMode = widget.initialSidebarMode;
     _isCommandPromptVisible = widget.initialCommandPromptVisible;
+    _isInspectorVisible = widget.initialInspectorVisible;
   }
 
   void _toggleSidebar() {
@@ -222,35 +249,21 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                       ),
 
                   // Controles de Gestión de Paneles y Ventanas
-                  IconButton(
-                    icon: Icon(
-                      _isSidebarVisible ? Icons.view_sidebar_rounded : Icons.view_sidebar_outlined,
-                      size: 16,
-                      color: _isSidebarVisible ? tokens.accentPrimary : tokens.textSecondary,
+                  StudioHoverInfoTarget(
+                    item: const StudioHoverInfoItem(
+                      title: 'Barra Lateral de Proyectos & Herramientas',
+                      description:
+                          'Conmuta la visibilidad del panel lateral jerárquico para explorar archivos, partituras y herramientas acústicas.',
+                      shortcut: 'Ctrl+B',
+                      category: 'NAVEGACIÓN',
                     ),
-                    tooltip: _isSidebarVisible ? 'Ocultar Barra Lateral (Ctrl+B)' : 'Mostrar Barra Lateral (Ctrl+B)',
-                    splashRadius: 14,
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    style: IconButton.styleFrom(
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(24, 24),
-                    ),
-                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                    onPressed: _toggleSidebar,
-                  ),
-                  if (widget.secondaryView != null) ...[
-                    IconButton(
-                      key: const Key('desktop_dual_split_btn'),
+                    child: IconButton(
                       icon: Icon(
-                        _isDualSplitActive ? Icons.vertical_split_rounded : Icons.splitscreen_rounded,
+                        _isSidebarVisible ? Icons.view_sidebar_rounded : Icons.view_sidebar_outlined,
                         size: 16,
-                        color: _isDualSplitActive ? tokens.accentPrimary : tokens.textSecondary,
+                        color: _isSidebarVisible ? tokens.accentPrimary : tokens.textSecondary,
                       ),
-                      tooltip: _isDualSplitActive
-                          ? 'Desactivar Vista Dividida Dual (Ctrl+Shift+D)'
-                          : 'Activar Vista Dividida Dual (Ctrl+Shift+D)',
+                      tooltip: _isSidebarVisible ? 'Ocultar Barra Lateral (Ctrl+B)' : 'Mostrar Barra Lateral (Ctrl+B)',
                       splashRadius: 14,
                       padding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
@@ -260,7 +273,39 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                         minimumSize: const Size(24, 24),
                       ),
                       constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                      onPressed: _toggleDualSplit,
+                      onPressed: _toggleSidebar,
+                    ),
+                  ),
+                  if (widget.secondaryView != null) ...[
+                    StudioHoverInfoTarget(
+                      item: const StudioHoverInfoItem(
+                        title: 'Modo Vista Dividida Dual (Split Dual View)',
+                        description:
+                            'Divide el lienzo central en dos estaciones sincronizadas para visualizar el Rack DSP o Espectrograma junto a tu herramienta principal.',
+                        shortcut: 'Ctrl+Shift+D',
+                        category: 'VENTANA',
+                      ),
+                      child: IconButton(
+                        key: const Key('desktop_dual_split_btn'),
+                        icon: Icon(
+                          _isDualSplitActive ? Icons.vertical_split_rounded : Icons.splitscreen_rounded,
+                          size: 16,
+                          color: _isDualSplitActive ? tokens.accentPrimary : tokens.textSecondary,
+                        ),
+                        tooltip: _isDualSplitActive
+                            ? 'Desactivar Vista Dividida Dual (Ctrl+Shift+D)'
+                            : 'Activar Vista Dividida Dual (Ctrl+Shift+D)',
+                        splashRadius: 14,
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        style: IconButton.styleFrom(
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(24, 24),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                        onPressed: _toggleDualSplit,
+                      ),
                     ),
                   ],
 
@@ -269,48 +314,76 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                   const SizedBox(width: 2),
 
                   // Acciones rápidas (Buscador, Atajos, Tema)
-                  IconButton(
-                    icon: Icon(Icons.search_rounded, size: 16, color: tokens.textSecondary),
-                    tooltip: 'Búsqueda Rápida (Ctrl+K)',
-                    splashRadius: 14,
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    style: IconButton.styleFrom(
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(24, 24),
+                  StudioHoverInfoTarget(
+                    item: const StudioHoverInfoItem(
+                      title: 'Omnibox de Búsqueda Rápida & Comandos',
+                      description:
+                          'Abre el buscador instantáneo para saltar a cualquier módulo, temperamento histórico, partitura o preset DSP.',
+                      shortcut: 'Ctrl+K',
+                      category: 'COMANDOS',
                     ),
-                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                    onPressed: widget.onOpenSearch,
+                    child: IconButton(
+                      icon: Icon(Icons.search_rounded, size: 16, color: tokens.textSecondary),
+                      tooltip: 'Búsqueda Rápida (Ctrl+K)',
+                      splashRadius: 14,
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(24, 24),
+                      ),
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      onPressed: widget.onOpenSearch,
+                    ),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.keyboard_outlined, size: 16, color: tokens.textSecondary),
-                    tooltip: 'Guía de Atajos de Teclado (?)',
-                    splashRadius: 14,
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    style: IconButton.styleFrom(
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(24, 24),
+                  StudioHoverInfoTarget(
+                    item: const StudioHoverInfoItem(
+                      title: 'Mapa de Atajos de Teclado del Estudio',
+                      description:
+                          'Consulta todos los atajos ergonómicos de baja latencia para operar el afinador, metrónomo y transporte sin usar el ratón.',
+                      shortcut: '?',
+                      category: 'AYUDA',
                     ),
-                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                    onPressed: widget.onOpenShortcuts,
+                    child: IconButton(
+                      icon: Icon(Icons.keyboard_outlined, size: 16, color: tokens.textSecondary),
+                      tooltip: 'Guía de Atajos de Teclado (?)',
+                      splashRadius: 14,
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(24, 24),
+                      ),
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      onPressed: widget.onOpenShortcuts,
+                    ),
                   ),
-                  IconButton(
-                    key: const Key('open_master_console_header_btn'),
-                    icon: Icon(Icons.tune_rounded, size: 16, color: tokens.accentPrimary),
-                    tooltip: 'Consola Maestra de E/S & Reloj (Ctrl+Shift+I)',
-                    splashRadius: 14,
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    style: IconButton.styleFrom(
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(24, 24),
+                  StudioHoverInfoTarget(
+                    item: const StudioHoverInfoItem(
+                      title: 'Consola Maestra de E/S & Reloj Acústico',
+                      description:
+                          'Configura el ruteo de entrada de micrófono, calibración A4, tamaño de buffer y telemetría de reloj DSP.',
+                      shortcut: 'Ctrl+Shift+I',
+                      acousticFormula: 'Latency_ms = (BufferSize / SampleRate) * 1000',
+                      category: 'MOTOR DSP',
                     ),
-                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                    onPressed: widget.onOpenMasterConsole,
+                    child: IconButton(
+                      key: const Key('open_master_console_header_btn'),
+                      icon: Icon(Icons.tune_rounded, size: 16, color: tokens.accentPrimary),
+                      tooltip: 'Consola Maestra de E/S & Reloj (Ctrl+Shift+I)',
+                      splashRadius: 14,
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(24, 24),
+                      ),
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      onPressed: widget.onOpenMasterConsole,
+                    ),
                   ),
                   if (constraints.maxWidth > 850) ...[
                     const SizedBox(width: 4),
@@ -660,6 +733,9 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                       },
                     ),
                   ),
+                  if (_isInspectorVisible) ...[
+                    _buildRightContextualInspectorPanel(tokens),
+                  ],
                 ],
               ),
             ),
@@ -722,6 +798,67 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  StudioHoverInfoTarget(
+                    item: const StudioHoverInfoItem(
+                      title: 'Inspector Contextual Derecho & Info View',
+                      description:
+                          'Muestra propiedades esenciales del espacio de trabajo activo (Nivel 1), parámetros DSP avanzados (Nivel 2) y el panel Info View en tiempo real.',
+                      shortcut: 'Ctrl+I',
+                      acousticFormula: 'f = A4 * 2^((n - 69) / 12)',
+                      category: 'INSPECTOR',
+                    ),
+                    child: Tooltip(
+                      message: _isInspectorVisible
+                          ? 'Ocultar Inspector Contextual (Ctrl+I)'
+                          : 'Mostrar Inspector Contextual (Ctrl+I)',
+                      child: InkWell(
+                        key: const Key('btn_toggle_right_inspector'),
+                        onTap: toggleInspector,
+                        borderRadius: BorderRadius.circular(3.0),
+                        child: Container(
+                          height: 18.0,
+                          padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                          decoration: BoxDecoration(
+                            color: _isInspectorVisible
+                                ? tokens.accentPrimary.withValues(alpha: 0.16)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(3.0),
+                            border: Border.all(
+                              color: _isInspectorVisible
+                                  ? tokens.accentPrimary.withValues(alpha: 0.45)
+                                  : tokens.borderHairline,
+                              width: tokens.borderWidth,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.tune_rounded,
+                                size: 11.0,
+                                color: _isInspectorVisible
+                                    ? tokens.accentPrimary
+                                    : tokens.textMuted,
+                              ),
+                              const SizedBox(width: 4.0),
+                              Text(
+                                'INSPECTOR',
+                                style: TextStyle(
+                                  color: _isInspectorVisible
+                                      ? tokens.accentPrimary
+                                      : tokens.textSecondary,
+                                  fontSize: 9.0,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
                   Tooltip(
                     message: _isCommandPromptVisible
                         ? 'Ocultar Barra de Comandos CLI'
@@ -1213,6 +1350,257 @@ class StudioDesktopAppShellState extends State<StudioDesktopAppShell> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildRightContextualInspectorPanel(StudioDesignTokens tokens) {
+    final tabs = StudioWorkspaceTabSpec.canonicalTabs;
+    final activeSpec = (widget.currentTabIndex >= 0 && widget.currentTabIndex < tabs.length)
+        ? tabs[widget.currentTabIndex]
+        : null;
+    return Container(
+      key: const Key('studio_right_contextual_inspector_panel'),
+      width: 280.0,
+      decoration: BoxDecoration(
+        color: tokens.panelBackground,
+        border: Border(
+          left: BorderSide(
+            color: tokens.borderHairline,
+            width: tokens.borderWidth,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            height: 34.0,
+            padding: const EdgeInsets.symmetric(horizontal: 10.0),
+            decoration: BoxDecoration(
+              color: tokens.panelHeaderBackground,
+              border: Border(
+                bottom: BorderSide(
+                  color: tokens.borderHairline,
+                  width: tokens.borderWidth,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.tune_rounded, size: 13.0, color: tokens.accentPrimary),
+                const SizedBox(width: 6.0),
+                Expanded(
+                  child: Text(
+                    'INSPECTOR CONTEXTUAL',
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 10.0,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                InkWell(
+                  key: const Key('btn_close_right_inspector'),
+                  onTap: toggleInspector,
+                  child: Icon(Icons.close_rounded, size: 14.0, color: tokens.textMuted),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(10.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    key: const Key('inspector_level_1_essential_section'),
+                    padding: const EdgeInsets.all(10.0),
+                    decoration: BoxDecoration(
+                      color: tokens.panelBackground,
+                      borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                      border: Border.all(
+                        color: tokens.borderHairline,
+                        width: tokens.borderWidth,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'NIVEL 1 · PROPIEDADES ESENCIALES',
+                          style: TextStyle(
+                            color: tokens.accentPrimary,
+                            fontSize: 9.0,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 8.0),
+                        _buildInspectorKeyValueRow(
+                          tokens,
+                          'Espacio Activo',
+                          widget.activeTabId ?? activeSpec?.windowMenuTitle ?? 'Estudio',
+                        ),
+                        const SizedBox(height: 5.0),
+                        _buildInspectorKeyValueRow(
+                          tokens,
+                          'Referencia A4',
+                          '${widget.a4Hz.toStringAsFixed(1)} Hz',
+                        ),
+                        const SizedBox(height: 5.0),
+                        _buildInspectorKeyValueRow(
+                          tokens,
+                          'Tempo Maestro',
+                          '${widget.tempoBpm.toStringAsFixed(0)} BPM',
+                        ),
+                        const SizedBox(height: 5.0),
+                        _buildInspectorKeyValueRow(
+                          tokens,
+                          'Instrumento',
+                          widget.activeInstrumentName,
+                        ),
+                        if (widget.rightInspectorContent != null) ...[
+                          const SizedBox(height: 8.0),
+                          widget.rightInspectorContent!,
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8.0),
+                  InkWell(
+                    key: const Key('inspector_level_2_advanced_toggle'),
+                    onTap: () {
+                      setState(() {
+                        _isInspectorLevel2Expanded = !_isInspectorLevel2Expanded;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+                      decoration: BoxDecoration(
+                        color: tokens.panelHeaderBackground,
+                        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                        border: Border.all(
+                          color: tokens.borderHairline,
+                          width: tokens.borderWidth,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _isInspectorLevel2Expanded
+                                ? Icons.expand_more_rounded
+                                : Icons.chevron_right_rounded,
+                            size: 14.0,
+                            color: tokens.accentPrimary,
+                          ),
+                          const SizedBox(width: 4.0),
+                          Expanded(
+                            child: Text(
+                              'PARÁMETROS DSP & MOTOR AVANZADO',
+                              style: TextStyle(
+                                color: tokens.textSecondary,
+                                fontSize: 9.0,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (_isInspectorLevel2Expanded) ...[
+                    const SizedBox(height: 6.0),
+                    Container(
+                      key: const Key('inspector_level_2_advanced_content'),
+                      padding: const EdgeInsets.all(10.0),
+                      decoration: BoxDecoration(
+                        color: tokens.panelBackground,
+                        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                        border: Border.all(
+                          color: tokens.borderHairline,
+                          width: tokens.borderWidth,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildInspectorKeyValueRow(
+                            tokens,
+                            'Motor DSP',
+                            widget.engineName,
+                          ),
+                          const SizedBox(height: 5.0),
+                          _buildInspectorKeyValueRow(
+                            tokens,
+                            'Buffer & Latencia',
+                            widget.audioStatusLabel ??
+                                widget.bufferLatencyLabel ??
+                                '256 samples • 5.3 ms',
+                          ),
+                          const SizedBox(height: 5.0),
+                          _buildInspectorKeyValueRow(
+                            tokens,
+                            'Estado Audio',
+                            widget.isAudioEngineActive ? 'EN LÍNEA (ACTIVO)' : 'EN ESPERA',
+                          ),
+                          const SizedBox(height: 5.0),
+                          _buildInspectorKeyValueRow(
+                            tokens,
+                            'Vista Dual Split',
+                            _isDualSplitActive ? 'Habilitada' : 'Simple (Canvas-First)',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: const StudioHoverInfoViewPanel(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInspectorKeyValueRow(
+    StudioDesignTokens tokens,
+    String label,
+    String value,
+  ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: tokens.textMuted,
+            fontSize: 10.0,
+          ),
+        ),
+        const SizedBox(width: 8.0),
+        Flexible(
+          child: Text(
+            value,
+            style: TextStyle(
+              color: tokens.textPrimary,
+              fontSize: 10.0,
+              fontFamily: 'monospace',
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.right,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }
