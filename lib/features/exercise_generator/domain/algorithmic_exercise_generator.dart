@@ -136,6 +136,83 @@ class AlgorithmicExerciseGenerator implements IExerciseGenerator {
     );
   }
 
+  /// Genera un estudio correctivo determinista de [measuresCount] compases en 4/4
+  /// enfocado en las [criticalNotes] que presentaron menor precisión en la sesión.
+  ///
+  /// Si [criticalNotes] está vacía, utiliza la secuencia pedagógica base
+  /// `['La4', 'Si4', 'Do5', 'Re5']`. Cualquier nota sin octava explícita (ej. `'Fa#'`)
+  /// se normaliza a la octava central 4 (`'Fa#4'`).
+  static SongPackage generateRemedialDrillFromCriticalNotes({
+    required List<String> criticalNotes,
+    int bpm = 80,
+    int measuresCount = 4,
+  }) {
+    const fallbackNotes = ['La4', 'Si4', 'Do5', 'Re5'];
+    final sourceNotes = criticalNotes.isEmpty ? fallbackNotes : criticalNotes;
+
+    final normalizedNotes = <String>[];
+    for (final rawNote in sourceNotes) {
+      final parsed = CanonicalPitchNotationCodec.parse(
+        rawNote,
+        defaultOctave: 4,
+      );
+      if (parsed != null) {
+        normalizedNotes.add(parsed.solfegeName);
+      }
+    }
+
+    final effectiveNotes =
+        normalizedNotes.isEmpty ? fallbackNotes : normalizedNotes;
+    final safeMeasuresCount = measuresCount < 1 ? 1 : measuresCount;
+    final safeBpm = bpm.clamp(20, 300);
+
+    final measures = <MeasureEntity>[];
+    for (int m = 0; m < safeMeasuresCount; m++) {
+      final notes = <HierarchicalNote>[];
+      // 4 negras por compás de 4/4 (4 ticks cada una = 16 ticks totales)
+      for (int beat = 0; beat < 4; beat++) {
+        final noteName =
+            effectiveNotes[(m * 4 + beat) % effectiveNotes.length];
+        notes.add(
+          HierarchicalNote.note(
+            startTick: beat * 4,
+            durationTicks: 4,
+            noteName: noteName,
+          ),
+        );
+      }
+      measures.add(
+        MeasureEntity(
+          index: m,
+          timeSignature: TimeSignature.commonTime44,
+          notes: List.unmodifiable(notes),
+        ),
+      );
+    }
+
+    final titleNotes = effectiveNotes.take(3).join(', ');
+    final title = 'Estudio Correctivo: $titleNotes';
+    final slug = effectiveNotes
+        .take(3)
+        .map((n) => n.toLowerCase().replaceAll('#', 's'))
+        .join('_');
+
+    return SongPackage(
+      id: 'remedial_drill_$slug',
+      title: title,
+      composer: 'Tunner Algorithmic Studio',
+      genre: MusicGenre.classical,
+      difficulty: SongDifficulty.intermediate,
+      defaultBpm: safeBpm,
+      tracks: const [],
+      score: HierarchicalScore(
+        title: title,
+        baseBpm: safeBpm,
+        measures: List.unmodifiable(measures),
+      ),
+    );
+  }
+
   static bool _shouldPreferFlats(ParsedPitchNotation root, ExerciseType type) {
     if (root.alter < 0) return true;
     if (root.alter == 0 && root.step == 'F') return true;

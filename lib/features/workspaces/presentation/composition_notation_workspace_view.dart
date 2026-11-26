@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../../../core/channels/domain/studio_patchbay_routing_service.dart';
 import '../../../core/design_system/studio_design_system.dart';
 import '../../tuner_viewmodel.dart';
 import 'polyphonic_synth_modal.dart';
@@ -68,6 +69,62 @@ class _CompositionNotationWorkspaceViewState
 
   TunerViewModel get viewModel => widget.viewModel;
   TunnerThemePalette get palette => widget.palette;
+
+  void _setLoopPointA() {
+    setState(() {
+      _loopMeasureA = viewModel.currentMeasureIndex + 1;
+      if (_loopMeasureB < _loopMeasureA) {
+        _loopMeasureB = _loopMeasureA;
+      }
+      if (_isAbLoopActive) {
+        viewModel.scorePlaybackCoordinator.setMeasureLoopRange(
+          _loopMeasureA - 1,
+          _loopMeasureB - 1,
+        );
+      }
+    });
+  }
+
+  void _setLoopPointB() {
+    setState(() {
+      _loopMeasureB = viewModel.currentMeasureIndex + 1;
+      if (_loopMeasureB < _loopMeasureA) {
+        _loopMeasureA = _loopMeasureB;
+      }
+      _isAbLoopActive = true;
+      viewModel.scorePlaybackCoordinator.setMeasureLoopRange(
+        _loopMeasureA - 1,
+        _loopMeasureB - 1,
+      );
+    });
+  }
+
+  void _clearAbLoop() {
+    setState(() {
+      _isAbLoopActive = false;
+      viewModel.scorePlaybackCoordinator.clearMeasureLoop();
+    });
+  }
+
+  void _sendActiveScoreToPatchbayChannelA(BuildContext context) {
+    final title = viewModel.activePackage.title;
+    final bpm = viewModel.bpm;
+    StudioPatchbayRoutingService().publishChannelParameters(
+      'canal_a',
+      title: 'Partitura: $title',
+      bpm: bpm.toDouble(),
+      isPlaying: viewModel.isMetronomePlaying,
+    );
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            'Partitura "$title" publicada en Canal A del Patchbay ($bpm BPM).',
+          ),
+        ),
+      );
+  }
 
   void _handleCanvasTapDown(
     TapDownDetails details,
@@ -907,12 +964,7 @@ class _CompositionNotationWorkspaceViewState
                   icon: Icons.first_page_rounded,
                   label: 'Fijar A',
                   isSelected: _isAbLoopActive,
-                  onTap: () => setState(() {
-                    _loopMeasureA = viewModel.currentMeasureIndex + 1;
-                    if (_loopMeasureB < _loopMeasureA) {
-                      _loopMeasureB = _loopMeasureA;
-                    }
-                  }),
+                  onTap: _setLoopPointA,
                 ),
                 const SizedBox(width: 6),
                 _buildToolChip(
@@ -921,13 +973,7 @@ class _CompositionNotationWorkspaceViewState
                   icon: Icons.last_page_rounded,
                   label: 'Fijar B',
                   isSelected: _isAbLoopActive,
-                  onTap: () => setState(() {
-                    _loopMeasureB = viewModel.currentMeasureIndex + 1;
-                    if (_loopMeasureB < _loopMeasureA) {
-                      _loopMeasureA = _loopMeasureB;
-                    }
-                    _isAbLoopActive = true;
-                  }),
+                  onTap: _setLoopPointB,
                 ),
                 if (_isAbLoopActive) ...[
                   const SizedBox(width: 6),
@@ -951,9 +997,7 @@ class _CompositionNotationWorkspaceViewState
                   const SizedBox(width: 4),
                   InkWell(
                     key: const Key('btn_clear_ab_loop'),
-                    onTap: () => setState(() {
-                      _isAbLoopActive = false;
-                    }),
+                    onTap: _clearAbLoop,
                     child: Icon(Icons.close_rounded, size: 14, color: tokens.textMuted),
                   ),
                 ],
@@ -1105,12 +1149,7 @@ class _CompositionNotationWorkspaceViewState
                 icon: Icons.first_page_rounded,
                 label: 'Fijar A',
                 isSelected: _isAbLoopActive,
-                onTap: () => setState(() {
-                  _loopMeasureA = viewModel.currentMeasureIndex + 1;
-                  if (_loopMeasureB < _loopMeasureA) {
-                    _loopMeasureB = _loopMeasureA;
-                  }
-                }),
+                onTap: _setLoopPointA,
               ),
               const SizedBox(width: 6),
               _buildToolChip(
@@ -1119,13 +1158,7 @@ class _CompositionNotationWorkspaceViewState
                 icon: Icons.last_page_rounded,
                 label: 'Fijar B',
                 isSelected: _isAbLoopActive,
-                onTap: () => setState(() {
-                  _loopMeasureB = viewModel.currentMeasureIndex + 1;
-                  if (_loopMeasureB < _loopMeasureA) {
-                    _loopMeasureA = _loopMeasureB;
-                  }
-                  _isAbLoopActive = true;
-                }),
+                onTap: _setLoopPointB,
               ),
               if (_isAbLoopActive) ...[
                 const SizedBox(width: 8),
@@ -1149,9 +1182,7 @@ class _CompositionNotationWorkspaceViewState
                 const SizedBox(width: 6),
                 InkWell(
                   key: const Key('btn_clear_ab_loop'),
-                  onTap: () => setState(() {
-                    _isAbLoopActive = false;
-                  }),
+                  onTap: _clearAbLoop,
                   borderRadius: BorderRadius.circular(tokens.radiusSmall),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
@@ -1551,6 +1582,8 @@ class _CompositionNotationWorkspaceViewState
                     palette: palette,
                     clef: viewModel.activeInstrument.clef,
                     selectedNoteIndex: viewModel.selectedScoreNoteIndex,
+                    loopStartMeasure: _isAbLoopActive ? (_loopMeasureA - 1) : null,
+                    loopEndMeasure: _isAbLoopActive ? (_loopMeasureB - 1) : null,
                   );
 
                   return MouseRegion(
@@ -1779,6 +1812,24 @@ class _CompositionNotationWorkspaceViewState
                   ),
                   side: BorderSide(color: tokens.borderHairline),
                   onPressed: () => AudioMidiExportModal.show(context, viewModel),
+                ),
+                const SizedBox(width: 8),
+                ActionChip(
+                  key: const Key('btn_send_score_to_patchbay_channel_a'),
+                  avatar: Icon(
+                    Icons.cable_rounded,
+                    size: 15,
+                    color: tokens.accentPrimary,
+                  ),
+                  label: const Text('Enviar a Patchbay (CH A)'),
+                  backgroundColor: tokens.panelBackground,
+                  labelStyle: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  side: BorderSide(color: tokens.borderHairline),
+                  onPressed: () => _sendActiveScoreToPatchbayChannelA(context),
                 ),
                 const SizedBox(width: 8),
                 IconButton(

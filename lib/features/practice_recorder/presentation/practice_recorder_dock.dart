@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/design_system/studio_design_system.dart';
 import '../../tuner_viewmodel.dart';
 import '../../tuner/presentation/microphone_calibration_modal.dart';
+import '../../vocal_autotune/presentation/vocal_autotune_modal.dart';
 import 'practice_recording_player_modal.dart';
 import 'spectral_comparator_modal.dart';
 
@@ -51,6 +52,9 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
     final tokens = StudioThemeScope.of(context);
     final isRecording = vm.isAudioRecording;
     final hasActiveRecording = vm.activeRecording != null;
+    final hasSavedTake = hasActiveRecording ||
+        vm.recordingHistory.isNotEmpty ||
+        vm.multiTrackSession.takes.isNotEmpty;
 
     if (isRecording) {
       if (!_pulseController.isAnimating) {
@@ -84,9 +88,11 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
           ),
         ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           // 1. Botón de Disparo de Grabación (Círculo animado)
           GestureDetector(
             key: const Key('practice_record_button'),
@@ -194,7 +200,7 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
             ),
           ],
 
-          // 4. Botón para abrir el reproductor de auto-escucha si hay toma lista
+          // 4. Botón para abrir el reproductor de auto-escucha y puentes de 1 clic si hay toma lista
           if (!isRecording && hasActiveRecording) ...[
             const SizedBox(width: 12),
             ElevatedButton.icon(
@@ -225,6 +231,72 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
               label: const Text(
                 "Escuchar",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+            ),
+          ],
+          if (!isRecording && hasSavedTake) ...[
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              key: const Key('btn_recorder_send_to_autotune'),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: tokens.elevatedSurface,
+                foregroundColor: tokens.textPrimary,
+                side: BorderSide(color: tokens.borderHairline),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () => VocalAutoTuneModal.show(context, vm),
+              icon: Icon(
+                Icons.auto_fix_high_rounded,
+                size: 15,
+                color: tokens.accentSecondary,
+              ),
+              label: const Text(
+                'AutoTune',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+              ),
+            ),
+            const SizedBox(width: 6),
+            OutlinedButton.icon(
+              key: const Key('btn_recorder_transcribe_to_score'),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: tokens.elevatedSurface,
+                foregroundColor: tokens.textPrimary,
+                side: BorderSide(color: tokens.borderHairline),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () {
+                final result = vm.convertActiveRecordingToScorePackage();
+                final messenger = ScaffoldMessenger.of(context);
+                messenger.hideCurrentSnackBar();
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      result != null
+                          ? 'Toma convertida a partitura (${result.totalNotes} notas detectadas).'
+                          : 'No se detectaron notas melódicas válidas en la toma activa.',
+                    ),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
+              icon: Icon(
+                Icons.queue_music_rounded,
+                size: 15,
+                color: tokens.accentPrimary,
+              ),
+              label: const Text(
+                'A Partitura',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
               ),
             ),
           ],
@@ -260,7 +332,8 @@ class _PracticeRecorderDockState extends State<PracticeRecorderDock>
               onPressed: () => MicrophoneCalibrationModal.show(context, vm),
             ),
           ],
-        ],
+          ],
+        ),
       ),
     );
   }
