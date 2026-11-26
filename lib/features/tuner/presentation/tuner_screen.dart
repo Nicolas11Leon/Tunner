@@ -33,9 +33,18 @@ import 'temperament_selector_modal.dart';
 import 'tuner_acoustic_telemetry.dart';
 import 'tuner_viewmodel.dart';
 import 'widgets/essential_tuner_panel.dart';
+import 'widgets/pitch_contour_blob_strip_widget.dart';
 
-class TunerScreen extends StatelessWidget {
+class TunerScreen extends StatefulWidget {
   const TunerScreen({super.key});
+
+  @override
+  State<TunerScreen> createState() => _TunerScreenState();
+}
+
+class _TunerScreenState extends State<TunerScreen> {
+  bool _showMelodyneBlobs = true;
+  bool _userExplicitlyToggledBlobs = false;
 
   void _showLibraryModal(BuildContext context, TunerViewModel viewModel) {
     TunerLibraryModal.show(context, viewModel);
@@ -771,236 +780,418 @@ class TunerScreen extends StatelessWidget {
             ? '${cents >= 0 ? '+' : ''}${cents.toStringAsFixed(1)} ct'
             : '-- ct';
 
-        return Container(
-          key: const Key('pro_persistent_tuner_readout_bar'),
-          width: double.infinity,
-          margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: tokens.panelBackground,
-            borderRadius: BorderRadius.circular(tokens.borderRadiusLarge),
-            border: Border.all(
-              color: isInTune
-                  ? tokens.accentSuccess.withValues(alpha: 0.6)
-                  : tokens.borderHairline,
-              width: tokens.borderWidth,
-            ),
-          ),
-          child: Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              key: const Key('pro_persistent_tuner_readout_bar'),
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: tokens.panelBackground,
+                borderRadius: BorderRadius.circular(tokens.borderRadiusLarge),
+                border: Border.all(
+                  color: isInTune
+                      ? tokens.accentSuccess.withValues(alpha: 0.6)
+                      : tokens.borderHairline,
+                  width: tokens.borderWidth,
+                ),
+              ),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 6,
                 children: [
-                  InkWell(
-                    key: const Key('pro_persistent_mic_toggle_btn'),
-                    onTap: viewModel.toggleRecording,
-                    borderRadius: BorderRadius.circular(tokens.radiusMedium),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isListening
-                            ? tokens.accentDanger.withValues(alpha: 0.16)
-                            : tokens.accentPrimary.withValues(alpha: 0.15),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      InkWell(
+                        key: const Key('pro_persistent_mic_toggle_btn'),
+                        onTap: viewModel.toggleRecording,
                         borderRadius:
                             BorderRadius.circular(tokens.radiusMedium),
-                        border: Border.all(
-                          color: isListening
-                              ? tokens.accentDanger
-                              : tokens.accentPrimary,
-                          width: tokens.borderWidth,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          StudioIcon(
-                            isListening
-                                ? StudioIconId.audioMicOn
-                                : StudioIconId.audioMicOff,
-                            size: 14,
-                            color: isListening
-                                ? tokens.accentDanger
-                                : tokens.accentPrimary,
-                            tintCustomAsset: true,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 5,
                           ),
-                          const SizedBox(width: 5),
-                          Text(
-                            isListening ? 'MIC ACTIVO' : 'ACTIVAR MIC',
-                            style: TextStyle(
+                          decoration: BoxDecoration(
+                            color: isListening
+                                ? tokens.accentDanger.withValues(alpha: 0.16)
+                                : tokens.accentPrimary.withValues(alpha: 0.15),
+                            borderRadius:
+                                BorderRadius.circular(tokens.radiusMedium),
+                            border: Border.all(
                               color: isListening
                                   ? tokens.accentDanger
                                   : tokens.accentPrimary,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.3,
+                              width: tokens.borderWidth,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    displayNote,
-                    key: const Key('pro_persistent_note_display'),
-                    style: TextStyle(
-                      color: hasSignal ? statusColor : tokens.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    freqText,
-                    key: const Key('pro_persistent_freq_display'),
-                    style: TextStyle(
-                      color: tokens.textSecondary,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    centsText,
-                    key: const Key('pro_persistent_cents_display'),
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    key: const Key('pro_persistent_tuning_status'),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(tokens.radiusSmall),
-                      border: Border.all(
-                        color: statusColor.withValues(alpha: 0.45),
-                      ),
-                    ),
-                    child: Text(
-                      statusLabel,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  InkWell(
-                    key: const Key('tuner_quick_focus_pro_lab_btn'),
-                    onTap: () =>
-                        viewModel.setWorkspace(WorkspaceType.production),
-                    borderRadius: BorderRadius.circular(tokens.radiusMedium),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isProdLab
-                            ? tokens.accentSecondary.withValues(alpha: 0.18)
-                            : tokens.elevatedSurface,
-                        borderRadius:
-                            BorderRadius.circular(tokens.radiusMedium),
-                        border: Border.all(
-                          color: isProdLab
-                              ? tokens.accentSecondary
-                              : tokens.borderHairline,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              StudioIcon(
+                                isListening
+                                    ? StudioIconId.audioMicOn
+                                    : StudioIconId.audioMicOff,
+                                size: 14,
+                                color: isListening
+                                    ? tokens.accentDanger
+                                    : tokens.accentPrimary,
+                                tintCustomAsset: true,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                isListening ? 'MIC ACTIVO' : 'ACTIVAR MIC',
+                                style: TextStyle(
+                                  color: isListening
+                                      ? tokens.accentDanger
+                                      : tokens.accentPrimary,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          StudioIcon(
-                            StudioIconId.moduleSpectrogram,
-                            size: 13,
-                            color: isProdLab
-                                ? tokens.accentSecondary
-                                : tokens.textSecondary,
-                            tintCustomAsset: true,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Lab Acústico',
-                            style: TextStyle(
-                              color: isProdLab
-                                  ? tokens.accentSecondary
-                                  : tokens.textPrimary,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(width: 10),
+                      Text(
+                        displayNote,
+                        key: const Key('pro_persistent_note_display'),
+                        style: TextStyle(
+                          color: hasSignal ? statusColor : tokens.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          fontFamily: 'monospace',
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Text(
+                        freqText,
+                        key: const Key('pro_persistent_freq_display'),
+                        style: TextStyle(
+                          color: tokens.textSecondary,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        centsText,
+                        key: const Key('pro_persistent_cents_display'),
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        key: const Key('pro_persistent_tuning_status'),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.14),
+                          borderRadius:
+                              BorderRadius.circular(tokens.radiusSmall),
+                          border: Border.all(
+                            color: statusColor.withValues(alpha: 0.45),
+                          ),
+                        ),
+                        child: Text(
+                          statusLabel,
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  InkWell(
-                    key: const Key('tuner_quick_focus_strobe_btn'),
-                    onTap: () =>
-                        viewModel.setDisplayMode(AppDisplayMode.essential),
-                    borderRadius: BorderRadius.circular(tokens.radiusMedium),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: tokens.elevatedSurface,
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      InkWell(
+                        key: const Key('tuner_toggle_melodyne_blobs_btn'),
+                        onTap: () {
+                          setState(() {
+                            _userExplicitlyToggledBlobs = true;
+                            _showMelodyneBlobs = !_showMelodyneBlobs;
+                          });
+                        },
                         borderRadius:
                             BorderRadius.circular(tokens.radiusMedium),
-                        border: Border.all(color: tokens.borderHairline),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          StudioIcon(
-                            StudioIconId.moduleTuner,
-                            size: 13,
-                            color: tokens.accentPrimary,
-                            tintCustomAsset: true,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 5,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Estroboscopio',
-                            style: TextStyle(
-                              color: tokens.textPrimary,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
+                          decoration: BoxDecoration(
+                            color: _showMelodyneBlobs
+                                ? tokens.accentPrimary.withValues(alpha: 0.18)
+                                : tokens.elevatedSurface,
+                            borderRadius:
+                                BorderRadius.circular(tokens.radiusMedium),
+                            border: Border.all(
+                              color: _showMelodyneBlobs
+                                  ? tokens.accentPrimary
+                                  : tokens.borderHairline,
                             ),
                           ),
-                        ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              StudioIcon(
+                                StudioIconId.moduleAutotune,
+                                size: 13,
+                                color: _showMelodyneBlobs
+                                    ? tokens.accentPrimary
+                                    : tokens.textSecondary,
+                                tintCustomAsset: true,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Pitch Blobs',
+                                style: TextStyle(
+                                  color: _showMelodyneBlobs
+                                      ? tokens.accentPrimary
+                                      : tokens.textPrimary,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 6),
+                      InkWell(
+                        key: const Key('tuner_quick_focus_pro_lab_btn'),
+                        onTap: () =>
+                            viewModel.setWorkspace(WorkspaceType.production),
+                        borderRadius:
+                            BorderRadius.circular(tokens.radiusMedium),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isProdLab
+                                ? tokens.accentSecondary.withValues(alpha: 0.18)
+                                : tokens.elevatedSurface,
+                            borderRadius:
+                                BorderRadius.circular(tokens.radiusMedium),
+                            border: Border.all(
+                              color: isProdLab
+                                  ? tokens.accentSecondary
+                                  : tokens.borderHairline,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              StudioIcon(
+                                StudioIconId.moduleSpectrogram,
+                                size: 13,
+                                color: isProdLab
+                                    ? tokens.accentSecondary
+                                    : tokens.textSecondary,
+                                tintCustomAsset: true,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Lab Acústico',
+                                style: TextStyle(
+                                  color: isProdLab
+                                      ? tokens.accentSecondary
+                                      : tokens.textPrimary,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      InkWell(
+                        key: const Key('tuner_quick_focus_strobe_btn'),
+                        onTap: () =>
+                            viewModel.setDisplayMode(AppDisplayMode.essential),
+                        borderRadius:
+                            BorderRadius.circular(tokens.radiusMedium),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: tokens.elevatedSurface,
+                            borderRadius:
+                                BorderRadius.circular(tokens.radiusMedium),
+                            border: Border.all(color: tokens.borderHairline),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              StudioIcon(
+                                StudioIconId.moduleTuner,
+                                size: 13,
+                                color: tokens.accentPrimary,
+                                tintCustomAsset: true,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Estroboscopio',
+                                style: TextStyle(
+                                  color: tokens.textPrimary,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      _buildErgonomicQuickToolsMenu(context, viewModel, tokens),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            if (_showMelodyneBlobs &&
+                (MediaQuery.sizeOf(context).height >= 650 ||
+                    _userExplicitlyToggledBlobs))
+              PitchContourBlobStripWidget(
+                note: displayNote,
+                frequency: effectiveFreq,
+                cents: cents,
+                isListening: isListening,
+              ),
+          ],
         );
       },
+    );
+  }
+
+  Widget _buildErgonomicQuickToolsMenu(
+    BuildContext context,
+    TunerViewModel viewModel,
+    StudioDesignTokens tokens,
+  ) {
+    return PopupMenuButton<String>(
+      key: const Key('tuner_ergonomic_quick_tools_menu_btn'),
+      tooltip: 'Herramientas Rápidas DSP (Baja Entropía)',
+      color: tokens.elevatedSurface,
+      onSelected: (value) {
+        switch (value) {
+          case 'calibration':
+            MicrophoneCalibrationModal.show(context, viewModel);
+            break;
+          case 'temperament':
+            TemperamentSelectorModal.show(context);
+            break;
+          case 'drone':
+            HarmonicDroneModal.show(context, viewModel);
+            break;
+          case 'spectrogram':
+            HarmonicSpectrogramModal.show(context);
+            break;
+          case 'score_editor':
+            ScoreEditorModal.show(context);
+            break;
+          case 'mixer':
+            _showMixerModal(context, viewModel);
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'calibration',
+          child: Text(
+            'DSP · Calibración y Rigor de Micrófono',
+            style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'temperament',
+          child: Text(
+            'Afinación · Temperamentos Históricos (12-EDO)',
+            style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'drone',
+          child: Text(
+            'Referencia · Dron Armónico de Pedal',
+            style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'spectrogram',
+          child: Text(
+            'Acústica · Laboratorio de Armónicos y Timbre',
+            style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'mixer',
+          child: Text(
+            'Mezcla · Consola de Pistas (Stems)',
+            style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'score_editor',
+          child: Text(
+            'Notación · Editor de Partituras SMuFL',
+            style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+          ),
+        ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: tokens.elevatedSurface,
+          borderRadius: BorderRadius.circular(tokens.radiusMedium),
+          border: Border.all(color: tokens.borderHairline),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            StudioIcon(
+              StudioIconId.uiSettings,
+              size: 13,
+              color: tokens.accentSecondary,
+              tintCustomAsset: true,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Herramientas Rápidas DSP',
+              style: TextStyle(
+                color: tokens.textPrimary,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
