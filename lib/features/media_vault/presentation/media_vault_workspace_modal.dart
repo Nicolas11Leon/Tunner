@@ -395,6 +395,7 @@ class _MediaVaultWorkspaceModalState extends State<MediaVaultWorkspaceModal> {
     MediaAssetEntity asset,
     StudioDesignTokens tokens,
   ) {
+    final isPreviewing = vm.previewingAssetId == asset.id;
     final row = Container(
       key: Key('vault_asset_card_${asset.id}'),
       margin: const EdgeInsets.only(bottom: 4),
@@ -444,6 +445,21 @@ class _MediaVaultWorkspaceModalState extends State<MediaVaultWorkspaceModal> {
                 ),
               ],
             ),
+          ),
+          IconButton(
+            key: Key('vault_asset_preview_btn_${asset.id}'),
+            tooltip: isPreviewing ? 'Detener pre-escucha' : 'Pre-escuchar activo',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            visualDensity: VisualDensity.compact,
+            icon: Icon(
+              isPreviewing
+                  ? Icons.stop_circle_outlined
+                  : Icons.play_circle_outline_rounded,
+              color: isPreviewing ? tokens.accentPrimary : tokens.textSecondary,
+              size: 18,
+            ),
+            onPressed: () => vm.togglePreviewAsset(asset.id),
           ),
           PopupMenuButton<String>(
             key: Key('vault_asset_actions_${asset.id}'),
@@ -552,35 +568,143 @@ class _MediaVaultWorkspaceModalState extends State<MediaVaultWorkspaceModal> {
         Expanded(
           child: StudioPanel(
             title: 'Secuenciador Multi-Pista (Drag & Drop)',
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: timelineWidth < 680 ? 680 : timelineWidth + 160,
-                child: CustomPaint(
-                  painter: TimelineArrangementPainter(
-                    masterBpm: timeline.masterBpm,
-                    pixelsPerSecond: vm.pixelsPerSecond,
-                    playheadMs: vm.playheadMs,
-                    snapToBeatgrid: timeline.snapToBeatgrid,
-                    tokens: tokens,
-                  ),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(8),
-                    itemCount: timeline.tracks.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 6),
-                    itemBuilder: (context, index) {
-                      final track = timeline.tracks[index];
-                      return _buildTimelineTrackLane(vm, track, tokens);
-                    },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                _buildTimelineScrubRuler(vm, tokens),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: timelineWidth < 680 ? 680 : timelineWidth + 160,
+                      child: CustomPaint(
+                        painter: TimelineArrangementPainter(
+                          masterBpm: timeline.masterBpm,
+                          pixelsPerSecond: vm.pixelsPerSecond,
+                          playheadMs: vm.playheadMs,
+                          snapToBeatgrid: timeline.snapToBeatgrid,
+                          tokens: tokens,
+                        ),
+                        child: ListView.separated(
+                          padding: const EdgeInsets.all(8),
+                          itemCount: timeline.tracks.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 6),
+                          itemBuilder: (context, index) {
+                            final track = timeline.tracks[index];
+                            return _buildTimelineTrackLane(vm, track, tokens);
+                          },
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
         const SizedBox(height: 6),
         _buildSynergyDropBar(vm, tokens),
       ],
+    );
+  }
+
+  void _seekFromRulerDx(MediaVaultViewModel vm, double dx, double width) {
+    if (width <= 0) return;
+    final targetMs = ((dx / width).clamp(0.0, 1.0) * 30000).round();
+    vm.seekPlayheadMs(targetMs);
+  }
+
+  Widget _buildTimelineScrubRuler(
+    MediaVaultViewModel vm,
+    StudioDesignTokens tokens,
+  ) {
+    const rulerDurationMs = 30000;
+    const secondMarks = <int>[0, 5, 10, 15, 20, 25, 30];
+
+    return SizedBox(
+      height: 24,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final ratio = (vm.playheadMs / rulerDurationMs).clamp(0.0, 1.0);
+          final playheadX = width * ratio;
+          final needleLeft =
+              (playheadX - 1.0).clamp(0.0, width > 2.0 ? width - 2.0 : 0.0);
+
+          return GestureDetector(
+            key: const Key('vault_timeline_scrub_ruler'),
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (details) =>
+                _seekFromRulerDx(vm, details.localPosition.dx, width),
+            onHorizontalDragUpdate: (details) =>
+                _seekFromRulerDx(vm, details.localPosition.dx, width),
+            child: Container(
+              decoration: BoxDecoration(
+                color: tokens.panelHeaderBackground,
+                border: Border(
+                  bottom: BorderSide(
+                    color: tokens.borderHairline,
+                    width: tokens.borderWidth,
+                  ),
+                ),
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  if (playheadX > 0)
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: playheadX,
+                      child: ColoredBox(
+                        color: tokens.accentPrimary.withValues(alpha: 0.14),
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: secondMarks
+                          .map(
+                            (sec) => Column(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: <Widget>[
+                                Text(
+                                  '${sec}s',
+                                  style: TextStyle(
+                                    color: tokens.textMuted,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 4,
+                                  color: tokens.borderHairline,
+                                ),
+                              ],
+                            ),
+                          )
+                          .toList(growable: false),
+                    ),
+                  ),
+                  Positioned(
+                    left: needleLeft,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      key: const Key('vault_timeline_scrub_playhead'),
+                      width: 2,
+                      color: tokens.accentPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 

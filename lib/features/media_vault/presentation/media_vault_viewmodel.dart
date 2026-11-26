@@ -37,6 +37,7 @@ class MediaVaultViewModel extends ChangeNotifier {
   double _pixelsPerSecond = 80.0;
   int _playheadMs = 0;
   bool _isPlaying = false;
+  String? _previewingAssetId;
   Timer? _playTimer;
   bool _isDisposed = false;
   String _statusMessage = 'Boveda Multimedia lista (100% Offline).';
@@ -148,6 +149,7 @@ class MediaVaultViewModel extends ChangeNotifier {
   double get pixelsPerSecond => _pixelsPerSecond;
   int get playheadMs => _playheadMs;
   bool get isPlaying => _isPlaying;
+  String? get previewingAssetId => _previewingAssetId;
   String get statusMessage => _statusMessage;
   MediaExportResult? get lastExportResult => _lastExportResult;
 
@@ -205,6 +207,67 @@ class MediaVaultViewModel extends ChangeNotifier {
     _playheadMs = 0;
     unawaited(_audioEngine?.stopAll());
     notifyListeners();
+  }
+
+  /// Moves the timeline playhead immediately to [targetMs] (clamped to [0, 600000]).
+  void seekPlayheadMs(int targetMs) {
+    _playheadMs = targetMs.clamp(0, 600000);
+    if (_isPlaying) {
+      unawaited(_restartLiveAudioAtPlayhead());
+    }
+    notifyListeners();
+  }
+
+  /// Toggles inline audio preview for the vault asset identified by [assetId].
+  void togglePreviewAsset(String assetId) {
+    if (_previewingAssetId == assetId) {
+      _previewingAssetId = null;
+      unawaited(_audioEngine?.stopAll());
+      _statusMessage = 'Pre-escucha detenida.';
+    } else {
+      _previewingAssetId = assetId;
+      final asset = _repository
+          .getAll()
+          .cast<MediaAssetEntity?>()
+          .firstWhere((a) => a?.id == assetId, orElse: () => null);
+      if (asset != null) {
+        _statusMessage = 'Pre-escuchando "${asset.title}".';
+        if (_audioSynthesizer != null) {
+          unawaited(_previewAssetAudio(asset));
+        }
+      }
+    }
+    notifyListeners();
+  }
+
+  Future<void> _previewAssetAudio(MediaAssetEntity asset) async {
+    if (_isDisposed || _audioSynthesizer == null) return;
+    try {
+      await _audioEngine?.stopAll();
+      if (_isDisposed || _previewingAssetId != asset.id) return;
+      Uint8List? wavBytes;
+      if (asset.rawBytes != null &&
+          asset.extensionName.toLowerCase() == 'wav') {
+        wavBytes = asset.rawBytes;
+      } else if (asset.pcmSamples != null && asset.pcmSamples!.isNotEmpty) {
+        const codec = WavPcmCodec();
+        wavBytes = codec.encodeMono16Bit(
+          asset.pcmSamples!,
+          sampleRate: asset.sampleRate > 0 ? asset.sampleRate : 44100,
+        );
+      }
+      if (wavBytes != null &&
+          wavBytes.isNotEmpty &&
+          !_isDisposed &&
+          _previewingAssetId == asset.id) {
+        await _audioSynthesizer.playPcmWav(wavBytes, volume: 0.85);
+      }
+    } catch (e) {
+      StudioDebugLogger.instance.warning(
+        'MediaVaultViewModel',
+        'Error en pre-escucha de activo ${asset.id}: $e',
+      );
+    }
   }
 
   void _stopTimer() {
@@ -329,6 +392,10 @@ class MediaVaultViewModel extends ChangeNotifier {
   }
 
   void removeAsset(String assetId) {
+    if (_previewingAssetId == assetId) {
+      _previewingAssetId = null;
+      unawaited(_audioEngine?.stopAll());
+    }
     _repository.remove(assetId);
     unawaited(persistCatalogToDisk());
     notifyListeners();
@@ -445,6 +512,7 @@ class MediaVaultViewModel extends ChangeNotifier {
   void dispose() {
     if (_isDisposed) return;
     _isDisposed = true;
+    _previewingAssetId = null;
     _stopTimer();
     unawaited(_audioEngine?.stopAll());
     super.dispose();
