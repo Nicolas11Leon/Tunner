@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import '../../../core/design_system/studio_design_system.dart';
 import '../domain/harmonic_role_entity.dart';
@@ -7,7 +9,7 @@ import 'harmonic_tutor_view_model.dart';
 
 /// Conservatory-grade modal for practicing Dynamic Just Intonation and
 /// canceling acoustic beating in real time.
-class HarmonicTutorModal extends StatelessWidget {
+class HarmonicTutorModal extends StatefulWidget {
   final HarmonicTutorViewModel viewModel;
   final TunnerThemePalette? palette;
   final bool Function()? isMicrophoneActive;
@@ -45,15 +47,52 @@ class HarmonicTutorModal extends StatelessWidget {
     );
   }
 
+  @override
+  State<HarmonicTutorModal> createState() => _HarmonicTutorModalState();
+}
+
+class _HarmonicTutorModalState extends State<HarmonicTutorModal> {
   static const List<({String name, double freq})> _standardRoots = [
     (name: 'Do (C4)', freq: 261.63),
+    (name: 'Do# (C#4)', freq: 277.18),
     (name: 'Re (D4)', freq: 293.66),
+    (name: 'Re# (Eb4)', freq: 311.13),
     (name: 'Mi (E4)', freq: 329.63),
     (name: 'Fa (F4)', freq: 349.23),
+    (name: 'Fa# (F#4)', freq: 369.99),
     (name: 'Sol (G3)', freq: 196.00),
+    (name: 'Sol# (Ab3)', freq: 207.65),
     (name: 'La (A3)', freq: 220.00),
+    (name: 'La# (Bb3)', freq: 233.08),
     (name: 'Si (B3)', freq: 246.94),
   ];
+
+  bool _show12TetComparisonBanner = false;
+
+  void _toggle12TetComparison() {
+    final nextShow = !_show12TetComparisonBanner;
+    setState(() {
+      _show12TetComparisonBanner = nextShow;
+    });
+    if (nextShow && !widget.viewModel.session.isDroneActive) {
+      widget.viewModel.toggleDrone();
+    }
+  }
+
+  HarmonicRole _resolveComparisonRole(
+    HarmonicChordType chordType,
+    HarmonicAnalysisResult? activeAnalysis,
+  ) {
+    final forced = widget.viewModel.forcedRole;
+    if (forced != null) return forced;
+    if (activeAnalysis != null && activeAnalysis.role != HarmonicRole.root) {
+      return activeAnalysis.role;
+    }
+    return chordType.roles.firstWhere(
+      (r) => r != HarmonicRole.root,
+      orElse: () => HarmonicRole.majorThird,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,11 +100,11 @@ class HarmonicTutorModal extends StatelessWidget {
 
     return ListenableBuilder(
       listenable: Listenable.merge([
-        viewModel,
-        ?microphoneListenable,
+        widget.viewModel,
+        ?widget.microphoneListenable,
       ]),
       builder: (context, _) {
-        final session = viewModel.session;
+        final session = widget.viewModel.session;
         final analysis = session.activeAnalysis ??
             JustIntonationCalculator.analyze(
               userFrequency: session.rootFrequency,
@@ -151,58 +190,105 @@ class HarmonicTutorModal extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    'ACORDE GUÍA DE ENSAMBLE',
-                                    style: TextStyle(
-                                      color: tokens.textMuted,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1.0,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  // Drone toggle button
-                                  OutlinedButton.icon(
-                                    key: const Key('toggle_harmonic_drone_btn'),
-                                    onPressed: () => viewModel.toggleDrone(),
-                                    icon: StudioIcon(
-                                      StudioIconId.audioVolumeOn,
-                                      size: 14,
-                                      color: session.isDroneActive
-                                          ? tokens.accentSuccess
-                                          : tokens.textMuted,
-                                      tintCustomAsset: true,
-                                    ),
-                                    label: Text(
-                                      session.isDroneActive ? 'Dron Guía Activo' : 'Activar Dron Guía',
+                              SizedBox(
+                                width: double.infinity,
+                                child: Wrap(
+                                  alignment: WrapAlignment.spaceBetween,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    Text(
+                                      'ACORDE GUÍA DE ENSAMBLE',
                                       style: TextStyle(
-                                        fontSize: 11,
+                                        color: tokens.textMuted,
+                                        fontSize: 10,
                                         fontWeight: FontWeight.bold,
-                                        color: session.isDroneActive
-                                            ? tokens.accentSuccess
-                                            : tokens.textPrimary,
+                                        letterSpacing: 1.0,
                                       ),
                                     ),
-                                    style: OutlinedButton.styleFrom(
-                                      side: BorderSide(
-                                        color: session.isDroneActive
-                                            ? tokens.accentSuccess
-                                            : tokens.borderHairline,
-                                      ),
-                                      backgroundColor: session.isDroneActive
-                                          ? tokens.accentSuccess.withValues(alpha: 0.12)
-                                          : Colors.transparent,
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      minimumSize: const Size(0, 30),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 6,
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      children: [
+                                        // 12-TET vs JI comparator button
+                                        OutlinedButton.icon(
+                                          key: const Key('btn_tutor_compare_12tet_vs_ji'),
+                                          onPressed: _toggle12TetComparison,
+                                          icon: Icon(
+                                            Icons.compare_arrows,
+                                            size: 14,
+                                            color: _show12TetComparisonBanner
+                                                ? tokens.accentPrimary
+                                                : tokens.textMuted,
+                                          ),
+                                          label: Text(
+                                            'Comparar 12-TET vs. JI',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: _show12TetComparisonBanner
+                                                  ? tokens.accentPrimary
+                                                  : tokens.textPrimary,
+                                            ),
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            side: BorderSide(
+                                              color: _show12TetComparisonBanner
+                                                  ? tokens.accentPrimary
+                                                  : tokens.borderHairline,
+                                            ),
+                                            backgroundColor: _show12TetComparisonBanner
+                                                ? tokens.accentPrimary.withValues(alpha: 0.14)
+                                                : Colors.transparent,
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            minimumSize: const Size(0, 30),
+                                          ),
+                                        ),
+                                        // Drone toggle button
+                                        OutlinedButton.icon(
+                                          key: const Key('toggle_harmonic_drone_btn'),
+                                          onPressed: () => widget.viewModel.toggleDrone(),
+                                          icon: StudioIcon(
+                                            StudioIconId.audioVolumeOn,
+                                            size: 14,
+                                            color: session.isDroneActive
+                                                ? tokens.accentSuccess
+                                                : tokens.textMuted,
+                                            tintCustomAsset: true,
+                                          ),
+                                          label: Text(
+                                            session.isDroneActive ? 'Dron Guía Activo' : 'Activar Dron Guía',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: session.isDroneActive
+                                                  ? tokens.accentSuccess
+                                                  : tokens.textPrimary,
+                                            ),
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            side: BorderSide(
+                                              color: session.isDroneActive
+                                                  ? tokens.accentSuccess
+                                                  : tokens.borderHairline,
+                                            ),
+                                            backgroundColor: session.isDroneActive
+                                                ? tokens.accentSuccess.withValues(alpha: 0.12)
+                                                : Colors.transparent,
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            minimumSize: const Size(0, 30),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                               const SizedBox(height: 10),
 
-                              // Root note selector
+                              // Root note selector (12 chromatic roots)
                               Wrap(
                                 spacing: 6,
                                 runSpacing: 6,
@@ -224,7 +310,7 @@ class HarmonicTutorModal extends StatelessWidget {
                                           : tokens.textPrimary,
                                     ),
                                     onSelected: (val) {
-                                      if (val) viewModel.setRootNote(root.name, root.freq);
+                                      if (val) widget.viewModel.setRootNote(root.name, root.freq);
                                     },
                                   );
                                 }).toList(),
@@ -252,7 +338,7 @@ class HarmonicTutorModal extends StatelessWidget {
                                         );
                                       }).toList(),
                                       onChanged: (val) {
-                                        if (val != null) viewModel.setChordType(val);
+                                        if (val != null) widget.viewModel.setChordType(val);
                                       },
                                     ),
                                   ),
@@ -262,6 +348,18 @@ class HarmonicTutorModal extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (_show12TetComparisonBanner) ...[
+                        const SizedBox(height: 12),
+                        _build12TetComparisonCard(
+                          rootFrequency: session.rootFrequency,
+                          chordType: session.chordType,
+                          selectedRole: _resolveComparisonRole(
+                            session.chordType,
+                            session.activeAnalysis,
+                          ),
+                          tokens: tokens,
+                        ),
+                      ],
                       const SizedBox(height: 16),
 
                       // Real-time Acoustic Beat & Consonance Gauge
@@ -440,7 +538,7 @@ class HarmonicTutorModal extends StatelessWidget {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      (isMicrophoneActive?.call() ?? false)
+                                      (widget.isMicrophoneActive?.call() ?? false)
                                           ? 'Microfono activo: ${analysis.userFrequency > 0 ? "${analysis.userFrequency.toStringAsFixed(2)} Hz" : "escuchando señal..."}'
                                           : 'Activa el microfono para medir batimientos e intervalos reales.',
                                       style: TextStyle(color: tokens.textPrimary, fontSize: 11.5),
@@ -453,13 +551,13 @@ class HarmonicTutorModal extends StatelessWidget {
                                       backgroundColor: tokens.accentPrimary,
                                       foregroundColor: tokens.textOnAccent,
                                     ),
-                                    onPressed: onToggleMicrophone == null
+                                    onPressed: widget.onToggleMicrophone == null
                                         ? null
                                         : () async {
-                                            await onToggleMicrophone!();
+                                            await widget.onToggleMicrophone!();
                                           },
                                     icon: StudioIcon(
-                                      (isMicrophoneActive?.call() ?? false)
+                                      (widget.isMicrophoneActive?.call() ?? false)
                                           ? StudioIconId.audioMicOff
                                           : StudioIconId.audioMicOn,
                                       size: 16,
@@ -467,7 +565,7 @@ class HarmonicTutorModal extends StatelessWidget {
                                       tintCustomAsset: true,
                                     ),
                                     label: Text(
-                                      (isMicrophoneActive?.call() ?? false)
+                                      (widget.isMicrophoneActive?.call() ?? false)
                                           ? 'Detener Mic'
                                           : 'Activar Mic',
                                       style: const TextStyle(fontSize: 11),
@@ -487,6 +585,122 @@ class HarmonicTutorModal extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _build12TetComparisonCard({
+    required double rootFrequency,
+    required HarmonicChordType chordType,
+    required HarmonicRole selectedRole,
+    required StudioDesignTokens tokens,
+  }) {
+    final freq12Tet = rootFrequency * math.pow(2.0, selectedRole.semitones / 12.0);
+    final freqJi = rootFrequency * selectedRole.ratio;
+    final deltaHz = (freq12Tet - freqJi).abs();
+    final offsetSign = selectedRole.tetOffsetCents >= 0 ? '+' : '';
+    final chordRoles = chordType.roles.where((r) => r != HarmonicRole.root).toList();
+
+    return Material(
+      key: const Key('tutor_12tet_vs_ji_comparison_card'),
+      color: tokens.panelBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: tokens.accentPrimary.withValues(alpha: 0.55)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.waves, size: 16, color: tokens.accentPrimary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'COMPARACIÓN ACÚSTICA 12-TET vs. JI — ${selectedRole.labelEs.toUpperCase()}',
+                    style: TextStyle(
+                      color: tokens.accentPrimary,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              alignment: WrapAlignment.spaceAround,
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                _buildStatColumn(
+                  '12-TET',
+                  '${freq12Tet.toStringAsFixed(2)} Hz',
+                  tokens,
+                ),
+                _buildStatColumn(
+                  'Justa (JI ${selectedRole.numerator}/${selectedRole.denominator})',
+                  '${freqJi.toStringAsFixed(2)} Hz',
+                  tokens,
+                ),
+                _buildStatColumn(
+                  'Δf Batimientos',
+                  '${deltaHz.toStringAsFixed(2)} Hz (${deltaHz.toStringAsFixed(2)} bat/s)',
+                  tokens,
+                ),
+                _buildStatColumn(
+                  'Desviación JI vs. 12-TET',
+                  '$offsetSign${selectedRole.tetOffsetCents.toStringAsFixed(1)} cents',
+                  tokens,
+                ),
+              ],
+            ),
+            if (chordRoles.isNotEmpty) ...[
+              Divider(height: 18, color: tokens.borderSubtle),
+              Text(
+                'Intervalos del acorde activo (toca para inspeccionar):',
+                style: TextStyle(color: tokens.textMuted, fontSize: 10),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: chordRoles.map((role) {
+                  final role12Tet = rootFrequency * math.pow(2.0, role.semitones / 12.0);
+                  final roleJi = rootFrequency * role.ratio;
+                  final roleDelta = (role12Tet - roleJi).abs();
+                  final roleSign = role.tetOffsetCents >= 0 ? '+' : '';
+                  final isCurrent = role == selectedRole;
+
+                  return ChoiceChip(
+                    selected: isCurrent,
+                    backgroundColor: tokens.elevatedSurface,
+                    selectedColor: tokens.accentPrimary.withValues(alpha: 0.2),
+                    side: BorderSide(
+                      color: isCurrent ? tokens.accentPrimary : tokens.borderHairline,
+                    ),
+                    label: Text(
+                      '${role.labelEs}: $roleSign${role.tetOffsetCents.toStringAsFixed(1)} cents · Δf ${roleDelta.toStringAsFixed(2)} Hz',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: isCurrent ? tokens.accentPrimary : tokens.textPrimary,
+                        fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    onSelected: (_) {
+                      widget.viewModel.setForcedRole(
+                        widget.viewModel.forcedRole == role ? null : role,
+                      );
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
