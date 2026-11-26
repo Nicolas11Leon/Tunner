@@ -7,20 +7,39 @@ import 'modular_rack_viewmodel.dart';
 import '../domain/rack_module_entity.dart';
 import 'multitask_master_console_widget.dart';
 import 'rack_unit_card.dart';
+import 'studio_smart_controls_macro_bar.dart';
 
 /// Vista principal del Rack de Estudio Modular y Consola Multitarea.
 /// Permite arrastrar, reorganizar, conectar y emular instrumentos libremente.
-class ModularStudioRackView extends StatelessWidget {
+class ModularStudioRackView extends StatefulWidget {
   final ModularRackViewModel? viewModel;
 
   const ModularStudioRackView({super.key, this.viewModel});
 
   @override
+  State<ModularStudioRackView> createState() => _ModularStudioRackViewState();
+}
+
+class _ModularStudioRackViewState extends State<ModularStudioRackView> {
+  bool _isSmartControlsVisible = true;
+
+  void _toggleSmartControls() {
+    setState(() {
+      _isSmartControlsVisible = !_isSmartControlsVisible;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (viewModel != null) {
+    final body = _ModularStudioRackBody(
+      isSmartControlsVisible: _isSmartControlsVisible,
+      onToggleSmartControls: _toggleSmartControls,
+    );
+
+    if (widget.viewModel != null) {
       return ChangeNotifierProvider<ModularRackViewModel>.value(
-        value: viewModel!,
-        child: const _ModularStudioRackBody(),
+        value: widget.viewModel!,
+        child: body,
       );
     }
     return ChangeNotifierProvider<ModularRackViewModel>(
@@ -32,13 +51,19 @@ class ModularStudioRackView extends StatelessWidget {
           return ModularRackViewModel();
         }
       },
-      child: const _ModularStudioRackBody(),
+      child: body,
     );
   }
 }
 
 class _ModularStudioRackBody extends StatelessWidget {
-  const _ModularStudioRackBody();
+  final bool isSmartControlsVisible;
+  final VoidCallback onToggleSmartControls;
+
+  const _ModularStudioRackBody({
+    required this.isSmartControlsVisible,
+    required this.onToggleSmartControls,
+  });
 
   void _showAddModuleSheet(BuildContext context, ModularRackViewModel viewModel) {
     final tokens = StudioThemeScope.tokensOf(context);
@@ -169,6 +194,84 @@ class _ModularStudioRackBody extends StatelessWidget {
           children: [
             // Consola Multitarea de Control Maestro en la cabecera
             MultitaskMasterConsoleWidget(viewModel: viewModel),
+
+            // Barra de cabecera con interruptor de Smart Controls
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: tokens.panelHeaderBackground,
+                border: Border(
+                  bottom: BorderSide(
+                    color: tokens.borderHairline,
+                    width: tokens.borderWidth,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    'RACK DE UNIDADES (${modules.length})',
+                    style: TextStyle(
+                      color: tokens.textMuted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  const Spacer(),
+                  InkWell(
+                    key: const Key('btn_toggle_smart_controls_bar'),
+                    onTap: onToggleSmartControls,
+                    borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSmartControlsVisible
+                            ? tokens.accentPrimary.withValues(alpha: 0.16)
+                            : tokens.elevatedSurface,
+                        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+                        border: Border.all(
+                          color: isSmartControlsVisible
+                              ? tokens.accentPrimary
+                              : tokens.borderHairline,
+                          width: tokens.borderWidth,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.tune,
+                            size: 12,
+                            color: isSmartControlsVisible
+                                ? tokens.accentPrimary
+                                : tokens.textSecondary,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'SMART CONTROLS',
+                            style: TextStyle(
+                              color: isSmartControlsVisible
+                                  ? tokens.accentPrimary
+                                  : tokens.textSecondary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Barra de Macro-Perillas Smart Controls (Apple Logic Pro style)
+            if (isSmartControlsVisible) const StudioSmartControlsMacroBar(),
 
             // Lienzo de Módulos Reordenables (Drag & Drop Studio Rack)
             Expanded(
