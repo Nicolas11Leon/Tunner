@@ -55,6 +55,7 @@ import '../../../core/audio/presentation/studio_master_hardware_console_widget.d
 import '../../../core/audio/presentation/studio_master_meter_mini_pill_widget.dart';
 import '../../tuner/presentation/stem_mixer_modal.dart';
 import '../../../app/terminal_feature_adapters.dart';
+import '../../../core/channels/domain/studio_patchbay_routing_service.dart';
 import '../../media_vault/presentation/media_vault_viewmodel.dart';
 
 export 'studio_keyboard_intents.dart';
@@ -156,12 +157,13 @@ class _MainAppShellState extends State<MainAppShell> {
           }
           break;
         case MediaSynergyTarget.mixerChannel:
-          _djConsoleViewModel.loadTrackWithBeatTracking(
-            'A',
+          StudioPatchbayRoutingService().publishChannelParameters(
+            'canal_c',
             title: asset.title,
-            artist: 'Mixer Channel',
-            audioSamples: samples,
-            sampleRate: asset.sampleRate,
+            bpm: asset.bpm,
+            key: asset.camelotKey,
+            isPlaying: true,
+            pcmBuffer: samples,
           );
           break;
       }
@@ -757,6 +759,109 @@ class _MainAppShellState extends State<MainAppShell> {
 
   String _buildCurrentActiveItemId() {
     return StudioWorkspaceTabSpec.byIndex(_currentIndex).activeItemId;
+  }
+
+  Widget _buildContextualRightInspectorContent(
+    BuildContext context,
+    TunerViewModel viewModel,
+    StudioDesignTokens tokens,
+  ) {
+    return Container(
+      key: const Key('main_shell_live_inspector_context_card'),
+      padding: const EdgeInsets.all(8.0),
+      decoration: BoxDecoration(
+        color: tokens.panelHeaderBackground,
+        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+        border: Border.all(
+          color: tokens.borderHairline,
+          width: tokens.borderWidth,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Obra: ${viewModel.activePackage.title}',
+            style: TextStyle(
+              color: tokens.textPrimary,
+              fontSize: 10.0,
+              fontFamily: 'monospace',
+              fontWeight: FontWeight.w600,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 6.0),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  key: const Key('inspector_quick_a4_442_btn'),
+                  onPressed: () => viewModel.setReferencePitch(442.0),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: tokens.accentPrimary,
+                    side: BorderSide(
+                      color: tokens.borderHairline,
+                      width: tokens.borderWidth,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'A4 = 442 Hz',
+                    style: TextStyle(fontSize: 9.5, fontFamily: 'monospace'),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6.0),
+              Expanded(
+                child: OutlinedButton(
+                  key: const Key('inspector_quick_a4_440_btn'),
+                  onPressed: () => viewModel.setReferencePitch(440.0),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: tokens.textSecondary,
+                    side: BorderSide(
+                      color: tokens.borderHairline,
+                      width: tokens.borderWidth,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'A4 = 440 Hz',
+                    style: TextStyle(fontSize: 9.5, fontFamily: 'monospace'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6.0),
+          OutlinedButton(
+            key: const Key('inspector_quick_toggle_drone_btn'),
+            onPressed: () => viewModel.toggleDrone(),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: viewModel.isDronePlaying
+                  ? tokens.accentPrimary
+                  : tokens.textSecondary,
+              side: BorderSide(
+                color: viewModel.isDronePlaying
+                    ? tokens.accentPrimary
+                    : tokens.borderHairline,
+                width: tokens.borderWidth,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              viewModel.isDronePlaying ? 'Detener Dron' : 'Activar Dron',
+              style: const TextStyle(fontSize: 9.5, fontFamily: 'monospace'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   List<StudioTreeSection> _buildNavigationSections(TunerViewModel viewModel) {
@@ -1387,6 +1492,7 @@ class _MainAppShellState extends State<MainAppShell> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isDesktop = constraints.maxWidth >= 900;
+              final tokens = StudioThemeScope.of(context);
 
               final viewportContent = IndexedStack(
                 index: _currentIndex,
@@ -1394,6 +1500,7 @@ class _MainAppShellState extends State<MainAppShell> {
                   HomeDashboardScreen(
                     onNavigateToTab: _navigateToTab,
                     onOpenTerminal: () => setState(() => _isTerminalOpen = !_isTerminalOpen),
+                    onOpenUniversalCommandPalette: () => _openCommandPalette(viewModel),
                     onLoadDjTemplate: (deckId, songKey) {
                       _djConsoleViewModel.loadCuratedSong(deckId, songKey);
                       _djConsoleViewModel.syncDeckToBpm(deckId, 126.0);
@@ -1426,6 +1533,20 @@ class _MainAppShellState extends State<MainAppShell> {
                     StudioDesktopAppShell(
                       key: _desktopShellKey,
                       currentBreadcrumb: _buildCurrentBreadcrumb(),
+                      a4Hz: viewModel.referencePitch,
+                      tempoBpm: viewModel.bpm.toDouble(),
+                      activeInstrumentName: viewModel.activeInstrument.name,
+                      activeTabId: StudioWorkspaceTabSpec
+                          .canonicalTabs[_currentIndex.clamp(
+                            0,
+                            StudioWorkspaceTabSpec.canonicalTabs.length - 1,
+                          )]
+                          .windowMenuTitle,
+                      rightInspectorContent: _buildContextualRightInspectorContent(
+                        context,
+                        viewModel,
+                        tokens,
+                      ),
                       bufferLatencyLabel: () {
                         final m = _audioMatrixService.matrix;
                         final latencyMs = (m.bufferSize / m.sampleRate * 1000.0).toStringAsFixed(1);
@@ -1617,7 +1738,6 @@ class _MainAppShellState extends State<MainAppShell> {
               }
 
               // Vista móvil / compacta
-              final tokens = StudioThemeScope.of(context);
               return Stack(
                 children: [
                   Scaffold(
