@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../practice_recorder/domain/multitrack_session_entity.dart';
+import '../../practice_recorder/domain/practice_recording_entity.dart';
 import '../../sheet_music/domain/score_tree.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/song_decomposer_service.dart';
@@ -140,6 +142,71 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  List<TimedPitchSample> _resolvePitchTrackForRecording(
+    PracticeRecordingEntity recording,
+    int recordingIndex,
+    List<PracticeRecordingEntity> recordings,
+  ) {
+    final takes = widget.viewModel.multiTrackSession.takes;
+    if (takes.isEmpty) return const [];
+
+    if (recording.filePath.isNotEmpty) {
+      for (final take in takes.reversed) {
+        if (take.filePath == recording.filePath && take.pitchTrack.isNotEmpty) {
+          return take.pitchTrack;
+        }
+      }
+    }
+
+    for (final take in takes.reversed) {
+      if ((take.id == recording.id || take.name == recording.songTitle) &&
+          take.pitchTrack.isNotEmpty) {
+        return take.pitchTrack;
+      }
+    }
+
+    for (final take in takes.reversed) {
+      if (take.pitchTrack.isNotEmpty &&
+          take.timestamp.difference(recording.recordedAt).inSeconds.abs() <= 5) {
+        return take.pitchTrack;
+      }
+    }
+
+    if (takes.length == recordings.length && recordingIndex < takes.length) {
+      final reversedTake = takes[takes.length - 1 - recordingIndex];
+      if (reversedTake.pitchTrack.isNotEmpty) {
+        return reversedTake.pitchTrack;
+      }
+    }
+
+    if (recordings.length == 1 && takes.last.pitchTrack.isNotEmpty) {
+      return takes.last.pitchTrack;
+    }
+
+    return const [];
+  }
+
+  String _extractNotationFromPitchTrack(List<TimedPitchSample> pitchTrack) {
+    if (pitchTrack.isEmpty) {
+      return 'Do4 Re4 Mi4 Sol4';
+    }
+
+    final extractedNotes = <String>[];
+    for (final sample in pitchTrack) {
+      if (sample.isSilent || sample.frequencyHz <= 0.0) continue;
+      final noteName = sample.targetNoteName.trim();
+      if (noteName.isEmpty || noteName == '--') continue;
+      if (extractedNotes.isEmpty || extractedNotes.last != noteName) {
+        extractedNotes.add(noteName);
+      }
+    }
+
+    if (extractedNotes.isEmpty) {
+      return 'Do4 Re4 Mi4 Sol4';
+    }
+    return extractedNotes.join(' ');
   }
 
   void _auditionStemPreview(String stemRole, List<MeasureEntity> measures) {
@@ -551,11 +618,11 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
-                  for (final rec in recordings.take(3))
+                  for (final entry in recordings.take(3).toList().asMap().entries)
                     ActionChip(
                       avatar: Icon(Icons.mic, size: 13, color: palette.secondaryAccent),
                       label: Text(
-                        "Toma: ${rec.songTitle}",
+                        "Toma: ${entry.value.songTitle}",
                         style: TextStyle(fontSize: 10.5, color: palette.textColor),
                       ),
                       backgroundColor: palette.cardBackground,
@@ -563,12 +630,41 @@ class _SongDecomposerModalState extends State<SongDecomposerModal> {
                       visualDensity: VisualDensity.compact,
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       onPressed: () {
+                        final rec = entry.value;
+                        final pitchTrack = _resolvePitchTrackForRecording(
+                          rec,
+                          entry.key,
+                          recordings,
+                        );
+                        final notation = _extractNotationFromPitchTrack(pitchTrack);
                         setState(() {
                           _titleController.text = "${rec.songTitle} (Stems)";
                           _bpm = rec.bpm.clamp(40, 220);
+                          _notationController.text = notation;
                         });
                       },
                     ),
+                  if (recordings.isEmpty)
+                    for (final take in widget.viewModel.multiTrackSession.takes.reversed.take(3))
+                      ActionChip(
+                        avatar: Icon(Icons.mic, size: 13, color: palette.secondaryAccent),
+                        label: Text(
+                          "Toma: ${take.name}",
+                          style: TextStyle(fontSize: 10.5, color: palette.textColor),
+                        ),
+                        backgroundColor: palette.cardBackground,
+                        side: BorderSide(color: palette.surfaceBorderColor),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        onPressed: () {
+                          final notation = _extractNotationFromPitchTrack(take.pitchTrack);
+                          setState(() {
+                            _titleController.text = "${take.name} (Stems)";
+                            _bpm = widget.viewModel.multiTrackSession.bpm.clamp(40, 220);
+                            _notationController.text = notation;
+                          });
+                        },
+                      ),
                 ],
               ),
             ],
