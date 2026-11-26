@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/design_system/studio_design_system.dart';
 import '../../navigation/presentation/contextual_help_sheet.dart';
+import '../../pedagogy/domain/ebbinghaus_spaced_repetition_engine.dart';
 import '../../tuner_viewmodel.dart';
+import '../domain/blind_ear_headless_session_controller.dart';
 import '../domain/blind_ear_trainer_engine.dart';
 import '../domain/ear_training_exercise.dart';
 import '../domain/musical_interval.dart';
@@ -43,6 +45,7 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
   bool _isBlindModeActive = true;
   bool _isPlayingAudio = false;
   bool _isSungResponseMode = false;
+  bool _prioritizeEbbinghausDueIntervals = true;
   EarTrainingQuestion? _question;
   EarTrainingAnswerResult? _lastResult;
   DateTime? _questionStartTime;
@@ -129,9 +132,98 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
     });
   }
 
+  List<EarTrainingItemEntity> _getPriorityDueItems() {
+    final now = DateTime.now();
+    final engine = widget.viewModel.ebbinghausEngine;
+    final dueItems = engine.getDueItems(now: now);
+
+    // Prioriza intervalos con fallos activos sin racha recuperada para refuerzo inmediato.
+    final lapsedItems = engine.allItems
+        .where(
+          (item) =>
+              item.category == EarTrainingCategory.interval &&
+              item.lapses > 0 &&
+              item.repetitions == 0,
+        )
+        .toList()
+      ..sort((a, b) {
+        final lapseCmp = b.lapses.compareTo(a.lapses);
+        if (lapseCmp != 0) return lapseCmp;
+        return a.stabilityDays.compareTo(b.stabilityDays);
+      });
+
+    final seenIds = <String>{};
+    final combined = <EarTrainingItemEntity>[];
+
+    for (final item in lapsedItems) {
+      if (seenIds.add(item.id)) {
+        combined.add(item);
+      }
+    }
+    for (final item in dueItems) {
+      if (item.category == EarTrainingCategory.interval && seenIds.add(item.id)) {
+        combined.add(item);
+      }
+    }
+    return combined;
+  }
+
+  MusicalInterval? _resolveIntervalFromItem(EarTrainingItemEntity item) {
+    final byCategory = BlindEarHeadlessSessionController.intervalFromEbbinghausItem(item);
+    if (byCategory != null) return byCategory;
+
+    for (final interval in MusicalInterval.values) {
+      if (BlindEarHeadlessSessionController.ebbinghausIdForInterval(interval) == item.id ||
+          interval.name == item.id ||
+          interval.displayName == item.name) {
+        return interval;
+      }
+    }
+    return null;
+  }
+
+  EarTrainingQuestion _buildAdaptiveQuestion() {
+    if (!_prioritizeEbbinghausDueIntervals) {
+      return _engine.generateNextQuestion();
+    }
+
+    final dueItems = _getPriorityDueItems();
+    if (dueItems.isEmpty) {
+      return _engine.generateNextQuestion();
+    }
+
+    final activeSet = _engine.config.activeIntervals.toSet();
+    MusicalInterval? prioritizedInterval;
+    for (final item in dueItems) {
+      final resolved = _resolveIntervalFromItem(item);
+      if (resolved != null && activeSet.contains(resolved)) {
+        prioritizedInterval = resolved;
+        break;
+      }
+    }
+
+    if (prioritizedInterval == null) {
+      return _engine.generateNextQuestion();
+    }
+
+    final originalConfig = _engine.config;
+    _engine.config = EarTrainingConfig(
+      activeIntervals: [prioritizedInterval],
+      onlyAscending: originalConfig.onlyAscending,
+      useJustIntonation: originalConfig.useJustIntonation,
+      minBaseFrequencyHz: originalConfig.minBaseFrequencyHz,
+      maxBaseFrequencyHz: originalConfig.maxBaseFrequencyHz,
+    );
+    try {
+      return _engine.generateNextQuestion();
+    } finally {
+      _engine.config = originalConfig;
+    }
+  }
+
   void _generateNextQuestion() {
     setState(() {
-      _question = _engine.generateNextQuestion();
+      _question = _buildAdaptiveQuestion();
       _lastResult = null;
       _questionStartTime = DateTime.now();
       _consecutiveSungSamples.clear();
@@ -692,7 +784,10 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
                         },
                       ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
+
+                    // Tarjeta compacta de Sincronización Ebbinghaus
+                    _buildEbbinghausSyncCard(tokens),
 
                     // Resultado y botón siguiente
                     if (_lastResult != null) ...[
@@ -800,6 +895,118 @@ class _BlindEarTrainerModalState extends State<BlindEarTrainerModal> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildEbbinghausSyncCard(StudioDesignTokens tokens) {
+    return AnimatedBuilder(
+      animation: widget.viewModel,
+      builder: (context, _) {
+        final dueItems = _getPriorityDueItems();
+        final dueSummary = dueItems.isEmpty
+            ? 'Al día'
+            : dueItems.take(3).map((e) => e.name).join(', ');
+
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: tokens.panelBackground,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: _prioritizeEbbinghausDueIntervals
+                  ? tokens.accentPrimary.withValues(alpha: 0.45)
+                  : tokens.borderHairline,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  FilterChip(
+                    key: const Key('toggle_ebbinghaus_adaptive_mode'),
+                    avatar: StudioIcon(
+                      StudioIconId.modulePedagogy,
+                      size: 14,
+                      color: _prioritizeEbbinghausDueIntervals
+                          ? tokens.textOnAccent
+                          : tokens.accentPrimary,
+                      tintCustomAsset: true,
+                    ),
+                    label: const Text('Priorizar Intervalos Débiles (Ebbinghaus)'),
+                    selected: _prioritizeEbbinghausDueIntervals,
+                    showCheckmark: true,
+                    checkmarkColor: tokens.textOnAccent,
+                    selectedColor: tokens.accentPrimary,
+                    backgroundColor: tokens.elevatedSurface,
+                    labelStyle: TextStyle(
+                      color: _prioritizeEbbinghausDueIntervals
+                          ? tokens.textOnAccent
+                          : tokens.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                    side: BorderSide(
+                      color: _prioritizeEbbinghausDueIntervals
+                          ? tokens.accentPrimary
+                          : tokens.borderHairline,
+                    ),
+                    onSelected: (selected) {
+                      setState(() {
+                        _prioritizeEbbinghausDueIntervals = selected;
+                      });
+                    },
+                  ),
+                  Text(
+                    _prioritizeEbbinghausDueIntervals
+                        ? 'Modo Adaptativo'
+                        : 'Modo Aleatorio Libre',
+                    style: TextStyle(
+                      color: _prioritizeEbbinghausDueIntervals
+                          ? tokens.accentPrimary
+                          : tokens.textMuted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Container(
+                key: const Key('ebbinghaus_due_intervals_badge'),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: tokens.elevatedSurface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: dueItems.isEmpty
+                        ? tokens.accentSuccess.withValues(alpha: 0.4)
+                        : tokens.accentWarning.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Text(
+                  'Intervalos por reforzar: $dueSummary',
+                  style: TextStyle(
+                    color: dueItems.isEmpty
+                        ? tokens.accentSuccess
+                        : tokens.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
