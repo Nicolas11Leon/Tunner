@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:tunner/core/theme/tunner_theme.dart';
+import '../../exercise_generator/domain/algorithmic_exercise_generator.dart';
 import '../../practice_recorder/presentation/practice_recording_player_modal.dart';
+import '../../song_library/domain/song_package_entity.dart';
+import '../../tuner/presentation/tuner_viewmodel.dart';
 import '../domain/practice_report_entity.dart';
 
 /// Modal analítico de alta fidelidad que presenta el reporte de desempeño
@@ -10,6 +14,8 @@ class PracticeReportModal extends StatelessWidget {
   final TunnerThemePalette palette;
   final VoidCallback onRetry;
   final VoidCallback onClose;
+  final ValueChanged<SongPackage>? onLoadRemedialDrill;
+  final ValueChanged<String>? onLockDroneToCriticalNote;
 
   const PracticeReportModal({
     super.key,
@@ -17,6 +23,8 @@ class PracticeReportModal extends StatelessWidget {
     required this.palette,
     required this.onRetry,
     required this.onClose,
+    this.onLoadRemedialDrill,
+    this.onLockDroneToCriticalNote,
   });
 
   static Future<void> show({
@@ -24,6 +32,8 @@ class PracticeReportModal extends StatelessWidget {
     required PracticeReportEntity report,
     required TunnerThemePalette palette,
     required VoidCallback onRetry,
+    ValueChanged<SongPackage>? onLoadRemedialDrill,
+    ValueChanged<String>? onLockDroneToCriticalNote,
   }) {
     return showDialog(
       context: context,
@@ -36,6 +46,8 @@ class PracticeReportModal extends StatelessWidget {
           onRetry();
         },
         onClose: () => Navigator.of(ctx).pop(),
+        onLoadRemedialDrill: onLoadRemedialDrill,
+        onLockDroneToCriticalNote: onLockDroneToCriticalNote,
       ),
     );
   }
@@ -406,6 +418,115 @@ class PracticeReportModal extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (report.criticalNotes.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ElevatedButton(
+                        key: const Key('btn_generate_remedial_drill_from_report'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: palette.warningPitchColor,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        onPressed: () {
+                          final drillPackage = AlgorithmicExerciseGenerator
+                              .generateRemedialDrillFromCriticalNotes(
+                            criticalNotes: report.criticalNotes,
+                          );
+                          onLoadRemedialDrill?.call(drillPackage);
+                          try {
+                            final vm = Provider.of<TunerViewModel>(
+                              context,
+                              listen: false,
+                            );
+                            vm.addSongPackage(drillPackage);
+                            vm.loadSongPackage(drillPackage);
+                          } catch (_) {
+                            // TunerViewModel es opcional en contextos aislados sin Provider.
+                          }
+                          final messenger = ScaffoldMessenger.maybeOf(context);
+                          onClose();
+                          messenger?.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Estudio correctivo cargado: ${drillPackage.title}',
+                              ),
+                            ),
+                          );
+                        },
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.auto_fix_high_rounded, size: 18),
+                            SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'Generar Estudio sobre Notas Críticas',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton(
+                        key: const Key('btn_lock_drone_on_first_critical_note'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: palette.textColor,
+                          side: BorderSide(
+                            color: palette.primaryAccent.withValues(alpha: 0.55),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () {
+                          onLockDroneToCriticalNote?.call(
+                            report.criticalNotes.first,
+                          );
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.graphic_eq_rounded,
+                              size: 18,
+                              color: palette.primaryAccent,
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'Fijar Dron en ${report.criticalNotes.first}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 16),
               ],
 
