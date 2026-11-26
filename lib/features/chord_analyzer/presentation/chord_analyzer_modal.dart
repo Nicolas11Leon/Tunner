@@ -1,12 +1,36 @@
+import 'dart:async';
+import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../../core/design_system/studio_design_system.dart';
+import '../../harmonic_tutor/domain/harmonic_role_entity.dart';
+import '../../harmonic_tutor/domain/harmonic_tutor_session_entity.dart';
+import '../../harmonic_tutor/presentation/harmonic_tutor_modal.dart';
+import '../../harmonic_tutor/presentation/harmonic_tutor_view_model.dart';
+import '../../media_vault/domain/wav_pcm_codec.dart';
 import '../../tuner_viewmodel.dart';
+import '../domain/chord_entity.dart';
 import 'chord_radar_widget.dart';
 import 'multi_tone_voicing_widget.dart';
 import 'polyphonic_live_voicing_widget.dart';
 
 /// Modal interactivo para el Reconocimiento Polifónico de Acordes y Análisis Armónico.
 class ChordAnalyzerModal extends StatelessWidget {
+  static const List<String> _chromaticNoteNames = [
+    'Do',
+    'Do#',
+    'Re',
+    'Re#',
+    'Mi',
+    'Fa',
+    'Fa#',
+    'Sol',
+    'Sol#',
+    'La',
+    'La#',
+    'Si',
+  ];
+
   final TunerViewModel viewModel;
 
   const ChordAnalyzerModal({
@@ -150,13 +174,15 @@ class ChordAnalyzerModal extends StatelessWidget {
 
           // Contenido principal scrollable
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              children: [
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                 // 1. Tarjeta Monumental del Acorde Activo
                 _buildActiveChordCard(context, tokens),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
 
                 // 2. Descomposición Multitonal en Vivo (Voces, Octavas y Cents)
                 MultiToneVoicingWidget(
@@ -164,11 +190,11 @@ class ChordAnalyzerModal extends StatelessWidget {
                   palette: legacyPalette,
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
 
                 // 3. Radar Cromático de 12 Semitonos
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: tokens.panelBackground,
                     borderRadius: BorderRadius.circular(16),
@@ -207,7 +233,7 @@ class ChordAnalyzerModal extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       Center(
                         child: ChordRadarWidget(
                           chromaVector: chroma,
@@ -224,7 +250,8 @@ class ChordAnalyzerModal extends StatelessWidget {
 
                 // 4. Historial de Progresiones Armónicas Recientes
                 _buildChordHistorySection(context, tokens),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -240,7 +267,7 @@ class ChordAnalyzerModal extends StatelessWidget {
     final bool isRecognized = chord.isRecognized;
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: tokens.panelBackground,
         borderRadius: BorderRadius.circular(16),
@@ -366,7 +393,7 @@ class ChordAnalyzerModal extends StatelessWidget {
             ),
           ] else ...[
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -375,7 +402,7 @@ class ChordAnalyzerModal extends StatelessWidget {
                     key: const Key('active_chord_symbol_placeholder'),
                     style: TextStyle(
                       color: tokens.textMuted.withValues(alpha: 0.5),
-                      fontSize: 36,
+                      fontSize: 32,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -390,9 +417,153 @@ class ChordAnalyzerModal extends StatelessWidget {
               ),
             ),
           ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _buildBridgeActionButton(
+                buttonKey: const Key('btn_chord_lock_harmonic_drone'),
+                iconId: StudioIconId.moduleDrone,
+                iconColor: tokens.accentPrimary,
+                label: 'Fijar Dron en Fundamental',
+                tokens: tokens,
+                onPressed: () => _lockHarmonicDroneToRoot(context, chord),
+              ),
+              _buildBridgeActionButton(
+                buttonKey: const Key('btn_chord_open_harmonic_tutor'),
+                iconId: StudioIconId.modulePedagogy,
+                iconColor: tokens.accentSecondary,
+                label: 'Practicar en Tutor Armónico JI',
+                tokens: tokens,
+                onPressed: () => _openHarmonicTutor(context, chord),
+              ),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  Widget _buildBridgeActionButton({
+    required Key buttonKey,
+    required StudioIconId iconId,
+    required Color iconColor,
+    required String label,
+    required StudioDesignTokens tokens,
+    required VoidCallback onPressed,
+  }) {
+    return OutlinedButton.icon(
+      key: buttonKey,
+      onPressed: onPressed,
+      icon: StudioIcon(
+        iconId,
+        size: 14,
+        color: iconColor,
+        tintCustomAsset: true,
+      ),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: tokens.textPrimary,
+        backgroundColor: tokens.elevatedSurface,
+        side: BorderSide(color: iconColor.withValues(alpha: 0.5)),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        minimumSize: const Size(0, 30),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+
+  int _resolveRootIndex(ChordEntity chord) {
+    return chord.isRecognized ? chord.rootNoteIndex.clamp(0, 11) : 9;
+  }
+
+  HarmonicChordType _mapChordQualityToTutorType(ChordEntity chord) {
+    if (!chord.isRecognized) return HarmonicChordType.majorTriad;
+    return switch (chord.quality) {
+      ChordQuality.minor || ChordQuality.minor7 => HarmonicChordType.minorTriad,
+      ChordQuality.dominant7 => HarmonicChordType.dominantSeventh,
+      ChordQuality.major7 => HarmonicChordType.majorSeventh,
+      ChordQuality.sus4 => HarmonicChordType.suspendedFourth,
+      _ => HarmonicChordType.majorTriad,
+    };
+  }
+
+  /// Fija el dron armónico sobre la fundamental del acorde (con quinta justa) y lo activa.
+  Future<void> _lockHarmonicDroneToRoot(
+    BuildContext context,
+    ChordEntity chord,
+  ) async {
+    final rootIdx = _resolveRootIndex(chord);
+    final rootName = _chromaticNoteNames[rootIdx];
+    await viewModel.setDroneConfig(
+      viewModel.droneConfig.copyWith(
+        rootNoteIndex: rootIdx,
+        includeFifth: true,
+      ),
+    );
+    if (!viewModel.isDronePlaying) {
+      await viewModel.toggleDrone();
+    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Dron Armónico fijado en fundamental $rootName (con 5ta justa)',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// Abre el Tutor Armónico JI preconfigurado con la nota fundamental detectada.
+  void _openHarmonicTutor(BuildContext context, ChordEntity chord) {
+    final rootIdx = _resolveRootIndex(chord);
+    final rootName = _chromaticNoteNames[rootIdx];
+    // Frecuencia base respecto a A4 (MIDI 69) en la octava central (C4 = MIDI 60).
+    final rootFrequency =
+        viewModel.referencePitch * math.pow(2.0, (60 + rootIdx - 69) / 12.0);
+
+    final tutorVm = HarmonicTutorViewModel(
+      initialSession: HarmonicTutorSessionEntity(
+        rootNoteName: rootName,
+        rootFrequency: rootFrequency,
+        chordType: _mapChordQualityToTutorType(chord),
+      ),
+      onPlayDroneSamples: (samples, sampleRate) {
+        final wavBytes = const WavPcmCodec().encodeMono16Bit(
+          Float64List.fromList(samples),
+          sampleRate: sampleRate,
+        );
+        unawaited(viewModel.audioSynthesizer.startDroneLoop(wavBytes));
+      },
+      onStopDrone: () {
+        unawaited(viewModel.audioSynthesizer.stopDroneLoop());
+      },
+    );
+
+    void onTelemetry() {
+      final freq = viewModel.telemetryListenable.value.frequency;
+      if (freq > 0.0) {
+        tutorVm.onPitchDetected(freq);
+      }
+    }
+
+    viewModel.telemetryListenable.addListener(onTelemetry);
+    HarmonicTutorModal.show(
+      context,
+      viewModel: tutorVm,
+      palette: viewModel.currentPalette,
+      isMicrophoneActive: () => viewModel.isRecording,
+      onToggleMicrophone: viewModel.toggleRecording,
+      microphoneListenable: viewModel,
+    ).whenComplete(() {
+      viewModel.telemetryListenable.removeListener(onTelemetry);
+      tutorVm.dispose();
+    });
   }
 
   Widget _buildChordHistorySection(
