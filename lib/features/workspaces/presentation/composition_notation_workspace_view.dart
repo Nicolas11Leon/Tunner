@@ -55,6 +55,8 @@ class _CompositionNotationWorkspaceViewState
   bool _isRestMode = false;
   int? _draggingTick;
   String? _lastDraggedNoteName;
+  int? _hoverGhostTick;
+  String? _hoverGhostNoteName;
   int _loopMeasureA = 1;
   int _loopMeasureB = 1;
   bool _isAbLoopActive = false;
@@ -1584,42 +1586,130 @@ class _CompositionNotationWorkspaceViewState
                     selectedNoteIndex: viewModel.selectedScoreNoteIndex,
                     loopStartMeasure: _isAbLoopActive ? (_loopMeasureA - 1) : null,
                     loopEndMeasure: _isAbLoopActive ? (_loopMeasureB - 1) : null,
+                    ghostHoverTick: _editMode == ScoreCanvasEditMode.write
+                        ? _hoverGhostTick
+                        : null,
+                    ghostHoverNoteName: _editMode == ScoreCanvasEditMode.write
+                        ? _hoverGhostNoteName
+                        : null,
+                    ghostHoverDurationTicks: _selectedDurationTicks,
+                    ghostHoverIsRest: _isRestMode,
                   );
 
                   return MouseRegion(
                     cursor: _editMode == ScoreCanvasEditMode.erase
                         ? SystemMouseCursors.precise
                         : SystemMouseCursors.click,
-                    child: GestureDetector(
-                      key: const Key('score_interactive_canvas_gesture'),
-                      onTapDown: (details) => _handleCanvasTapDown(
-                        details,
-                        painter,
+                    onHover: (event) {
+                      if (_editMode != ScoreCanvasEditMode.write) {
+                        if (_hoverGhostTick != null ||
+                            _hoverGhostNoteName != null) {
+                          setState(() {
+                            _hoverGhostTick = null;
+                            _hoverGhostNoteName = null;
+                          });
+                        }
+                        return;
+                      }
+                      final int nextTick = painter.resolveSubTickAtOffset(
+                        event.localPosition,
                         canvasSize,
-                      ),
-                      onSecondaryTapDown: (details) =>
-                          _handleCanvasSecondaryTapDown(
-                        details,
-                        painter,
+                      );
+                      final String nextNoteName = painter.resolveNoteNameAtOffset(
+                        event.localPosition,
                         canvasSize,
-                      ),
-                      onVerticalDragStart: (details) =>
-                          _handleCanvasVerticalDragStart(
-                        details,
-                        painter,
-                        canvasSize,
-                      ),
-                      onVerticalDragUpdate: (details) =>
-                          _handleCanvasVerticalDragUpdate(
-                        details,
-                        painter,
-                        canvasSize,
-                      ),
-                      onVerticalDragEnd: _handleCanvasVerticalDragEnd,
-                      child: CustomPaint(
-                        painter: painter,
-                        size: canvasSize,
-                      ),
+                        accidental: _selectedAccidental,
+                      );
+                      if (nextTick != _hoverGhostTick ||
+                          nextNoteName != _hoverGhostNoteName) {
+                        setState(() {
+                          _hoverGhostTick = nextTick;
+                          _hoverGhostNoteName = nextNoteName;
+                        });
+                      }
+                    },
+                    onExit: (_) {
+                      if (_hoverGhostTick != null ||
+                          _hoverGhostNoteName != null) {
+                        setState(() {
+                          _hoverGhostTick = null;
+                          _hoverGhostNoteName = null;
+                        });
+                      }
+                    },
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        GestureDetector(
+                          key: const Key('score_interactive_canvas_gesture'),
+                          onTapDown: (details) => _handleCanvasTapDown(
+                            details,
+                            painter,
+                            canvasSize,
+                          ),
+                          onSecondaryTapDown: (details) =>
+                              _handleCanvasSecondaryTapDown(
+                            details,
+                            painter,
+                            canvasSize,
+                          ),
+                          onVerticalDragStart: (details) =>
+                              _handleCanvasVerticalDragStart(
+                            details,
+                            painter,
+                            canvasSize,
+                          ),
+                          onVerticalDragUpdate: (details) =>
+                              _handleCanvasVerticalDragUpdate(
+                            details,
+                            painter,
+                            canvasSize,
+                          ),
+                          onVerticalDragEnd: _handleCanvasVerticalDragEnd,
+                          child: CustomPaint(
+                            painter: painter,
+                            size: canvasSize,
+                          ),
+                        ),
+                        if (_hoverGhostNoteName != null &&
+                            _hoverGhostTick != null &&
+                            _editMode == ScoreCanvasEditMode.write)
+                          Positioned(
+                            top: 8,
+                            left: 12,
+                            child: IgnorePointer(
+                              child: Container(
+                                key: const Key('score_ghost_note_hover_badge'),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: tokens.panelBackground.withValues(
+                                    alpha: 0.92,
+                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                    tokens.radiusSmall,
+                                  ),
+                                  border: Border.all(
+                                    color: tokens.accentPrimary.withValues(
+                                      alpha: 0.65,
+                                    ),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Previsualización: ${_isRestMode ? "Silencio" : _hoverGhostNoteName} (Pulso ${(_hoverGhostTick! ~/ 4) + 1})',
+                                  style: TextStyle(
+                                    color: tokens.accentPrimary,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   );
                 },

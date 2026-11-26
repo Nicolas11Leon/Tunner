@@ -45,6 +45,15 @@ class RealSheetMusicPainter extends CustomPainter {
   final bool enableLivePitchTrail;
   final int? loopStartMeasure;
   final int? loopEndMeasure;
+  final int? ghostHoverTick;
+  final String? ghostHoverNoteName;
+  final int ghostHoverDurationTicks;
+  final bool ghostHoverIsRest;
+
+  bool get hasGhostHoverPreview =>
+      ghostHoverTick != null &&
+      (ghostHoverIsRest ||
+          (ghostHoverNoteName != null && ghostHoverNoteName!.isNotEmpty));
 
   static final RegExp _digitsRegExp = RegExp(r'[-+]?\d+');
   static final RegExp _accidentalSuffixRegExp = RegExp(r'[#♭♯♮n]+$');
@@ -78,6 +87,10 @@ class RealSheetMusicPainter extends CustomPainter {
     this.enableLivePitchTrail = true,
     this.loopStartMeasure,
     this.loopEndMeasure,
+    this.ghostHoverTick,
+    this.ghostHoverNoteName,
+    this.ghostHoverDurationTicks = 4,
+    this.ghostHoverIsRest = false,
     SmuflGlyphPathEngine? smuflEngine,
   }) : _smuflEngine = smuflEngine ?? const SmuflGlyphPathEngine();
 
@@ -183,6 +196,18 @@ class RealSheetMusicPainter extends CustomPainter {
     final int keyCount = keySignatureFifths.abs().clamp(0, 7);
     return keyCount == 0 ? 75.0 : 75.0 + (keyCount * 7.5);
   }
+
+  /// Convierte una coordenada horizontal [localOffset] en el sub-tick dentro del compás.
+  int resolveSubTickAtOffset(
+    Offset localOffset,
+    Size size, {
+    int quantizeTicks = 1,
+  }) =>
+      resolveTickAtOffset(
+        localOffset,
+        size,
+        quantizeTicks: quantizeTicks,
+      );
 
   /// Convierte una coordenada horizontal [localOffset] en el tick cuantizado dentro del compás.
   int resolveTickAtOffset(
@@ -712,6 +737,144 @@ class RealSheetMusicPainter extends CustomPainter {
       }
     }
 
+    // 3b. Previsualización de Nota Fantasma al Pasar el Cursor (US-UX-12: Ghost Note Hover Preview)
+    if (hasGhostHoverPreview) {
+      final int clampedGhostTick = ghostHoverTick!.clamp(0, 15);
+      final double ghostStartX = leftMargin + (clampedGhostTick * stepWidth);
+      final double ghostCenterX = ghostStartX + (stepWidth / 2);
+      final Color ghostColor = palette.primaryAccent.withValues(alpha: 0.38);
+
+      double ghostPillTargetY = centerLine3Y;
+
+      if (ghostHoverIsRest) {
+        _smuflEngine.drawRest(
+          canvas,
+          centerLine3: Offset(ghostCenterX, centerLine3Y),
+          staffSpace: staffSpacing,
+          durationTicks: ghostHoverDurationTicks,
+          color: ghostColor,
+        );
+      } else {
+        final String ghostNote = ghostHoverNoteName!;
+        final int step = getNoteStep(ghostNote);
+        final double noteY = baseLine1Y - (step * (staffSpacing / 2));
+        ghostPillTargetY = noteY;
+
+        final bool isWhole = ghostHoverDurationTicks >= 16;
+        final bool isHalf = ghostHoverDurationTicks >= 8 && ghostHoverDurationTicks < 16;
+        final bool hasStem = ghostHoverDurationTicks < 16;
+        final bool stemGoesDown = step >= 4;
+
+        final cleanNote = ghostNote.trim();
+        final isSharp = cleanNote.contains('#') || cleanNote.contains('♯');
+        final isFlat = !isSharp &&
+            (cleanNote.contains('♭') || _flatNoteRegExp.hasMatch(cleanNote));
+        final isNatural = !isSharp &&
+            !isFlat &&
+            (cleanNote.contains('♮') || _naturalNoteRegExp.hasMatch(cleanNote));
+
+        final double accidentalOffsetX = stemGoesDown
+            ? (staffSpacing * 1.35)
+            : (staffSpacing * 1.15);
+
+        if (isSharp) {
+          _smuflEngine.drawAccidental(
+            canvas,
+            center: Offset(ghostCenterX - accidentalOffsetX, noteY),
+            staffSpace: staffSpacing,
+            accidental: '#',
+            color: ghostColor,
+          );
+        } else if (isFlat) {
+          _smuflEngine.drawAccidental(
+            canvas,
+            center: Offset(ghostCenterX - accidentalOffsetX, noteY),
+            staffSpace: staffSpacing,
+            accidental: 'b',
+            color: ghostColor,
+          );
+        } else if (isNatural) {
+          _smuflEngine.drawAccidental(
+            canvas,
+            center: Offset(ghostCenterX - accidentalOffsetX, noteY),
+            staffSpace: staffSpacing,
+            accidental: 'n',
+            color: ghostColor,
+          );
+        }
+
+        _smuflEngine.drawNotehead(
+          canvas,
+          center: Offset(ghostCenterX, noteY),
+          staffSpace: staffSpacing,
+          color: ghostColor,
+          isWhole: isWhole,
+          isHalf: isHalf,
+        );
+
+        if (hasStem) {
+          _smuflEngine.drawStem(
+            canvas,
+            noteCenter: Offset(ghostCenterX, noteY),
+            staffSpace: staffSpacing,
+            isUp: !stemGoesDown,
+            color: ghostColor,
+          );
+        }
+
+        _smuflEngine.drawLedgerLines(
+          canvas,
+          noteCenter: Offset(ghostCenterX, noteY),
+          staffSpace: staffSpacing,
+          stepFromLine1: step,
+          color: ghostColor,
+        );
+      }
+
+      // Píldora flotante compacta (Ghost Pitch Pill)
+      final String pillLabel =
+          '${ghostHoverIsRest ? "Silencio" : ghostHoverNoteName} • T${ghostHoverTick! + 1}';
+      final pillTextPainter = TextPainter(
+        text: TextSpan(
+          text: pillLabel,
+          style: TextStyle(
+            color: palette.primaryAccent,
+            fontSize: 9.5,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'monospace',
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      final double pillW = pillTextPainter.width + 10.0;
+      final double pillH = pillTextPainter.height + 4.0;
+      final double pillX = (ghostCenterX - (pillW / 2.0)).clamp(
+        4.0,
+        math.max(4.0, size.width - pillW - 4.0),
+      );
+      final double pillY = (ghostPillTargetY - staffSpacing * 1.8 - pillH).clamp(
+        4.0,
+        math.max(4.0, size.height - pillH - 4.0),
+      );
+      final pillRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(pillX, pillY, pillW, pillH),
+        const Radius.circular(5.0),
+      );
+
+      final pillBgPaint = Paint()
+        ..color = palette.primaryAccent.withValues(alpha: 0.16)
+        ..style = PaintingStyle.fill;
+      final pillBorderPaint = Paint()
+        ..color = palette.primaryAccent.withValues(alpha: 0.38)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0;
+
+      canvas.drawRRect(pillRect, pillBgPaint);
+      canvas.drawRRect(pillRect, pillBorderPaint);
+      pillTextPainter.paint(canvas, Offset(pillX + 5.0, pillY + 2.0));
+    }
+
     // 4. Cursor de Tiempo Analítico (Playhead con color de la paleta)
     if (currentSubTick >= 0) {
       final cursorPaint = Paint()..color = palette.playheadColor.withValues(alpha: 0.2);
@@ -863,6 +1026,10 @@ class RealSheetMusicPainter extends CustomPainter {
         oldDelegate.enableSemanticNoteColoring != enableSemanticNoteColoring ||
         oldDelegate.enableLivePitchTrail != enableLivePitchTrail ||
         oldDelegate.loopStartMeasure != loopStartMeasure ||
-        oldDelegate.loopEndMeasure != loopEndMeasure;
+        oldDelegate.loopEndMeasure != loopEndMeasure ||
+        oldDelegate.ghostHoverTick != ghostHoverTick ||
+        oldDelegate.ghostHoverNoteName != ghostHoverNoteName ||
+        oldDelegate.ghostHoverDurationTicks != ghostHoverDurationTicks ||
+        oldDelegate.ghostHoverIsRest != ghostHoverIsRest;
   }
 }
