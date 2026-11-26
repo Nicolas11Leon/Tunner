@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../../core/design_system/studio_design_system.dart';
 import '../../tuner_viewmodel.dart';
@@ -7,7 +10,13 @@ import '../../tuner/presentation/temperament_selector_modal.dart';
 import '../../tuner/presentation/tuner_acoustic_telemetry.dart';
 import '../../tuner/domain/temperament_engine.dart';
 import '../../acoustic_lab/presentation/harmonic_spectrogram_modal.dart';
+import '../../chord_analyzer/domain/chord_entity.dart';
 import '../../chord_analyzer/presentation/chord_analyzer_modal.dart';
+import '../../harmonic_tutor/domain/harmonic_role_entity.dart';
+import '../../harmonic_tutor/domain/harmonic_tutor_session_entity.dart';
+import '../../harmonic_tutor/presentation/harmonic_tutor_modal.dart';
+import '../../harmonic_tutor/presentation/harmonic_tutor_view_model.dart';
+import '../../media_vault/domain/wav_pcm_codec.dart';
 import '../../practice_recorder/presentation/spectral_comparator_modal.dart';
 import '../../vocal_autotune/presentation/vocal_autotune_modal.dart';
 import '../../vocal_autotune/domain/autotune_config_entity.dart';
@@ -17,6 +26,21 @@ import '../../vocal_autotune/domain/autotune_config_entity.dart';
 /// temperamentos históricos, espectrogramas FFT y análisis armónico polifónico,
 /// manteniendo siempre visible el Afinador Estroboscópico en vivo.
 class ProductionAcousticLabWorkspaceView extends StatelessWidget {
+  static const List<String> _chromaticNoteNames = [
+    'Do',
+    'Do#',
+    'Re',
+    'Re#',
+    'Mi',
+    'Fa',
+    'Fa#',
+    'Sol',
+    'Sol#',
+    'La',
+    'La#',
+    'Si',
+  ];
+
   final TunerViewModel viewModel;
   final TunnerThemePalette palette;
   final VoidCallback onOpenMixerModal;
@@ -426,37 +450,79 @@ class ProductionAcousticLabWorkspaceView extends StatelessWidget {
                       borderRadius: BorderRadius.circular(tokens.radiusMedium),
                       border: Border.all(color: tokens.borderSubtle),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              isChordActive && chord.isRecognized
-                                  ? chord.symbol
-                                  : (isChordActive ? "Escuchando armonía..." : "Inactivo"),
-                              style: TextStyle(
-                                color: isChordActive && chord.isRecognized
-                                    ? tokens.accentPrimary
-                                    : tokens.textMuted,
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'monospace',
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isChordActive && chord.isRecognized
+                                        ? chord.symbol
+                                        : (isChordActive
+                                            ? "Escuchando armonía..."
+                                            : "Inactivo"),
+                                    style: TextStyle(
+                                      color: isChordActive && chord.isRecognized
+                                          ? tokens.accentPrimary
+                                          : tokens.textMuted,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: 'monospace',
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (isChordActive && chord.isRecognized)
+                                    Text(
+                                      "${chord.displayName} • Confianza: ${(chord.confidence * 100).toStringAsFixed(0)}%",
+                                      style: TextStyle(
+                                        color: tokens.textSecondary,
+                                        fontSize: 11,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                ],
                               ),
                             ),
-                            if (isChordActive && chord.isRecognized)
-                              Text(
-                                "${chord.displayName} • Confianza: ${(chord.confidence * 100).toStringAsFixed(0)}%",
-                                style: TextStyle(color: tokens.textSecondary, fontSize: 11),
+                            IconButton(
+                              key: const Key('pro_chord_modal_btn'),
+                              icon: Icon(
+                                Icons.open_in_new,
+                                color: tokens.accentPrimary,
                               ),
+                              tooltip: "Consola de Cromas",
+                              onPressed: () =>
+                                  ChordAnalyzerModal.show(context, viewModel),
+                            ),
                           ],
                         ),
-                        IconButton(
-                          key: const Key('pro_chord_modal_btn'),
-                          icon: Icon(Icons.open_in_new, color: tokens.accentPrimary),
-                          tooltip: "Consola de Cromas",
-                          onPressed: () => ChordAnalyzerModal.show(context, viewModel),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            _buildInlineBridgeButton(
+                              buttonKey: const Key('lab_inline_lock_drone_btn'),
+                              iconId: StudioIconId.moduleDrone,
+                              iconColor: tokens.accentPrimary,
+                              label: 'Fijar Dron en Acorde',
+                              tokens: tokens,
+                              onPressed: () => _lockDroneToChord(context),
+                            ),
+                            _buildInlineBridgeButton(
+                              buttonKey: const Key(
+                                  'lab_inline_open_harmonic_tutor_btn'),
+                              iconId: StudioIconId.modulePedagogy,
+                              iconColor: tokens.accentSecondary,
+                              label: 'Tutor Armónico JI',
+                              tokens: tokens,
+                              onPressed: () => _openHarmonicTutor(context),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -648,5 +714,125 @@ class ProductionAcousticLabWorkspaceView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildInlineBridgeButton({
+    required Key buttonKey,
+    required StudioIconId iconId,
+    required Color iconColor,
+    required String label,
+    required StudioDesignTokens tokens,
+    required VoidCallback onPressed,
+  }) {
+    return OutlinedButton.icon(
+      key: buttonKey,
+      onPressed: onPressed,
+      icon: StudioIcon(
+        iconId,
+        size: 14,
+        color: iconColor,
+        tintCustomAsset: true,
+      ),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: tokens.textPrimary,
+        backgroundColor: tokens.elevatedSurface,
+        side: BorderSide(color: iconColor.withValues(alpha: 0.5)),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        minimumSize: const Size(0, 30),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+
+  int _resolveRootIndex(ChordEntity chord) {
+    return chord.isRecognized ? chord.rootNoteIndex.clamp(0, 11) : 9;
+  }
+
+  HarmonicChordType _mapChordQualityToTutorType(ChordEntity chord) {
+    if (!chord.isRecognized) return HarmonicChordType.majorTriad;
+    return switch (chord.quality) {
+      ChordQuality.minor || ChordQuality.minor7 => HarmonicChordType.minorTriad,
+      ChordQuality.dominant7 => HarmonicChordType.dominantSeventh,
+      ChordQuality.major7 => HarmonicChordType.majorSeventh,
+      ChordQuality.sus4 => HarmonicChordType.suspendedFourth,
+      _ => HarmonicChordType.majorTriad,
+    };
+  }
+
+  /// Fija el dron armónico sobre la fundamental del acorde (con quinta justa) y lo activa.
+  Future<void> _lockDroneToChord(BuildContext context) async {
+    final chord = viewModel.recognizedChord;
+    final rootIdx = _resolveRootIndex(chord);
+    final rootName = _chromaticNoteNames[rootIdx];
+    await viewModel.setDroneConfig(
+      viewModel.droneConfig.copyWith(
+        rootNoteIndex: rootIdx,
+        includeFifth: true,
+      ),
+    );
+    if (!viewModel.isDronePlaying) {
+      await viewModel.toggleDrone();
+    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Dron Armónico fijado en fundamental $rootName (con 5ta justa)',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// Abre el Tutor Armónico JI preconfigurado con la nota fundamental detectada.
+  void _openHarmonicTutor(BuildContext context) {
+    final chord = viewModel.recognizedChord;
+    final rootIdx = _resolveRootIndex(chord);
+    final rootName = _chromaticNoteNames[rootIdx];
+    // Frecuencia base respecto a A4 (MIDI 69) en la octava central (C4 = MIDI 60).
+    final rootFrequency =
+        viewModel.referencePitch * math.pow(2.0, (60 + rootIdx - 69) / 12.0);
+
+    final tutorVm = HarmonicTutorViewModel(
+      initialSession: HarmonicTutorSessionEntity(
+        rootNoteName: rootName,
+        rootFrequency: rootFrequency,
+        chordType: _mapChordQualityToTutorType(chord),
+      ),
+      onPlayDroneSamples: (samples, sampleRate) {
+        final wavBytes = const WavPcmCodec().encodeMono16Bit(
+          Float64List.fromList(samples),
+          sampleRate: sampleRate,
+        );
+        unawaited(viewModel.audioSynthesizer.startDroneLoop(wavBytes));
+      },
+      onStopDrone: () {
+        unawaited(viewModel.audioSynthesizer.stopDroneLoop());
+      },
+    );
+
+    void onTelemetry() {
+      final freq = viewModel.telemetryListenable.value.frequency;
+      if (freq > 0.0) {
+        tutorVm.onPitchDetected(freq);
+      }
+    }
+
+    viewModel.telemetryListenable.addListener(onTelemetry);
+    HarmonicTutorModal.show(
+      context,
+      viewModel: tutorVm,
+      palette: palette,
+      isMicrophoneActive: () => viewModel.isRecording,
+      onToggleMicrophone: viewModel.toggleRecording,
+      microphoneListenable: viewModel,
+    ).whenComplete(() {
+      viewModel.telemetryListenable.removeListener(onTelemetry);
+      tutorVm.dispose();
+    });
   }
 }
