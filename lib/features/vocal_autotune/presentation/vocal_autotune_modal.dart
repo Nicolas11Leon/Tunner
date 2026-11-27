@@ -7,7 +7,7 @@ import '../domain/autotune_config_entity.dart';
 
 /// Modal interactivo para configurar el motor de Vocal AutoTune en tiempo real
 /// y aplicar corrección tonal en post-producción a tomas multitrack grabadas.
-class VocalAutoTuneModal extends StatelessWidget {
+class VocalAutoTuneModal extends StatefulWidget {
   const VocalAutoTuneModal({super.key});
 
   /// Despliega el modal en un bottom sheet responsivo.
@@ -21,6 +21,43 @@ class VocalAutoTuneModal extends StatelessWidget {
         child: const VocalAutoTuneModal(),
       ),
     );
+  }
+
+  @override
+  State<VocalAutoTuneModal> createState() => _VocalAutoTuneModalState();
+}
+
+class _VocalAutoTuneModalState extends State<VocalAutoTuneModal> {
+  bool _isAbBypassOriginalActive = false;
+  String _activePresetId = 'natural';
+  double _savedDryWetMix = 1.0;
+
+  void _toggleAbBypass(TunerViewModel viewModel, AutoTuneConfigEntity config) {
+    setState(() {
+      if (!_isAbBypassOriginalActive) {
+        _savedDryWetMix = config.leadVocalMix > 0.0 ? config.leadVocalMix : 1.0;
+        _isAbBypassOriginalActive = true;
+        viewModel.updateAutoTuneConfig(config.copyWith(leadVocalMix: 0.0));
+      } else {
+        _isAbBypassOriginalActive = false;
+        viewModel.updateAutoTuneConfig(config.copyWith(leadVocalMix: _savedDryWetMix));
+      }
+    });
+  }
+
+  void _selectPreset(
+    TunerViewModel viewModel,
+    String presetId,
+    AutoTuneConfigEntity nextConfig,
+  ) {
+    setState(() {
+      _activePresetId = presetId;
+      _isAbBypassOriginalActive = false;
+      if (nextConfig.leadVocalMix > 0.0) {
+        _savedDryWetMix = nextConfig.leadVocalMix;
+      }
+    });
+    viewModel.updateAutoTuneConfig(nextConfig);
   }
 
   @override
@@ -69,6 +106,8 @@ class VocalAutoTuneModal extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               children: [
                 _buildMasterSwitchCard(viewModel, palette, isEnabled),
+                const SizedBox(height: 10),
+                _buildAbBypassToggle(viewModel, palette, config),
                 const SizedBox(height: 14),
                 if (isEnabled) ...[
                   _buildTelemetryCard(palette, evalResult),
@@ -85,6 +124,42 @@ class VocalAutoTuneModal extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAbBypassToggle(
+    TunerViewModel viewModel,
+    TunnerThemePalette palette,
+    AutoTuneConfigEntity config,
+  ) {
+    final isOriginal = _isAbBypassOriginalActive;
+    final accentColor = isOriginal ? palette.primaryAccent : palette.secondaryAccent;
+
+    return SizedBox(
+      width: double.infinity,
+      child: ActionChip(
+        key: const Key('btn_autotune_ab_bypass_toggle'),
+        avatar: Icon(
+          isOriginal ? Icons.hearing : Icons.auto_fix_high,
+          size: 16,
+          color: accentColor,
+        ),
+        label: Text(
+          isOriginal
+              ? 'A/B: ESCUCHANDO ORIGINAL (DRY)'
+              : 'A/B: ESCUCHANDO AUTOTUNE (WET)',
+          style: TextStyle(
+            color: accentColor,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.4,
+          ),
+        ),
+        backgroundColor: accentColor.withValues(alpha: 0.14),
+        side: BorderSide(color: accentColor, width: 1.5),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        onPressed: () => _toggleAbBypass(viewModel, config),
       ),
     );
   }
@@ -280,95 +355,127 @@ class VocalAutoTuneModal extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-Text(
-  'PRESETS CANÓNICOS',
-  style: TextStyle(
-    color: palette.textMutedColor,
-    fontSize: 11,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 1.0,
-  ),
-),
-const SizedBox(height: 8),
-SingleChildScrollView(
-  scrollDirection: Axis.horizontal,
-  child: Row(
-    children: [
-      ActionChip(
-        key: const Key('preset_natural_studio'),
-        label: const Text('Estudio Natural'),
-        avatar: Icon(Icons.mic, size: 14, color: palette.textColor),
-        backgroundColor: palette.cardBackground,
-        labelStyle: TextStyle(color: palette.textColor, fontSize: 11),
-        side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
-        onPressed: () {
-          viewModel.updateAutoTuneConfig(
-            AutoTuneConfigEntity.naturalStudio(
-              scaleRoot: config.scaleRoot,
-              scaleType: config.scaleType,
-            ),
-          );
-        },
-      ),
-      const SizedBox(width: 8),
-      ActionChip(
-        key: const Key('preset_smooth_pop'),
-        label: const Text('Pop Suave'),
-        avatar: Icon(Icons.music_note, size: 14, color: palette.textColor),
-        backgroundColor: palette.cardBackground,
-        labelStyle: TextStyle(color: palette.textColor, fontSize: 11),
-        side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
-        onPressed: () {
-          viewModel.updateAutoTuneConfig(
-            AutoTuneConfigEntity.smoothPop(
-              scaleRoot: config.scaleRoot,
-              scaleType: config.scaleType,
-            ),
-          );
-        },
-      ),
-      const SizedBox(width: 8),
-      ActionChip(
-        key: const Key('preset_hard_tune'),
-        label: const Text('Hard Tune Urbano'),
-        avatar: Icon(Icons.electric_bolt, size: 14, color: palette.secondaryAccent),
-        backgroundColor: palette.secondaryAccent.withValues(alpha: 0.15),
-        labelStyle: TextStyle(
-          color: palette.secondaryAccent,
-          fontWeight: FontWeight.bold,
-          fontSize: 11,
+        Text(
+          'PRESETS CANÓNICOS',
+          style: TextStyle(
+            color: palette.textMutedColor,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.0,
+          ),
         ),
-        side: BorderSide(color: palette.secondaryAccent.withValues(alpha: 0.4)),
-        onPressed: () {
-          viewModel.updateAutoTuneConfig(
-            AutoTuneConfigEntity.hardTuneUrban(
-              scaleRoot: config.scaleRoot,
-              scaleType: config.scaleType,
-            ),
-          );
-        },
-      ),
-      const SizedBox(width: 8),
-      ActionChip(
-        key: const Key('preset_vocal_doubler'),
-        label: const Text('Vocal Doubler'),
-        avatar: Icon(Icons.people_outline, size: 14, color: palette.primaryAccent),
-        backgroundColor: palette.cardBackground,
-        labelStyle: TextStyle(color: palette.textColor, fontSize: 11),
-        side: BorderSide(color: palette.staffLinesColor.withValues(alpha: 0.3)),
-        onPressed: () {
-          viewModel.updateAutoTuneConfig(
-            AutoTuneConfigEntity.vocalDoubler(
-              scaleRoot: config.scaleRoot,
-              scaleType: config.scaleType,
-            ),
-          );
-        },
-      ),
-    ],
-  ),
-),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildPresetChip(
+                chipKey: const Key('preset_natural_studio'),
+                presetId: 'natural',
+                label: 'Estudio Natural',
+                icon: Icons.mic,
+                palette: palette,
+                accentColor: palette.secondaryAccent,
+                onTap: () => _selectPreset(
+                  viewModel,
+                  'natural',
+                  AutoTuneConfigEntity.naturalStudio(
+                    scaleRoot: config.scaleRoot,
+                    scaleType: config.scaleType,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildPresetChip(
+                chipKey: const Key('preset_smooth_pop'),
+                presetId: 'pop',
+                label: 'Pop Suave',
+                icon: Icons.music_note,
+                palette: palette,
+                accentColor: palette.secondaryAccent,
+                onTap: () => _selectPreset(
+                  viewModel,
+                  'pop',
+                  AutoTuneConfigEntity.smoothPop(
+                    scaleRoot: config.scaleRoot,
+                    scaleType: config.scaleType,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildPresetChip(
+                chipKey: const Key('preset_hard_tune'),
+                presetId: 'hard_tune',
+                label: 'Hard Tune Urbano',
+                icon: Icons.electric_bolt,
+                palette: palette,
+                accentColor: palette.secondaryAccent,
+                onTap: () => _selectPreset(
+                  viewModel,
+                  'hard_tune',
+                  AutoTuneConfigEntity.hardTuneUrban(
+                    scaleRoot: config.scaleRoot,
+                    scaleType: config.scaleType,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildPresetChip(
+                chipKey: const Key('preset_vocal_doubler'),
+                presetId: 'doubler',
+                label: 'Vocal Doubler',
+                icon: Icons.people_outline,
+                palette: palette,
+                accentColor: palette.primaryAccent,
+                onTap: () => _selectPreset(
+                  viewModel,
+                  'doubler',
+                  AutoTuneConfigEntity.vocalDoubler(
+                    scaleRoot: config.scaleRoot,
+                    scaleType: config.scaleType,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildPresetChip({
+    required Key chipKey,
+    required String presetId,
+    required String label,
+    required IconData icon,
+    required TunnerThemePalette palette,
+    required Color accentColor,
+    required VoidCallback onTap,
+  }) {
+    final isActive = _activePresetId == presetId;
+    return ActionChip(
+      key: chipKey,
+      label: Text(label),
+      avatar: Icon(
+        icon,
+        size: 14,
+        color: isActive ? accentColor : palette.textColor,
+      ),
+      backgroundColor: isActive
+          ? accentColor.withValues(alpha: 0.18)
+          : palette.cardBackground,
+      labelStyle: TextStyle(
+        color: isActive ? accentColor : palette.textColor,
+        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+        fontSize: 11,
+      ),
+      side: BorderSide(
+        color: isActive
+            ? accentColor
+            : palette.staffLinesColor.withValues(alpha: 0.3),
+        width: isActive ? 2.0 : 1.0,
+      ),
+      onPressed: onTap,
     );
   }
 
@@ -610,6 +717,14 @@ SingleChildScrollView(
         activeColor: palette.primaryAccent,
         inactiveColor: palette.staffLinesColor.withValues(alpha: 0.2),
         onChanged: (val) {
+          if (val > 0.0 && _isAbBypassOriginalActive) {
+            setState(() {
+              _isAbBypassOriginalActive = false;
+              _savedDryWetMix = val;
+            });
+          } else if (val > 0.0) {
+            _savedDryWetMix = val;
+          }
           viewModel.updateAutoTuneConfig(config.copyWith(leadVocalMix: val));
         },
       ),
