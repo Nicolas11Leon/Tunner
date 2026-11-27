@@ -23,6 +23,10 @@ import '../../ear_training/presentation/blind_ear_trainer_modal.dart';
 import '../../score_editor/presentation/score_editor_modal.dart';
 import '../../practice_recorder/presentation/practice_recording_player_modal.dart';
 import '../../song_library/presentation/studio_assets_modals.dart';
+import '../../dj_console/presentation/dj_console_modal.dart';
+import '../../dj_console/presentation/dj_console_view_model.dart';
+import '../../mixer/domain/mixer_track_entity.dart';
+import '../../tuner/presentation/stem_mixer_modal.dart';
 
 /// Tarjeta contenedora de una unidad de módulo montada en el Rack de Estudio.
 /// Soporta reordenamiento por arrastre, colapso compacto, apagado y puertos In/Out.
@@ -536,17 +540,210 @@ class RackUnitCard extends StatelessWidget {
       case RackModuleType.earTrainer:
         return _buildEarTrainerContent(tunerViewModel, context);
       case RackModuleType.djConsole:
+        return _buildLiveDjConsoleRackPanel(context, module, tunerViewModel);
       case RackModuleType.stemMixer:
-        return _buildStudioAudioModuleSummary(module);
+        return _buildLiveStemMixerRackPanel(context, module, tunerViewModel);
     }
   }
 
-  Widget _buildStudioAudioModuleSummary(RackModuleEntity mod) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Text(
-        '${mod.title} (${mod.inputPorts.length} IN / ${mod.outputPorts.length} OUT)',
-        style: const TextStyle(color: Colors.white70, fontSize: 12),
+  Widget _buildLiveDjConsoleRackPanel(
+    BuildContext context,
+    RackModuleEntity mod,
+    TunerViewModel tunerVm,
+  ) {
+    final telemetryText =
+        'SYNC TEMPO: ${tunerVm.bpm} BPM • A4: ${tunerVm.referencePitch.toStringAsFixed(1)} Hz';
+
+    return Container(
+      key: const Key('rack_unit_dj_console_live_panel'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.album, color: Color(0xFF38BDF8), size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  telemetryText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                '${mod.inputPorts.length}IN/${mod.outputPorts.length}OUT',
+                style: const TextStyle(color: Colors.white38, fontSize: 9),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              ActionChip(
+                key: const Key('rack_dj_nudge_minus_btn'),
+                label: const Text('-2 BPM'),
+                labelStyle: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                backgroundColor: Colors.white12,
+                side: const BorderSide(color: Colors.white24),
+                onPressed: () => tunerVm.updateBpm(tunerVm.bpm - 2),
+              ),
+              ActionChip(
+                key: const Key('rack_dj_nudge_plus_btn'),
+                label: const Text('+2 BPM'),
+                labelStyle: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                backgroundColor: Colors.white12,
+                side: const BorderSide(color: Colors.white24),
+                onPressed: () => tunerVm.updateBpm(tunerVm.bpm + 2),
+              ),
+              ElevatedButton.icon(
+                key: const Key('rack_dj_open_modal_btn'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF38BDF8),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: const Icon(Icons.open_in_new, size: 14),
+                label: const Text(
+                  'ABRIR CONSOLA DJ',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+                onPressed: () {
+                  final djVm = DjConsoleViewModel();
+                  DjConsoleModal.show(context, djVm, tunerVm.currentPalette)
+                      .whenComplete(djVm.dispose);
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLiveStemMixerRackPanel(
+    BuildContext context,
+    RackModuleEntity mod,
+    TunerViewModel tunerVm,
+  ) {
+    final mixer = tunerVm.mixerConsole;
+    final tracks = mixer.stems.isNotEmpty
+        ? <AudioTrack>[mixer.metronomeTrack, ...mixer.stems]
+        : <AudioTrack>[
+            mixer.metronomeTrack,
+            ...MixerConsoleEntity.defaultSetup().stems,
+          ];
+    final isMinusOneActive = tunerVm.isMinusOneActive;
+
+    return Container(
+      key: const Key('rack_unit_stem_mixer_live_panel'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: tracks.map((track) {
+              final isMuted = track.isMuted;
+              return ActionChip(
+                key: Key('rack_stem_mute_${track.id}'),
+                avatar: Icon(
+                  isMuted ? Icons.volume_off : Icons.volume_up,
+                  size: 14,
+                  color: isMuted ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                ),
+                label: Text(
+                  isMuted ? '${track.title} (M)' : track.title,
+                  style: TextStyle(
+                    color: isMuted ? const Color(0xFFEF4444) : Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                backgroundColor: isMuted
+                    ? const Color(0xFFEF4444).withValues(alpha: 0.16)
+                    : Colors.white12,
+                side: BorderSide(
+                  color: isMuted ? const Color(0xFFEF4444) : Colors.white24,
+                ),
+                onPressed: () => tunerVm.toggleTrackMute(track.id),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              FilterChip(
+                key: const Key('rack_stem_minus_one_btn'),
+                selected: isMinusOneActive,
+                label: const Text(
+                  'Minus-One',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+                labelStyle: TextStyle(
+                  color: isMinusOneActive ? Colors.black : Colors.white,
+                ),
+                selectedColor: const Color(0xFF10B981),
+                backgroundColor: Colors.white12,
+                checkmarkColor: Colors.black,
+                side: BorderSide(
+                  color: isMinusOneActive ? const Color(0xFF10B981) : Colors.white24,
+                ),
+                onSelected: (_) => tunerVm.toggleMinusOneMode(),
+              ),
+              OutlinedButton.icon(
+                key: const Key('rack_stem_open_mixer_modal_btn'),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFFA855F7)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: const Icon(Icons.equalizer, size: 14, color: Color(0xFFA855F7)),
+                label: const Text(
+                  'MEZCLADOR',
+                  style: TextStyle(
+                    color: Color(0xFFA855F7),
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onPressed: () => StemMixerModal.show(context, tunerVm),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
