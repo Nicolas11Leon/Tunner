@@ -408,8 +408,24 @@ class TunerViewModel extends ChangeNotifier
   void setActiveStudioThemeId(String id) {
     if (_isDisposed) return;
     final normalized = id.trim();
-    if (normalized.isEmpty || _activeStudioThemeId == normalized) return;
+    if (normalized.isEmpty) return;
+
+    final lower = normalized.toLowerCase();
+    final isLightSkin =
+        lower.contains('light') || lower.contains('ivory') || lower.contains('daylight');
+    final targetMode =
+        isLightSkin ? TunnerThemeMode.nordicFrost : TunnerThemeMode.obsidianStudio;
+    final targetPalette = TunnerThemePalette.fromMode(targetMode);
+
+    if (_activeStudioThemeId == normalized &&
+        _themeMode == targetMode &&
+        _currentPalette.id == targetPalette.id) {
+      return;
+    }
+
     _activeStudioThemeId = normalized;
+    _themeMode = targetMode;
+    _currentPalette = targetPalette;
     _onStudioThemeIdChanged?.call(normalized);
     notifyListeners();
     _triggerAutoSave();
@@ -1055,7 +1071,12 @@ class TunerViewModel extends ChangeNotifier
           _countInBeat++;
           if (_countInBeat > countInBeats) {
             _isCountingIn = false;
-            _currentMeasureIndex = 0;
+            final maxMeasures =
+                _activePackage.totalMeasures > 0 ? _activePackage.totalMeasures : 1;
+            final loopStart =
+                (scorePlaybackCoordinator.loopStartMeasureIndex ?? 0).clamp(0, maxMeasures - 1);
+            _currentMeasureIndex =
+                scorePlaybackCoordinator.isMeasureLoopActive ? loopStart : 0;
             _currentSubTick = -1;
             _measureHistory.clear();
             _updateExpectedNoteForTick(0);
@@ -1074,11 +1095,26 @@ class TunerViewModel extends ChangeNotifier
         }
 
         if (_currentSubTick != -1 && subTick == 0) {
-          final maxMeasures = _activePackage.totalMeasures;
-          final nextIndex = (_currentMeasureIndex + 1) % maxMeasures;
+          final maxMeasures =
+              _activePackage.totalMeasures > 0 ? _activePackage.totalMeasures : 1;
+          final loopStart =
+              (scorePlaybackCoordinator.loopStartMeasureIndex ?? 0).clamp(0, maxMeasures - 1);
+          final loopEnd = (scorePlaybackCoordinator.loopEndMeasureIndex ?? (maxMeasures - 1))
+              .clamp(loopStart, maxMeasures - 1);
+          final int nextIndex;
+          if (scorePlaybackCoordinator.isMeasureLoopActive) {
+            nextIndex = (_currentMeasureIndex >= loopEnd || _currentMeasureIndex < loopStart)
+                ? loopStart
+                : _currentMeasureIndex + 1;
+          } else {
+            nextIndex = (_currentMeasureIndex + 1) % maxMeasures;
+          }
 
-          // Si completamos todas las medidas en modo práctica, generamos reporte
-          if (_isPracticeMode && nextIndex == 0 && _activeEvaluations.isNotEmpty) {
+          // Si completamos todas las medidas en modo práctica (y no estamos en bucle A-B activo), generamos reporte
+          if (!scorePlaybackCoordinator.isMeasureLoopActive &&
+              _isPracticeMode &&
+              nextIndex == 0 &&
+              _activeEvaluations.isNotEmpty) {
             _generatePracticeReport();
           }
 

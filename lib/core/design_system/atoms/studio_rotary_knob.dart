@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+import '../studio_theme_provider.dart';
+
 /// Perilla rotatoria vectorial de grado estudio (StudioRotaryKnob).
 /// Diseñada para emular controles de hardware analógico y consolas DJ de club (Pioneer/Allen&Heath).
 /// Admite arrastre vertical para regular valor, doble toque para centrar a 0, y retorno háptico/visual.
@@ -51,7 +53,45 @@ class _StudioRotaryKnobState extends State<StudioRotaryKnob> {
 
   @override
   Widget build(BuildContext context) {
-    final themeColor = widget.activeColor ?? const Color(0xFF00E5FF);
+    final tokens = StudioThemeScope.controllerOf(context)?.tokens;
+    final effectiveAccent =
+        widget.activeColor ?? (tokens?.accentPrimary ?? const Color(0xFF00E5FF));
+    final labelColor = tokens?.textSecondary ?? Colors.white70;
+    final isDefault = widget.value == widget.defaultValue;
+    final valueColor = tokens != null
+        ? (isDefault ? tokens.textPrimary : effectiveAccent)
+        : (isDefault ? Colors.white38 : effectiveAccent);
+
+    final isLight = tokens?.brightness == Brightness.light;
+    final trackColor = tokens != null
+        ? (isLight
+            ? tokens.borderHairline
+            : tokens.borderHairline.withValues(alpha: 0.9))
+        : Colors.white12;
+    final dialColors = tokens != null
+        ? (isLight
+            ? <Color>[
+                tokens.panelBackground,
+                tokens.elevatedSurface,
+                tokens.borderHairline,
+              ]
+            : <Color>[
+                tokens.elevatedSurface,
+                tokens.panelHeaderBackground,
+                tokens.panelBackground,
+              ])
+        : const <Color>[
+            Color(0xFF2E3440),
+            Color(0xFF1E222A),
+            Color(0xFF14161C),
+          ];
+    final rimColor = tokens != null
+        ? tokens.borderHairline
+        : Colors.white.withValues(alpha: 0.15);
+    final notchColor = tokens != null
+        ? tokens.textSecondary.withValues(alpha: 0.65)
+        : Colors.white30;
+
     final normalized = ((widget.value - widget.min) / (widget.max - widget.min)).clamp(0.0, 1.0);
     // Rango de ángulo: -135° a +135° (270° de rotación total)
     final angle = (-135.0 + normalized * 270.0) * (math.pi / 180.0);
@@ -74,8 +114,8 @@ class _StudioRotaryKnobState extends State<StudioRotaryKnob> {
           // Título de la perilla (HIGH, MID, LOW, etc.)
           Text(
             widget.label.toUpperCase(),
-            style: const TextStyle(
-              color: Colors.white70,
+            style: TextStyle(
+              color: labelColor,
               fontSize: 9.0,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
@@ -91,7 +131,11 @@ class _StudioRotaryKnobState extends State<StudioRotaryKnob> {
               painter: _KnobPainter(
                 angle: angle,
                 normalized: normalized,
-                activeColor: themeColor,
+                activeColor: effectiveAccent,
+                trackColor: trackColor,
+                dialColors: dialColors,
+                rimColor: rimColor,
+                notchColor: notchColor,
               ),
             ),
           ),
@@ -101,7 +145,7 @@ class _StudioRotaryKnobState extends State<StudioRotaryKnob> {
           Text(
             formattedValue,
             style: TextStyle(
-              color: widget.value == widget.defaultValue ? Colors.white38 : themeColor,
+              color: valueColor,
               fontSize: 8.5,
               fontFamily: 'monospace',
               fontWeight: FontWeight.bold,
@@ -117,11 +161,19 @@ class _KnobPainter extends CustomPainter {
   final double angle;
   final double normalized;
   final Color activeColor;
+  final Color trackColor;
+  final List<Color> dialColors;
+  final Color rimColor;
+  final Color notchColor;
 
   const _KnobPainter({
     required this.angle,
     required this.normalized,
     required this.activeColor,
+    required this.trackColor,
+    required this.dialColors,
+    required this.rimColor,
+    required this.notchColor,
   });
 
   @override
@@ -131,7 +183,7 @@ class _KnobPainter extends CustomPainter {
 
     // 1. Arco de fondo exterior
     final trackPaint = Paint()
-      ..color = Colors.white12
+      ..color = trackColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
@@ -165,11 +217,7 @@ class _KnobPainter extends CustomPainter {
     // 3. Dial metálico interior con degradado
     final knobPaint = Paint()
       ..shader = RadialGradient(
-        colors: [
-          const Color(0xFF2E3440),
-          const Color(0xFF1E222A),
-          const Color(0xFF14161C),
-        ],
+        colors: dialColors,
         stops: const [0.0, 0.7, 1.0],
       ).createShader(Rect.fromCircle(center: center, radius: radius - 6));
 
@@ -177,7 +225,7 @@ class _KnobPainter extends CustomPainter {
 
     // Borde biselado
     final rimPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.15)
+      ..color = rimColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
     canvas.drawCircle(center, radius - 6, rimPaint);
@@ -202,7 +250,7 @@ class _KnobPainter extends CustomPainter {
 
     // Muesca central de 0 dB en la parte superior
     final centerNotchPaint = Paint()
-      ..color = Colors.white30
+      ..color = notchColor
       ..strokeWidth = 1.5;
     canvas.drawLine(
       Offset(center.dx, center.dy - radius + 1),
@@ -215,6 +263,12 @@ class _KnobPainter extends CustomPainter {
   bool shouldRepaint(covariant _KnobPainter oldDelegate) {
     return oldDelegate.angle != angle ||
         oldDelegate.normalized != normalized ||
-        oldDelegate.activeColor != activeColor;
+        oldDelegate.activeColor != activeColor ||
+        oldDelegate.trackColor != trackColor ||
+        oldDelegate.rimColor != rimColor ||
+        oldDelegate.notchColor != notchColor ||
+        oldDelegate.dialColors[0] != dialColors[0] ||
+        oldDelegate.dialColors[1] != dialColors[1] ||
+        oldDelegate.dialColors[2] != dialColors[2];
   }
 }

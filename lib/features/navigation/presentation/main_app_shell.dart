@@ -56,7 +56,11 @@ import '../../../core/audio/presentation/studio_master_meter_mini_pill_widget.da
 import '../../tuner/presentation/stem_mixer_modal.dart';
 import '../../../app/terminal_feature_adapters.dart';
 import '../../../core/channels/domain/studio_patchbay_routing_service.dart';
+import '../../harmonic_tutor/presentation/harmonic_tutor_modal.dart';
+import '../../harmonic_tutor/presentation/harmonic_tutor_view_model.dart';
+import '../../media_vault/domain/wav_pcm_codec.dart';
 import '../../media_vault/presentation/media_vault_viewmodel.dart';
+import '../../media_vault/presentation/media_vault_workspace_modal.dart';
 
 export 'studio_keyboard_intents.dart';
 /// el Tutor de Aprendizaje, el Estudio de Grabación y la Biblioteca de Canciones,
@@ -859,9 +863,183 @@ class _MainAppShellState extends State<MainAppShell> {
               style: const TextStyle(fontSize: 9.5, fontFamily: 'monospace'),
             ),
           ),
+          const SizedBox(height: 8.0),
+          _buildActiveTabInspectorSection(context, viewModel, tokens),
         ],
       ),
     );
+  }
+
+  Widget _buildActiveTabInspectorSection(
+    BuildContext context,
+    TunerViewModel viewModel,
+    StudioDesignTokens tokens,
+  ) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        _modularRackViewModel,
+        _djConsoleViewModel,
+      ]),
+      builder: (context, _) {
+        final (String title, Widget detail) = switch (_currentIndex) {
+          0 => (
+              'Contexto: Hub de Estudio',
+              OutlinedButton(
+                key: const Key('inspector_tab0_open_vault_btn'),
+                onPressed: () => MediaVaultWorkspaceModal.show(
+                  context,
+                  viewModel: _mediaVaultViewModel,
+                ),
+                style: _inspectorActionButtonStyle(tokens, tokens.accentPrimary),
+                child: const Text(
+                  'Abrir Bóveda Multimedia',
+                  style: TextStyle(fontSize: 9.5, fontFamily: 'monospace'),
+                ),
+              ),
+            ),
+          1 => (
+              'Contexto: Afinador Estroboscópico',
+              Text(
+                'Temperamento: ${viewModel.selectedTemperament.name}',
+                style: TextStyle(
+                  color: tokens.textSecondary,
+                  fontSize: 9.5,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+          2 => (
+              'Contexto: Conservatorio & Pedagogía',
+              OutlinedButton(
+                key: const Key('inspector_tab2_open_ear_trainer_btn'),
+                onPressed: () => BlindEarTrainerModal.show(context, viewModel),
+                style: _inspectorActionButtonStyle(tokens, tokens.accentPrimary),
+                child: const Text(
+                  'Entrenador Auditivo Ebbinghaus',
+                  style: TextStyle(fontSize: 9.5, fontFamily: 'monospace'),
+                ),
+              ),
+            ),
+          3 => (
+              'Contexto: Rack Modular DSP',
+              Text(
+                'Módulos en Rack: ${_modularRackViewModel.activeModules.length}',
+                style: TextStyle(
+                  color: tokens.textSecondary,
+                  fontSize: 9.5,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+          4 => (
+              'Contexto: Notación SMuFL',
+              Text(
+                'Compases: ${viewModel.totalMeasures} • ${viewModel.bpm} BPM',
+                style: TextStyle(
+                  color: tokens.textSecondary,
+                  fontSize: 9.5,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+          5 => (
+              'Contexto: Estación DJ Dual',
+              Text(
+                'Deck A: ${_djConsoleViewModel.deckA.bpm.toStringAsFixed(1)} BPM | Deck B: ${_djConsoleViewModel.deckB.bpm.toStringAsFixed(1)} BPM',
+                style: TextStyle(
+                  color: tokens.textSecondary,
+                  fontSize: 9.5,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+          _ => (
+              'Contexto: Hub de Estudio',
+              const SizedBox.shrink(),
+            ),
+        };
+
+        return Container(
+          key: Key('inspector_tab_context_section_$_currentIndex'),
+          padding: const EdgeInsets.only(top: 8.0),
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: tokens.borderHairline,
+                width: tokens.borderWidth,
+              ),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: tokens.accentPrimary,
+                  fontSize: 9.5,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.w700,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6.0),
+              detail,
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  ButtonStyle _inspectorActionButtonStyle(
+    StudioDesignTokens tokens,
+    Color foregroundColor,
+  ) {
+    return OutlinedButton.styleFrom(
+      foregroundColor: foregroundColor,
+      side: BorderSide(
+        color: tokens.borderHairline,
+        width: tokens.borderWidth,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      minimumSize: Size.zero,
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+  }
+
+  void _openHarmonicTutor(TunerViewModel viewModel) {
+    final tutorVm = HarmonicTutorViewModel(
+      onPlayDroneSamples: (samples, sampleRate) {
+        final wavBytes = const WavPcmCodec().encodeMono16Bit(
+          Float64List.fromList(samples),
+          sampleRate: sampleRate,
+        );
+        unawaited(viewModel.audioSynthesizer.startDroneLoop(wavBytes));
+      },
+      onStopDrone: () {
+        unawaited(viewModel.audioSynthesizer.stopDroneLoop());
+      },
+    );
+    void onTelemetry() {
+      final freq = viewModel.telemetryListenable.value.frequency;
+      if (freq > 0.0) {
+        tutorVm.onPitchDetected(freq);
+      }
+    }
+
+    viewModel.telemetryListenable.addListener(onTelemetry);
+    HarmonicTutorModal.show(
+      context,
+      viewModel: tutorVm,
+      palette: viewModel.currentPalette,
+      isMicrophoneActive: () => viewModel.isRecording,
+      onToggleMicrophone: viewModel.toggleRecording,
+      microphoneListenable: viewModel,
+    ).whenComplete(() {
+      viewModel.telemetryListenable.removeListener(onTelemetry);
+      tutorVm.dispose();
+    });
   }
 
   List<StudioTreeSection> _buildNavigationSections(TunerViewModel viewModel) {
@@ -1116,6 +1294,13 @@ class _MainAppShellState extends State<MainAppShell> {
                 timestamp: 'Shift+E',
                 onSelect: () => BlindEarTrainerModal.show(context, viewModel),
               ),
+              StudioTreeItem(
+                id: 'tool_harmonic_tutor',
+                title: 'Tutor Armónico (Entonación Justa)',
+                icon: Icons.graphic_eq_rounded,
+                timestamp: 'Just Intonation',
+                onSelect: () => _openHarmonicTutor(viewModel),
+              ),
             ],
           ),
 
@@ -1142,6 +1327,16 @@ class _MainAppShellState extends State<MainAppShell> {
                 statusDotColor: Colors.cyanAccent,
                 hasDragHandle: _currentIndex == 5,
                 onSelect: () => _navigateToTab(5),
+              ),
+              StudioTreeItem(
+                id: 'tool_media_vault',
+                title: 'Bóveda Multimedia & Timeline',
+                icon: Icons.video_library_rounded,
+                timestamp: 'DAW Vault',
+                onSelect: () => MediaVaultWorkspaceModal.show(
+                  context,
+                  viewModel: _mediaVaultViewModel,
+                ),
               ),
             ],
           ),
@@ -1555,7 +1750,20 @@ class _MainAppShellState extends State<MainAppShell> {
                       navigationSections: _buildNavigationSections(viewModel),
                       activeItemId: _buildCurrentActiveItemId(),
                       currentTabIndex: _currentIndex,
-                      activeView: viewportContent,
+                      activeView: LayoutBuilder(
+                        builder: (paneContext, paneConstraints) {
+                          final mq = MediaQuery.of(paneContext);
+                          return MediaQuery(
+                            data: mq.copyWith(
+                              size: Size(
+                                paneConstraints.maxWidth,
+                                paneConstraints.maxHeight,
+                              ),
+                            ),
+                            child: viewportContent,
+                          );
+                        },
+                      ),
                       secondaryView: _currentIndex == 3
                           ? const TunerScreen()
                           : ModularStudioRackView(viewModel: _modularRackViewModel),

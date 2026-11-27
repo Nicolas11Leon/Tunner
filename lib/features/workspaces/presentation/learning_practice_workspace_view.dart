@@ -50,7 +50,7 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Banner de Perfil Pedagógico y Andamiaje
+          // Banner de Perfil Pedagógico, Andamiaje y CTA Rápido de Micrófono
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
@@ -58,48 +58,87 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
               borderRadius: BorderRadius.circular(tokens.borderRadiusLarge),
               border: Border.all(color: tokens.borderHairline),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      StudioIcon(
-                        StudioIconId.modulePedagogy,
-                        size: 18,
-                        color: tokens.accentPrimary,
-                        tintCustomAsset: true,
+                Row(
+                  children: [
+                    StudioIcon(
+                      StudioIconId.modulePedagogy,
+                      size: 18,
+                      color: tokens.accentPrimary,
+                      tintCustomAsset: true,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            viewModel.learnerProfile.title,
+                            style: TextStyle(
+                              color: tokens.textPrimary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            "Tolerancia: ±${viewModel.centsTolerance.toStringAsFixed(1)} cents • ${viewModel.learnerProfile.feedbackStyle.name}",
+                            style: TextStyle(
+                              color: tokens.textMuted,
+                              fontSize: 10,
+                              fontFamily: 'monospace',
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              viewModel.learnerProfile.title,
-                              style: TextStyle(
-                                color: tokens.textPrimary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              "Tolerancia: ±${viewModel.centsTolerance.toStringAsFixed(1)} cents • ${viewModel.learnerProfile.feedbackStyle.name}",
-                              style: TextStyle(
-                                color: tokens.textMuted,
-                                fontSize: 10,
-                                fontFamily: 'monospace',
-                              ),
-                            ),
-                          ],
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      key: const Key('learning_top_quick_start_mic_btn'),
+                      onPressed: viewModel.toggleRecording,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isListening
+                            ? tokens.accentDanger
+                            : tokens.accentPrimary,
+                        foregroundColor:
+                            isListening ? Colors.white : tokens.textOnAccent,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        minimumSize: const Size(0, 34),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(tokens.radiusMedium),
                         ),
                       ),
-                    ],
-                  ),
+                      icon: StudioIcon(
+                        isListening
+                            ? StudioIconId.audioMicOff
+                            : StudioIconId.audioMicOn,
+                        size: 15,
+                        color: isListening ? Colors.white : tokens.textOnAccent,
+                        tintCustomAsset: true,
+                      ),
+                      label: Text(
+                        isListening ? 'Detener Mic' : 'Iniciar Afinación',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     ActionChip(
                       key: const Key('instrument_selector_chip'),
@@ -121,7 +160,6 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                       side: BorderSide(color: tokens.borderHairline),
                       onPressed: onOpenInstrumentModal,
                     ),
-                    const SizedBox(width: 6),
                     ActionChip(
                       key: const Key('open_learner_profile_chip'),
                       avatar: StudioIcon(
@@ -137,10 +175,61 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
-                      side: BorderSide(color: tokens.borderFocus.withValues(alpha: 0.45)),
+                      side: BorderSide(
+                          color: tokens.borderFocus.withValues(alpha: 0.45)),
                       onPressed: () => LearnerProfileSelectorModal.show(context),
                     ),
                   ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Tira horizontal compacta de flujo pedagógico en 3 etapas
+          SingleChildScrollView(
+            key: const Key('learning_three_stage_flow_bar'),
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildStageBadge(
+                  badgeKey: const Key('practice_stage_prepare_badge'),
+                  label: '1. PREPARAR (Instrumento & Dron)',
+                  isActive: !isListening &&
+                      !viewModel.isMetronomeActive &&
+                      !viewModel.isPracticeMode,
+                  accentColor: tokens.accentSecondary,
+                  tokens: tokens,
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(
+                    Icons.arrow_forward_ios,
+                    size: 10,
+                    color: tokens.textMuted,
+                  ),
+                ),
+                _buildStageBadge(
+                  badgeKey: const Key('practice_stage_execute_badge'),
+                  label: '2. EJECUTAR (Afinación & Metrónomo)',
+                  isActive: isListening || viewModel.isMetronomeActive,
+                  accentColor: tokens.accentPrimary,
+                  tokens: tokens,
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(
+                    Icons.arrow_forward_ios,
+                    size: 10,
+                    color: tokens.textMuted,
+                  ),
+                ),
+                _buildStageBadge(
+                  badgeKey: const Key('practice_stage_evaluate_badge'),
+                  label: '3. EVALUAR (Grabación & Reporte)',
+                  isActive: viewModel.isPracticeMode,
+                  accentColor: tokens.accentSuccess,
+                  tokens: tokens,
                 ),
               ],
             ),
@@ -647,6 +736,39 @@ class LearningPracticeWorkspaceView extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+
+  /// Construye una píldora compacta para una etapa del flujo pedagógico.
+  Widget _buildStageBadge({
+    required Key badgeKey,
+    required String label,
+    required bool isActive,
+    required Color accentColor,
+    required StudioDesignTokens tokens,
+  }) {
+    return Container(
+      key: badgeKey,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: isActive
+            ? accentColor.withValues(alpha: 0.16)
+            : tokens.panelBackground,
+        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+        border: Border.all(
+          color: isActive
+              ? accentColor.withValues(alpha: 0.65)
+              : tokens.borderHairline,
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: isActive ? accentColor : tokens.textSecondary,
+          fontSize: 10.5,
+          fontWeight: isActive ? FontWeight.bold : FontWeight.w600,
+        ),
       ),
     );
   }
