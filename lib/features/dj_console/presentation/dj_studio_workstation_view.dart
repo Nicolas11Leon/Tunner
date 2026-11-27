@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../media_vault/presentation/media_vault_viewmodel.dart';
+import '../../media_vault/presentation/media_vault_workspace_modal.dart';
 import '../../song_library/domain/song_decomposer_service.dart';
 import '../../tuner_viewmodel.dart';
 import '../domain/dj_audio_processor.dart';
@@ -56,6 +58,7 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
   late String _workstationViewMode;
 
   late final DjDeckPatchbayBridge _patchbayBridge;
+  MediaVaultViewModel? _ownedMediaVaultVm;
 
   @override
   void initState() {
@@ -83,6 +86,7 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
   @override
   void dispose() {
     _patchbayBridge.dispose();
+    _ownedMediaVaultVm?.dispose();
     _focusNode.dispose();
     if (_internalVm) {
       _viewModel.dispose();
@@ -728,6 +732,30 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                     backgroundColor: Color(0xFF00E5FF),
                   ),
                 );
+              },
+            ),
+            const SizedBox(width: 8),
+
+            // Botón Directo Bóveda Multimedia / Timeline
+            ElevatedButton.icon(
+              key: const Key('dj_open_media_vault_header_btn'),
+              icon: const Icon(Icons.video_library_rounded, size: 14),
+              label: const Text('BÓVEDA / TIMELINE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF38BDF8).withValues(alpha: 0.16),
+                foregroundColor: const Color(0xFF38BDF8),
+                side: const BorderSide(color: Color(0xFF38BDF8)),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                minimumSize: Size.zero,
+              ),
+              onPressed: () {
+                MediaVaultViewModel? vaultVm;
+                try {
+                  vaultVm = Provider.of<MediaVaultViewModel>(context, listen: false);
+                } catch (_) {
+                  vaultVm = _ownedMediaVaultVm ??= MediaVaultViewModel();
+                }
+                MediaVaultWorkspaceModal.show(context, viewModel: vaultVm);
               },
             ),
             const SizedBox(width: 8),
@@ -1421,6 +1449,34 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
                     onChanged: (val) => vm.setCrossfaderPosition(val),
                   ),
                 ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    _buildCompactActionChip(
+                      chipKey: const Key('dj_crossfader_snap_a'),
+                      label: 'DECK A (-1.0)',
+                      isActive: (vm.crossfader.position - (-1.0)).abs() < 0.01,
+                      activeColor: const Color(0xFF00E5FF),
+                      onTap: () => vm.setCrossfaderPosition(-1.0),
+                    ),
+                    const SizedBox(width: 4),
+                    _buildCompactActionChip(
+                      chipKey: const Key('dj_crossfader_snap_center'),
+                      label: 'CENTRO (0.0)',
+                      isActive: vm.crossfader.position.abs() < 0.01,
+                      activeColor: const Color(0xFF38BDF8),
+                      onTap: () => vm.setCrossfaderPosition(0.0),
+                    ),
+                    const SizedBox(width: 4),
+                    _buildCompactActionChip(
+                      chipKey: const Key('dj_crossfader_snap_b'),
+                      label: 'DECK B (+1.0)',
+                      isActive: (vm.crossfader.position - 1.0).abs() < 0.01,
+                      activeColor: const Color(0xFFFF4081),
+                      onTap: () => vm.setCrossfaderPosition(1.0),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -1557,7 +1613,72 @@ class _DjStudioWorkstationViewState extends State<DjStudioWorkstationView> {
               _buildStemChip('DRUMS', !stems.isDrumsMuted, () => vm.toggleStem(deckId, DjStemType.drums)),
             ],
           ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              _buildCompactActionChip(
+                chipKey: Key('dj_stem_preset_acapella_$deckId'),
+                label: 'Acapella',
+                isActive: !stems.isVocalMuted && stems.isDrumsMuted && stems.isBassMuted && stems.isMelodyMuted,
+                activeColor: accentColor,
+                onTap: () => vm.applyStemPreset(deckId, 'acapella'),
+              ),
+              const SizedBox(width: 4),
+              _buildCompactActionChip(
+                chipKey: Key('dj_stem_preset_instrumental_$deckId'),
+                label: 'Instrumental',
+                isActive: stems.isVocalMuted && !stems.isDrumsMuted && !stems.isBassMuted && !stems.isMelodyMuted,
+                activeColor: accentColor,
+                onTap: () => vm.applyStemPreset(deckId, 'instrumental'),
+              ),
+              const SizedBox(width: 4),
+              _buildCompactActionChip(
+                chipKey: Key('dj_stem_preset_all_$deckId'),
+                label: 'Todos',
+                isActive: !stems.isVocalMuted && !stems.isDrumsMuted && !stems.isBassMuted && !stems.isMelodyMuted,
+                activeColor: accentColor,
+                onTap: () => vm.applyStemPreset(deckId, 'all'),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCompactActionChip({
+    required Key chipKey,
+    required String label,
+    required bool isActive,
+    required Color activeColor,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        key: chipKey,
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          decoration: BoxDecoration(
+            color: isActive ? activeColor.withValues(alpha: 0.22) : Colors.white.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: isActive ? activeColor : Colors.white12,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: isActive ? activeColor : Colors.white70,
+              fontSize: 8.5,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
       ),
     );
   }
